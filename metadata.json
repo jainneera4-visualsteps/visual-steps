@@ -1,0 +1,5 @@
+{
+  "name": "Visual Steps - Empowering Every Step of the Journey",
+  "description": "A supportive platform for parents of children with autism, featuring profile management, child tracking, and a visual learning interface inspired by IXL.",
+  "requestFramePermissions": ["microphone", "geolocation"]
+}
