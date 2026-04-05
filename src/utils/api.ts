@@ -96,12 +96,18 @@ export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit, ret
       }
     }
 
-    if (response.status === 401 || response.status === 403) {
+    if (response.status === 401 || response.status === 403 || response.status === 500) {
       if (contentType && contentType.includes('application/json')) {
         const clone = response.clone();
         try {
           const data = await clone.json();
-          if (data.error === 'Forbidden' || data.error === 'Unauthorized') {
+          
+          // Show alert for iPad user debugging
+          if (data.error === 'Supabase Project Mismatch' || data.error === 'Supabase Connection Error') {
+            alert(`DEBUG INFO:\n\nError: ${data.error}\n\nDetails: ${data.details}\n\nPlease fix your Vercel Environment Variables.`);
+          }
+          
+          if (data.error === 'Forbidden' || data.error === 'Unauthorized' || data.error === 'Supabase Project Mismatch') {
             const wasKid = !session?.access_token && !!localStorage.getItem('kid_session');
             
             // Only redirect if we are NOT on a standalone view page
