@@ -233,7 +233,27 @@ const authenticateToken = async (req: any, res: any, next: any) => {
     console.log('authenticateToken: Verifying with Key (masked):', supabaseKey.substring(0, 5) + '...');
     console.log('authenticateToken: JWT_SECRET (masked):', JWT_SECRET.substring(0, 3) + '...');
     
-    const { data: { user }, error } = await supabase.auth.getUser(token);
+    // Add a timeout to prevent hanging if the Supabase URL is invalid/unreachable
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Supabase request timed out after 5 seconds. Check if SUPABASE_URL is correct.')), 5000)
+    );
+    
+    let user, error;
+    try {
+      const result = await Promise.race([
+        supabase.auth.getUser(token),
+        timeoutPromise
+      ]) as any;
+      user = result.data?.user;
+      error = result.error;
+    } catch (e: any) {
+      console.error('authenticateToken: Supabase request failed or timed out:', e.message);
+      return res.status(500).json({ 
+        error: 'Supabase Connection Error', 
+        details: e.message || 'Failed to connect to Supabase. Check your SUPABASE_URL in Vercel Environment Variables.'
+      });
+    }
+
     if (error || !user) {
       const logMsg = `[${new Date().toISOString()}] authenticateToken: Supabase verification failed: ${error?.message || 'No user found'}. Status: ${error?.status}\n`;
       console.log(logMsg);
