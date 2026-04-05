@@ -1,4 +1,5 @@
 import express from 'express';
+import serverless from 'serverless-http';
 import http from 'http';
 import { Server } from 'socket.io';
 import { createClient } from '@supabase/supabase-js';
@@ -23,7 +24,9 @@ const currentDirname = currentFilename
   ? path.dirname(currentFilename) 
   : (typeof __dirname !== 'undefined' ? __dirname : process.cwd());
 
-const app = express();
+export const app = express();
+
+export const handler = serverless(app);
 
 // Request logging
 app.use((req, res, next) => {
@@ -3352,6 +3355,9 @@ app.use('/api/*', (req, res) => {
 
 // Vite integration
 async function startServer() {
+  if (process.env.VERCEL) {
+    return;
+  }
   const envMode = process.env.NODE_ENV || 'development';
   console.log(`[${new Date().toISOString()}] Starting server in ${envMode} mode...`);
   console.log(`[${new Date().toISOString()}] NODE_ENV: ${process.env.NODE_ENV}`);
