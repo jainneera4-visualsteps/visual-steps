@@ -68,7 +68,6 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-change-in-prod';
 // Supabase setup
 const supabaseUrl = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').trim();
 const supabaseKey = (process.env.SUPABASE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '').trim();
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-change-in-prod';
 
 console.log('[STARTUP] Backend Supabase URL:', supabaseUrl);
 console.log('[STARTUP] Backend Supabase Key:', supabaseKey ? '***' : 'undefined');
@@ -231,9 +230,24 @@ const authenticateToken = async (req: any, res: any, next: any) => {
       const logMsg = `[${new Date().toISOString()}] authenticateToken: Supabase verification failed: ${error?.message || 'No user found'}. Status: ${error?.status}\n`;
       fs.appendFileSync('auth-debug.log', logMsg);
       console.error('authenticateToken: Supabase auth error:', error?.message || 'No user found', 'Status:', error?.status);
+      
       if (error?.message === 'Auth session missing!') {
         console.log('authenticateToken: "Auth session missing!" usually means the token is invalid, expired, or from a different project.');
+        
+        let tokenIssuer = 'unknown';
+        try {
+          const decoded = jwt.decode(token) as any;
+          tokenIssuer = decoded?.iss || 'unknown';
+        } catch (e) {}
+        
+        // Return a very specific error to the frontend so the user can see it without checking Vercel logs
+        return res.status(403).json({ 
+          error: 'Supabase Project Mismatch', 
+          details: `Backend is using SUPABASE_URL: ${supabaseUrl}. The token was issued by: ${tokenIssuer}. These must match. Please update your Vercel Environment Variables to match the issuer.`,
+          code: 403
+        });
       }
+      
       return res.status(403).json({ 
         error: 'Forbidden', 
         details: error?.message || 'Invalid session',
