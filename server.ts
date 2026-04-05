@@ -125,10 +125,18 @@ const getSupabaseForUser = (req: any) => {
 };
 
 // Ensure uploads directory exists
+const isVercel = process.env.VERCEL === '1' || !!process.env.VERCEL;
 const rootDir = currentDirname.endsWith('dist') ? path.dirname(currentDirname) : currentDirname;
-const uploadDir = path.join(rootDir, 'uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
+const uploadDir = isVercel ? '/tmp/uploads' : path.join(rootDir, 'uploads');
+
+if (!isVercel || !fs.existsSync(uploadDir)) {
+  try {
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+  } catch (err) {
+    console.warn(`Could not create upload directory at ${uploadDir}:`, err);
+  }
 }
 
 // Configure Multer for file uploads
@@ -193,7 +201,7 @@ const authenticateToken = async (req: any, res: any, next: any) => {
     try {
       const decodedNoVerify = jwt.decode(token) as any;
       const logMsg = `[${new Date().toISOString()}] authenticateToken: Token: ${token.substring(0, 10)}...${token.substring(token.length - 10)}, Decoded token payload: ${JSON.stringify(decodedNoVerify)}\n`;
-      fs.appendFileSync('auth-debug.log', logMsg);
+      console.log(logMsg);
       if (decodedNoVerify) {
         console.log('authenticateToken: Decoded token payload (no verify):', {
           aud: decodedNoVerify.aud,
@@ -228,7 +236,7 @@ const authenticateToken = async (req: any, res: any, next: any) => {
     const { data: { user }, error } = await supabase.auth.getUser(token);
     if (error || !user) {
       const logMsg = `[${new Date().toISOString()}] authenticateToken: Supabase verification failed: ${error?.message || 'No user found'}. Status: ${error?.status}\n`;
-      fs.appendFileSync('auth-debug.log', logMsg);
+      console.log(logMsg);
       console.error('authenticateToken: Supabase auth error:', error?.message || 'No user found', 'Status:', error?.status);
       
       if (error?.message === 'Auth session missing!') {
