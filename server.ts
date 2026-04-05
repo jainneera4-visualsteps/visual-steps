@@ -3483,83 +3483,87 @@ async function startServer() {
     res.status(500).json({ error: 'Internal server error', details: err.message });
   });
 
-  server.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
+  if (!process.env.VERCEL) {
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
 
-  // Background task to process overdue activities every minute
-  setInterval(async () => {
-    console.log('Background Task: Checking for overdue activities...');
-    if (!supabaseUrl || !supabaseKey || supabaseUrl.includes('placeholder')) return;
+    // Background task to process overdue activities every minute
+    setInterval(async () => {
+      console.log('Background Task: Checking for overdue activities...');
+      if (!supabaseUrl || !supabaseKey || supabaseUrl.includes('placeholder')) return;
 
-    const supabase = getAdminSupabaseClient();
-    try {
-      // Use select('*') to avoid errors if specific columns are missing from schema
-      const { data: kids, error: kidsError } = await supabase.from('kids').select('*');
-      if (kidsError) throw kidsError;
-      
-      console.log(`Background Task: Checking ${kids?.length || 0} kids.`);
-
-      for (const kid of kids || []) {
-        const timezone = kid.timezone || 'UTC';
-        const now = new Date();
+      const supabase = getAdminSupabaseClient();
+      try {
+        // Use select('*') to avoid errors if specific columns are missing from schema
+        const { data: kids, error: kidsError } = await supabase.from('kids').select('*');
+        if (kidsError) throw kidsError;
         
-        // Get current local time for the kid
-        let localYear, localMonth, localDay, localHour, localMinute;
-        let validatedTimezone = 'UTC';
+        console.log(`Background Task: Checking ${kids?.length || 0} kids.`);
 
-        try {
-          const formatter = new Intl.DateTimeFormat('en-US', {
-            timeZone: timezone,
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false
-          });
+        for (const kid of kids || []) {
+          const timezone = kid.timezone || 'UTC';
+          const now = new Date();
           
-          const parts = formatter.formatToParts(now);
-          const getPart = (type: string) => parts.find(p => p.type === type)?.value;
-          localYear = getPart('year');
-          localMonth = getPart('month');
-          localDay = getPart('day');
-          localHour = parseInt(getPart('hour') || '0', 10);
-          localMinute = parseInt(getPart('minute') || '0', 10);
-          validatedTimezone = timezone;
-        } catch (e) {
-          // Fallback to UTC if timezone is invalid
-          const utcFormatter = new Intl.DateTimeFormat('en-US', {
-            timeZone: 'UTC',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false
-          });
-          const parts = utcFormatter.formatToParts(now);
-          const getPart = (type: string) => parts.find(p => p.type === type)?.value;
-          localYear = getPart('year');
-          localMonth = getPart('month');
-          localDay = getPart('day');
-          localHour = parseInt(getPart('hour') || '0', 10);
-          localMinute = parseInt(getPart('minute') || '0', 10);
-          validatedTimezone = 'UTC';
-        }
-        
-        const localDateStr = `${localYear}-${localMonth}-${localDay}`;
-        const localTimeInMinutes = localHour * 60 + localMinute;
+          // Get current local time for the kid
+          let localYear, localMonth, localDay, localHour, localMinute;
+          let validatedTimezone = 'UTC';
 
-        console.log(`Background Task: Processing kid ${kid.id} (${kid.name}), Local Date: ${localDateStr}, Local Time: ${localHour}:${localMinute}`);
-        await moveOverdueActivities(supabase, kid.id, kid, localDateStr, localTimeInMinutes);
+          try {
+            const formatter = new Intl.DateTimeFormat('en-US', {
+              timeZone: timezone,
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false
+            });
+            
+            const parts = formatter.formatToParts(now);
+            const getPart = (type: string) => parts.find(p => p.type === type)?.value;
+            localYear = getPart('year');
+            localMonth = getPart('month');
+            localDay = getPart('day');
+            localHour = parseInt(getPart('hour') || '0', 10);
+            localMinute = parseInt(getPart('minute') || '0', 10);
+            validatedTimezone = timezone;
+          } catch (e) {
+            // Fallback to UTC if timezone is invalid
+            const utcFormatter = new Intl.DateTimeFormat('en-US', {
+              timeZone: 'UTC',
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false
+            });
+            const parts = utcFormatter.formatToParts(now);
+            const getPart = (type: string) => parts.find(p => p.type === type)?.value;
+            localYear = getPart('year');
+            localMonth = getPart('month');
+            localDay = getPart('day');
+            localHour = parseInt(getPart('hour') || '0', 10);
+            localMinute = parseInt(getPart('minute') || '0', 10);
+            validatedTimezone = 'UTC';
+          }
+          
+          const localDateStr = `${localYear}-${localMonth}-${localDay}`;
+          const localTimeInMinutes = localHour * 60 + localMinute;
+
+          console.log(`Background Task: Processing kid ${kid.id} (${kid.name}), Local Date: ${localDateStr}, Local Time: ${localHour}:${localMinute}`);
+          await moveOverdueActivities(supabase, kid.id, kid, localDateStr, localTimeInMinutes);
+        }
+      } catch (error: any) {
+        console.error('Error in background task:', error.message || error);
+        if (error.details) console.error('Details:', error.details);
+        if (error.code) console.error('Code:', error.code);
       }
-    } catch (error: any) {
-      console.error('Error in background task:', error.message || error);
-      if (error.details) console.error('Details:', error.details);
-      if (error.code) console.error('Code:', error.code);
-    }
-  }, 60000);
+    }, 60000);
+  } else {
+    console.log(`[${new Date().toISOString()}] Running in Vercel serverless mode. Skipping server.listen() and background tasks.`);
+  }
 }
 
 process.on('uncaughtException', (err) => {
