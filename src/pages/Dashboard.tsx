@@ -405,6 +405,9 @@ export default function Dashboard() {
                         <Link to={`/chat-history/${kid.id}`}>
                           <Button size="sm" variant="outline">View Chat History</Button>
                         </Link>
+                        <Link to={`/behaviors/${kid.id}`}>
+                          <Button size="sm" variant="outline">Behaviors</Button>
+                        </Link>
                         <Link to={`/assigned-activities/${kid.id}`}>
                           <Button size="sm" variant="outline">Activities</Button>
                         </Link>

@@ -1483,6 +1483,215 @@ app.delete('/api/kids/:id', authenticateToken, async (req: any, res) => {
   }
 });
 
+// Behaviors
+app.get('/api/kids/:kidId/behavior-definitions', authenticateToken, async (req: any, res) => {
+  const supabase = getSupabaseForUser(req);
+  const { kidId } = req.params;
+
+  try {
+    const { data: definitions, error } = await supabase
+      .from('behavior_definitions')
+      .select('*')
+      .eq('kid_id', kidId)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    res.json({ definitions: definitions || [] });
+  } catch (error: any) {
+    console.error('[GET behavior-definitions] Error:', error);
+    res.status(500).json({ error: 'Failed to fetch behavior definitions', details: error.message });
+  }
+});
+
+app.post('/api/kids/:kidId/behavior-definitions', authenticateToken, async (req: any, res) => {
+  const supabase = getSupabaseForUser(req);
+  const { kidId } = req.params;
+  const { name, type, token_reward } = req.body;
+
+  if (!name || !type || token_reward === undefined) {
+    return res.status(400).json({ error: 'Missing required fields: name, type, token_reward' });
+  }
+
+  try {
+    const { data: definition, error } = await supabase
+      .from('behavior_definitions')
+      .insert([{ kid_id: kidId, name, type, token_reward }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.status(201).json({ definition });
+  } catch (error: any) {
+    console.error('[POST behavior-definitions] Error:', error);
+    res.status(500).json({ error: 'Failed to create behavior definition', details: error.message });
+  }
+});
+
+app.delete('/api/behavior-definitions/:id', authenticateToken, async (req: any, res) => {
+  const supabase = getSupabaseForUser(req);
+  const { id } = req.params;
+
+  try {
+    const { error } = await supabase
+      .from('behavior_definitions')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    res.status(200).json({ message: 'Behavior definition deleted successfully' });
+  } catch (error: any) {
+    console.error('[DELETE behavior-definitions] Error:', error);
+    res.status(500).json({ error: 'Failed to delete behavior definition', details: error.message });
+  }
+});
+
+app.get('/api/kids/:kidId/behaviors', authenticateToken, async (req: any, res) => {
+  const supabase = getSupabaseForUser(req);
+  const { kidId } = req.params;
+
+  try {
+    const { data: behaviors, error } = await supabase
+      .from('behaviors')
+      .select('*, behavior_definitions(*)')
+      .eq('kid_id', kidId)
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json({ behaviors: behaviors || [] });
+  } catch (error: any) {
+    console.error('[GET behaviors] Error:', error);
+    res.status(500).json({ error: 'Failed to fetch behaviors', details: error.message });
+  }
+});
+
+app.post('/api/kids/:kidId/behaviors', authenticateToken, async (req: any, res) => {
+  const adminSupabase = getAdminSupabaseClient(); // Use admin client for balance update
+  const supabase = getSupabaseForUser(req); // Use user client for inserting behavior log
+  const { kidId } = req.params;
+  const { type, description, definition_id, token_change, date } = req.body;
+
+  if (!type && !definition_id) {
+    return res.status(400).json({ error: 'Missing required fields: type or definition_id' });
+  }
+
+  try {
+    // 1. Log the behavior
+    const behaviorLog: any = {
+      kid_id: kidId,
+      type: type || 'desired',
+      description: description || '',
+      date: date || new Date().toISOString().split('T')[0],
+      token_change: token_change || 0,
+    };
+
+    if (definition_id) {
+      behaviorLog.definition_id = definition_id;
+      // Fetch the token_reward from definition to ensure consistency
+      const { data: definition, error: defError } = await supabase
+        .from('behavior_definitions')
+        .select('*')
+        .eq('id', definition_id)
+        .single();
+      
+      if (defError) {
+        console.warn('[POST behaviors] Could not fetch definition for token_change:', defError);
+      } else if (definition) {
+        behaviorLog.token_change = definition.token_reward;
+        behaviorLog.type = definition.type;
+        if (!behaviorLog.description) behaviorLog.description = definition.name;
+      }
+    }
+
+    const { data: loggedBehavior, error: logError } = await supabase
+      .from('behaviors')
+      .insert([behaviorLog])
+      .select('*')
+      .single();
+
+    if (logError) throw logError;
+
+    // 2. Update kid's reward balance using admin client RPC
+    if (loggedBehavior.token_change !== 0) {
+      const { error: balanceError } = await adminSupabase
+        .rpc('increment_reward_balance', {
+          kid_id_param: kidId,
+          amount: loggedBehavior.token_change
+        });
+
+      if (balanceError) {
+        console.error('[POST behaviors] Failed to update kid balance:', balanceError);
+        // We don't rollback the log, but we warn the user
+        // throw new Error('Failed to update kid balance');
+      }
+    }
+
+    // Emit socket event for real-time updates
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`kid_${kidId}`).emit('data_updated', { kidId: kidId, type: 'behavior_logged', payload: loggedBehavior });
+    }
+
+    res.status(201).json({ behavior: loggedBehavior });
+  } catch (error: any) {
+    console.error('[POST behaviors] Error:', error);
+    res.status(500).json({ error: 'Failed to log behavior', details: error.message });
+  }
+});
+
+app.delete('/api/behaviors/:id', authenticateToken, async (req: any, res) => {
+  const adminSupabase = getAdminSupabaseClient(); // Use admin client for balance update
+  const supabase = getSupabaseForUser(req); // Use user client for deleting behavior log
+  const { id } = req.params;
+
+  try {
+    // First, get the behavior log to determine the token change
+    const { data: behavior, error: fetchError } = await supabase
+      .from('behaviors')
+      .select('id, kid_id, token_change')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !behavior) {
+      console.error('[DELETE behaviors] Failed to fetch behavior to delete:', fetchError);
+      return res.status(404).json({ error: 'Behavior not found' });
+    }
+
+    // Delete the behavior log
+    const { error: deleteError } = await supabase
+      .from('behaviors')
+      .delete()
+      .eq('id', id);
+
+    if (deleteError) throw deleteError;
+
+    // Update kid's reward balance by REVERSING the token change using admin client
+    if (behavior.token_change !== 0) {
+      const { error: balanceError } = await adminSupabase
+        .rpc('increment_reward_balance', {
+          kid_id_param: behavior.kid_id,
+          amount: -behavior.token_change // Reverse the change
+        });
+
+      if (balanceError) {
+        console.error('[DELETE behaviors] Failed to reverse kid balance:', balanceError);
+        // throw new Error('Failed to reverse kid balance after deleting behavior');
+      }
+    }
+
+    // Emit socket event for real-time updates
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`kid_${behavior.kid_id}`).emit('data_updated', { kidId: behavior.kid_id, type: 'behavior_deleted', payload: { id } });
+    }
+
+    res.status(200).json({ message: 'Behavior deleted successfully' });
+  } catch (error: any) {
+    console.error('[DELETE behaviors] Error:', error);
+    res.status(500).json({ error: 'Failed to delete behavior', details: error.message });
+  }
+});
+
 // --- Activity Templates API ---
 
 // Get all activity templates for a user

@@ -481,7 +481,9 @@ export default function KidsDashboard() {
 
     if (currentTime < startTime) {
       setIsAccessAllowed(false);
-      setAccessMessage(`Activities start at ${new Date(`2000-01-01T${kid.start_time}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`);
+      const startTimeDate = new Date(`2000-01-01T${kid.start_time}`);
+      const startTimeStr = isNaN(startTimeDate.getTime()) ? kid.start_time : startTimeDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+      setAccessMessage(`Activities start at ${startTimeStr}`);
     } else if (currentTime > endTime) {
       setIsAccessAllowed(false);
       setAccessMessage('Sleep time! Come back tomorrow');

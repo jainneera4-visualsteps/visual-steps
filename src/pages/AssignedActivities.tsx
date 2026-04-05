@@ -181,18 +181,25 @@ export default function AssignedActivities() {
 
   const rewardIcon = kid?.reward_type ? (rewardImages[kid.reward_type] || rewardImages['Penny']) : rewardImages['Penny'];
 
-  const formatKidDate = (date: Date | string, options?: Intl.DateTimeFormatOptions) => {
+  const formatKidDate = (date: Date | string | null | undefined, options?: Intl.DateTimeFormatOptions) => {
+    if (!date) return '';
     const d = typeof date === 'string' ? new Date(date) : date;
-    return new Intl.DateTimeFormat('en-US', {
-      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-      ...options
-    }).format(d);
+    if (isNaN(d.getTime())) return '';
+    try {
+      return new Intl.DateTimeFormat('en-US', {
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        ...options
+      }).format(d);
+    } catch (e) {
+      console.error('formatKidDate error:', e, 'date:', date);
+      return String(date);
+    }
   };
 
   const activitiesToRender = activeTab === 'activities' 
@@ -2162,11 +2169,14 @@ export default function AssignedActivities() {
         // Group by week
         const weeklyDataMap: { [key: string]: number } = {};
         actualActivitiesCompleted.forEach(a => {
-          const date = new Date(a.completed_at!);
+          if (!a.completed_at) return;
+          const date = new Date(a.completed_at);
+          if (isNaN(date.getTime())) return;
           // Get the start of the week (Monday)
           const day = date.getDay();
           const diff = date.getDate() - day + (day === 0 ? -6 : 1);
           const weekStart = new Date(date.getFullYear(), date.getMonth(), diff);
+          if (isNaN(weekStart.getTime())) return;
           const weekKey = `Week of ${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
           weeklyDataMap[weekKey] = (weeklyDataMap[weekKey] || 0) + 1;
         });
@@ -2177,7 +2187,9 @@ export default function AssignedActivities() {
         // Group by date
         const dailyDataMap: { [key: string]: { activityCount: number, totalRewards: number, date: Date } } = {};
         combinedCompleted.forEach(item => {
-          const date = new Date(item.completed_at!);
+          if (!item.completed_at) return;
+          const date = new Date(item.completed_at);
+          if (isNaN(date.getTime())) return;
           const dateKey = date.toISOString().split('T')[0];
           if (!dailyDataMap[dateKey]) {
             dailyDataMap[dateKey] = { activityCount: 0, totalRewards: 0, date: date };
@@ -3292,7 +3304,7 @@ export default function AssignedActivities() {
                     <option value="Party">Party</option>
                     <option value="Friend’s / relative’s house">Friend’s / relative’s house</option>
                     <option value="Store / Mall">Store / Mall</option>
-                    <option value="Other">Other</option>
+                    <option value="Any place">Any place</option>
                   </select>
                 </div>
                 <div className="flex justify-end gap-3 pt-4">

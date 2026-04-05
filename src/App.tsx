@@ -7,6 +7,7 @@ import Home from './pages/Home';
 import Signup from './pages/Signup';
 import ForgotPassword from './pages/ForgotPassword';
 import Dashboard from './pages/Dashboard';
+import Behaviors from './pages/Behaviors';
 import AddEditKid from './pages/AddEditKid';
 import ChatbotSettings from './pages/ChatbotSettings';
 import ChatbotsDashboard from './pages/ChatbotsDashboard';
@@ -48,6 +49,7 @@ export default function App() {
             
             <Route element={<ProtectedRoute />}>
               <Route path="dashboard" element={<Dashboard />} />
+              <Route path="behaviors/:kidId" element={<Behaviors />} />
               <Route path="add-kid" element={<AddEditKid />} />
               <Route path="edit-kid/:id" element={<AddEditKid />} />
               <Route path="edit-kid/:id/chatbot" element={<ChatbotSettings />} />

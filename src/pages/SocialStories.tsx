@@ -109,7 +109,10 @@ export default function SocialStories() {
                   </div>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                      Created {new Date(story.created_at).toLocaleDateString()}
+                      Created {(() => {
+                        const d = new Date(story.created_at);
+                        return isNaN(d.getTime()) ? story.created_at : d.toLocaleDateString();
+                      })()}
                     </span>
                   </div>
                 </div>

@@ -137,7 +137,7 @@ export default function ChatHistory() {
                         <div className="px-4 py-1.5 bg-white shadow-sm border border-slate-100 rounded-full flex items-center gap-2">
                           <Calendar className="w-3.5 h-3.5 text-slate-400" />
                           <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">
-                            {date.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                            {isNaN(date.getTime()) ? msg.created_at : date.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                           </span>
                         </div>
                       </div>

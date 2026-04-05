@@ -256,7 +256,17 @@ export function ChatbotComponent({ kidId, kidName, chatbotName, activities, rewa
       const maxSentences = settings?.maxSentences || 2;
       const languageComplexity = settings?.languageComplexity || 'simple';
 
-      const localDateTime = new Date().toLocaleString('en-US', { timeZone: timezone || undefined, dateStyle: 'full', timeStyle: 'short' });
+      let localDateTime = '';
+      try {
+        localDateTime = new Date().toLocaleString('en-US', { 
+          timeZone: timezone || undefined, 
+          dateStyle: 'full', 
+          timeStyle: 'short' 
+        });
+      } catch (e) {
+        console.error('Error formatting localDateTime:', e);
+        localDateTime = new Date().toISOString();
+      }
 
       const systemInstruction = `You are ${name}, a close friend who is the SAME AGE as the child you are talking to.
       Your gender identity is ${gender}. Your personality is ${personality}. Your tone of voice is ${tone}.

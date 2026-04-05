@@ -1,5 +1,6 @@
 -- Drop tables in reverse order of dependencies
 DROP TABLE IF EXISTS public.behaviors CASCADE;
+DROP TABLE IF EXISTS public.behavior_definitions CASCADE;
 DROP TABLE IF EXISTS public.activity_history_steps CASCADE;
 DROP TABLE IF EXISTS public.activity_history CASCADE;
 DROP TABLE IF EXISTS public.activity_steps CASCADE;
@@ -219,12 +220,24 @@ CREATE TABLE public.quizzes (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- Create behavior_definitions table
+CREATE TABLE public.behavior_definitions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    kid_id UUID REFERENCES public.kids(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL, -- 'desired' or 'undesired'
+    token_reward INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- Create behaviors table
 CREATE TABLE public.behaviors (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     kid_id UUID REFERENCES public.kids(id) ON DELETE CASCADE,
+    definition_id UUID REFERENCES public.behavior_definitions(id) ON DELETE SET NULL,
     type TEXT NOT NULL, -- 'desired' or 'undesired'
     description TEXT NOT NULL,
+    token_change INTEGER NOT NULL DEFAULT 0,
     date DATE NOT NULL DEFAULT CURRENT_DATE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
