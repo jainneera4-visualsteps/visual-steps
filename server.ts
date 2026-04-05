@@ -68,9 +68,14 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-change-in-prod';
 // Supabase setup
 const supabaseUrl = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').trim();
 const supabaseKey = (process.env.SUPABASE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '').trim();
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-change-in-prod';
+
+console.log('[STARTUP] Backend Supabase URL:', supabaseUrl);
+console.log('[STARTUP] Backend Supabase Key:', supabaseKey ? '***' : 'undefined');
+console.log('[STARTUP] JWT_SECRET:', JWT_SECRET ? '***' : 'undefined');
 
 if (!supabaseUrl || !supabaseKey) {
-  console.error('Missing Supabase environment variables. Please set SUPABASE_URL and SUPABASE_KEY.');
+  console.error('[STARTUP] Missing Supabase environment variables. Please set SUPABASE_URL and SUPABASE_KEY.');
 }
 
 // Helper to get authenticated Supabase client
@@ -217,8 +222,11 @@ const authenticateToken = async (req: any, res: any, next: any) => {
     });
     
     // Verify the token with Supabase
+    console.log('authenticateToken: Verifying with URL:', supabaseUrl);
+    console.log('authenticateToken: Verifying with Key (masked):', supabaseKey.substring(0, 5) + '...');
+    console.log('authenticateToken: JWT_SECRET (masked):', JWT_SECRET.substring(0, 3) + '...');
+    
     const { data: { user }, error } = await supabase.auth.getUser(token);
-
     if (error || !user) {
       const logMsg = `[${new Date().toISOString()}] authenticateToken: Supabase verification failed: ${error?.message || 'No user found'}. Status: ${error?.status}\n`;
       fs.appendFileSync('auth-debug.log', logMsg);
