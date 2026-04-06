@@ -30,32 +30,38 @@ app.use((req, res, next) => {
 });
 
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST", "PUT", "DELETE"]
-  }
-});
+let io: Server | null = null;
 
-app.set('io', io);
+const isVercel = !!process.env.VERCEL || !!process.env.VERCEL_URL || !!process.env.AWS_REGION || !!process.env.FUNCTION_TARGET;
 
-io.on('connection', (socket) => {
-  console.log('A user connected:', socket.id);
-  
-  socket.on('join_kid_room', (kidId) => {
-    socket.join(`kid_${kidId}`);
-    console.log(`Socket ${socket.id} joined room kid_${kidId}`);
+if (!isVercel) {
+  io = new Server(server, {
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST", "PUT", "DELETE"]
+    }
   });
 
-  socket.on('leave_kid_room', (kidId) => {
-    socket.leave(`kid_${kidId}`);
-    console.log(`Socket ${socket.id} left room kid_${kidId}`);
-  });
+  app.set('io', io);
 
-  socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
+  io.on('connection', (socket) => {
+    console.log('A user connected:', socket.id);
+    
+    socket.on('join_kid_room', (kidId) => {
+      socket.join(`kid_${kidId}`);
+      console.log(`Socket ${socket.id} joined room kid_${kidId}`);
+    });
+
+    socket.on('leave_kid_room', (kidId) => {
+      socket.leave(`kid_${kidId}`);
+      console.log(`Socket ${socket.id} left room kid_${kidId}`);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('User disconnected:', socket.id);
+    });
   });
-});
+}
 
 const PORT = 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-change-in-prod';
@@ -65,7 +71,7 @@ let supabaseUrl = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 
 if (supabaseUrl && !supabaseUrl.startsWith('http')) {
   supabaseUrl = 'https://' + supabaseUrl;
 }
-const supabaseKey = (process.env.SUPABASE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '').trim();
+const supabaseKey = (process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '').trim();
 
 console.log('[STARTUP] Backend Supabase URL:', supabaseUrl);
 console.log('[STARTUP] Backend Supabase Key:', supabaseKey ? '***' : 'undefined');
@@ -123,7 +129,6 @@ const getSupabaseForUser = (req: any) => {
 };
 
 // Ensure uploads directory exists
-const isVercel = !!process.env.VERCEL || !!process.env.VERCEL_URL || !!process.env.AWS_REGION || !!process.env.FUNCTION_TARGET;
 const rootDir = currentDirname.endsWith('dist') ? path.dirname(currentDirname) : currentDirname;
 const uploadDir = isVercel ? '/tmp/uploads' : path.join(rootDir, 'uploads');
 
@@ -232,9 +237,10 @@ const authenticateToken = async (req: any, res: any, next: any) => {
     console.log('authenticateToken: JWT_SECRET (masked):', JWT_SECRET.substring(0, 3) + '...');
     
     // Add a timeout to prevent hanging if the Supabase URL is invalid/unreachable
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Supabase request timed out after 5 seconds. Check if SUPABASE_URL is correct.')), 5000)
-    );
+    let timeoutId: NodeJS.Timeout;
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error('Supabase request timed out after 5 seconds. Check if SUPABASE_URL is correct.')), 5000);
+    });
     
     let user, error;
     try {
@@ -245,9 +251,13 @@ const authenticateToken = async (req: any, res: any, next: any) => {
         getUserPromise,
         timeoutPromise
       ]) as any;
+      
+      clearTimeout(timeoutId!);
+      
       user = result.data?.user;
       error = result.error;
     } catch (e: any) {
+      clearTimeout(timeoutId!);
       console.error('authenticateToken: Supabase request failed or timed out:', e.message);
       return res.status(500).json({ 
         error: 'Supabase Connection Error', 
