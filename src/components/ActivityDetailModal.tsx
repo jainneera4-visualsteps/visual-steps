@@ -270,31 +270,26 @@ export function ActivityDetailModal({
               {activity.description && (
                 activity.link ? (
                   <div className="space-y-3">
-                    <a 
-                      href={activity.link} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="text-xl text-blue-600 hover:underline font-bold leading-relaxed block"
-                    >
-                      {activity.description}
-                    </a>
-                    
-                    <div className="flex flex-wrap gap-2 no-print">
-                      {isSocialStoryLink && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const storyId = activity.link.split('/').pop();
-                            if (storyId) setViewingStoryId(storyId);
-                          }}
-                          className="h-8 text-xs font-bold uppercase bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
-                        >
-                          <BookOpen className="mr-2 h-3.5 w-3.5" />
-                          Read Social Story
-                        </Button>
-                      )}
-                    </div>
+                    {isSocialStoryLink ? (
+                      <button
+                        onClick={() => {
+                          const storyId = activity.link.split('/').pop();
+                          if (storyId) setViewingStoryId(storyId);
+                        }}
+                        className="text-xl text-blue-600 hover:underline font-bold leading-relaxed block text-left"
+                      >
+                        {activity.description}
+                      </button>
+                    ) : (
+                      <a 
+                        href={activity.link} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-xl text-blue-600 hover:underline font-bold leading-relaxed block"
+                      >
+                        {activity.description}
+                      </a>
+                    )}
                   </div>
                 ) : (
                   <p className="text-xl text-slate-800 font-medium leading-relaxed">{activity.description}</p>
