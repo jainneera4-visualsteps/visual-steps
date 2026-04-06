@@ -17,12 +17,7 @@ import { fileURLToPath } from 'url';
 dotenv.config();
 
 // Dual compatibility for ESM and CJS
-const currentFilename = typeof fileURLToPath === 'function' && typeof import.meta !== 'undefined' && import.meta.url
-  ? fileURLToPath(import.meta.url)
-  : (typeof __filename !== 'undefined' ? __filename : '');
-const currentDirname = currentFilename 
-  ? path.dirname(currentFilename) 
-  : (typeof __dirname !== 'undefined' ? __dirname : process.cwd());
+const currentDirname = process.cwd();
 
 export const app = express();
 
@@ -220,7 +215,7 @@ const authenticateToken = async (req: any, res: any, next: any) => {
     }
 
     // Create a fresh client for this request
-    const supabase = createClient(supabaseUrl, supabaseKey, {
+    const supabase = createClient(supabaseUrl || 'https://placeholder.supabase.co', supabaseKey || 'placeholder', {
       auth: {
         persistSession: false,
         autoRefreshToken: false,

@@ -104,7 +104,9 @@ export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit, ret
           
           // Show alert for iPad user debugging
           if (response.status === 500 || data.error === 'Supabase Project Mismatch' || data.error === 'Supabase Connection Error') {
-            alert(`DEBUG INFO (Status ${response.status}):\n\nError: ${data.error}\n\nDetails: ${data.details || JSON.stringify(data)}\n\nURL: ${url}`);
+            const msg = `DEBUG INFO (Status ${response.status}):\n\nError: ${data.error}\n\nDetails: ${data.details || JSON.stringify(data)}\n\nURL: ${url}`;
+            console.error('API_FETCH_DEBUG_JSON:', msg);
+            alert(msg);
           }
           
           if (data.error === 'Forbidden' || data.error === 'Unauthorized' || data.error === 'Supabase Project Mismatch') {
@@ -128,7 +130,9 @@ export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit, ret
         }
       } else if (response.status === 500) {
         const text = await response.clone().text();
-        alert(`DEBUG INFO (Status 500, Non-JSON):\n\nURL: ${url}\n\nResponse: ${text.substring(0, 500)}`);
+        const msg = `DEBUG INFO (Status 500, Non-JSON):\n\nURL: ${url}\n\nResponse: ${text.substring(0, 500)}`;
+        console.error('API_FETCH_DEBUG_TEXT:', msg);
+        alert(msg);
       }
     }
     return response;
