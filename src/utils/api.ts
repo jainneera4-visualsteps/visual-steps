@@ -118,6 +118,9 @@ export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit, ret
             if (!isStandaloneView) {
               localStorage.removeItem('token');
               localStorage.removeItem('kid_session');
+              // Crucial: Actually sign out of Supabase to clear the invalid session from local storage
+              supabase.auth.signOut().catch(() => {});
+              
               if (window.location.pathname !== '/' && window.location.pathname !== '/signup') {
                 window.location.href = wasKid ? '/?mode=kid' : '/';
               }
