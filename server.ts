@@ -61,7 +61,10 @@ const PORT = 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-change-in-prod';
 
 // Supabase setup
-const supabaseUrl = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').trim();
+let supabaseUrl = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').trim();
+if (supabaseUrl && !supabaseUrl.startsWith('http')) {
+  supabaseUrl = 'https://' + supabaseUrl;
+}
 const supabaseKey = (process.env.SUPABASE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '').trim();
 
 console.log('[STARTUP] Backend Supabase URL:', supabaseUrl);
@@ -120,7 +123,7 @@ const getSupabaseForUser = (req: any) => {
 };
 
 // Ensure uploads directory exists
-const isVercel = process.env.VERCEL === '1' || !!process.env.VERCEL;
+const isVercel = !!process.env.VERCEL || !!process.env.VERCEL_URL || !!process.env.AWS_REGION || !!process.env.FUNCTION_TARGET;
 const rootDir = currentDirname.endsWith('dist') ? path.dirname(currentDirname) : currentDirname;
 const uploadDir = isVercel ? '/tmp/uploads' : path.join(rootDir, 'uploads');
 
@@ -235,8 +238,11 @@ const authenticateToken = async (req: any, res: any, next: any) => {
     
     let user, error;
     try {
+      const getUserPromise = supabase.auth.getUser(token);
+      getUserPromise.catch(() => {}); // Prevent unhandled rejection if timeout wins
+      
       const result = await Promise.race([
-        supabase.auth.getUser(token),
+        getUserPromise,
         timeoutPromise
       ]) as any;
       user = result.data?.user;
@@ -3405,10 +3411,11 @@ async function startServer() {
   console.log(`[${new Date().toISOString()}] NODE_ENV: ${process.env.NODE_ENV}`);
   console.log(`[${new Date().toISOString()}] currentDirname: ${currentDirname}`);
   
-  if (envMode !== 'production' && !process.env.VERCEL) {
+  if (envMode !== 'production' && !isVercel) {
     console.log(`[${new Date().toISOString()}] Initializing Vite middleware...`);
     try {
-      const { createServer: createViteServer } = await import('vite');
+      const viteModule = 'vite';
+      const { createServer: createViteServer } = await import(viteModule);
       const vite = await createViteServer({
         server: { middlewareMode: true },
         appType: 'spa',
@@ -3441,7 +3448,7 @@ async function startServer() {
     } catch (e: any) {
       console.error(`[${new Date().toISOString()}] Failed to initialize Vite middleware:`, e.message);
     }
-  } else if (!process.env.VERCEL) {
+  } else if (!isVercel) {
     // In production, serve static files from dist
     const distPath = currentDirname.endsWith('dist') ? currentDirname : path.join(currentDirname, 'dist');
     console.log(`[${new Date().toISOString()}] Production mode: serving static files from ${distPath}`);
@@ -3475,7 +3482,7 @@ async function startServer() {
     res.status(500).json({ error: 'Internal server error', details: err.message });
   });
 
-  if (!process.env.VERCEL) {
+  if (!isVercel) {
     server.listen(PORT, '0.0.0.0', () => {
       console.log(`Server running on http://localhost:${PORT}`);
     });
@@ -3566,4 +3573,6 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
-startServer();
+startServer().catch(err => {
+  console.error('Failed to start server:', err);
+});
