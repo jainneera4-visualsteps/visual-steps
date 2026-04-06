@@ -103,8 +103,8 @@ export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit, ret
           const data = await clone.json();
           
           // Show alert for iPad user debugging
-          if (data.error === 'Supabase Project Mismatch' || data.error === 'Supabase Connection Error') {
-            alert(`DEBUG INFO:\n\nError: ${data.error}\n\nDetails: ${data.details}\n\nPlease fix your Vercel Environment Variables.`);
+          if (response.status === 500 || data.error === 'Supabase Project Mismatch' || data.error === 'Supabase Connection Error') {
+            alert(`DEBUG INFO (Status ${response.status}):\n\nError: ${data.error}\n\nDetails: ${data.details || JSON.stringify(data)}\n\nURL: ${url}`);
           }
           
           if (data.error === 'Forbidden' || data.error === 'Unauthorized' || data.error === 'Supabase Project Mismatch') {
@@ -126,6 +126,9 @@ export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit, ret
         } catch (e) {
           // Not JSON or other error
         }
+      } else if (response.status === 500) {
+        const text = await response.clone().text();
+        alert(`DEBUG INFO (Status 500, Non-JSON):\n\nURL: ${url}\n\nResponse: ${text.substring(0, 500)}`);
       }
     }
     return response;

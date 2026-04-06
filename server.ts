@@ -3405,15 +3405,12 @@ app.use('/api/*', (req, res) => {
 
 // Vite integration
 async function startServer() {
-  if (process.env.VERCEL) {
-    return;
-  }
   const envMode = process.env.NODE_ENV || 'development';
   console.log(`[${new Date().toISOString()}] Starting server in ${envMode} mode...`);
   console.log(`[${new Date().toISOString()}] NODE_ENV: ${process.env.NODE_ENV}`);
   console.log(`[${new Date().toISOString()}] currentDirname: ${currentDirname}`);
   
-  if (envMode !== 'production') {
+  if (envMode !== 'production' && !process.env.VERCEL) {
     console.log(`[${new Date().toISOString()}] Initializing Vite middleware...`);
     try {
       const { createServer: createViteServer } = await import('vite');
@@ -3449,7 +3446,7 @@ async function startServer() {
     } catch (e: any) {
       console.error(`[${new Date().toISOString()}] Failed to initialize Vite middleware:`, e.message);
     }
-  } else {
+  } else if (!process.env.VERCEL) {
     // In production, serve static files from dist
     const distPath = currentDirname.endsWith('dist') ? currentDirname : path.join(currentDirname, 'dist');
     console.log(`[${new Date().toISOString()}] Production mode: serving static files from ${distPath}`);
