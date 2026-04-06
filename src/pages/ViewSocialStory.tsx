@@ -2,7 +2,7 @@ import { apiFetch, safeJson } from '../utils/api';
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
-import { X, ChevronLeft, ChevronRight, BookOpen, Printer, Volume2, Square, ArrowLeft, Sparkles } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, BookOpen, Printer, Volume2, Square, ArrowLeft, Sparkles, Lightbulb } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -230,27 +230,38 @@ export default function ViewSocialStory() {
               )}
 
               {/* Right Side (Text) - Full width if no image */}
-              <div className={`h-full p-6 md:p-12 flex flex-col justify-center bg-white relative ${pages[currentPage].imageUrl ? 'w-full md:w-1/2' : 'w-full'}`}>
-                <div className="absolute top-6 right-8 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">
-                  Page {currentPage + 1} / {pages.length}
+              <div className={`h-full py-6 px-12 md:py-10 md:px-24 flex flex-col bg-white relative ${pages[currentPage].imageUrl ? 'w-full md:w-1/2' : 'w-full'}`}>
+                {/* Page Header */}
+                <div className="w-full flex items-center justify-between mb-6 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-6 w-6 items-center justify-center rounded bg-blue-600 text-white shadow-sm">
+                      <Lightbulb className="h-3.5 w-3.5" />
+                    </div>
+                    <span className="text-sm font-bold tracking-tight text-blue-900">Visual Steps</span>
+                  </div>
+                  <div className="text-xs font-black text-slate-400 uppercase tracking-[0.3em]">
+                    {currentPage + 1}
+                  </div>
                 </div>
                 
-                <p className={`${pages[currentPage].imageUrl ? 'text-xl md:text-2xl' : 'text-2xl md:text-4xl'} font-bold text-slate-800 leading-relaxed text-justify whitespace-pre-wrap`}>
-                  {pages[currentPage].text}
-                </p>
+                <div className="flex-1 flex flex-col justify-center overflow-y-auto pb-4">
+                  <p className={`${pages[currentPage].imageUrl ? 'text-lg md:text-xl' : 'text-xl md:text-2xl'} font-bold text-slate-800 leading-relaxed text-justify whitespace-pre-wrap`}>
+                    {pages[currentPage].text}
+                  </p>
 
-                {currentPage === pages.length - 1 && (
-                  <motion.div 
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="mt-8 flex justify-center"
-                  >
-                    <div className="bg-emerald-50 text-emerald-700 px-6 py-2 rounded-full font-black uppercase tracking-wider text-sm border border-emerald-100 flex items-center gap-2">
-                      <Sparkles className="h-4 w-4" />
-                      The End!
-                    </div>
-                  </motion.div>
-                )}
+                  {currentPage === pages.length - 1 && (
+                    <motion.div 
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="mt-8 flex justify-center shrink-0"
+                    >
+                      <div className="bg-emerald-50 text-emerald-700 px-6 py-2 rounded-full font-black uppercase tracking-wider text-sm border border-emerald-100 flex items-center gap-2">
+                        <Sparkles className="h-4 w-4" />
+                        The End!
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
               </div>
             </motion.div>
           </AnimatePresence>

@@ -22,13 +22,21 @@ export const safeJson = async (response: Response) => {
   console.error(`Response is not JSON (Status: ${status}, URL: ${url}):`, snippet + '...');
   
   if (status === 401 || status === 403) {
+    // If we get a 403 HTML response, it's likely the AI Studio proxy blocking the request
+    // because the user's AI Studio session expired. Reloading the page will trigger the login flow.
+    if (text.includes('403 Forbidden')) {
+      console.warn('AI Studio session likely expired. Reloading page to trigger login...');
+      window.location.reload();
+      // Return a never-resolving promise to prevent further execution while reloading
+      return new Promise(() => {});
+    }
     throw new Error('Your session has expired. Please log in again.');
   }
   
   throw new Error(`Unexpected response from server (Status: ${status}).`);
 };
 
-export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit, retries = 5): Promise<Response> => {
+export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit, retries = 15): Promise<Response> => {
   const { data: { session } } = await supabase.auth.getSession();
   let token = session?.access_token;
   
