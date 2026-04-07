@@ -345,8 +345,8 @@ export default function Dashboard() {
           <div className="space-y-8">
             <div className="w-full mx-auto">
               {kids.filter(k => k.id === dashboardSelectedKidId).map((kid) => (
-                <Card key={kid.id} className={`rounded-xl shadow-lg bg-white relative overflow-hidden ${showEmojiPicker[kid.id] ? 'z-50' : 'z-0'}`}>
-                  <CardHeader className="bg-blue-600 text-white relative h-28 p-6 flex flex-col justify-start">
+                <Card key={kid.id} className={`rounded-xl shadow-lg bg-white relative ${showEmojiPicker[kid.id] ? 'z-50 overflow-visible' : 'z-0 overflow-hidden'}`}>
+                  <CardHeader className="bg-blue-600 text-white relative h-28 p-6 flex flex-col justify-start rounded-t-xl">
                     <div className="flex justify-between items-start w-full">
                       <div>
                         <CardTitle className="text-2xl font-bold text-white leading-tight">{kid.name}</CardTitle>
@@ -382,7 +382,7 @@ export default function Dashboard() {
                   <CardContent className="pt-10">
                     <div className="flex flex-col gap-4">
                       {/* Message Section */}
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 relative">
                         <input
                           type="text"
                           placeholder="Send a message..."
@@ -399,28 +399,29 @@ export default function Dashboard() {
                         <Button size="sm" onClick={() => handleSendMessage(kid)} variant="ghost">
                           <Send className="w-4 h-4" />
                         </Button>
+                        
+                        {showEmojiPicker[kid.id] && (
+                          <div className="absolute right-12 top-full mt-2 z-50">
+                            <EmojiPicker onEmojiClick={(data: EmojiClickData) => {
+                              setMessages(prev => ({ ...prev, [kid.id]: (prev[kid.id] || '') + data.emoji }));
+                              setShowEmojiPicker(prev => ({ ...prev, [kid.id]: false }));
+                            }} />
+                          </div>
+                        )}
                       </div>
                       {/* Action Buttons */}
-                      <div className="flex gap-2">
-                        <Link to={`/chat-history/${kid.id}`}>
-                          <Button size="sm" variant="outline">View Chat History</Button>
+                      <div className="flex gap-2 items-center">
+                        <Link to={`/assigned-activities/${kid.id}`}>
+                          <Button size="sm" variant="outline">Activities</Button>
                         </Link>
                         <Link to={`/behaviors/${kid.id}`}>
                           <Button size="sm" variant="outline">Behaviors</Button>
                         </Link>
-                        <Link to={`/assigned-activities/${kid.id}`}>
-                          <Button size="sm" variant="outline">Activities</Button>
+                        <Link to={`/chat-history/${kid.id}`} className="ml-auto">
+                          <Button size="sm" variant="outline">View Chat History</Button>
                         </Link>
                       </div>
                     </div>
-                    {showEmojiPicker[kid.id] && (
-                      <div className="absolute right-0 top-full mt-2 z-50">
-                        <EmojiPicker onEmojiClick={(data: EmojiClickData) => {
-                          setMessages(prev => ({ ...prev, [kid.id]: (prev[kid.id] || '') + data.emoji }));
-                          setShowEmojiPicker(prev => ({ ...prev, [kid.id]: false }));
-                        }} />
-                      </div>
-                    )}
                   </CardContent>
                 </Card>
               ))}

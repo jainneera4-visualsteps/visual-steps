@@ -37,8 +37,17 @@ export const safeJson = async (response: Response) => {
 };
 
 export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit, retries = 15): Promise<Response> => {
-  const { data: { session } } = await supabase.auth.getSession();
-  let token = session?.access_token;
+  let token = null;
+  let isKidSession = false;
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error && (error.message.includes('Refresh Token Not Found') || error.message.includes('Invalid Refresh Token'))) {
+      await supabase.auth.signOut().catch(() => {});
+    }
+    token = session?.access_token;
+  } catch (err) {
+    console.error('Error getting session in apiFetch:', err);
+  }
   
   if (!token) {
     const kidSessionStr = localStorage.getItem('kid_session');
@@ -46,6 +55,7 @@ export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit, ret
       try {
         const kidSession = JSON.parse(kidSessionStr);
         token = kidSession.token;
+        isKidSession = true;
       } catch (e) {}
     }
   }
@@ -118,7 +128,7 @@ export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit, ret
           }
           
           if (data.error === 'Forbidden' || data.error === 'Unauthorized' || data.error === 'Supabase Project Mismatch') {
-            const wasKid = !session?.access_token && !!localStorage.getItem('kid_session');
+            const wasKid = isKidSession;
             
             // Only redirect if we are NOT on a standalone view page
             const isStandaloneView = window.location.pathname.includes('/social-stories/view/');

@@ -165,7 +165,7 @@ export default function ViewSocialStory() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/90 backdrop-blur-md p-4 md:p-8">
-      <div className="relative w-full max-w-5xl h-full max-h-[90vh] flex flex-col bg-white rounded-3xl overflow-hidden shadow-2xl border-4 border-slate-200">
+      <div className="relative w-full max-w-[98vw] h-full max-h-[95vh] flex flex-col bg-white rounded-3xl overflow-hidden shadow-2xl border-4 border-slate-200">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50/50 no-print">
           <div className="flex items-center gap-3">
@@ -207,7 +207,7 @@ export default function ViewSocialStory() {
         </div>
 
         {/* Book Content */}
-        <div className="flex-1 relative overflow-hidden flex items-center justify-center bg-slate-100/50 p-4 md:p-8 no-print">
+        <div className="flex-1 relative overflow-hidden flex items-center justify-center bg-slate-100/50 p-4 md:px-32 md:py-8 no-print">
           <AnimatePresence mode="wait">
             <motion.div
               key={currentPage}
@@ -219,18 +219,18 @@ export default function ViewSocialStory() {
             >
               {/* Left Side (Image) - Only show if imageUrl exists */}
               {pages[currentPage].imageUrl && (
-                <div className="w-full md:w-1/2 h-1/2 md:h-full bg-slate-50 flex items-center justify-center border-b md:border-b-0 md:border-r border-slate-100">
+                <div className="w-full md:w-[42%] h-1/2 md:h-full bg-slate-50 flex items-start justify-center border-b md:border-b-0 md:border-r border-slate-100 p-4 md:p-6 min-h-0">
                   <img 
                     src={pages[currentPage].imageUrl} 
                     alt={`Page ${currentPage + 1}`}
-                    className="w-full h-full object-cover"
+                    className="w-full max-h-full object-contain rounded-xl shadow-sm"
                     referrerPolicy="no-referrer"
                   />
                 </div>
               )}
 
               {/* Right Side (Text) - Full width if no image */}
-              <div className={`h-full py-6 px-12 md:py-10 md:px-24 flex flex-col bg-white relative ${pages[currentPage].imageUrl ? 'w-full md:w-1/2' : 'w-full'}`}>
+              <div className={`h-full py-6 px-12 md:py-10 md:px-16 flex flex-col bg-white relative ${pages[currentPage].imageUrl ? 'w-full md:w-[58%]' : 'w-full'}`}>
                 {/* Page Header */}
                 <div className="w-full flex items-center justify-between mb-6 shrink-0">
                   <div className="flex items-center gap-2">
@@ -244,8 +244,8 @@ export default function ViewSocialStory() {
                   </div>
                 </div>
                 
-                <div className="flex-1 flex flex-col justify-center overflow-y-auto pb-4">
-                  <p className={`${pages[currentPage].imageUrl ? 'text-lg md:text-xl' : 'text-xl md:text-2xl'} font-bold text-slate-800 leading-relaxed text-justify whitespace-pre-wrap`}>
+                <div className="flex-1 flex flex-col justify-start overflow-y-auto pb-4">
+                  <p className={`${pages[currentPage].imageUrl ? 'text-lg md:text-xl' : 'text-xl md:text-3xl'} font-bold text-slate-800 leading-relaxed text-justify whitespace-pre-wrap`}>
                     {pages[currentPage].text}
                   </p>
 
@@ -267,7 +267,7 @@ export default function ViewSocialStory() {
           </AnimatePresence>
 
           {/* Navigation Controls */}
-          <div className="absolute inset-x-4 md:inset-x-8 top-1/2 -translate-y-1/2 flex justify-between pointer-events-none">
+          <div className="absolute inset-x-2 md:inset-x-6 top-1/2 -translate-y-1/2 flex justify-between pointer-events-none">
             <Button
               variant="ghost"
               onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
