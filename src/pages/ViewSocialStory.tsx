@@ -22,6 +22,9 @@ interface NarratorSettings {
   voice: string;
   rate: number;
   pitch: number;
+  narratorType?: string;
+  speed?: string;
+  highlightWords?: boolean;
 }
 
 export default function ViewSocialStory() {
@@ -37,6 +40,9 @@ export default function ViewSocialStory() {
   const [autoPlay, setAutoPlay] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [isKidMode, setIsKidMode] = useState(false);
+  const [currentWordIndex, setCurrentWordIndex] = useState<number | null>(null);
+  const [currentWordLength, setCurrentWordLength] = useState<number>(0);
+  const [storyLanguage, setStoryLanguage] = useState('English');
 
   useEffect(() => {
     fetchStory();
@@ -66,6 +72,7 @@ export default function ViewSocialStory() {
           } else if (parsed && typeof parsed === 'object') {
             setPages(parsed.pages || []);
             setNarratorSettings(parsed.narratorSettings || null);
+            setStoryLanguage(parsed.language || 'English');
           }
         } catch (e) {
           console.error('Failed to parse story content', e);
@@ -80,21 +87,38 @@ export default function ViewSocialStory() {
 
   const getFriendlyVoice = () => {
     if (voices.length === 0) return null;
-    if (narratorSettings?.voice) {
-      const savedVoice = voices.find(v => v.name === narratorSettings.voice);
-      if (savedVoice) return savedVoice;
+    
+    const langMap: Record<string, string> = {
+      'English': 'en',
+      'Spanish': 'es',
+      'French': 'fr',
+      'German': 'de',
+      'Italian': 'it',
+      'Portuguese': 'pt',
+      'Hindi': 'hi',
+      'Chinese': 'zh',
+      'Japanese': 'ja'
+    };
+    const targetLang = langMap[storyLanguage] || 'en';
+    
+    let filtered = voices.filter(v => v.lang.startsWith(targetLang));
+    if (filtered.length === 0) filtered = voices;
+    
+    if (narratorSettings?.narratorType === 'Kind Adult') {
+      const prioritized = filtered.filter(v => v.name.includes('Natural') || v.name.includes('Google'));
+      return prioritized.length > 0 ? prioritized[0] : filtered[0];
+    } else if (narratorSettings?.narratorType === 'Friendly Peer') {
+      const prioritized = filtered.filter(v => v.name.includes('Child') || v.name.includes('Junior') || v.name.includes('Kid') || v.name.includes('Zira') || v.name.includes('Samantha'));
+      return prioritized.length > 0 ? prioritized[0] : filtered[0];
     }
-    const preferred = ['Google US English', 'Google UK English Female', 'Samantha', 'Victoria'];
-    for (const name of preferred) {
-      const v = voices.find(v => v.name === name);
-      if (v) return v;
-    }
-    return voices.find(v => v.lang.startsWith('en')) || voices[0];
+    
+    return filtered[0];
   };
 
   useEffect(() => {
     window.speechSynthesis.cancel();
     setIsPlaying(false);
+    setCurrentWordIndex(null);
     
     if (autoPlay && pages.length > 0) {
       const text = pages[currentPage]?.text;
@@ -102,12 +126,38 @@ export default function ViewSocialStory() {
         const utterance = new SpeechSynthesisUtterance(text);
         const voice = getFriendlyVoice();
         if (voice) utterance.voice = voice;
-        utterance.pitch = narratorSettings?.pitch ?? 1.0;
-        utterance.rate = narratorSettings?.rate ?? 0.75;
         
+        // If it's a Friendly Peer and we didn't find a specific child voice, pitch it up
+        let finalPitch = narratorSettings?.pitch ?? 1.0;
+        if (narratorSettings?.narratorType === 'Friendly Peer' && voice && !voice.name.match(/child|kid|junior|kathy|fred|princess/i)) {
+          finalPitch = Math.min(2.0, finalPitch * 1.4);
+        }
+        
+        utterance.pitch = finalPitch;
+        utterance.rate = narratorSettings?.rate ?? 1.0;
+        
+        if (narratorSettings?.highlightWords) {
+          utterance.onboundary = (event) => {
+            if (event.name === 'word') {
+              setCurrentWordIndex(event.charIndex);
+              
+              // Fallback for voices that don't provide charLength
+              let length = event.charLength;
+              if (!length) {
+                const remainingText = text.substring(event.charIndex);
+                // Match the word until the next space or punctuation
+                const match = remainingText.match(/^[\w'’À-ÿ]+/);
+                length = match ? match[0].length : 1;
+              }
+              setCurrentWordLength(length);
+            }
+          };
+        }
+
         utterance.onstart = () => setIsPlaying(true);
         utterance.onend = () => {
           setIsPlaying(false);
+          setCurrentWordIndex(null);
           if (autoPlay && currentPage < pages.length - 1) {
             setTimeout(() => setCurrentPage(prev => prev + 1), 1500);
           } else {
@@ -117,7 +167,7 @@ export default function ViewSocialStory() {
         window.speechSynthesis.speak(utterance);
       }
     }
-  }, [currentPage, autoPlay, pages, voices]);
+  }, [currentPage, autoPlay, pages, voices, narratorSettings]);
 
   const handleListen = () => {
     if (isPlaying || autoPlay) {
@@ -189,15 +239,6 @@ export default function ViewSocialStory() {
             <Button 
               variant="ghost" 
               size="sm" 
-              onClick={() => window.print()}
-              className="h-10 px-4 rounded-xl font-bold uppercase tracking-wider hover:bg-slate-100 text-slate-600"
-            >
-              <Printer className="mr-2 h-4 w-4" />
-              Print
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="sm" 
               onClick={handleClose}
               className="h-10 w-10 p-0 rounded-xl hover:bg-red-50 hover:text-red-600 transition-colors"
             >
@@ -246,7 +287,22 @@ export default function ViewSocialStory() {
                 
                 <div className="flex-1 flex flex-col justify-start overflow-y-auto pb-4">
                   <p className={`${pages[currentPage].imageUrl ? 'text-lg md:text-xl' : 'text-xl md:text-3xl'} font-bold text-slate-800 leading-relaxed text-justify whitespace-pre-wrap`}>
-                    {pages[currentPage].text}
+                    {(() => {
+                      const text = pages[currentPage].text;
+                      if (!narratorSettings?.highlightWords || currentWordIndex === null || !isPlaying) {
+                        return text;
+                      }
+                      const before = text.substring(0, currentWordIndex);
+                      const word = text.substring(currentWordIndex, currentWordIndex + currentWordLength);
+                      const after = text.substring(currentWordIndex + currentWordLength);
+                      return (
+                        <>
+                          {before}
+                          <span className="bg-yellow-200 rounded px-0.5 transition-colors duration-150">{word}</span>
+                          {after}
+                        </>
+                      );
+                    })()}
                   </p>
 
                   {currentPage === pages.length - 1 && (
@@ -297,59 +353,9 @@ export default function ViewSocialStory() {
         </div>
       </div>
 
-      {/* Print-only section */}
-      <div className="print-only-content space-y-8 hidden print:block">
-        <div className="text-center border-b-2 border-slate-900 pb-6 mb-8">
-          <h1 className="text-3xl font-black uppercase tracking-tight text-slate-900">{story.title}</h1>
-        </div>
-        {pages.map((page, index) => (
-          <div key={index} className="break-inside-avoid space-y-4 pb-8 border-b border-slate-100 last:border-0">
-            {page.imageUrl && (
-              <div className="aspect-video bg-slate-50 flex items-center justify-center overflow-hidden rounded-lg border border-slate-200">
-                <img 
-                  src={page.imageUrl} 
-                  alt={`Page ${index + 1}`} 
-                  className="h-full w-full object-contain"
-                  referrerPolicy="no-referrer"
-                />
-              </div>
-            )}
-            <p className="text-lg font-bold text-slate-800 text-center px-4 whitespace-pre-wrap">
-              {page.text}
-            </p>
-            <div className="text-right text-xs text-slate-400 font-bold uppercase tracking-widest">
-              Page {index + 1}
-            </div>
-          </div>
-        ))}
-      </div>
-      
       <style>{`
         .perspective-1000 {
           perspective: 1000px;
-        }
-        @media print {
-          .no-print {
-            display: none !important;
-          }
-          .fixed {
-            position: relative !important;
-            background: white !important;
-            padding: 0 !important;
-            display: block !important;
-          }
-          .max-h-[90vh] {
-            max-height: none !important;
-          }
-          .rounded-3xl {
-            border-radius: 0 !important;
-          }
-          .border-4 {
-            border: none !important;
-          }
-          .shadow-2xl {
-            box-shadow: none !important;
-          }
         }
       `}</style>
     </div>

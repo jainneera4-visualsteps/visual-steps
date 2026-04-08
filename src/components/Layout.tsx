@@ -137,14 +137,6 @@ export function Layout() {
                 >
                   Profile
                 </Link>
-                <Link
-                  to="/chatbots"
-                  className={`text-[12px] font-bold uppercase tracking-wider transition-colors hover:text-blue-600 ${
-                    isActive('/chatbots') ? 'text-blue-600' : 'text-slate-600'
-                  }`}
-                >
-                  Chatbots
-                </Link>
               </nav>
             )}
           </div>
@@ -214,9 +206,6 @@ export function Layout() {
 
                   <Link to="/profile" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>
                     Profile
-                  </Link>
-                  <Link to="/chatbots" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>
-                    Chatbots
                   </Link>
                   <button onClick={() => { logout(); setIsMenuOpen(false); }} className="text-left text-[12px] font-bold text-slate-600 uppercase">
                     Sign out

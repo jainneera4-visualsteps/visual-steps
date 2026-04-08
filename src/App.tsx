@@ -9,8 +9,6 @@ import ForgotPassword from './pages/ForgotPassword';
 import Dashboard from './pages/Dashboard';
 import Behaviors from './pages/Behaviors';
 import AddEditKid from './pages/AddEditKid';
-import ChatbotSettings from './pages/ChatbotSettings';
-import ChatbotsDashboard from './pages/ChatbotsDashboard';
 import Profile from './pages/Profile';
 import AssignedActivities from './pages/AssignedActivities';
 import KidsDashboard from './pages/KidsDashboard';
@@ -24,7 +22,6 @@ import SavedQuizzes from './pages/SavedQuizzes';
 import PlayQuiz from './pages/PlayQuiz';
 import EditQuiz from './pages/EditQuiz';
 import ActivityLibrary from './pages/ActivityLibrary';
-import ChatHistory from './pages/ChatHistory';
 import About from './pages/About';
 import Games from './pages/Games';
 import LevelUpGame from './pages/LevelUpGame';
@@ -52,9 +49,6 @@ export default function App() {
               <Route path="behaviors/:kidId" element={<Behaviors />} />
               <Route path="add-kid" element={<AddEditKid />} />
               <Route path="edit-kid/:id" element={<AddEditKid />} />
-              <Route path="edit-kid/:id/chatbot" element={<ChatbotSettings />} />
-              <Route path="chat-history/:kidId" element={<ChatHistory />} />
-              <Route path="chatbots" element={<ChatbotsDashboard />} />
               <Route path="assigned-activities/:kidId" element={<AssignedActivities />} />
               <Route path="profile" element={<Profile />} />
               <Route path="social-stories" element={<SocialStories />} />

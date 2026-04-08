@@ -7,7 +7,6 @@ import { ArrowLeft, Calendar, Star, Lock, Lightbulb, LayoutGrid, CheckCircle, Ci
 import { Button } from '../components/Button';
 import { Card, CardContent } from '../components/Card';
 import { ActivityDetailModal } from '../components/ActivityDetailModal';
-import { ChatbotComponent } from '../components/ChatbotComponent';
 import { SocialStoryModal } from '../components/SocialStoryModal';
 
 interface ActivityStep {
@@ -1245,32 +1244,6 @@ export default function KidsDashboard() {
                       </>
                     )}
                   </div>
-
-                  {/* Chatbot Section */}
-                  <ChatbotComponent 
-                    kidId={kidId || ''} 
-                    kidName={kid?.name || ''}
-                    chatbotName={kid?.chatbot_name || 'Buddy'}
-                    activities={activities}
-                    rewardBalance={kid?.reward_balance || 0}
-                    rewardType={kid?.reward_type || 'stars'}
-                    rewardItems={rewardItems}
-                    theme={kid?.theme} 
-                    location={location}
-                    timezone={timezone}
-                    kidProfile={{
-                      dob: kid?.dob,
-                      gradeLevel: kid?.grade_level,
-                      hobbies: kid?.hobbies,
-                      interests: kid?.interests,
-                      strengths: kid?.strengths,
-                      weaknesses: kid?.weaknesses,
-                      sensoryIssues: kid?.sensory_issues,
-                      behavioralIssues: kid?.behavioral_issues,
-                      notes: kid?.notes,
-                      therapies: kid?.therapies
-                    }}
-                  />
                 </aside>
               </div>
             </div>

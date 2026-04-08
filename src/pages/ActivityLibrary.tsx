@@ -160,7 +160,7 @@ export default function ActivityLibrary() {
       });
       if (res.ok) {
         const data = await res.json();
-        return data.url;
+        return data.imageUrl;
       }
     } catch (error) {
       console.error('Upload failed', error);

@@ -1759,6 +1759,11 @@ export default function AssignedActivities() {
                         </td>
                         <td className="px-4 py-3">
                           <div className={`font-bold flex items-center gap-2 ${activity.status === 'completed' ? 'text-slate-500 line-through' : 'text-slate-900'}`}>
+                            {activity.image_url && (
+                              <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded border border-slate-200">
+                                <img src={activity.image_url} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                              </div>
+                            )}
                             {activity.activity_type}
                             {activity.link?.includes('/social-stories/view/') && (
                               <div className={`flex h-4 w-4 items-center justify-center rounded-full bg-blue-100 text-blue-600`}>
@@ -2029,6 +2034,11 @@ export default function AssignedActivities() {
                             </td>
                             <td className="px-4 py-3">
                               <div className="font-bold text-slate-900 flex items-center gap-2">
+                                {activity.image_url && (
+                                  <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded border border-slate-200">
+                                    <img src={activity.image_url} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                                  </div>
+                                )}
                                 {activity.activity_type}
                                 {activity.link?.includes('/social-stories/view/') && (
                                   <div className={`flex h-4 w-4 items-center justify-center rounded-full bg-blue-100 text-blue-600`}>

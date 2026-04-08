@@ -24,10 +24,12 @@ interface NarratorSettings {
 
 export function SocialStoryModal({ 
   storyId, 
-  onClose 
+  onClose,
+  onPrint
 }: { 
   storyId: string; 
   onClose: () => void;
+  onPrint?: () => void;
 }) {
   const [story, setStory] = useState<SocialStory | null>(null);
   const [pages, setPages] = useState<StoryPage[]>([]);

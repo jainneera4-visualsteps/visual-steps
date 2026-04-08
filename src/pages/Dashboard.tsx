@@ -5,8 +5,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import { Plus, User, Calendar, BookOpen, Gamepad2, Clock, Trophy, Sparkles, MessageSquare, Bot, History, Loader2, ArrowLeft, Edit2, ShoppingBag, Send } from 'lucide-react';
-import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
+import { Plus, User, Calendar, BookOpen, Gamepad2, Clock, Trophy, Sparkles, Loader2, ArrowLeft, Edit2, ShoppingBag } from 'lucide-react';
 
 interface Kid {
   id: string;
@@ -29,9 +28,6 @@ export default function Dashboard() {
   const [kids, setKids] = useState<Kid[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [messages, setMessages] = useState<Record<string, string>>({});
-  const [isUpdating, setIsUpdating] = useState<Record<string, boolean>>({});
-  const [showEmojiPicker, setShowEmojiPicker] = useState<Record<string, boolean>>({});
   const [showBuyGrid, setShowBuyGrid] = useState(false);
   const [selectedKid, setSelectedKid] = useState<Kid | null>(null);
   const [rewardItems, setRewardItems] = useState<any[]>([]);
@@ -121,7 +117,6 @@ export default function Dashboard() {
 
   const handleGiveReward = async (kid: Kid) => {
     const amount = 1;
-    setIsUpdating(prev => ({ ...prev, [kid.id]: true }));
     
     try {
       const newBalance = (kid.reward_balance || 0) + amount;
@@ -138,8 +133,6 @@ export default function Dashboard() {
     } catch (err) {
       console.error(err);
       alert('Failed to give reward. Please try again.');
-    } finally {
-      setIsUpdating(prev => ({ ...prev, [kid.id]: false }));
     }
   };
 
@@ -193,34 +186,6 @@ export default function Dashboard() {
       alert('Failed to buy reward. Please try again.');
     } finally {
       setIsBuying(null);
-    }
-  };
-
-  const handleSendMessage = async (kid: Kid) => {
-    const message = messages[kid.id] || '';
-    if (!message.trim()) return;
-    
-    setIsUpdating(prev => ({ ...prev, [kid.id]: true }));
-    
-    try {
-      const res = await apiFetch(`/api/kids/${kid.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ parent_message: message }),
-      });
-
-      if (!res.ok) throw new Error('Failed to send message');
-
-      // Update local state
-      setKids(prev => prev.map(k => k.id === kid.id ? { ...k, parent_message: message } : k));
-      // Reset input
-      setMessages(prev => ({ ...prev, [kid.id]: '' }));
-      alert('Message sent to ' + kid.name);
-    } catch (err) {
-      console.error(err);
-      alert('Failed to send message. Please try again.');
-    } finally {
-      setIsUpdating(prev => ({ ...prev, [kid.id]: false }));
     }
   };
 
@@ -345,7 +310,7 @@ export default function Dashboard() {
           <div className="space-y-8">
             <div className="w-full mx-auto">
               {kids.filter(k => k.id === dashboardSelectedKidId).map((kid) => (
-                <Card key={kid.id} className={`rounded-xl shadow-lg bg-white relative ${showEmojiPicker[kid.id] ? 'z-50 overflow-visible' : 'z-0 overflow-hidden'}`}>
+                <Card key={kid.id} className="rounded-xl shadow-lg bg-white relative overflow-hidden">
                   <CardHeader className="bg-blue-600 text-white relative h-28 p-6 flex flex-col justify-start rounded-t-xl">
                     <div className="flex justify-between items-start w-full">
                       <div>
@@ -381,34 +346,6 @@ export default function Dashboard() {
                   </CardHeader>
                   <CardContent className="pt-10">
                     <div className="flex flex-col gap-4">
-                      {/* Message Section */}
-                      <div className="flex items-center gap-2 relative">
-                        <input
-                          type="text"
-                          placeholder="Send a message..."
-                          className="flex-1 rounded-md border border-slate-200 px-4 py-3 text-sm"
-                          value={messages[kid.id] || ''}
-                          onChange={(e) => setMessages(prev => ({ ...prev, [kid.id]: e.target.value }))}
-                        />
-                        <button
-                          className="text-xl p-2"
-                          onClick={() => setShowEmojiPicker(prev => ({ ...prev, [kid.id]: !prev[kid.id] }))}
-                        >
-                          😊
-                        </button>
-                        <Button size="sm" onClick={() => handleSendMessage(kid)} variant="ghost">
-                          <Send className="w-4 h-4" />
-                        </Button>
-                        
-                        {showEmojiPicker[kid.id] && (
-                          <div className="absolute right-12 top-full mt-2 z-50">
-                            <EmojiPicker onEmojiClick={(data: EmojiClickData) => {
-                              setMessages(prev => ({ ...prev, [kid.id]: (prev[kid.id] || '') + data.emoji }));
-                              setShowEmojiPicker(prev => ({ ...prev, [kid.id]: false }));
-                            }} />
-                          </div>
-                        )}
-                      </div>
                       {/* Action Buttons */}
                       <div className="flex gap-2 items-center">
                         <Link to={`/assigned-activities/${kid.id}`}>
@@ -416,9 +353,6 @@ export default function Dashboard() {
                         </Link>
                         <Link to={`/behaviors/${kid.id}`}>
                           <Button size="sm" variant="outline">Behaviors</Button>
-                        </Link>
-                        <Link to={`/chat-history/${kid.id}`} className="ml-auto">
-                          <Button size="sm" variant="outline">View Chat History</Button>
                         </Link>
                       </div>
                     </div>

@@ -5,7 +5,7 @@ import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Input } from '../components/Input';
 import { Textarea } from '../components/Textarea';
-import { ArrowLeft, Sparkles, Save, Plus, Trash2, Image as ImageIcon, Loader2, Volume2, Square, Copy } from 'lucide-react';
+import { ArrowLeft, Sparkles, Save, Plus, Trash2, Image as ImageIcon, Loader2, Volume2, Square, Copy, Printer } from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
 
 interface StoryPage {
@@ -32,11 +32,16 @@ export default function CreateSocialStory() {
   const [kidSensoryIssues, setKidSensoryIssues] = useState('');
   const [tone, setTone] = useState('Calming');
   const [length, setLength] = useState('Medium');
+  const [language, setLanguage] = useState('English');
+  const [sentencesPerParagraph, setSentencesPerParagraph] = useState(2);
   const [kids, setKids] = useState<any[]>([]);
   const [narratorSettings, setNarratorSettings] = useState({
     voice: '',
-    rate: 0.75,
-    pitch: 1.0
+    rate: 1.0,
+    pitch: 1.0,
+    narratorType: 'Kind Adult',
+    speed: 'Normal',
+    highlightWords: true
   });
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [isTestingVoice, setIsTestingVoice] = useState(false);
@@ -102,11 +107,6 @@ export default function CreateSocialStory() {
     const loadVoices = () => {
       const availableVoices = window.speechSynthesis.getVoices();
       setVoices(availableVoices);
-      if (availableVoices.length > 0 && !narratorSettings.voice) {
-        // Try to find a good default
-        const preferred = availableVoices.find(v => v.name.includes('Google') && v.lang.startsWith('en')) || availableVoices.find(v => v.lang.startsWith('en')) || availableVoices[0];
-        setNarratorSettings(prev => ({ ...prev, voice: preferred.name }));
-      }
     };
     
     loadVoices();
@@ -115,6 +115,44 @@ export default function CreateSocialStory() {
       window.speechSynthesis.onvoiceschanged = null;
     };
   }, []);
+
+  const getFilteredVoices = () => {
+    const langMap: Record<string, string> = {
+      'English': 'en',
+      'Spanish': 'es',
+      'French': 'fr',
+      'German': 'de',
+      'Italian': 'it',
+      'Portuguese': 'pt',
+      'Hindi': 'hi',
+      'Chinese': 'zh',
+      'Japanese': 'ja'
+    };
+    const targetLang = langMap[language] || 'en';
+    
+    let filtered = voices.filter(v => v.lang.startsWith(targetLang));
+    
+    if (filtered.length === 0) return voices;
+    
+    if (narratorSettings.narratorType === 'Kind Adult') {
+      const prioritized = filtered.filter(v => v.name.includes('Natural') || v.name.includes('Google'));
+      return prioritized.length > 0 ? prioritized : filtered;
+    } else {
+      const prioritized = filtered.filter(v => v.name.includes('Child') || v.name.includes('Junior') || v.name.includes('Kid') || v.name.includes('Zira') || v.name.includes('Samantha'));
+      return prioritized.length > 0 ? prioritized : filtered;
+    }
+  };
+
+  useEffect(() => {
+    const filtered = getFilteredVoices();
+    if (filtered.length > 0) {
+      // If current voice is not in filtered list, pick a new one
+      const currentVoiceExists = filtered.some(v => v.name === narratorSettings.voice);
+      if (!currentVoiceExists) {
+        setNarratorSettings(prev => ({ ...prev, voice: filtered[0].name }));
+      }
+    }
+  }, [language, narratorSettings.narratorType, voices]);
 
   useEffect(() => {
     const fetchKids = async () => {
@@ -147,6 +185,10 @@ export default function CreateSocialStory() {
             if (content.pages) setPages(content.pages);
             if (content.narratorSettings) setNarratorSettings(content.narratorSettings);
             if (content.prompt) setPrompt(content.prompt);
+            if (content.language) setLanguage(content.language);
+            if (content.tone) setTone(content.tone);
+            if (content.length) setLength(content.length);
+            if (content.sentencesPerParagraph) setSentencesPerParagraph(content.sentencesPerParagraph);
           } else {
             alert('Failed to fetch story data');
             navigate('/social-stories');
@@ -226,17 +268,11 @@ export default function CreateSocialStory() {
       const response = await withRetry(() => ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: `Create a social story about: ${prompt}. 
-        ${kidStrengths ? `Strengths: ${kidStrengths}. ` : ''}
-        ${kidWeaknesses ? `Weaknesses: ${kidWeaknesses}. ` : ''}
-        ${kidHobbies ? `Hobbies: ${kidHobbies}. ` : ''}
-        ${kidInterests ? `Interests: ${kidInterests}. ` : ''}
-        ${kidBehavioralIssues ? `Behavioral Issues: ${kidBehavioralIssues}. ` : ''}
-        ${kidTherapies ? `Therapies: ${kidTherapies}. ` : ''}
-        ${kidSensoryIssues ? `Sensory Issues: ${kidSensoryIssues}. ` : ''}
+        The story should be written in ${language}.
         The story should be written in the second person, as if a narrator is talking directly to the child (using 'you').
         The tone of the story should be ${tone.toLowerCase()}.
         The story title should be interesting, engaging, and fun.
-        Break it down into exactly ${storyLength} pages. Each page should have friendly, interactive text, consisting of exactly 2-3 sentences.
+        Break it down into exactly ${storyLength} pages. Each page should have friendly, interactive text, consisting of exactly ${sentencesPerParagraph} sentences.
         The story should suggest how to deal with the issues, what the child can do in the situation, and emphasize that nothing stays the same all the time.
         Format the response as a JSON object with a "title" property and a "pages" array of objects with a "text" property.`,
         config: {
@@ -281,7 +317,6 @@ export default function CreateSocialStory() {
 
   const saveStory = async () => {
     if (!title) return alert('Please enter a title');
-    if (!selectedKidId) return alert('Please select a kid');
     if (pages.some(p => !p.text)) return alert('Please fill in all page text');
 
     setIsSaving(true);
@@ -298,7 +333,11 @@ export default function CreateSocialStory() {
           content: { 
             pages, 
             narratorSettings,
-            prompt
+            prompt,
+            language,
+            tone,
+            length,
+            sentencesPerParagraph
           } 
         }),
       });
@@ -356,21 +395,25 @@ export default function CreateSocialStory() {
             </p>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Select Kid</label>
-                <select 
-                  value={selectedKidId}
-                  onChange={(e) => handleKidSelect(e.target.value)}
-                  className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600"
-                >
-                  <option value="">Select a profile...</option>
-                  {kids.map((kid) => (
-                    <option key={kid.id} value={kid.id}>{kid.name}</option>
-                  ))}
-                </select>
-              </div>
-
               <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Language</label>
+                  <select 
+                    value={language}
+                    onChange={(e) => setLanguage(e.target.value)}
+                    className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600"
+                  >
+                    <option>English</option>
+                    <option>Spanish</option>
+                    <option>French</option>
+                    <option>German</option>
+                    <option>Italian</option>
+                    <option>Portuguese</option>
+                    <option>Hindi</option>
+                    <option>Chinese</option>
+                    <option>Japanese</option>
+                  </select>
+                </div>
                 <div className="space-y-1.5">
                   <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Tone</label>
                   <select 
@@ -384,16 +427,33 @@ export default function CreateSocialStory() {
                     <option>Playful</option>
                   </select>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Length</label>
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Number of Pages</label>
                   <select 
                     value={length}
                     onChange={(e) => setLength(e.target.value)}
                     className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600"
                   >
-                    <option>Short</option>
-                    <option>Medium</option>
-                    <option>Long</option>
+                    <option value="Short">Short (3-4 pages)</option>
+                    <option value="Medium">Medium (5-6 pages)</option>
+                    <option value="Long">Long (7-8 pages)</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Sentences per Page</label>
+                  <select 
+                    value={sentencesPerParagraph}
+                    onChange={(e) => setSentencesPerParagraph(parseInt(e.target.value))}
+                    className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600"
+                  >
+                    <option value={1}>1 Sentence</option>
+                    <option value={2}>2 Sentences</option>
+                    <option value={3}>3 Sentences</option>
+                    <option value={4}>4 Sentences</option>
+                    <option value={5}>5 Sentences</option>
                   </select>
                 </div>
               </div>
@@ -430,10 +490,10 @@ export default function CreateSocialStory() {
             Narrator Settings
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="space-y-1.5">
+        <CardContent className="p-4 space-y-6">
+          <div className="space-y-3">
             <div className="flex justify-between items-center">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Voice</label>
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Narrator Selection</label>
               <button 
                 onClick={testVoice}
                 className="text-[10px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 transition-colors"
@@ -446,52 +506,68 @@ export default function CreateSocialStory() {
                 )}
               </button>
             </div>
-            <select 
-              value={narratorSettings.voice}
-              onChange={(e) => setNarratorSettings({ ...narratorSettings, voice: e.target.value })}
-              className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600"
-            >
-              {voices.map((voice) => (
-                <option key={voice.name} value={voice.name}>
-                  {voice.name} ({voice.lang})
-                </option>
+            <div className="flex p-1 bg-slate-100 rounded-lg">
+              {['Kind Adult', 'Friendly Peer'].map((type) => (
+                <button
+                  key={type}
+                  onClick={() => setNarratorSettings({ ...narratorSettings, narratorType: type })}
+                  className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${
+                    narratorSettings.narratorType === type
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {type}
+                </button>
               ))}
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <div className="flex justify-between">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Speed (Rate)</label>
-              <span className="text-[11px] font-bold text-blue-600">{narratorSettings.rate}x</span>
             </div>
-            <input 
-              type="range"
-              min="0.5"
-              max="2"
-              step="0.1"
-              value={narratorSettings.rate}
-              onChange={(e) => setNarratorSettings({ ...narratorSettings, rate: parseFloat(e.target.value) })}
-              className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-            />
           </div>
-          <div className="space-y-1.5">
-            <div className="flex justify-between">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Pitch</label>
-              <span className="text-[11px] font-bold text-blue-600">{narratorSettings.pitch}</span>
+
+          <div className="space-y-3">
+            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Speech Speed</label>
+            <div className="flex gap-2">
+              {[
+                { label: 'Slow', value: 0.8 },
+                { label: 'Normal', value: 1.0 },
+                { label: 'Fast', value: 1.2 }
+              ].map((speed) => (
+                <button
+                  key={speed.label}
+                  onClick={() => setNarratorSettings({ ...narratorSettings, speed: speed.label, rate: speed.value })}
+                  className={`flex-1 py-2 text-xs font-bold border rounded-lg transition-all ${
+                    narratorSettings.speed === speed.label
+                      ? 'bg-blue-50 border-blue-200 text-blue-600'
+                      : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                  }`}
+                >
+                  {speed.label}
+                </button>
+              ))}
             </div>
-            <input 
-              type="range"
-              min="0.5"
-              max="2"
-              step="0.1"
-              value={narratorSettings.pitch}
-              onChange={(e) => setNarratorSettings({ ...narratorSettings, pitch: parseFloat(e.target.value) })}
-              className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-            />
+          </div>
+
+          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
+            <div className="space-y-0.5">
+              <label className="text-xs font-bold text-slate-700">Visual Sync</label>
+              <p className="text-[10px] text-slate-500">Highlight words while reading</p>
+            </div>
+            <button
+              onClick={() => setNarratorSettings({ ...narratorSettings, highlightWords: !narratorSettings.highlightWords })}
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                narratorSettings.highlightWords ? 'bg-blue-600' : 'bg-slate-200'
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  narratorSettings.highlightWords ? 'translate-x-4' : 'translate-x-0'
+                }`}
+              />
+            </button>
           </div>
         </CardContent>
       </Card>
 
-      <div className="space-y-4 pt-4">
+      <div className="space-y-4 pt-4 no-print">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-slate-900">Story Details</h2>
           <div className="flex gap-2">
@@ -503,14 +579,29 @@ export default function CreateSocialStory() {
         </div>
 
 
-        <div className="space-y-1.5">
-          <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Story Title</label>
-          <Input 
-            placeholder="e.g., My Visit to the Dentist" 
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="text-lg font-bold h-11"
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Story Title</label>
+            <Input 
+              placeholder="e.g., My Visit to the Dentist" 
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="text-lg font-bold h-11"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Assign to Kid (Optional)</label>
+            <select 
+              value={selectedKidId}
+              onChange={(e) => handleKidSelect(e.target.value)}
+              className="w-full h-11 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600"
+            >
+              <option value="">Apply to all kids</option>
+              {kids.map((kid) => (
+                <option key={kid.id} value={kid.id}>{kid.name}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div className="space-y-4">
@@ -570,9 +661,10 @@ export default function CreateSocialStory() {
                   <Button
                     variant="ghost"
                     size="xs"
-                    className="h-8 w-8 p-0 text-slate-400 hover:bg-red-50 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="h-8 w-8 p-0 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
                     onClick={() => removePage(index)}
                     disabled={pages.length === 1}
+                    title="Delete Page"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -599,6 +691,7 @@ export default function CreateSocialStory() {
           </Button>
         </div>
       </div>
+
     </div>
   );
 }
