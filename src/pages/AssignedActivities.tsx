@@ -1,4 +1,3 @@
-import { GoogleGenAI, Type } from "@google/genai";
 import { io } from 'socket.io-client';
 import { apiFetch, safeJson } from '../utils/api';
 import { formatReward } from '../utils/rewardUtils';

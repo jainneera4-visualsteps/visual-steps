@@ -38,6 +38,8 @@ export function SocialStoryModal({
   const [isLoading, setIsLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const [autoPlay, setAutoPlay] = useState(false);
+  const [hasStarted, setHasStarted] = useState(false);
+  const [currentWordIndex, setCurrentWordIndex] = useState<number | null>(null);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
 
   useEffect(() => {
@@ -93,8 +95,9 @@ export function SocialStoryModal({
   useEffect(() => {
     window.speechSynthesis.cancel();
     setIsPlaying(false);
+    setCurrentWordIndex(null);
     
-    if (autoPlay && pages.length > 0) {
+    if (autoPlay && pages.length > 0 && hasStarted) {
       const text = pages[currentPage]?.text;
       if (text) {
         const utterance = new SpeechSynthesisUtterance(text);
@@ -103,27 +106,56 @@ export function SocialStoryModal({
         utterance.pitch = narratorSettings?.pitch ?? 1.0;
         utterance.rate = narratorSettings?.rate ?? 0.75;
         
+        const tokens = text.split(/(\s+)/);
+        
+        utterance.onboundary = (event) => {
+          if (event.name === 'word') {
+            const charIndex = event.charIndex;
+            let currentLength = 0;
+            let wordIdx = 0;
+            for (let i = 0; i < tokens.length; i++) {
+              if (i % 2 === 0) { // It's a word
+                if (currentLength <= charIndex && charIndex < currentLength + tokens[i].length) {
+                  setCurrentWordIndex(wordIdx);
+                  break;
+                }
+                wordIdx++;
+              }
+              currentLength += tokens[i].length;
+            }
+          }
+        };
+        
         utterance.onstart = () => setIsPlaying(true);
         utterance.onend = () => {
           setIsPlaying(false);
+          setCurrentWordIndex(null);
           if (autoPlay && currentPage < pages.length - 1) {
             setTimeout(() => setCurrentPage(prev => prev + 1), 1500);
           } else {
             setAutoPlay(false);
+            setHasStarted(false);
           }
         };
         window.speechSynthesis.speak(utterance);
       }
     }
-  }, [currentPage, autoPlay, pages, voices]);
+  }, [currentPage, autoPlay, pages, voices, hasStarted]);
 
   const handleListen = () => {
     if (isPlaying || autoPlay) {
       window.speechSynthesis.cancel();
       setIsPlaying(false);
       setAutoPlay(false);
+      setHasStarted(false);
+      setCurrentWordIndex(null);
     } else {
+      // Unlock audio for Safari
+      const unlockUtterance = new SpeechSynthesisUtterance('');
+      window.speechSynthesis.speak(unlockUtterance);
+      
       setAutoPlay(true);
+      setHasStarted(true);
     }
   };
 
@@ -211,7 +243,29 @@ export function SocialStoryModal({
                 
                 <div className="flex-1 flex flex-col justify-start overflow-y-auto pb-4">
                   <p className={`${pages[currentPage].imageUrl ? 'text-lg md:text-xl' : 'text-xl md:text-3xl'} font-bold text-slate-800 leading-relaxed text-justify whitespace-pre-wrap`}>
-                    {pages[currentPage].text}
+                    {(() => {
+                      const text = pages[currentPage].text;
+                      const shouldHighlight = (narratorSettings as any)?.highlightWords ?? true;
+                      
+                      if (!shouldHighlight || currentWordIndex === null) return text;
+                      
+                      const tokens = text.split(/(\s+)/);
+                      let wordIdx = 0;
+                      
+                      return tokens.map((token, i) => {
+                        if (i % 2 === 0) {
+                          const isHighlighted = wordIdx === currentWordIndex;
+                          wordIdx++;
+                          return isHighlighted ? (
+                            <span key={i} className="bg-yellow-200 rounded px-1">{token}</span>
+                          ) : (
+                            <span key={i}>{token}</span>
+                          );
+                        } else {
+                          return <span key={i}>{token}</span>;
+                        }
+                      });
+                    })()}
                   </p>
 
                   {currentPage === pages.length - 1 && (

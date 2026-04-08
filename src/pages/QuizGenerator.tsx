@@ -5,7 +5,6 @@ import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Input } from '../components/Input';
 import { ArrowLeft, Sparkles, Loader2, Gamepad2, Save, CheckCircle2 } from 'lucide-react';
-import { GoogleGenAI, Type } from "@google/genai";
 
 interface QuizContent {
   title: string;
@@ -79,11 +78,12 @@ export default function QuizGenerator() {
     };
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-      
-      const response = await withRetry(() => ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `Generate an interactive ${questionType} quiz for a person aged ${targetAge} at a ${gradeLevel} reading/comprehension level on the topic: "${topic}". 
+      const response = await withRetry(async () => {
+        const res = await apiFetch('/api/generate', {
+          method: 'POST',
+          body: JSON.stringify({
+            model: "gemini-3-flash-preview",
+            contents: `Generate an interactive ${questionType} quiz for a person aged ${targetAge} at a ${gradeLevel} reading/comprehension level on the topic: "${topic}". 
         Subject: ${subject}.
         Difficulty Level: ${difficulty}.
         
@@ -93,36 +93,43 @@ export default function QuizGenerator() {
         
         The quiz should be educational, fun, and engaging.
         Include exactly ${numQuestions} questions.`,
-        config: {
-          maxOutputTokens: 4096,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              title: { type: Type.STRING, description: "The title of the quiz" },
-              description: { type: Type.STRING, description: "A short description of the quiz" },
-              questions: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    question: { type: Type.STRING, description: "The question text" },
-                    options: { 
-                      type: Type.ARRAY, 
-                      items: { type: Type.STRING },
-                      description: "2 to 4 options depending on the question type"
-                    },
-                    correctAnswerIndex: { type: Type.INTEGER, description: "The index of the correct option (0-based)" },
-                    explanation: { type: Type.STRING, description: "A brief explanation of why the answer is correct" }
-                  },
-                  required: ["question", "options", "correctAnswerIndex", "explanation"]
-                }
+            config: {
+              maxOutputTokens: 4096,
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: "OBJECT",
+                properties: {
+                  title: { type: "STRING", description: "The title of the quiz" },
+                  description: { type: "STRING", description: "A short description of the quiz" },
+                  questions: {
+                    type: "ARRAY",
+                    items: {
+                      type: "OBJECT",
+                      properties: {
+                        question: { type: "STRING", description: "The question text" },
+                        options: { 
+                          type: "ARRAY", 
+                          items: { type: "STRING" },
+                          description: "2 to 4 options depending on the question type"
+                        },
+                        correctAnswerIndex: { type: "INTEGER", description: "The index of the correct option (0-based)" },
+                        explanation: { type: "STRING", description: "A brief explanation of why the answer is correct" }
+                      },
+                      required: ["question", "options", "correctAnswerIndex", "explanation"]
+                    }
+                  }
+                },
+                required: ["title", "description", "questions"]
               }
-            },
-            required: ["title", "description", "questions"]
-          }
+            }
+          })
+        });
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || 'Failed to generate content');
         }
-      }));
+        return await res.json();
+      });
 
       let responseText = response.text;
       

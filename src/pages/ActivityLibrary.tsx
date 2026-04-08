@@ -1,4 +1,3 @@
-import { GoogleGenAI, Type } from "@google/genai";
 import { apiFetch, safeJson } from '../utils/api';
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
@@ -206,8 +205,11 @@ export default function ActivityLibrary() {
 
     setIsGeneratingSuggestions(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const prompt = `Generate 3 creative activity ideas for a child named ${kid.name} based on their profile:
+      const res = await apiFetch('/api/generate', {
+        method: 'POST',
+        body: JSON.stringify({
+          model: "gemini-3-flash-preview",
+          contents: `Generate 3 creative activity ideas for a child named ${kid.name} based on their profile:
         Hobbies: ${kid.hobbies || 'Not specified'}
         Interests: ${kid.interests || 'Not specified'}
         Therapies: ${kid.therapies || 'Not specified'}
@@ -221,31 +223,33 @@ export default function ActivityLibrary() {
         - activityType (short name)
         - category (e.g., Education, Sensory, Motor Skills, Social, Chores)
         - description (detailed explanation)
-        - steps (list of 3-5 clear steps)`;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                activityType: { type: Type.STRING },
-                category: { type: Type.STRING },
-                description: { type: Type.STRING },
-                steps: {
-                  type: Type.ARRAY,
-                  items: { type: Type.STRING }
-                }
-              },
-              required: ["activityType", "category", "description", "steps"]
+        - steps (list of 3-5 clear steps)`,
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: "ARRAY",
+              items: {
+                type: "OBJECT",
+                properties: {
+                  activityType: { type: "STRING" },
+                  category: { type: "STRING" },
+                  description: { type: "STRING" },
+                  steps: {
+                    type: "ARRAY",
+                    items: { type: "STRING" }
+                  }
+                },
+                required: ["activityType", "category", "description", "steps"]
+              }
             }
           }
-        }
+        })
       });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to generate content');
+      }
+      const response = await res.json();
 
       const suggestions = JSON.parse(response.text || '[]');
       setAiSuggestions(suggestions);

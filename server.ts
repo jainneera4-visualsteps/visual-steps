@@ -441,6 +441,34 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+// Generate Content Endpoint (Proxy for Gemini API)
+app.post('/api/generate', authenticateToken, async (req: any, res) => {
+  try {
+    const { model, contents, config } = req.body;
+    
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({ error: 'GEMINI_API_KEY is not configured on the server.' });
+    }
+
+    const { GoogleGenAI } = await import('@google/genai');
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+    const response = await ai.models.generateContent({
+      model,
+      contents,
+      config
+    });
+
+    res.json({ 
+      text: response.text,
+      candidates: response.candidates
+    });
+  } catch (error: any) {
+    console.error('Error generating content:', error);
+    res.status(500).json({ error: 'Failed to generate content', details: error.message });
+  }
+});
+
 // Upload File Endpoint
 app.post('/api/upload', authenticateToken, (req: any, res) => {
   console.log('Received upload request');

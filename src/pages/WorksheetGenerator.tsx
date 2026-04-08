@@ -5,7 +5,6 @@ import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Input } from '../components/Input';
 import { ArrowLeft, Printer, Sparkles, Loader2, FileText, CheckCircle2, Save } from 'lucide-react';
-import { GoogleGenAI, Type } from "@google/genai";
 import { Link } from 'react-router-dom';
 
 interface WorksheetContent {
@@ -157,8 +156,6 @@ export default function WorksheetGenerator() {
     };
     
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
-      
       let typeInstruction = '';
       let includeInstruction = '';
 
@@ -224,9 +221,11 @@ export default function WorksheetGenerator() {
       for (let i = 0; i < numWorksheets; i++) {
         try {
           const data = await withRetry(async () => {
-            const response = await ai.models.generateContent({
-              model: "gemini-3-flash-preview",
-              contents: `Generate a highly refined, professional-grade printable worksheet for a person aged ${targetAge} at a ${gradeLevel} reading/comprehension level for the subject ${subject} on the topic: "${topic}". 
+            const res = await apiFetch('/api/generate', {
+              method: 'POST',
+              body: JSON.stringify({
+                model: "gemini-3-flash-preview",
+                contents: `Generate a highly refined, professional-grade printable worksheet for a person aged ${targetAge} at a ${gradeLevel} reading/comprehension level for the subject ${subject} on the topic: "${topic}". 
               
               CRITICAL CRITERIA:
               - Target Age: ${targetAge} (Ensure tone and context are appropriate for this age).
@@ -273,11 +272,18 @@ export default function WorksheetGenerator() {
                   }
                 ]
               }`,
-              config: {
-                maxOutputTokens: 8192,
-                responseMimeType: "application/json"
-              }
+                config: {
+                  maxOutputTokens: 8192,
+                  responseMimeType: "application/json"
+                }
+              })
             });
+            
+            if (!res.ok) {
+              const errorData = await res.json();
+              throw new Error(errorData.error || 'Failed to generate content');
+            }
+            const response = await res.json();
 
             let responseText = response.text;
             if (!responseText) throw new Error('Empty response from AI model');
@@ -307,16 +313,26 @@ export default function WorksheetGenerator() {
                 await new Promise(resolve => setTimeout(resolve, 2000));
               }
 
-              const imageResponse = await withRetry(() => ai.models.generateContent({
-                model: 'gemini-2.5-flash-image',
-                contents: {
-                  parts: [
-                    {
-                      text: `${data.imagePrompt}. Black and white line art, coloring book style, clean white background, high contrast, simple for kids.`,
+              const imageResponse = await withRetry(async () => {
+                const res = await apiFetch('/api/generate', {
+                  method: 'POST',
+                  body: JSON.stringify({
+                    model: 'gemini-2.5-flash-image',
+                    contents: {
+                      parts: [
+                        {
+                          text: `${data.imagePrompt}. Black and white line art, coloring book style, clean white background, high contrast, simple for kids.`,
+                        },
+                      ],
                     },
-                  ],
-                },
-              }), 2, 4000);
+                  })
+                });
+                if (!res.ok) {
+                  const errorData = await res.json();
+                  throw new Error(errorData.error || 'Failed to generate image');
+                }
+                return await res.json();
+              }, 2, 4000);
 
               let imageUrl = '';
               for (const part of imageResponse.candidates?.[0]?.content?.parts || []) {

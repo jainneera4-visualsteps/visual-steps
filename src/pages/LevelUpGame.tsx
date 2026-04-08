@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { apiFetch, safeJson } from '../utils/api';
-import { GoogleGenAI, Type } from "@google/genai";
 import { 
   Gamepad2, 
   Trophy, 
@@ -106,33 +105,38 @@ export default function LevelUpGame() {
   const generateQuestions = async () => {
     setGameState('loading');
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `Generate 10 multiple-choice questions for a ${selectedGrade} student in the subject of ${selectedSubject}. 
+      const res = await apiFetch('/api/generate', {
+        method: 'POST',
+        body: JSON.stringify({
+          model: "gemini-3-flash-preview",
+          contents: `Generate 10 multiple-choice questions for a ${selectedGrade} student in the subject of ${selectedSubject}. 
         Return the response as a JSON array of objects, each with 'question', 'options' (array of 4 strings), 'correctAnswer' (one of the options), and 'explanation'.`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                question: { type: Type.STRING },
-                options: { 
-                  type: Type.ARRAY, 
-                  items: { type: Type.STRING },
-                  minItems: 4,
-                  maxItems: 4
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: "ARRAY",
+              items: {
+                type: "OBJECT",
+                properties: {
+                  question: { type: "STRING" },
+                  options: { 
+                    type: "ARRAY", 
+                    items: { type: "STRING" }
+                  },
+                  correctAnswer: { type: "STRING" },
+                  explanation: { type: "STRING" }
                 },
-                correctAnswer: { type: Type.STRING },
-                explanation: { type: Type.STRING }
-              },
-              required: ['question', 'options', 'correctAnswer', 'explanation']
+                required: ['question', 'options', 'correctAnswer', 'explanation']
+              }
             }
           }
-        }
+        })
       });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to generate content');
+      }
+      const response = await res.json();
 
       const data = JSON.parse(response.text);
       setQuestions(data);

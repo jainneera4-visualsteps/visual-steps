@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Input } from '../components/Input';
 import { Textarea } from '../components/Textarea';
 import { ArrowLeft, Sparkles, Save, Plus, Trash2, Image as ImageIcon, Loader2, Volume2, Square, Copy, Printer } from 'lucide-react';
-import { GoogleGenAI, Type } from "@google/genai";
 
 interface StoryPage {
   text: string;
@@ -263,11 +262,13 @@ export default function CreateSocialStory() {
     };
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
       const storyLength = length === 'Short' ? '3-4' : length === 'Medium' ? '5-6' : '7-8';
-      const response = await withRetry(() => ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `Create a social story about: ${prompt}. 
+      const response = await withRetry(async () => {
+        const res = await apiFetch('/api/generate', {
+          method: 'POST',
+          body: JSON.stringify({
+            model: "gemini-3-flash-preview",
+            contents: `Create a social story about: ${prompt}. 
         The story should be written in ${language}.
         The story should be written in the second person, as if a narrator is talking directly to the child (using 'you').
         The tone of the story should be ${tone.toLowerCase()}.
@@ -275,27 +276,34 @@ export default function CreateSocialStory() {
         Break it down into exactly ${storyLength} pages. Each page should have friendly, interactive text, consisting of exactly ${sentencesPerParagraph} sentences.
         The story should suggest how to deal with the issues, what the child can do in the situation, and emphasize that nothing stays the same all the time.
         Format the response as a JSON object with a "title" property and a "pages" array of objects with a "text" property.`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              title: { type: Type.STRING, description: "An interesting and engaging title for the story" },
-              pages: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    text: { type: Type.STRING, description: "Friendly, interactive text for the page, consisting of exactly 2-3 sentences." }
-                  },
-                  required: ["text"]
-                }
+            config: {
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: "OBJECT",
+                properties: {
+                  title: { type: "STRING", description: "An interesting and engaging title for the story" },
+                  pages: {
+                    type: "ARRAY",
+                    items: {
+                      type: "OBJECT",
+                      properties: {
+                        text: { type: "STRING", description: "Friendly, interactive text for the page, consisting of exactly 2-3 sentences." }
+                      },
+                      required: ["text"]
+                    }
+                  }
+                },
+                required: ["title", "pages"]
               }
-            },
-            required: ["title", "pages"]
-          }
+            }
+          })
+        });
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || 'Failed to generate content');
         }
-      }));
+        return await res.json();
+      });
 
       const generatedData = JSON.parse(response.text || '{}');
       if (generatedData.pages && Array.isArray(generatedData.pages)) {
@@ -491,58 +499,47 @@ export default function CreateSocialStory() {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-4 space-y-6">
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Narrator Selection</label>
-              <button 
-                onClick={testVoice}
-                className="text-[10px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 transition-colors"
-                title={isTestingVoice ? "Stop testing" : "Test this voice"}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Narrator Selection</label>
+                <button 
+                  onClick={testVoice}
+                  className="text-[10px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 transition-colors"
+                  title={isTestingVoice ? "Stop testing" : "Test this voice"}
+                >
+                  {isTestingVoice ? (
+                    <><Square className="h-3 w-3 fill-current" /> Stop</>
+                  ) : (
+                    <><Volume2 className="h-3 w-3" /> Test Voice</>
+                  )}
+                </button>
+              </div>
+              <select
+                value={narratorSettings.narratorType}
+                onChange={(e) => setNarratorSettings({ ...narratorSettings, narratorType: e.target.value })}
+                className="w-full h-9 px-3 py-1 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               >
-                {isTestingVoice ? (
-                  <><Square className="h-3 w-3 fill-current" /> Stop</>
-                ) : (
-                  <><Volume2 className="h-3 w-3" /> Test Voice</>
-                )}
-              </button>
+                <option value="Kind Adult">Kind Adult</option>
+                <option value="Friendly Peer">Friendly Peer</option>
+              </select>
             </div>
-            <div className="flex p-1 bg-slate-100 rounded-lg">
-              {['Kind Adult', 'Friendly Peer'].map((type) => (
-                <button
-                  key={type}
-                  onClick={() => setNarratorSettings({ ...narratorSettings, narratorType: type })}
-                  className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${
-                    narratorSettings.narratorType === type
-                      ? 'bg-white text-blue-600 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  {type}
-                </button>
-              ))}
-            </div>
-          </div>
 
-          <div className="space-y-3">
-            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Speech Speed</label>
-            <div className="flex gap-2">
-              {[
-                { label: 'Slow', value: 0.8 },
-                { label: 'Normal', value: 1.0 },
-                { label: 'Fast', value: 1.2 }
-              ].map((speed) => (
-                <button
-                  key={speed.label}
-                  onClick={() => setNarratorSettings({ ...narratorSettings, speed: speed.label, rate: speed.value })}
-                  className={`flex-1 py-2 text-xs font-bold border rounded-lg transition-all ${
-                    narratorSettings.speed === speed.label
-                      ? 'bg-blue-50 border-blue-200 text-blue-600'
-                      : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                  }`}
-                >
-                  {speed.label}
-                </button>
-              ))}
+            <div className="space-y-3">
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Speech Speed</label>
+              <select
+                value={narratorSettings.speed}
+                onChange={(e) => {
+                  const speedLabel = e.target.value;
+                  const speedValue = speedLabel === 'Slow' ? 0.8 : speedLabel === 'Fast' ? 1.2 : 1.0;
+                  setNarratorSettings({ ...narratorSettings, speed: speedLabel, rate: speedValue });
+                }}
+                className="w-full h-9 px-3 py-1 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              >
+                <option value="Slow">Slow</option>
+                <option value="Normal">Normal</option>
+                <option value="Fast">Fast</option>
+              </select>
             </div>
           </div>
 
