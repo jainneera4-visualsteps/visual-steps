@@ -224,6 +224,7 @@ export default function WorksheetGenerator() {
           const data = await withRetry(async () => {
             const res = await apiFetch('/api/generate', {
               method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 model: "gemini-3-flash-preview",
                 contents: `Generate a highly refined, professional-grade printable worksheet for a person aged ${targetAge} at a ${gradeLevel} reading/comprehension level for the subject ${subject} on the topic: "${topic}". 
@@ -317,6 +318,7 @@ export default function WorksheetGenerator() {
               const imageResponse = await withRetry(async () => {
                 const res = await apiFetch('/api/generate', {
                   method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
                     model: 'gemini-2.5-flash-image',
                     contents: {

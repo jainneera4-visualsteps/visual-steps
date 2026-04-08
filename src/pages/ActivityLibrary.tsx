@@ -207,6 +207,7 @@ export default function ActivityLibrary() {
     try {
       const res = await apiFetch('/api/generate', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: "gemini-3-flash-preview",
           contents: `Generate 3 creative activity ideas for a child named ${kid.name} based on their profile:

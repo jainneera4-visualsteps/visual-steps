@@ -312,6 +312,7 @@ export function ChatbotComponent({ kidId, kidName, chatbotName, activities, rewa
 
       const res = await apiFetch('/api/generate', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: "gemini-3-flash-preview",
           contents: [

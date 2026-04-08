@@ -107,6 +107,7 @@ export default function LevelUpGame() {
     try {
       const res = await apiFetch('/api/generate', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: "gemini-3-flash-preview",
           contents: `Generate 10 multiple-choice questions for a ${selectedGrade} student in the subject of ${selectedSubject}. 

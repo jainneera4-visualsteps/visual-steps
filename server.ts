@@ -446,12 +446,13 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
   try {
     const { model, contents, config } = req.body;
     
-    if (!process.env.GEMINI_API_KEY) {
-      return res.status(500).json({ error: 'GEMINI_API_KEY is not configured on the server.' });
+    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: 'GEMINI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY is not configured on the server.' });
     }
 
     const { GoogleGenAI } = await import('@google/genai');
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const ai = new GoogleGenAI({ apiKey });
 
     const response = await ai.models.generateContent({
       model,
@@ -465,6 +466,7 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
     });
   } catch (error: any) {
     console.error('Error generating content:', error);
+    console.error('Stack trace:', error.stack);
     res.status(500).json({ error: 'Failed to generate content', details: error.message });
   }
 });

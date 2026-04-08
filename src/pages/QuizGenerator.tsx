@@ -81,6 +81,7 @@ export default function QuizGenerator() {
       const response = await withRetry(async () => {
         const res = await apiFetch('/api/generate', {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             model: "gemini-3-flash-preview",
             contents: `Generate an interactive ${questionType} quiz for a person aged ${targetAge} at a ${gradeLevel} reading/comprehension level on the topic: "${topic}". 
