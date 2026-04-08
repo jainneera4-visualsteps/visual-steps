@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import { ArrowLeft, FileText, Trash2, Printer, Calendar, BookOpen, Sparkles } from 'lucide-react';
+import { ArrowLeft, FileText, Trash2, Printer, Calendar, BookOpen, Sparkles, Eye, Edit2 } from 'lucide-react';
 
 interface Worksheet {
   id: string;
@@ -129,9 +129,19 @@ export default function SavedWorksheets() {
                       variant="ghost"
                       size="xs"
                       className="h-8 w-8 p-0 text-slate-400 hover:bg-blue-50 hover:text-blue-600"
-                      title="View & Print"
+                      title="View Worksheet"
                     >
-                      <Printer className="h-4 w-4" />
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                  <Link to={`/worksheet-generator?id=${worksheet.id}&edit=true`}>
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      className="h-8 w-8 p-0 text-slate-400 hover:bg-amber-50 hover:text-amber-600"
+                      title="Edit Worksheet Settings"
+                    >
+                      <Edit2 className="h-4 w-4" />
                     </Button>
                   </Link>
                   <Button

@@ -55,12 +55,13 @@ export default function WorksheetGenerator() {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const id = params.get('id');
+    const isEdit = params.get('edit') === 'true';
     if (id) {
-      fetchWorksheet(id);
+      fetchWorksheet(id, isEdit);
     }
   }, [location.search]);
 
-  const fetchWorksheet = async (id: string) => {
+  const fetchWorksheet = async (id: string, isEdit: boolean) => {
     try {
       const res = await apiFetch(`/api/worksheets/${id}`);
       if (!res.ok) throw new Error('Failed to fetch worksheet');
@@ -69,10 +70,10 @@ export default function WorksheetGenerator() {
       setWorksheet(content);
       setTopic(data.worksheet.topic || '');
       setSubject(data.worksheet.subject || 'General');
-      setTargetAge(data.worksheet.grade_level || '8-10 years');
+      setTargetAge(data.worksheet.target_age || '8-10 years');
       setGradeLevel(data.worksheet.grade_level || 'Grade 3');
       setWorksheetType(data.worksheet.worksheet_type || 'Mixed');
-      setIsViewingSaved(true);
+      setIsViewingSaved(!isEdit);
     } catch (err) {
       console.error(err);
       alert('Failed to load worksheet');

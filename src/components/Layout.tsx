@@ -86,14 +86,6 @@ export function Layout() {
                       className="absolute left-0 mt-0 w-48 rounded-lg bg-white shadow-xl ring-1 ring-black/5 py-1 z-[60]"
                     >
                       <Link
-                        to="/activity-library"
-                        className="flex items-center gap-2 px-4 py-2 text-[12px] font-bold text-slate-600 hover:bg-blue-50 hover:text-blue-600 uppercase tracking-wider"
-                        onClick={() => setIsActivitiesOpen(false)}
-                      >
-                        <Sparkles size={14} className="text-blue-500" />
-                        Create Activity
-                      </Link>
-                      <Link
                         to="/saved-quizzes"
                         className="flex items-center gap-2 px-4 py-2 text-[12px] font-bold text-slate-600 hover:bg-blue-50 hover:text-blue-600 uppercase tracking-wider"
                         onClick={() => setIsActivitiesOpen(false)}
@@ -116,14 +108,6 @@ export function Layout() {
                       >
                         <FileText size={14} className="text-amber-500" />
                         Worksheets
-                      </Link>
-                      <Link
-                        to="/games"
-                        className="flex items-center gap-2 px-4 py-2 text-[12px] font-bold text-slate-600 hover:bg-blue-50 hover:text-blue-600 uppercase tracking-wider"
-                        onClick={() => setIsActivitiesOpen(false)}
-                      >
-                        <Gamepad2 size={14} className="text-emerald-500" />
-                        Games
                       </Link>
                     </div>
                   )}
@@ -187,9 +171,6 @@ export function Layout() {
                   
                   <div className="flex flex-col gap-1.5 pl-2 border-l-2 border-blue-100">
                     <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Activities</span>
-                    <Link to="/activity-library" className="text-[12px] font-bold text-slate-600 uppercase flex items-center gap-2" onClick={() => setIsMenuOpen(false)}>
-                      <Sparkles size={14} className="text-blue-500" /> Create Activity
-                    </Link>
                     <Link to="/saved-quizzes" className="text-[12px] font-bold text-slate-600 uppercase flex items-center gap-2" onClick={() => setIsMenuOpen(false)}>
                       <Gamepad2 size={14} className="text-indigo-500" /> Quizzes
                     </Link>
@@ -198,9 +179,6 @@ export function Layout() {
                     </Link>
                     <Link to="/saved-worksheets" className="text-[12px] font-bold text-slate-600 uppercase flex items-center gap-2" onClick={() => setIsMenuOpen(false)}>
                       <FileText size={14} className="text-amber-500" /> Worksheets
-                    </Link>
-                    <Link to="/games" className="text-[12px] font-bold text-slate-600 uppercase flex items-center gap-2" onClick={() => setIsMenuOpen(false)}>
-                      <Gamepad2 size={14} className="text-emerald-500" /> Games
                     </Link>
                   </div>
 
