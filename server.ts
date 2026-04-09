@@ -304,43 +304,50 @@ const authenticateToken = async (req: any, res: any, next: any) => {
 };
 
 // Helper Functions
+const getTransporter = async () => {
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
+  const smtpHost = process.env.SMTP_HOST || 'smtp.ethereal.email';
+  const smtpPort = parseInt(process.env.SMTP_PORT || '587');
+
+  const transporter = nodemailer.createTransport({
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpPort === 465,
+    auth: {
+      user: smtpUser,
+      pass: smtpPass,
+    },
+  });
+
+  // If no credentials are provided, try to create a test account for development
+  if (!smtpUser) {
+    if (process.env.NODE_ENV === 'production') {
+      console.warn('Skipping email: No SMTP_USER provided in production environment.');
+      return null;
+    }
+    console.log('No SMTP_USER provided. Creating Ethereal test account...');
+    const testAccount = await nodemailer.createTestAccount();
+    (transporter.options as any).host = 'smtp.ethereal.email';
+    (transporter.options as any).port = 587;
+    (transporter.options as any).secure = false;
+    (transporter.options as any).auth = {
+      user: testAccount.user,
+      pass: testAccount.pass,
+    };
+    console.log('Using Ethereal test account for emails:', testAccount.user);
+  }
+
+  return transporter;
+};
+
 const sendWelcomeEmail = async (email: string, name: string) => {
   console.log(`Attempting to send welcome email to: ${email} (${name})`);
   try {
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
-    const smtpHost = process.env.SMTP_HOST || 'smtp.ethereal.email';
-    const smtpPort = parseInt(process.env.SMTP_PORT || '587');
-    const smtpFrom = process.env.SMTP_FROM || smtpUser || '"Visual Steps" <noreply@visualsteps.com>';
+    const transporter = await getTransporter();
+    if (!transporter) return;
 
-    const transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpPort === 465,
-      auth: {
-        user: smtpUser,
-        pass: smtpPass,
-      },
-    });
-
-    // If no credentials are provided, try to create a test account for development
-    if (!smtpUser) {
-      if (process.env.NODE_ENV === 'production') {
-        console.warn('Skipping welcome email: No SMTP_USER provided in production environment.');
-        return;
-      }
-      console.log('No SMTP_USER provided. Creating Ethereal test account...');
-      const testAccount = await nodemailer.createTestAccount();
-      (transporter.options as any).host = 'smtp.ethereal.email';
-      (transporter.options as any).port = 587;
-      (transporter.options as any).secure = false;
-      (transporter.options as any).auth = {
-        user: testAccount.user,
-        pass: testAccount.pass,
-      };
-      console.log('Using Ethereal test account for emails:', testAccount.user);
-    }
-
+    const smtpFrom = process.env.SMTP_FROM || process.env.SMTP_USER || '"Visual Steps" <noreply@visualsteps.com>';
     const appUrl = process.env.APP_URL || 'http://localhost:3000';
     
     const info = await transporter.sendMail({
@@ -375,6 +382,43 @@ const sendWelcomeEmail = async (email: string, name: string) => {
     console.error('Error sending welcome email:', error.message);
     if (error.code) console.error('Error code:', error.code);
     if (error.command) console.error('Error command:', error.command);
+  }
+};
+
+const sendPasswordChangeEmail = async (email: string, name: string) => {
+  console.log(`Attempting to send password change confirmation to: ${email}`);
+  try {
+    const transporter = await getTransporter();
+    if (!transporter) return;
+
+    const smtpFrom = process.env.SMTP_FROM || process.env.SMTP_USER || '"Visual Steps" <noreply@visualsteps.com>';
+    
+    const info = await transporter.sendMail({
+      from: smtpFrom,
+      to: email,
+      subject: 'Security Alert: Your Visual Steps Password Was Changed',
+      text: `Hello ${name || 'User'},\n\nThis is a confirmation that the password for your Visual Steps account (${email}) has been successfully changed.\n\nIf you did not perform this action, please contact our support team immediately or reset your password using your security question.\n\nBest regards,\nThe Visual Steps Team`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
+          <h2 style="color: #d9534f;">Security Alert: Password Changed</h2>
+          <p>Hello ${name || 'User'},</p>
+          <p>This is a confirmation that the password for your Visual Steps account (<strong>${email}</strong>) has been successfully changed.</p>
+          <p style="background-color: #fcf8e3; padding: 15px; border: 1px solid #faebcc; border-radius: 4px; color: #8a6d3b;">
+            <strong>Important:</strong> If you did not perform this action, please contact our support team immediately or reset your password using your security question.
+          </p>
+          <br/>
+          <p>Best regards,</p>
+          <p><strong>The Visual Steps Team</strong></p>
+        </div>
+      `,
+    });
+
+    console.log('Password change confirmation email sent successfully. Message ID:', info.messageId);
+    if (info.messageId && info.messageId.includes('ethereal')) {
+      console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
+    }
+  } catch (error: any) {
+    console.error('Error sending password change email:', error.message);
   }
 };
 
@@ -617,6 +661,9 @@ app.post('/api/auth/reset-password', async (req, res) => {
 
     if (updateError) throw updateError;
 
+    // Send password change confirmation email
+    sendPasswordChangeEmail(email, user.name).catch(err => console.error('Failed to send password change email:', err));
+
     res.json({ message: 'Password reset successfully' });
   } catch (error) {
     console.error(error);
@@ -656,6 +703,11 @@ app.put('/api/user/profile', authenticateToken, async (req: any, res) => {
       .eq('id', userId);
 
     if (error) throw error;
+
+    // If password was changed, send confirmation email
+    if (newPassword) {
+      sendPasswordChangeEmail(email || req.user.email, name || req.user.name).catch(err => console.error('Failed to send password change email:', err));
+    }
 
     res.json({ message: 'Profile updated successfully' });
   } catch (error) {
