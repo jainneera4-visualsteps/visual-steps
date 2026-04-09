@@ -364,7 +364,7 @@ export default function Dashboard() {
                       <Edit2 className="h-5 w-5" />
                     </Link>
                     <div className="absolute -bottom-8 left-6 h-16 w-16 rounded-full bg-white flex items-center justify-center text-2xl overflow-hidden border-4 border-white shadow-md z-10">
-                        {kid.avatar?.startsWith('http') ? (
+                        {kid.avatar && (kid.avatar.startsWith('http') || kid.avatar.startsWith('data:')) ? (
                           <img src={kid.avatar} alt={kid.name} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                         ) : (
                           kid.avatar || '👤'

@@ -804,7 +804,7 @@ export default function KidsDashboard() {
                 <div className="flex items-center gap-2.5">
                   {kid?.avatar ? (
                     <div className="h-10 w-10 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
-                      <img src={kid.avatar} alt={kid.name} className="h-full w-full object-cover" />
+                      <img src={kid.avatar} alt={kid.name} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                     </div>
                   ) : (
                     <div className={`flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-lg font-bold ${currentTheme.accent}`}>
