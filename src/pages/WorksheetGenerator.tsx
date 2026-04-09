@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Input } from '../components/Input';
-import { ArrowLeft, Printer, Sparkles, Loader2, FileText, CheckCircle2, Save } from 'lucide-react';
+import { ArrowLeft, Printer, Sparkles, Loader2, FileText, CheckCircle2, Save, Edit2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface WorksheetContent {
@@ -440,8 +440,12 @@ export default function WorksheetGenerator() {
         </button>
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <h1 className="text-5xl font-normal text-slate-900 tracking-tight leading-none">Worksheet Generator</h1>
-            <p className="text-lg font-normal text-slate-500 mt-3">Create custom learning materials</p>
+            <h1 className="text-5xl font-normal text-slate-900 tracking-tight leading-none">
+              {isViewingSaved ? 'View Worksheet' : 'Worksheet Generator'}
+            </h1>
+            <p className="text-lg font-normal text-slate-500 mt-3">
+              {isViewingSaved ? 'Review and print your saved content' : 'Create custom learning materials'}
+            </p>
           </div>
           <Link to="/saved-worksheets" className="no-print">
             <Button variant="outline" size="xs" className="h-7 text-[12px]">
@@ -452,99 +456,101 @@ export default function WorksheetGenerator() {
         </div>
       </div>
 
-      <Card className="no-print border-none ring-1 ring-slate-200 shadow-sm">
-        <CardContent className="p-4 space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Topic</label>
-              <Input 
-                placeholder="e.g., Solar System, Fractions, Dinosaurs..." 
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                className="h-9 text-sm"
-              />
+      {!isViewingSaved && (
+        <Card className="no-print border-none ring-1 ring-slate-200 shadow-sm">
+          <CardContent className="p-4 space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Topic</label>
+                <Input 
+                  placeholder="e.g., Solar System, Fractions, Dinosaurs..." 
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                  className="h-9 text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Subject</label>
+                <select 
+                  className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                >
+                  {subjects.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Target Age</label>
+                <select 
+                  className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  value={targetAge}
+                  onChange={(e) => setTargetAge(e.target.value)}
+                >
+                  {targetAges.map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Grade Level</label>
+                <select 
+                  className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  value={gradeLevel}
+                  onChange={(e) => setGradeLevel(e.target.value)}
+                >
+                  {gradeLevels.map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Worksheet Type</label>
+                <select 
+                  className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  value={worksheetType}
+                  onChange={(e) => setWorksheetType(e.target.value)}
+                >
+                  {worksheetTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Difficulty</label>
+                <select 
+                  className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  value={difficulty}
+                  onChange={(e) => setDifficulty(e.target.value)}
+                >
+                  {difficulties.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Number of Worksheets</label>
+                <Input 
+                  type="number"
+                  min="1"
+                  max="10"
+                  value={numWorksheets}
+                  onChange={(e) => setNumWorksheets(parseInt(e.target.value) || 1)}
+                  className="h-9 text-sm"
+                />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Subject</label>
-              <select 
-                className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-              >
-                {subjects.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Target Age</label>
-              <select 
-                className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                value={targetAge}
-                onChange={(e) => setTargetAge(e.target.value)}
-              >
-                {targetAges.map(g => <option key={g} value={g}>{g}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Grade Level</label>
-              <select 
-                className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                value={gradeLevel}
-                onChange={(e) => setGradeLevel(e.target.value)}
-              >
-                {gradeLevels.map(g => <option key={g} value={g}>{g}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Worksheet Type</label>
-              <select 
-                className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                value={worksheetType}
-                onChange={(e) => setWorksheetType(e.target.value)}
-              >
-                {worksheetTypes.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Difficulty</label>
-              <select 
-                className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                value={difficulty}
-                onChange={(e) => setDifficulty(e.target.value)}
-              >
-                {difficulties.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Number of Worksheets</label>
-              <Input 
-                type="number"
-                min="1"
-                max="10"
-                value={numWorksheets}
-                onChange={(e) => setNumWorksheets(parseInt(e.target.value) || 1)}
-                className="h-9 text-sm"
-              />
-            </div>
-          </div>
-          <Button 
-            className="w-full h-10 font-bold" 
-            onClick={handleGenerate}
-            disabled={isGenerating || !topic.trim()}
-          >
-            {isGenerating ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Generating Worksheet...
-              </>
-            ) : (
-              <>
-                <Sparkles className="mr-2 h-4 w-4" />
-                Generate Worksheet
-              </>
-            )}
-          </Button>
-        </CardContent>
-      </Card>
+            <Button 
+              className="w-full h-10 font-bold" 
+              onClick={handleGenerate}
+              disabled={isGenerating || !topic.trim()}
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Generating Worksheet...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Generate Worksheet
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {worksheet && (
         <div className="space-y-4">
@@ -579,6 +585,17 @@ export default function WorksheetGenerator() {
           )}
           
           <div className="flex justify-end gap-2 no-print">
+            {isViewingSaved && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setIsViewingSaved(false)}
+                className="h-8 text-[12px] text-amber-600 border-amber-200 hover:bg-amber-50"
+              >
+                <Edit2 className="mr-1.5 h-3.5 w-3.5" />
+                Edit Settings
+              </Button>
+            )}
             {!isViewingSaved && (
               <Button 
                 variant="outline" 

@@ -33,6 +33,8 @@ export default function Dashboard() {
   const [rewardItems, setRewardItems] = useState<any[]>([]);
   const [isBuying, setIsBuying] = useState<string | null>(null);
   const [dashboardSelectedKidId, setDashboardSelectedKidId] = useState<string>('');
+  const [parentMessage, setParentMessage] = useState<string>('');
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
 
   useEffect(() => {
     if (kids.length > 0 && !dashboardSelectedKidId) {
@@ -186,6 +188,31 @@ export default function Dashboard() {
       alert('Failed to buy reward. Please try again.');
     } finally {
       setIsBuying(null);
+    }
+  };
+
+  const handleSendMessage = async (kidId: string) => {
+    if (!parentMessage.trim()) return;
+    
+    setIsSendingMessage(true);
+    try {
+      const res = await apiFetch(`/api/kids/${kidId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parent_message: parentMessage }),
+      });
+
+      if (res.ok) {
+        setParentMessage('');
+        alert('Message sent to child!');
+      } else {
+        alert('Failed to send message');
+      }
+    } catch (err) {
+      console.error('Send message error:', err);
+      alert('Failed to send message');
+    } finally {
+      setIsSendingMessage(false);
     }
   };
 
@@ -346,6 +373,40 @@ export default function Dashboard() {
                   </CardHeader>
                   <CardContent className="pt-10">
                     <div className="flex flex-col gap-4">
+                      {/* Parent Message Input */}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Send Message to {kid.name}</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="Type a message or emoji... 🌟"
+                            className="flex-1 h-9 px-3 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            value={parentMessage}
+                            onChange={(e) => setParentMessage(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSendMessage(kid.id)}
+                          />
+                          <Button 
+                            size="sm" 
+                            onClick={() => handleSendMessage(kid.id)}
+                            disabled={isSendingMessage || !parentMessage.trim()}
+                          >
+                            {isSendingMessage ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send'}
+                          </Button>
+                        </div>
+                        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+                          {['🌟', '❤️', '👍', '🎉', '😊', '🚀', '🌈', '🍦', '🎮', '📚'].map(emoji => (
+                            <button
+                              key={emoji}
+                              type="button"
+                              onClick={() => setParentMessage(prev => prev + emoji)}
+                              className="text-lg hover:scale-125 transition-transform p-1"
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
                       {/* Action Buttons */}
                       <div className="flex gap-2 items-center">
                         <Link to={`/assigned-activities/${kid.id}`}>

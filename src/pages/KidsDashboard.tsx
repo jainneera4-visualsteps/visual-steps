@@ -829,6 +829,23 @@ export default function KidsDashboard() {
               
             </div>
 
+            {/* Parent Message Section */}
+            {kid?.parent_message && (
+              <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+                <div className={`p-4 rounded-xl border-2 border-blue-200 bg-blue-50 shadow-sm flex items-start gap-4`}>
+                  <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0 shadow-inner">
+                    <span className="text-xl">💌</span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1">Message from Parent</p>
+                    <p className="text-lg font-bold text-blue-900 leading-tight">
+                      {kid.parent_message}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-col gap-4">
               {/* Tabs and View Toggle Area */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">

@@ -30,7 +30,6 @@ export function Layout() {
     else if (path === '/worksheet-generator') title = 'Worksheet Generator | Visual Steps';
     else if (path === '/social-stories/create') title = 'Create Social Story | Visual Steps';
     else if (path.startsWith('/social-stories/view/')) title = 'View Social Story | Visual Steps';
-    else if (path === '/chatbots') title = 'Chatbots | Visual Steps';
     else if (path === '/login' || path === '/') title = 'Login | Visual Steps';
     else if (path === '/signup') title = 'Sign Up | Visual Steps';
     else if (path === '/forgot-password') title = 'Forgot Password | Visual Steps';

@@ -596,6 +596,8 @@ export default function AssignedActivities() {
     steps: [] as ActivityStep[],
   });
   const [formError, setFormError] = useState<string | null>(null);
+  const [parentMessage, setParentMessage] = useState<string>('');
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
 
   const fetchData = async (options: { silent?: boolean; skipSamples?: boolean } = {}) => {
     const { silent = false, skipSamples = false } = options;
@@ -1112,6 +1114,31 @@ export default function AssignedActivities() {
     }
   };
 
+  const handleSendMessage = async () => {
+    if (!parentMessage.trim() || !kidId) return;
+    
+    setIsSendingMessage(true);
+    try {
+      const res = await apiFetch(`/api/kids/${kidId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parent_message: parentMessage }),
+      });
+
+      if (res.ok) {
+        setParentMessage('');
+        alert('Message sent to child!');
+      } else {
+        alert('Failed to send message');
+      }
+    } catch (err) {
+      console.error('Send message error:', err);
+      alert('Failed to send message');
+    } finally {
+      setIsSendingMessage(false);
+    }
+  };
+
   const handleSaveReward = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newReward.name || newReward.cost <= 0) return;
@@ -1514,6 +1541,47 @@ export default function AssignedActivities() {
                                 : 'Add or edit reward items'}
                 </p>
               </div>
+              
+              {/* Send Message Section */}
+              <Card className="border-none ring-1 ring-blue-100 bg-blue-50/30">
+                <CardContent className="p-4">
+                  <div className="flex flex-col sm:flex-row items-end gap-3">
+                    <div className="flex-1 w-full space-y-1.5">
+                      <label className="text-[10px] font-bold text-blue-400 uppercase tracking-widest flex items-center gap-1.5">
+                        <span className="text-base">💌</span> Send Message to {kid?.name}
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Type a message or emoji... 🌟"
+                        className="w-full h-10 px-4 text-sm border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                        value={parentMessage}
+                        onChange={(e) => setParentMessage(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                      />
+                      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                        {['🌟', '❤️', '👍', '🎉', '😊', '🚀', '🌈', '🍦', '🎮', '📚'].map(emoji => (
+                          <button
+                            key={emoji}
+                            type="button"
+                            onClick={() => setParentMessage(prev => prev + emoji)}
+                            className="text-xl hover:scale-125 transition-transform p-1"
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <Button 
+                      onClick={handleSendMessage}
+                      disabled={isSendingMessage || !parentMessage.trim()}
+                      className="h-10 px-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-sm"
+                    >
+                      {isSendingMessage ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send Message'}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
               <div className="flex gap-2">
                 <div className="flex rounded-lg border border-slate-200 bg-white p-0.5 overflow-x-auto scrollbar-hide">
                   <button

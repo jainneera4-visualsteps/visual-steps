@@ -17,6 +17,7 @@ export default function Profile() {
   const [secretAnswer, setSecretAnswer] = useState('');
   const [message, setMessage] = useState({ type: '', text: '' });
   const [isLoading, setIsLoading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
 
   const securityQuestions = [
     "What was the name of your first pet?",
@@ -58,6 +59,26 @@ export default function Profile() {
       setMessage({ type: 'error', text: err.message });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleResendEmail = async () => {
+    setIsResending(true);
+    setMessage({ type: '', text: '' });
+
+    try {
+      const res = await apiFetch('/api/auth/resend-welcome-email', {
+        method: 'POST',
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to resend email');
+
+      setMessage({ type: 'success', text: 'Welcome email sent! Please check your inbox (and spam folder).' });
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message });
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -156,7 +177,17 @@ export default function Profile() {
               />
             </div>
 
-            <div className="flex justify-end pt-1.5">
+            <div className="flex justify-between items-center pt-1.5">
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="xs" 
+                className="h-7 text-[11px] border-slate-200 text-slate-500 hover:text-slate-700"
+                onClick={handleResendEmail}
+                isLoading={isResending}
+              >
+                Resend Welcome Email
+              </Button>
               <Button type="submit" size="xs" className="h-7 text-sm" isLoading={isLoading}>
                 Save Changes
               </Button>

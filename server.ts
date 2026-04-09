@@ -305,23 +305,31 @@ const authenticateToken = async (req: any, res: any, next: any) => {
 
 // Helper Functions
 const sendWelcomeEmail = async (email: string, name: string) => {
+  console.log(`Attempting to send welcome email to: ${email} (${name})`);
   try {
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
+    const smtpHost = process.env.SMTP_HOST || 'smtp.ethereal.email';
+    const smtpPort = parseInt(process.env.SMTP_PORT || '587');
+    const smtpFrom = process.env.SMTP_FROM || smtpUser || '"Visual Steps" <noreply@visualsteps.com>';
+
     const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.ethereal.email',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_PORT === '465',
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpPort === 465,
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
+        user: smtpUser,
+        pass: smtpPass,
       },
     });
 
     // If no credentials are provided, try to create a test account for development
-    if (!process.env.SMTP_USER) {
+    if (!smtpUser) {
       if (process.env.NODE_ENV === 'production') {
-        console.log('Skipping welcome email: No SMTP credentials provided in production.');
+        console.warn('Skipping welcome email: No SMTP_USER provided in production environment.');
         return;
       }
+      console.log('No SMTP_USER provided. Creating Ethereal test account...');
       const testAccount = await nodemailer.createTestAccount();
       (transporter.options as any).host = 'smtp.ethereal.email';
       (transporter.options as any).port = 587;
@@ -336,7 +344,7 @@ const sendWelcomeEmail = async (email: string, name: string) => {
     const appUrl = process.env.APP_URL || 'http://localhost:3000';
     
     const info = await transporter.sendMail({
-      from: process.env.SMTP_FROM || '"Visual Steps" <noreply@visualsteps.com>',
+      from: smtpFrom,
       to: email,
       subject: 'Welcome to Visual Steps! Important Login Details',
       text: `Hello ${name || 'User'},\n\nWelcome to Visual Steps! We are excited to have you on board.\n\nVisual Steps is the all-in-one platform designed to empower children with unique learning needs through AI-driven personalization and engaging activities. With your new account, you can create personalized quizzes, visual social stories, custom worksheets, and set up an AI Chatbot Buddy for your child.\n\nHere are some important details about your account:\n- Login URL: ${appUrl}/login\n- Email: ${email}\n\nPlease keep these details safe.\n\nBest regards,\nThe Visual Steps Team`,
@@ -359,12 +367,14 @@ const sendWelcomeEmail = async (email: string, name: string) => {
       `,
     });
 
-    console.log('Welcome email sent: %s', info.messageId);
+    console.log('Welcome email sent successfully. Message ID:', info.messageId);
     if (info.messageId && info.messageId.includes('ethereal')) {
       console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
     }
-  } catch (error) {
-    console.error('Error sending welcome email:', error);
+  } catch (error: any) {
+    console.error('Error sending welcome email:', error.message);
+    if (error.code) console.error('Error code:', error.code);
+    if (error.command) console.error('Error command:', error.command);
   }
 };
 
@@ -494,7 +504,7 @@ app.post('/api/upload', authenticateToken, (req: any, res) => {
 });
 
 // Create Profile
-app.post('/api/auth/create-profile', authenticateToken, async (req: any, res) => {
+app.post('/api/auth/create-profile', async (req: any, res) => {
   const { id, email, name, password, secretQuestion, secretAnswer } = req.body;
   console.log('create-profile: request body:', { id, email, name, hasPassword: !!password, secretQuestion, hasAnswer: !!secretAnswer });
   
@@ -507,8 +517,11 @@ app.post('/api/auth/create-profile', authenticateToken, async (req: any, res) =>
     const hashedAnswer = await bcrypt.hash(secretAnswer.toLowerCase().trim(), 10);
     const hashedPassword = password ? await bcrypt.hash(password, 10) : null;
 
-    const supabase = getSupabaseForUser(req);
-    const { error } = await supabase
+    // Use admin client to bypass RLS during profile creation
+    // This is necessary because the user might not have a session yet (e.g. if email confirmation is required)
+    // The database foreign key constraint on auth.users(id) ensures only valid users can have profiles.
+    const supabaseAdmin = getAdminSupabaseClient();
+    const { error } = await supabaseAdmin
       .from('users')
       .insert([
         { 
@@ -542,6 +555,24 @@ app.post('/api/auth/create-profile', authenticateToken, async (req: any, res) =>
   } catch (error: any) {
     console.error('Unexpected profile creation error:', error);
     res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+// Resend Welcome Email
+app.post('/api/auth/resend-welcome-email', authenticateToken, async (req: any, res) => {
+  const { email, name } = req.user;
+  
+  if (!email) {
+    return res.status(400).json({ error: 'User email not found' });
+  }
+
+  try {
+    console.log('Resending welcome email to:', email);
+    await sendWelcomeEmail(email, name);
+    res.json({ message: 'Welcome email resent successfully' });
+  } catch (error: any) {
+    console.error('Resend welcome email error:', error);
+    res.status(500).json({ error: 'Failed to resend welcome email', details: error.message });
   }
 });
 
