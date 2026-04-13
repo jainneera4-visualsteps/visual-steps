@@ -175,12 +175,12 @@ export default function SocialStories() {
             }
             .print-container {
               max-width: 100% !important;
-              padding: 10mm !important;
+              padding: 0 !important;
               margin: 0 !important;
               height: auto !important;
             }
             @page { 
-              margin: 0; 
+              margin: 15mm; 
               size: auto;
             }
           }
