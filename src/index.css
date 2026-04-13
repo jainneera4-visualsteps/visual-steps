@@ -23,9 +23,6 @@
     .no-print {
       display: none !important;
     }
-    @page {
-      margin: 0;
-    }
   }
 
   .markdown-body {

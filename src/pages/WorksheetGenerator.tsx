@@ -635,7 +635,26 @@ export default function WorksheetGenerator() {
             </button>
           </div>
 
-          <div ref={printRef} className="print-area bg-white p-8 rounded-lg shadow-sm ring-1 ring-slate-200 min-h-[11in] worksheet-container">
+          <div ref={printRef} className="print-area bg-white p-8 rounded-lg shadow-sm ring-1 ring-slate-200 min-h-[11in] worksheet-container relative">
+            {/* Custom Print Header */}
+            <div className="hidden print:block fixed top-0 left-0 right-0 h-16 px-8 border-b border-slate-100 bg-white z-[100]">
+              <div className="flex items-center justify-between h-full">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center text-white font-bold">V</div>
+                  <span className="font-bold text-slate-900">Visual Steps</span>
+                </div>
+                <span className="text-slate-500 text-sm italic">{worksheet.title}</span>
+              </div>
+            </div>
+
+            {/* Custom Print Footer */}
+            <div className="hidden print:block fixed bottom-0 left-0 right-0 h-12 px-8 border-t border-slate-100 bg-white z-[100]">
+              <div className="flex items-center justify-between h-full text-[10px] text-slate-400 uppercase tracking-widest font-bold">
+                <span>Worksheet Generator</span>
+                <span>visualsteps.com</span>
+              </div>
+            </div>
+
             <div className="text-center border-b-2 border-slate-900 pb-6 mb-8">
               {isViewingSaved ? (
                 <h1 className="text-3xl font-black uppercase tracking-tight text-slate-900">{worksheet.title}</h1>
@@ -984,7 +1003,11 @@ export default function WorksheetGenerator() {
             page-break-before: always;
           }
           @page {
-            margin: 0;
+            margin: 2cm 1.5cm;
+          }
+          .print-area {
+            padding-top: 1cm !important;
+            padding-bottom: 1cm !important;
           }
         }
       `}</style>
