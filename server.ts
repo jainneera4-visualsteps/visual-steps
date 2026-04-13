@@ -534,7 +534,7 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
     const maxRetries = 5;
     let retryCount = 0;
     let lastError = null;
-    let currentModel = model || 'gemini-2.0-flash';
+    let currentModel = model || 'gemini-1.5-flash';
 
     while (retryCount < maxRetries) {
       try {
@@ -560,10 +560,12 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
                            errorMsg.includes('UNAVAILABLE') || 
                            errorMsg.includes('RESOURCE_EXHAUSTED') ||
                            errorMsg.includes('high demand') ||
+                           errorMsg.includes('404') ||
                            error.status === 'UNAVAILABLE' || 
                            error.status === 'RESOURCE_EXHAUSTED' ||
                            error.code === 503 ||
-                           error.code === 429;
+                           error.code === 429 ||
+                           error.code === 404;
         
         if (isRetryable && retryCount < maxRetries - 1) {
           retryCount++;
@@ -576,15 +578,15 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
           // On later retries, try to ensure we're using a flash model if we weren't already
           // If we were already using gemini-2.0-flash, try gemini-2.0-flash-lite as a last resort
           if (retryCount >= 2) {
-            if (currentModel === 'gemini-2.0-flash') {
-              console.log('Switching to gemini-2.0-flash-lite as fallback due to persistent errors on gemini-2.0-flash');
+            if (currentModel === 'gemini-1.5-flash') {
+              console.log('Switching to gemini-1.5-flash-8b as fallback due to persistent errors on gemini-1.5-flash');
+              currentModel = 'gemini-1.5-flash-8b';
+            } else if (currentModel === 'gemini-1.5-flash-8b') {
+              console.log('Switching to gemini-2.0-flash-lite as fallback due to persistent errors on gemini-1.5-flash-8b');
               currentModel = 'gemini-2.0-flash-lite';
-            } else if (currentModel === 'gemini-2.0-flash-lite') {
-              console.log('Switching to gemini-1.5-flash as fallback due to persistent errors on gemini-2.0-flash-lite');
-              currentModel = 'gemini-1.5-flash';
             } else if (!currentModel.includes('flash')) {
-              console.log('Switching to gemini-2.0-flash as fallback due to persistent errors on current model');
-              currentModel = 'gemini-2.0-flash';
+              console.log('Switching to gemini-1.5-flash as fallback due to persistent errors on current model');
+              currentModel = 'gemini-1.5-flash';
             }
           }
           continue;

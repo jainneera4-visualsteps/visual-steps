@@ -314,7 +314,7 @@ export function ChatbotComponent({ kidId, kidName, chatbotName, activities, rewa
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: "gemini-2.0-flash",
+          model: "gemini-1.5-flash",
           contents: [
             { role: 'user', parts: [{ text: `System Instruction: ${systemInstruction}\n\nRecent History:\n${historyContext}\n\nChild: ${userMessage}` }] }
           ],

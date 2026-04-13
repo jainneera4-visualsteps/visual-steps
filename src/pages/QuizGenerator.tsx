@@ -65,7 +65,7 @@ export default function QuizGenerator() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            model: "gemini-2.0-flash",
+            model: "gemini-1.5-flash",
             contents: `Generate an interactive ${questionType} quiz at a ${gradeLevel} reading/comprehension level on the topic: "${topic}". 
         Subject: ${subject}.
         Difficulty Level: ${difficulty}.

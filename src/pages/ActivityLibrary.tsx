@@ -225,7 +225,7 @@ export default function ActivityLibrary() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: "gemini-2.0-flash",
+          model: "gemini-1.5-flash",
           contents: `Generate 3 creative activity ideas for a child named ${kid.name} based on their profile:
         Hobbies: ${kid.hobbies || 'Not specified'}
         Interests: ${kid.interests || 'Not specified'}
