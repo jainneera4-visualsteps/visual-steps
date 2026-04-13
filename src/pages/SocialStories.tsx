@@ -126,7 +126,7 @@ export default function SocialStories() {
         <div className="print-content max-w-4xl mx-auto bg-white print-container">
           <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-6">
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded bg-blue-600 text-white shadow-sm">
+              <div className="flex h-8 w-8 items-center justify-center rounded bg-blue-600 text-white shadow-sm" style={{ printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact' } as any}>
                 <Lightbulb className="h-5 w-5" />
               </div>
               <span className="text-xl font-bold tracking-tight text-blue-900 uppercase">Visual Steps</span>
@@ -168,8 +168,9 @@ export default function SocialStories() {
             .print-container {
               max-height: 100vh;
               break-inside: avoid;
+              padding: 15mm;
             }
-            @page { margin: 10mm; size: portrait; }
+            @page { margin: 0; size: portrait; }
           }
         `}</style>
       </div>
