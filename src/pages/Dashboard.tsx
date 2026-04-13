@@ -412,9 +412,6 @@ export default function Dashboard() {
                         <Link to={`/assigned-activities/${kid.id}`}>
                           <Button size="sm" variant="outline">Activities</Button>
                         </Link>
-                        <Link to={`/behaviors/${kid.id}`}>
-                          <Button size="sm" variant="outline">Behaviors</Button>
-                        </Link>
                       </div>
                     </div>
                   </CardContent>

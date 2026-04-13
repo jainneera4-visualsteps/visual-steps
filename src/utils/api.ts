@@ -42,6 +42,13 @@ export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit, ret
   try {
     const { data: { session }, error } = await supabase.auth.getSession();
     if (error && (error.message.includes('Refresh Token Not Found') || error.message.includes('Invalid Refresh Token'))) {
+      console.warn('apiFetch: Invalid refresh token detected, clearing session...');
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith('sb-') || key.includes('auth-token'))) {
+          localStorage.removeItem(key);
+        }
+      }
       await supabase.auth.signOut().catch(() => {});
     }
     token = session?.access_token;
@@ -83,8 +90,10 @@ export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit, ret
   try {
     let response: Response;
     if (input instanceof Request) {
+      // Clone the request so it can be used again in case of retry
+      const requestToFetch = input.clone();
       const newInit: RequestInit = { ...init, headers };
-      response = await fetch(input, newInit);
+      response = await fetch(requestToFetch, newInit);
     } else {
       response = await fetch(input, { ...init, headers });
     }
@@ -92,7 +101,7 @@ export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit, ret
     const contentType = response.headers.get('content-type');
 
     // Check if we were redirected to the cookie check page
-    if (response.url.includes('__cookie_check.html') || (contentType && contentType.includes('text/html') && response.status === 200 && (await response.clone().text()).includes('__cookie_check.html'))) {
+    if (response.url.includes('__cookie_check.html') || (contentType && contentType.includes('text/html') && response.status === 200 && (await response.clone().text().catch(() => '')).includes('__cookie_check.html'))) {
       console.warn('Redirected to cookie check page, retrying...');
       if (retries > 0) {
         await new Promise(resolve => setTimeout(resolve, 1500));
@@ -114,20 +123,27 @@ export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit, ret
       }
     }
 
+    if (response.status === 503 && retries > 0) {
+      console.warn(`Service unavailable (503), retrying... (${retries} left)`);
+      const backoff = (16 - retries) * 1000; // Increasing delay
+      await new Promise(resolve => setTimeout(resolve, backoff));
+      return apiFetch(input, init, retries - 1);
+    }
+
     if (response.status === 401 || response.status === 403 || response.status === 500) {
       if (contentType && contentType.includes('application/json')) {
         const clone = response.clone();
         try {
           const data = await clone.json();
           
-          // Show alert for iPad user debugging
-          if (response.status === 500 || data.error === 'Supabase Project Mismatch' || data.error === 'Supabase Connection Error') {
+          // Only alert for critical configuration errors, not transient ones
+          if (data.error === 'Supabase Project Mismatch' || data.error === 'Supabase Connection Error' || (data.error && data.error.includes('API key is not configured'))) {
             const msg = `DEBUG INFO (Status ${response.status}):\n\nError: ${data.error}\n\nDetails: ${data.details || JSON.stringify(data)}\n\nURL: ${url}`;
             console.error('API_FETCH_DEBUG_JSON:', msg);
             alert(msg);
           }
           
-          if (data.error === 'Forbidden' || data.error === 'Unauthorized' || data.error === 'Supabase Project Mismatch') {
+          if (data.error === 'Forbidden' || data.error === 'Unauthorized' || data.error === 'Supabase Project Mismatch' || data.error === 'Invalid Session') {
             const wasKid = isKidSession;
             
             // Only redirect if we are NOT on a standalone view page
@@ -136,6 +152,13 @@ export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit, ret
             if (!isStandaloneView) {
               localStorage.removeItem('token');
               localStorage.removeItem('kid_session');
+              // Manually clear local storage as a fallback
+              for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key.startsWith('sb-') || key.includes('auth-token'))) {
+                  localStorage.removeItem(key);
+                }
+              }
               // Crucial: Actually sign out of Supabase to clear the invalid session from local storage
               supabase.auth.signOut().catch(() => {});
               
@@ -150,20 +173,26 @@ export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit, ret
           // Not JSON or other error
         }
       } else if (response.status === 500) {
-        const text = await response.clone().text();
-        const msg = `DEBUG INFO (Status 500, Non-JSON):\n\nURL: ${url}\n\nResponse: ${text.substring(0, 500)}`;
-        console.error('API_FETCH_DEBUG_TEXT:', msg);
-        alert(msg);
+        try {
+          const text = await response.clone().text();
+          const msg = `DEBUG INFO (Status 500, Non-JSON):\n\nURL: ${url}\n\nResponse: ${text.substring(0, 500)}`;
+          console.error('API_FETCH_DEBUG_TEXT:', msg);
+          alert(msg);
+        } catch (e) {
+          console.error('Failed to read status 500 response body');
+        }
       }
     }
     return response;
   } catch (error) {
     if (retries > 0) {
-      console.warn(`apiFetch failed, retrying... (${retries} left)`, error);
+      console.warn(`apiFetch failed for ${url}, retrying... (${retries} left)`, error);
       await new Promise(resolve => setTimeout(resolve, 2000));
       return apiFetch(input, init, retries - 1);
     }
-    console.error('apiFetch network error:', error);
-    throw error;
+    console.error(`apiFetch network error for ${url}:`, error);
+    const networkError = new Error(`Failed to connect to the server at ${url}. Please check your internet connection or try again later.`);
+    (networkError as any).originalError = error;
+    throw networkError;
   }
 };

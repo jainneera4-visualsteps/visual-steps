@@ -14,7 +14,7 @@ import nodemailer from 'nodemailer';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-dotenv.config();
+dotenv.config({ override: true });
 
 // Dual compatibility for ESM and CJS
 const currentDirname = process.cwd();
@@ -196,94 +196,50 @@ const authenticateToken = async (req: any, res: any, next: any) => {
       return res.status(500).json({ error: 'Server configuration error' });
     }
 
-    console.log('authenticateToken: Attempting Supabase verification with token length:', token.length);
-    console.log('authenticateToken: Token prefix:', token.substring(0, 10));
-    console.log('authenticateToken: Token suffix:', token.substring(token.length - 10));
-    console.log('authenticateToken: Supabase URL:', supabaseUrl.substring(0, 20) + '...');
-    
-    try {
-      const decodedNoVerify = jwt.decode(token) as any;
-      const logMsg = `[${new Date().toISOString()}] authenticateToken: Token: ${token.substring(0, 10)}...${token.substring(token.length - 10)}, Decoded token payload: ${JSON.stringify(decodedNoVerify)}\n`;
-      console.log(logMsg);
-      if (decodedNoVerify) {
-        console.log('authenticateToken: Decoded token payload (no verify):', {
-          aud: decodedNoVerify.aud,
-          role: decodedNoVerify.role,
-          sub: decodedNoVerify.sub,
-          email: decodedNoVerify.email,
-          exp: decodedNoVerify.exp,
-          iat: decodedNoVerify.iat,
-          iss: decodedNoVerify.iss
-        });
-      } else {
-        console.log('authenticateToken: Token could not be decoded as JWT');
-      }
-    } catch (e) {
-      console.log('authenticateToken: Error decoding token as JWT:', e);
-    }
-
-    // Create a fresh client for this request
-    const supabase = createClient(supabaseUrl || 'https://placeholder.supabase.co', supabaseKey || 'placeholder', {
+    // Create a fresh client for this request with the token in headers
+    const supabase = createClient(supabaseUrl, supabaseKey, {
       auth: {
         persistSession: false,
         autoRefreshToken: false,
         detectSessionInUrl: false
-      }
+      },
+      global: {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
     });
     
     // Verify the token with Supabase
-    console.log('authenticateToken: Verifying with URL:', supabaseUrl);
-    console.log('authenticateToken: Verifying with Key (masked):', supabaseKey.substring(0, 5) + '...');
-    console.log('authenticateToken: JWT_SECRET (masked):', JWT_SECRET.substring(0, 3) + '...');
-    
-    // Add a timeout to prevent hanging if the Supabase URL is invalid/unreachable
-    let timeoutId: NodeJS.Timeout;
-    const timeoutPromise = new Promise((_, reject) => {
-      timeoutId = setTimeout(() => reject(new Error('Supabase request timed out after 5 seconds. Check if SUPABASE_URL is correct.')), 5000);
-    });
-    
     let user, error;
     try {
-      const getUserPromise = supabase.auth.getUser(token);
-      getUserPromise.catch(() => {}); // Prevent unhandled rejection if timeout wins
-      
-      const result = await Promise.race([
-        getUserPromise,
-        timeoutPromise
-      ]) as any;
-      
-      clearTimeout(timeoutId!);
-      
-      user = result.data?.user;
-      error = result.error;
+      // Use getUser() without arguments since we set the header in the client config
+      const { data, error: authError } = await supabase.auth.getUser();
+      user = data?.user;
+      error = authError;
     } catch (e: any) {
-      clearTimeout(timeoutId!);
-      console.error('authenticateToken: Supabase request failed or timed out:', e.message);
+      console.error('authenticateToken: Supabase request failed:', e.message);
       return res.status(500).json({ 
         error: 'Supabase Connection Error', 
-        details: e.message || 'Failed to connect to Supabase. Check your SUPABASE_URL in Vercel Environment Variables.'
+        details: e.message || 'Failed to connect to Supabase.'
       });
     }
 
     if (error || !user) {
-      const logMsg = `[${new Date().toISOString()}] authenticateToken: Supabase verification failed: ${error?.message || 'No user found'}. Status: ${error?.status}\n`;
-      console.log(logMsg);
       console.error('authenticateToken: Supabase auth error:', error?.message || 'No user found', 'Status:', error?.status);
       
-      if (error?.message === 'Auth session missing!') {
-        console.log('authenticateToken: "Auth session missing!" usually means the token is invalid, expired, or from a different project.');
-        
+      // If it's a "session missing" error, it might be because the token is invalid or from another project
+      if (error?.message === 'Auth session missing!' || error?.status === 400 || error?.status === 401) {
         let tokenIssuer = 'unknown';
         try {
           const decoded = jwt.decode(token) as any;
           tokenIssuer = decoded?.iss || 'unknown';
         } catch (e) {}
         
-        // Return a very specific error to the frontend so the user can see it without checking Vercel logs
-        return res.status(403).json({ 
-          error: 'Supabase Project Mismatch', 
-          details: `Backend is using SUPABASE_URL: ${supabaseUrl}. The token was issued by: ${tokenIssuer}. These must match. Please update your Vercel Environment Variables to match the issuer.`,
-          code: 403
+        return res.status(401).json({ 
+          error: 'Invalid Session', 
+          details: `The authentication session is invalid or has expired. Issuer: ${tokenIssuer}. Backend: ${supabaseUrl}`,
+          code: error?.status || 401
         });
       }
       
@@ -353,23 +309,48 @@ const sendWelcomeEmail = async (email: string, name: string) => {
     const info = await transporter.sendMail({
       from: smtpFrom,
       to: email,
-      subject: 'Welcome to Visual Steps! Important Login Details',
-      text: `Hello ${name || 'User'},\n\nWelcome to Visual Steps! We are excited to have you on board.\n\nVisual Steps is the all-in-one platform designed to empower children with unique learning needs through AI-driven personalization and engaging activities. With your new account, you can create personalized quizzes, visual social stories, custom worksheets, and set up an AI Chatbot Buddy for your child.\n\nHere are some important details about your account:\n- Login URL: ${appUrl}/login\n- Email: ${email}\n\nPlease keep these details safe.\n\nBest regards,\nThe Visual Steps Team`,
+      subject: 'Welcome to Visual Steps! Your Journey Begins Here',
+      text: `Hello ${name || 'User'},\n\nWelcome to Visual Steps! We are thrilled to have you join our community.\n\nVisual Steps is a comprehensive platform dedicated to helping parents and children with autism stay engaged with meaningful activities all day long. We help you motivate your kids for learning while having fun at the same time.\n\nWith your new account, you can now:\n- Create customizable quizzes to keep learning fun and engaging\n- Build customizable social stories for a smooth daily routine\n- Generate customizable worksheets for meaningful offline time\n- Send messages and emojis to motivate your child throughout the day\n- Monitor daily growth with automated progress reports\n\nAccess your dashboard here: ${appUrl}/login\nYour registered email: ${email}\n\nWe are here to support you every step of the way. If you have any questions, simply reply to this email.\n\nBest regards,\nThe Visual Steps Team`,
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-          <h2 style="color: #4a90e2;">Welcome to Visual Steps!</h2>
-          <p>Hello ${name || 'User'},</p>
-          <p>We are excited to have you on board.</p>
-          <p><strong>Visual Steps</strong> is the all-in-one platform designed to empower children with unique learning needs through AI-driven personalization and engaging activities. With your new account, you can create personalized quizzes, visual social stories, custom worksheets, and set up an AI Chatbot Buddy for your child.</p>
-          <p>Here are some important details about your account:</p>
-          <ul>
-            <li><strong>Login URL:</strong> <a href="${appUrl}/login">${appUrl}/login</a></li>
-            <li><strong>Email:</strong> ${email}</li>
-          </ul>
-          <p>Please keep these details safe. If you have any questions, feel free to reach out to our support team.</p>
-          <br/>
-          <p>Best regards,</p>
-          <p><strong>The Visual Steps Team</strong></p>
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #f0f0f0; border-radius: 12px; color: #333; line-height: 1.6;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #2563eb; margin: 0; font-size: 28px;">Welcome to Visual Steps!</h1>
+            <p style="color: #64748b; font-size: 16px; margin-top: 8px;">Meaningful engagement and daily motivation.</p>
+          </div>
+          
+          <p>Hello <strong>${name || 'User'}</strong>,</p>
+          
+          <p>We are thrilled to have you join our community! <strong>Visual Steps</strong> is a comprehensive platform dedicated to helping parents and children with autism stay engaged with meaningful activities all day long. We help you motivate your kids for learning while having fun at the same time.</p>
+          
+          <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 25px 0;">
+            <h3 style="margin-top: 0; color: #1e293b; font-size: 16px;">What you can do now:</h3>
+            <ul style="margin-bottom: 0; padding-left: 20px; color: #475569;">
+              <li>Create customizable quizzes to keep learning fun and engaging</li>
+              <li>Build customizable social stories for a smooth daily routine</li>
+              <li>Generate customizable worksheets for meaningful offline time</li>
+              <li>Send messages and emojis to motivate your child throughout the day</li>
+              <li>Monitor daily growth with automated progress reports</li>
+            </ul>
+          </div>
+          
+          <p><strong>Account Details:</strong></p>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <tr>
+              <td style="padding: 8px 0; color: #64748b;">Login URL:</td>
+              <td style="padding: 8px 0;"><a href="${appUrl}/login" style="color: #2563eb; text-decoration: none; font-weight: bold;">${appUrl}/login</a></td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #64748b;">Registered Email:</td>
+              <td style="padding: 8px 0; font-weight: bold;">${email}</td>
+            </tr>
+          </table>
+          
+          <p>We are here to support you every step of the way. If you have any questions or need assistance, please don't hesitate to reach out.</p>
+          
+          <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #f0f0f0; text-align: center;">
+            <p style="margin: 0; font-weight: bold; color: #1e293b;">The Visual Steps Team</p>
+            <p style="margin: 5px 0 0; font-size: 12px; color: #94a3b8;">Empowering children through visual learning.</p>
+          </div>
         </div>
       `,
     });
@@ -500,28 +481,113 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
   try {
     const { model, contents, config } = req.body;
     
-    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY;
+    const placeholders = ['MY_GEMINI_API_KEY', 'YOUR_API_KEY', 'MY_API_KEY', 'API_KEY', 'undefined', 'null'];
+    
+    let apiKey = (process.env.GEMINI_API_KEY || '').trim();
+    if (placeholders.includes(apiKey)) apiKey = '';
+    
     if (!apiKey) {
-      return res.status(500).json({ error: 'GEMINI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY is not configured on the server.' });
+      apiKey = (process.env.GOOGLE_GENERATIVE_AI_API_KEY || '').trim();
+      if (placeholders.includes(apiKey)) apiKey = '';
+    }
+    
+    if (!apiKey) {
+      apiKey = (process.env.VITE_GEMINI_API_KEY || '').trim();
+      if (placeholders.includes(apiKey)) apiKey = '';
+    }
+    
+    if (!apiKey || apiKey.length < 10) {
+      console.error('Gemini API key is missing, too short, or is a placeholder:', apiKey ? `[length ${apiKey.length}]` : 'EMPTY');
+      return res.status(500).json({ 
+        error: 'Gemini API key is not configured correctly on the server.',
+        details: 'The API key is either missing, too short, or set to a placeholder value. ' + 
+                 'If you are in AI Studio, please configure GEMINI_API_KEY in the Secrets panel.'
+      });
     }
 
     const { GoogleGenAI } = await import('@google/genai');
     const ai = new GoogleGenAI({ apiKey });
 
-    const response = await ai.models.generateContent({
-      model,
-      contents,
-      config
-    });
+    // Ensure contents is an array of Content objects
+    const formattedContents = typeof contents === 'string' 
+      ? [{ role: 'user', parts: [{ text: contents }] }] 
+      : Array.isArray(contents) ? contents : [contents];
 
-    res.json({ 
-      text: response.text,
-      candidates: response.candidates
-    });
+    const maxRetries = 5;
+    let retryCount = 0;
+    let lastError = null;
+    let currentModel = model || 'gemini-2.0-flash';
+
+    while (retryCount < maxRetries) {
+      try {
+        console.log(`Generating content with model: ${currentModel} (attempt ${retryCount + 1}/${maxRetries})`);
+        const response = await ai.models.generateContent({
+          model: currentModel,
+          contents: formattedContents,
+          config
+        });
+
+        return res.json({ 
+          text: response.text,
+          candidates: response.candidates
+        });
+      } catch (error: any) {
+        lastError = error;
+        
+        // Check for 503 Service Unavailable, 429 Rate Limit, or high demand errors
+        const errorMsg = error.message || '';
+        const isRetryable = errorMsg.includes('503') || 
+                           errorMsg.includes('429') ||
+                           errorMsg.includes('UNAVAILABLE') || 
+                           errorMsg.includes('RESOURCE_EXHAUSTED') ||
+                           errorMsg.includes('high demand') ||
+                           error.status === 'UNAVAILABLE' || 
+                           error.status === 'RESOURCE_EXHAUSTED' ||
+                           error.code === 503 ||
+                           error.code === 429;
+        
+        if (isRetryable && retryCount < maxRetries - 1) {
+          retryCount++;
+          // Exponential backoff with jitter: 2s, 4s, 8s, 16s + random
+          const backoffMs = (Math.pow(2, retryCount) * 1000) + (Math.random() * 1000);
+          console.warn(`Gemini API retryable error (attempt ${retryCount}/${maxRetries}). Retrying in ${Math.round(backoffMs/1000)}s... Error: ${errorMsg.substring(0, 100)}`);
+          
+          await new Promise(resolve => setTimeout(resolve, backoffMs));
+          
+          // On later retries, try to ensure we're using a flash model if we weren't already
+          // If we were already using gemini-2.0-flash, try gemini-2.0-flash-lite as a last resort
+          if (retryCount >= 2) {
+            if (currentModel === 'gemini-2.0-flash') {
+              console.log('Switching to gemini-2.0-flash-lite as fallback due to persistent errors on gemini-2.0-flash');
+              currentModel = 'gemini-2.0-flash-lite';
+            } else if (!currentModel.includes('flash')) {
+              console.log('Switching to gemini-2.0-flash as fallback due to persistent errors on current model');
+              currentModel = 'gemini-2.0-flash';
+            }
+          }
+          continue;
+        }
+        
+        // If we've exhausted retries or it's not a retryable error, throw it
+        throw error;
+      }
+    }
   } catch (error: any) {
     console.error('Error generating content:', error);
     console.error('Stack trace:', error.stack);
-    res.status(500).json({ error: 'Failed to generate content', details: error.message });
+    
+    const errorMsg = error.message || '';
+    const isUnavailable = errorMsg.includes('503') || 
+                         errorMsg.includes('UNAVAILABLE') || 
+                         errorMsg.includes('high demand') ||
+                         error.status === 'UNAVAILABLE' || 
+                         error.code === 503;
+    
+    const status = isUnavailable ? 503 : 500;
+    res.status(status).json({ 
+      error: isUnavailable ? 'Gemini service is currently overloaded' : 'Failed to generate content', 
+      details: error.message 
+    });
   }
 });
 
@@ -920,6 +986,63 @@ app.post('/api/kids/:id/chat-history', authenticateToken, async (req: any, res) 
   } catch (error: any) {
     console.error('[POST chat-history] Unexpected error:', error?.message || error);
     res.status(500).json({ error: 'Internal server error', details: error?.message });
+  }
+});
+
+app.post('/api/quiz-results', authenticateToken, async (req: any, res) => {
+  const supabase = getSupabaseForUser(req);
+  const { quizId, kidId, responses, score, totalQuestions } = req.body;
+  console.log('[POST /api/quiz-results] Request body:', req.body);
+
+  if (!quizId || !kidId || score === undefined || !responses || totalQuestions === undefined) {
+    console.error('[POST /api/quiz-results] Missing required fields:', { quizId, kidId, responses, score, totalQuestions });
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  const { data, error } = await supabase
+    .from('quiz_results')
+    .insert([{ 
+        quiz_id: quizId, 
+        kid_id: kidId, 
+        responses, 
+        score, 
+        total_questions: totalQuestions,
+        questions: req.body.questions,
+        completed_at: new Date().toISOString()
+    }]);
+
+  if (error) {
+    console.error('[POST /api/quiz-results] Supabase error:', JSON.stringify(error, null, 2));
+    return res.status(500).json({ error: error.message, details: error });
+  }
+  res.status(201).json(data);
+});
+
+app.get('/api/kids/:kidId/quiz-results', authenticateToken, async (req: any, res) => {
+  const supabase = getSupabaseForUser(req);
+  const { kidId } = req.params;
+  const userId = req.user.id;
+
+  try {
+    // Verify kid ownership
+    const { data: kid, error: kidError } = await supabase
+      .from('kids')
+      .select('user_id')
+      .eq('id', kidId)
+      .single();
+    
+    if (kidError || !kid || kid.user_id !== userId) return res.status(403).json({ error: 'Forbidden' });
+
+    const { data, error } = await supabase
+      .from('quiz_results')
+      .select('*, quizzes(title)')
+      .eq('kid_id', kidId)
+      .order('completed_at', { ascending: false });
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ results: data });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -3336,7 +3459,7 @@ app.get('/api/quizzes', authenticateToken, async (req: any, res) => {
   try {
     const { data: quizzes, error } = await supabase
       .from('quizzes')
-      .select('id, kid_id, title, topic, difficulty, target_age, grade_level, created_at')
+      .select('id, title, topic, difficulty, grade_level, created_at')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
@@ -3353,10 +3476,11 @@ app.get('/api/kids/:kidId/quizzes', authenticateToken, async (req: any, res) => 
   const supabase = getSupabaseForUser(req);
   const { kidId } = req.params;
   try {
+    // Note: kid_id column might be missing in some environments
     const { data: quizzes, error } = await supabase
       .from('quizzes')
-      .select('id, title, topic, difficulty, target_age, grade_level, created_at')
-      .eq('kid_id', kidId)
+      .select('id, title, topic, difficulty, grade_level, created_at')
+      .eq('user_id', req.user.id) // Fallback to user_id if kid_id is missing or just to be safe
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -3389,7 +3513,7 @@ app.get('/api/quizzes/:id', authenticateToken, async (req: any, res) => {
 // Create a quiz
 app.post('/api/quizzes', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
-  const { kidId, title, topic, difficulty, targetAge, gradeLevel, content } = req.body;
+  const { kidId, title, topic, difficulty, gradeLevel, content } = req.body;
   const userId = req.user.id;
   if (!title || !content) return res.status(400).json({ error: 'Title and content are required' });
 
@@ -3403,11 +3527,9 @@ app.post('/api/quizzes', authenticateToken, async (req: any, res) => {
         {
           id,
           user_id: userId,
-          kid_id: kidId || null,
           title,
           topic,
           difficulty,
-          target_age: targetAge,
           grade_level: gradeLevel,
           content: contentStr
         }
@@ -3431,7 +3553,7 @@ app.post('/api/quizzes', authenticateToken, async (req: any, res) => {
 app.put('/api/quizzes/:id', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
   const { id } = req.params;
-  const { kidId, title, topic, difficulty, targetAge, gradeLevel, content } = req.body;
+  const { title, topic, difficulty, gradeLevel, content } = req.body;
   const userId = req.user.id;
 
   if (!title || !content) return res.status(400).json({ error: 'Title and content are required' });
@@ -3451,24 +3573,16 @@ app.put('/api/quizzes/:id', authenticateToken, async (req: any, res) => {
     const { error } = await supabase
       .from('quizzes')
       .update({
-        kid_id: kidId || null,
         title,
         topic,
         difficulty,
-        target_age: targetAge,
         grade_level: gradeLevel,
-        content: contentStr,
-        updated_at: new Date().toISOString()
+        content: contentStr
       })
       .eq('id', id);
 
     if (error) throw error;
     
-    if (kidId) {
-      const io = req.app.get('io');
-      if (io) io.to(`kid_${kidId}`).emit('data_updated', { kidId });
-    }
-
     res.json({ message: 'Quiz updated successfully' });
   } catch (error: any) {
     console.error('Quiz update error:', error);
@@ -3484,7 +3598,7 @@ app.delete('/api/quizzes/:id', authenticateToken, async (req: any, res) => {
   try {
     const { data: quiz, error: checkError } = await supabase
       .from('quizzes')
-      .select('user_id, kid_id')
+      .select('user_id')
       .eq('id', id)
       .single();
 
@@ -3497,11 +3611,6 @@ app.delete('/api/quizzes/:id', authenticateToken, async (req: any, res) => {
 
     if (error) throw error;
     
-    if (quiz.kid_id) {
-      const io = req.app.get('io');
-      if (io) io.to(`kid_${quiz.kid_id}`).emit('data_updated', { kidId: quiz.kid_id });
-    }
-
     res.json({ message: 'Quiz deleted successfully' });
   } catch (error) {
     console.error(error);

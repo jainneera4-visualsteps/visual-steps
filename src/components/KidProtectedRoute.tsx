@@ -16,7 +16,16 @@ export function KidProtectedRoute() {
 
   // Allow access if parent is logged in OR if kid has a valid session
   const kidSession = localStorage.getItem('kid_session');
-  const isKidAuthorized = kidSession && JSON.parse(kidSession).kidId === kidId;
+  let isKidAuthorized = false;
+  if (kidSession) {
+    try {
+      const session = JSON.parse(kidSession);
+      // If kidId is in URL, must match. If not, any valid session is okay.
+      isKidAuthorized = kidId ? session.kidId === kidId : !!session.kidId;
+    } catch (e) {
+      isKidAuthorized = false;
+    }
+  }
 
   if (!user && !isKidAuthorized) {
     return <Navigate to="/?mode=kid" replace />;

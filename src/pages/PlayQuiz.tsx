@@ -19,7 +19,7 @@ interface QuizContent {
 }
 
 export default function PlayQuiz() {
-  const { id } = useParams<{ id: string }>();
+  const { id, kidId } = useParams<{ id: string, kidId: string }>();
   const navigate = useNavigate();
   const [quiz, setQuiz] = useState<QuizContent | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -28,6 +28,7 @@ export default function PlayQuiz() {
   const [isAnswerChecked, setIsAnswerChecked] = useState(false);
   const [score, setScore] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
+  const [userResponses, setUserResponses] = useState<number[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
 
@@ -126,8 +127,16 @@ export default function PlayQuiz() {
       const res = await apiFetch(`/api/quizzes/${id}`);
       if (res.ok) {
         const data = await res.json();
+        console.log('PlayQuiz: fetched quiz data:', data);
+        if (!data.quiz) {
+          console.error('PlayQuiz: data.quiz is undefined!');
+          navigate('/dashboard');
+          return;
+        }
         const content = typeof data.quiz.content === 'string' ? JSON.parse(data.quiz.content) : data.quiz.content;
+        console.log('PlayQuiz: parsed content:', content);
         setQuiz(content);
+        setUserResponses(new Array(content.questions.length).fill(-1));
       } else {
         navigate('/dashboard');
       }
@@ -142,6 +151,9 @@ export default function PlayQuiz() {
   const handleSelectAnswer = (index: number) => {
     if (isAnswerChecked) return;
     setSelectedAnswer(index);
+    const newResponses = [...userResponses];
+    newResponses[currentQuestionIndex] = index;
+    setUserResponses(newResponses);
   };
 
   const handleCheckAnswer = () => {
@@ -154,7 +166,7 @@ export default function PlayQuiz() {
     
     const isCorrect = selectedAnswer === quiz.questions[currentQuestionIndex].correctAnswerIndex;
     if (isCorrect) {
-      setScore(score + 1);
+      setScore(prev => prev + 1);
       confetti({
         particleCount: 100,
         spread: 70,
@@ -164,8 +176,33 @@ export default function PlayQuiz() {
     }
   };
 
+  const saveResult = async (finalScore: number) => {
+    console.log('PlayQuiz: saveResult called, kidId:', kidId, 'score:', finalScore);
+    if (!kidId) {
+      console.log('PlayQuiz: saveResult skipped, no kidId');
+      return;
+    }
+    try {
+      const res = await apiFetch('/api/quiz-results', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          quizId: id,
+          kidId: kidId,
+          responses: userResponses,
+          score: finalScore,
+          totalQuestions: quiz!.questions.length,
+          questions: quiz!.questions
+        })
+      });
+      console.log('PlayQuiz: saveResult response status:', res.status);
+    } catch (err) {
+      console.error('Failed to save quiz result', err);
+    }
+  };
+
   const handleNextQuestion = () => {
-    if (!quiz) return;
+    if (!quiz || isFinished) return;
     
     window.speechSynthesis.cancel();
     setIsPlaying(false);
@@ -176,7 +213,11 @@ export default function PlayQuiz() {
       setIsAnswerChecked(false);
     } else {
       setIsFinished(true);
-      if (score + (selectedAnswer === quiz.questions[currentQuestionIndex].correctAnswerIndex ? 1 : 0) === quiz.questions.length) {
+      setScore(prevScore => {
+        saveResult(prevScore);
+        return prevScore;
+      });
+      if (score === quiz.questions.length) {
         confetti({
           particleCount: 300,
           spread: 100,
@@ -194,10 +235,12 @@ export default function PlayQuiz() {
     setSelectedAnswer(null);
     setIsAnswerChecked(false);
     setScore(0);
+    setUserResponses(new Array(quiz?.questions.length || 0).fill(-1));
     setIsFinished(false);
   };
 
   if (isLoading) {
+    console.log('PlayQuiz: isLoading is true');
     return (
       <div className="flex h-screen items-center justify-center bg-slate-50">
         <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
@@ -206,9 +249,22 @@ export default function PlayQuiz() {
   }
 
   if (!quiz) {
+    console.log('PlayQuiz: quiz is null');
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <h3 className="text-lg font-semibold text-slate-900">Quiz not found</h3>
+        <Button variant="outline" onClick={() => navigate(-1)} className="mt-6">
+          Go Back
+        </Button>
+      </div>
+    );
+  }
+
+  if (!quiz.questions || quiz.questions.length === 0) {
+    console.log('PlayQuiz: quiz has no questions');
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <h3 className="text-lg font-semibold text-slate-900">Quiz has no questions</h3>
         <Button variant="outline" onClick={() => navigate(-1)} className="mt-6">
           Go Back
         </Button>
@@ -250,7 +306,7 @@ export default function PlayQuiz() {
             </div>
 
             <div className="grid grid-cols-2 gap-4 pt-4">
-              <Button variant="outline" onClick={() => navigate(-1)} className="w-full font-bold">
+              <Button variant="outline" onClick={() => navigate(`/kids-dashboard/${kidId}`)} className="w-full font-bold">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Go Back
               </Button>
@@ -271,7 +327,7 @@ export default function PlayQuiz() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <div className="bg-white border-b border-slate-200 p-4 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-3xl mx-auto flex items-center justify-between">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
           <button onClick={() => navigate(-1)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
             <ArrowLeft className="h-5 w-5 text-slate-600" />
           </button>
@@ -283,7 +339,7 @@ export default function PlayQuiz() {
           </div>
           <div className="w-9" /> {/* Spacer for centering */}
         </div>
-        <div className="max-w-3xl mx-auto mt-4 h-2 bg-slate-100 rounded-full overflow-hidden">
+        <div className="max-w-6xl mx-auto mt-4 h-2 bg-slate-100 rounded-full overflow-hidden">
           <div 
             className="h-full bg-blue-500 transition-all duration-500 ease-out"
             style={{ width: `${progress}%` }}
@@ -291,7 +347,7 @@ export default function PlayQuiz() {
         </div>
       </div>
 
-      <div className="flex-1 max-w-3xl w-full mx-auto p-4 md:p-8 flex flex-col">
+      <div className="flex-1 max-w-6xl w-full mx-auto p-4 md:p-8 flex flex-col">
         <Card className="flex-1 border-none ring-1 ring-slate-200 shadow-lg overflow-hidden flex flex-col relative">
           <div className="absolute top-4 right-4 z-10">
             <button 

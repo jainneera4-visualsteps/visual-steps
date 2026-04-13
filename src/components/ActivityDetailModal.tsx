@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from './Card';
 import { useRef, useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import { SocialStoryModal } from './SocialStoryModal';
+import { Link } from 'react-router-dom';
 
 interface ActivityStep {
   id?: number;
@@ -280,6 +281,13 @@ export function ActivityDetailModal({
                       >
                         {activity.description}
                       </button>
+                    ) : activity.link.startsWith('/') ? (
+                      <Link 
+                        to={activity.link} 
+                        className="text-xl text-blue-600 hover:underline font-bold leading-relaxed block"
+                      >
+                        {activity.description}
+                      </Link>
                     ) : (
                       <a 
                         href={activity.link} 

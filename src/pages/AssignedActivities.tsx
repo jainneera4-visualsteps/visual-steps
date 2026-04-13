@@ -126,7 +126,10 @@ export default function AssignedActivities() {
   const [activeTab, setActiveTab] = useState<'activities' | 'completed' | 'history' | 'rewards' | 'progress'>('activities');
   const [templates, setTemplates] = useState<ActivityTemplate[]>([]);
   const [socialStories, setSocialStories] = useState<any[]>([]);
+  const [quizzes, setQuizzes] = useState<any[]>([]);
+  const [worksheets, setWorksheets] = useState<any[]>([]);
   const [rewardItems, setRewardItems] = useState<RewardItem[]>([]);
+  const [quizResults, setQuizResults] = useState<any[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [isPurchasesTableMissing, setIsPurchasesTableMissing] = useState(false);
   const [isRewardModalOpen, setIsRewardModalOpen] = useState(false);
@@ -145,7 +148,16 @@ export default function AssignedActivities() {
   const [purchaseItemsPerPage, setPurchaseItemsPerPage] = useState(10);
   const [activitiesPage, setActivitiesPage] = useState(1);
   const [activitiesItemsPerPage, setActivitiesItemsPerPage] = useState(10);
+  const [viewingQuizResult, setViewingQuizResult] = useState<any | null>(null);
+
+  useEffect(() => {
+    if (viewingQuizResult) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [viewingQuizResult]);
   const [activitiesSortConfig, setActivitiesSortConfig] = useState<{ key: keyof Activity | null, direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
+  const [predefinedType, setPredefinedType] = useState<string>('');
+  const [predefinedId, setPredefinedId] = useState<string>('');
 
   useEffect(() => {
     setHistoryPage(1);
@@ -708,6 +720,9 @@ export default function AssignedActivities() {
     fetchRewardItems();
     fetchTemplates();
     fetchSocialStories();
+    fetchQuizzes();
+    fetchQuizResults();
+    fetchWorksheets();
 
     // Set up socket connection
     const socket = io(window.location.origin);
@@ -819,7 +834,46 @@ export default function AssignedActivities() {
     }
   };
 
+  const fetchQuizzes = async () => {
+    try {
+      const res = await apiFetch('/api/quizzes');
+      if (res.ok) {
+        const data = await safeJson(res);
+        setQuizzes(data.quizzes || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch quizzes', error);
+    }
+  };
+
+  const fetchQuizResults = async () => {
+    if (!kidId) return;
+    try {
+      const res = await apiFetch(`/api/kids/${kidId}/quiz-results`);
+      if (res.ok) {
+        const data = await safeJson(res);
+        setQuizResults(data.results || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch quiz results', error);
+    }
+  };
+
+  const fetchWorksheets = async () => {
+    try {
+      const res = await apiFetch('/api/worksheets');
+      if (res.ok) {
+        const data = await safeJson(res);
+        setWorksheets(data.worksheets || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch worksheets', error);
+    }
+  };
+
   const handleOpenForm = (activity?: Activity) => {
+    setPredefinedType('');
+    setPredefinedId('');
     if (activity) {
       setEditingActivity(activity);
       const freq = activity.repeat_frequency || 'Never';
@@ -1483,7 +1537,7 @@ export default function AssignedActivities() {
 
   return (
     <div className="space-y-3">
-      {!isModalOpen && !previewActivity ? (
+      {!isModalOpen && !previewActivity && !viewingQuizResult ? (
         <>
           <div className="mb-6">
             <button onClick={() => navigate('/dashboard')} className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1 mb-2 transition-colors">
@@ -2755,6 +2809,59 @@ export default function AssignedActivities() {
                 </div>
               </CardContent>
             </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Quiz Results</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {quizResults.filter(q => {
+                  if (reportDuration === 'all') return true;
+                  if (!q.completed_at) return false;
+                  const completedDate = new Date(q.completed_at);
+                  const now = new Date();
+                  const diffMs = Math.abs(now.getTime() - completedDate.getTime());
+                  const diffHours = diffMs / (1000 * 60 * 60);
+                  
+                  if (reportDuration === '24h') return diffHours <= 24;
+                  if (reportDuration === '7d') return diffHours <= 24 * 7;
+                  if (reportDuration === '30d') return diffHours <= 24 * 30;
+                  return true;
+                }).length === 0 ? (
+                  <p className="text-slate-500">No quiz results yet.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {quizResults.filter(q => {
+                      if (reportDuration === 'all') return true;
+                      if (!q.completed_at) return false;
+                      const completedDate = new Date(q.completed_at);
+                      const now = new Date();
+                      const diffMs = Math.abs(now.getTime() - completedDate.getTime());
+                      const diffHours = diffMs / (1000 * 60 * 60);
+                      
+                      if (reportDuration === '24h') return diffHours <= 24;
+                      if (reportDuration === '7d') return diffHours <= 24 * 7;
+                      if (reportDuration === '30d') return diffHours <= 24 * 30;
+                      return true;
+                    }).map(res => (
+                      <div 
+                        key={res.id} 
+                        className="flex justify-between items-center border-b pb-2 cursor-pointer hover:bg-slate-50 transition-colors p-1 rounded"
+                        onClick={() => setViewingQuizResult(res)}
+                      >
+                        <div>
+                          <p className="font-medium">{res.quizzes?.title || 'Quiz'}</p>
+                          <p className="text-sm text-slate-500">{formatKidDate(res.completed_at)}</p>
+                        </div>
+                        <div className="font-bold text-blue-600">
+                          {res.score} / {res.total_questions}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         );
       })() : activeTab === 'rewards' ? (
@@ -2826,6 +2933,86 @@ export default function AssignedActivities() {
         </div>
       ) : null}
     </>
+  ) : viewingQuizResult ? (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="xs" onClick={() => setViewingQuizResult(null)} className="pl-0 h-7 hover:bg-transparent hover:text-blue-600 text-[12px] font-bold uppercase">
+          <ArrowLeft className="mr-1 h-3 w-3" />
+          Back to Reports
+        </Button>
+        <h1 className="text-xl font-bold tracking-tight text-slate-900 leading-none">
+          Quiz Detail: {viewingQuizResult.quizzes?.title || 'Quiz'}
+        </h1>
+      </div>
+
+      <Card className="border-blue-200 bg-blue-50/50 shadow-sm">
+        <CardHeader className="py-3 px-4">
+          <div className="flex justify-between items-center">
+            <CardTitle className="text-base font-bold">Results Summary</CardTitle>
+            <div className="text-lg font-black text-blue-600">
+              Score: {viewingQuizResult.score} / {viewingQuizResult.total_questions}
+            </div>
+          </div>
+          <p className="text-xs text-slate-500 mt-1">
+            Completed on {new Date(viewingQuizResult.completed_at).toLocaleString()}
+          </p>
+        </CardHeader>
+        <CardContent className="px-4 pb-4 space-y-4">
+          {viewingQuizResult.questions && viewingQuizResult.questions.map((q: any, idx: number) => {
+            const kidAnswerIndex = viewingQuizResult.responses ? viewingQuizResult.responses[idx] : -1;
+            const isCorrect = kidAnswerIndex === q.correctAnswerIndex;
+            
+            return (
+              <div key={idx} className={`p-4 rounded-xl border-2 ${isCorrect ? 'border-emerald-100 bg-emerald-50/30' : 'border-red-100 bg-red-50/30'}`}>
+                <div className="flex items-start gap-3">
+                  <div className={`mt-1 h-6 w-6 rounded-full flex items-center justify-center shrink-0 ${isCorrect ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
+                    {isCorrect ? <CheckCircle className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-slate-800">{idx + 1}. {q.question}</h4>
+                    
+                    <div className="mt-3 space-y-2">
+                      {q.options.map((option: string, optIdx: number) => {
+                        const isKidChoice = optIdx === kidAnswerIndex;
+                        const isCorrectChoice = optIdx === q.correctAnswerIndex;
+                        
+                        let optionClass = "p-2 rounded-lg text-sm border ";
+                        if (isCorrectChoice) {
+                          optionClass += "border-emerald-500 bg-emerald-100 text-emerald-800 font-bold";
+                        } else if (isKidChoice && !isCorrectChoice) {
+                          optionClass += "border-red-500 bg-red-100 text-red-800 font-bold";
+                        } else {
+                          optionClass += "border-slate-200 bg-white text-slate-600";
+                        }
+
+                        return (
+                          <div key={optIdx} className={optionClass}>
+                            <div className="flex items-center justify-between">
+                              <span>{option}</span>
+                              {isKidChoice && (
+                                <span className="text-[10px] uppercase font-black px-1.5 py-0.5 rounded bg-white/50">
+                                  Kid's Choice
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    
+                    {q.explanation && (
+                      <div className="mt-3 p-2 bg-white/50 rounded border border-slate-100 text-xs italic text-slate-600">
+                        <strong>Explanation:</strong> {q.explanation}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+    </div>
   ) : isModalOpen ? (
     <div className="space-y-4">
           <div className="flex items-center gap-3">
@@ -2867,73 +3054,81 @@ export default function AssignedActivities() {
                 {!editingActivity && (
                   <div className="grid gap-2.5 md:grid-cols-2">
                     <div className="space-y-0.5 p-2 bg-blue-50 rounded border border-blue-100">
-                      <label className="text-[12px] font-bold text-blue-600 uppercase">Load from Library</label>
+                      <label className="text-[12px] font-bold text-blue-600 uppercase">Select Activity Type (Optional)</label>
                       <select
                         className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
+                        value={predefinedType}
+                        onChange={(e) => {
+                          setPredefinedType(e.target.value);
+                          setPredefinedId('');
+                        }}
+                      >
+                        <option value="">-- Select Type --</option>
+                        <option value="quiz">Quizzes</option>
+                        <option value="story">Social Stories</option>
+                        <option value="worksheet">Worksheets</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-0.5 p-2 bg-blue-50 rounded border border-blue-100">
+                      <label className="text-[12px] font-bold text-blue-600 uppercase">Select Pre-defined Activity</label>
+                      <select
+                        className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 disabled:bg-slate-50 disabled:cursor-not-allowed"
+                        disabled={!predefinedType}
+                        value={predefinedId}
                         onChange={(e) => {
                           const val = e.target.value;
+                          setPredefinedId(val);
                           if (!val) return;
                           
-                          if (val.startsWith('template:')) {
-                            const templateId = val.replace('template:', '');
-                            const template = templates.find(t => t.id === templateId);
-                            if (template) {
+                          if (predefinedType === 'story') {
+                            const story = socialStories.find(s => s.id === val);
+                            if (story) {
                               setFormData({
                                 ...formData,
-                                activityType: template.activity_type,
-                                category: template.category || '',
-                                description: template.description || '',
-                                link: template.link || '',
-                                imageUrl: template.image_url || '',
-                                repeatFrequency: 'Never',
-                                repeatsTill: '',
-                                timeOfDay: 'Any time',
-                                status: 'pending',
-                                steps: (template.steps || []).map(s => ({ ...s, id: undefined })),
+                                activityType: 'Social Story',
+                                description: story.title,
+                                link: `/social-stories/view/${story.id}`,
+                                category: 'Social Skills',
+                                status: 'pending'
+                              });
+                            }
+                          } else if (predefinedType === 'quiz') {
+                            const quiz = quizzes.find(q => q.id === val);
+                            if (quiz) {
+                              setFormData({
+                                ...formData,
+                                activityType: 'Quiz',
+                                description: quiz.title,
+                                link: `/play-quiz/${quiz.id}/${kidId}`,
+                                category: 'Education',
+                                status: 'pending'
+                              });
+                            }
+                          } else if (predefinedType === 'worksheet') {
+                            const worksheet = worksheets.find(w => w.id === val);
+                            if (worksheet) {
+                              setFormData({
+                                ...formData,
+                                activityType: 'Worksheet',
+                                description: worksheet.title,
+                                link: `/worksheet-generator?id=${worksheet.id}`,
+                                category: 'Education',
+                                status: 'pending'
                               });
                             }
                           }
                         }}
-                        value=""
                       >
-                        <option value="">-- Quick Load Activity --</option>
-                        {templates.length > 0 && (
-                          <optgroup label="Your Activity Library">
-                            {templates.map(t => (
-                              <option key={t.id} value={`template:${t.id}`}>{t.activity_type} ({t.category})</option>
-                            ))}
-                          </optgroup>
-                        )}
-                      </select>
-                      {templates.length === 0 && (
-                        <p className="text-[10px] text-slate-400 italic mt-1">Tip: Create personalized templates in the Activity Library for more options.</p>
-                      )}
-                    </div>
-
-                    <div className="space-y-0.5 p-2 bg-blue-50 rounded border border-blue-100">
-                      <label className="text-[12px] font-bold text-blue-600 uppercase">Social Story Activity</label>
-                      <select
-                        className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
-                        onChange={(e) => {
-                          const storyId = e.target.value;
-                          if (!storyId) return;
-                          const story = socialStories.find(s => s.id === storyId);
-                          if (story) {
-                            setFormData({
-                              ...formData,
-                              activityType: 'Social Story',
-                              description: story.title,
-                              link: `/social-stories/view/${story.id}`,
-                              category: 'Social Skills',
-                              status: 'pending'
-                            });
-                          }
-                        }}
-                        value=""
-                      >
-                        <option value="">-- Select a Social Story --</option>
-                        {socialStories.map(s => (
+                        <option value="">-- Select Activity --</option>
+                        {predefinedType === 'quiz' && quizzes.map(q => (
+                          <option key={q.id} value={q.id}>{q.title}</option>
+                        ))}
+                        {predefinedType === 'story' && socialStories.map(s => (
                           <option key={s.id} value={s.id}>{s.title}</option>
+                        ))}
+                        {predefinedType === 'worksheet' && worksheets.map(w => (
+                          <option key={w.id} value={w.id}>{w.title}</option>
                         ))}
                       </select>
                     </div>

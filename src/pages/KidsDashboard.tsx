@@ -829,23 +829,6 @@ export default function KidsDashboard() {
               
             </div>
 
-            {/* Parent Message Section */}
-            {kid?.parent_message && (
-              <div className="animate-in fade-in slide-in-from-top-4 duration-500">
-                <div className={`p-4 rounded-xl border-2 border-blue-200 bg-blue-50 shadow-sm flex items-start gap-4`}>
-                  <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0 shadow-inner">
-                    <span className="text-xl">💌</span>
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1">Message from Parent</p>
-                    <p className="text-lg font-bold text-blue-900 leading-tight">
-                      {kid.parent_message}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
             <div className="flex flex-col gap-4">
               {/* Tabs and View Toggle Area */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -985,6 +968,23 @@ export default function KidsDashboard() {
                           </div>
 
                           <div className="grid gap-4 sm:grid-cols-2">
+                            {quizzes.map(quiz => (
+                              <Card 
+                                key={quiz.id}
+                                className={`p-6 cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all ${kid?.theme === 'space' ? 'bg-slate-900 ring-slate-800' : 'bg-white ring-slate-200'}`}
+                                onClick={() => navigate(`/play-quiz/${quiz.id}/${kidId}`)}
+                              >
+                                <div className="flex items-center gap-4">
+                                  <div className="h-16 w-16 rounded-2xl bg-blue-100 flex items-center justify-center text-3xl">
+                                    📝
+                                  </div>
+                                  <div>
+                                    <h3 className={`text-xl font-black ${currentTheme.cardTitle}`}>{quiz.title}</h3>
+                                    <p className={`text-sm ${currentTheme.cardSubtext}`}>{quiz.topic}</p>
+                                  </div>
+                                </div>
+                              </Card>
+                            ))}
                             <Card 
                               className={`p-6 cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all ${kid?.theme === 'space' ? 'bg-slate-900 ring-slate-800' : 'bg-white ring-slate-200'}`}
                               onClick={() => navigate('/memory-match')}
@@ -1092,7 +1092,8 @@ export default function KidsDashboard() {
                           </div>
                         </div>
                       ) : (
-                      (() => {
+                        <div className="w-full">
+                          {(() => {
                          const filtered = activities.filter(a => {
                           if (activeTab === 'todo') {
                             return a.status !== 'completed' && a.due_date === today;
@@ -1137,94 +1138,99 @@ export default function KidsDashboard() {
                           'Other': <Clock className="h-4 w-4 text-slate-400" />
                         };
 
-                        return grouped.map((group) => (
-                          <div key={group.time} className="space-y-3">
-                            <div className="flex items-center gap-2 px-1">
-                              {timeIcons[group.time]}
-                              <h3 className={`text-xs font-black uppercase tracking-[0.2em] ${currentTheme.cardSubtext}`}>
-                                {group.time}
-                              </h3>
-                              <div className={`h-px flex-1 ${kid?.theme === 'space' ? 'bg-slate-800' : 'bg-slate-200'}`} />
-                            </div>
-                            <div className="flex flex-col gap-3">
-                              {group.items.map((activity) => (
-                                <Card 
-                                  key={activity.id} 
-                                  className={`transition-all border-none ring-1 ${currentTheme.card} ${activity.status === 'completed' ? 'bg-slate-50 opacity-75 cursor-default' : (kid?.theme === 'space' ? 'bg-slate-900' : 'bg-white') + ' cursor-pointer hover:shadow-sm'}`}
-                                  onClick={() => {
-                                    if (activity.status !== 'completed') {
-                                      setSelectedActivity(activity);
-                                    }
-                                  }}
-                                >
-                                  <CardContent className="p-2.5 flex items-start gap-2.5">
-                                    <div 
-                                      className={`mt-0.5 flex-shrink-0 rounded-full transition-colors ${
-                                        activity.status === 'completed' ? 'text-emerald-500' : 'text-slate-300'
-                                      }`}
+                        return (
+                          <div className="space-y-6">
+                            {grouped.map((group) => (
+                              <div key={group.time} className="space-y-3">
+                                <div className="flex items-center gap-2 px-1">
+                                  {timeIcons[group.time]}
+                                  <h3 className={`text-xs font-black uppercase tracking-[0.2em] ${currentTheme.cardSubtext}`}>
+                                    {group.time}
+                                  </h3>
+                                  <div className={`h-px flex-1 ${kid?.theme === 'space' ? 'bg-slate-800' : 'bg-slate-200'}`} />
+                                </div>
+                                <div className="flex flex-col gap-3">
+                                  {group.items.map((activity) => (
+                                    <Card 
+                                      key={activity.id} 
+                                      className={`transition-all border-none ring-1 ${currentTheme.card} ${activity.status === 'completed' ? 'bg-slate-50 opacity-75 cursor-default' : (kid?.theme === 'space' ? 'bg-slate-900' : 'bg-white') + ' cursor-pointer hover:shadow-sm'}`}
+                                      onClick={() => {
+                                        if (activity.status !== 'completed') {
+                                          setSelectedActivity(activity);
+                                        }
+                                      }}
                                     >
-                                      {activity.status === 'completed' ? (
-                                        <CheckCircle className="h-6 w-6" />
-                                      ) : (
-                                        <Circle className="h-6 w-6" />
-                                      )}
-                                    </div>
-                                    
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center gap-2">
-                                        <h3 className={`font-black text-lg truncate ${activity.status === 'completed' ? 'text-slate-400 line-through' : currentTheme.cardTitle}`}>
-                                          {activity.activity_type}
-                                        </h3>
-                                        {activity.link?.includes('/social-stories/view/') && (
-                                          <div className={`flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-blue-600`}>
-                                            <Eye className="h-3 w-3" />
+                                      <CardContent className="p-2.5 flex items-start gap-2.5">
+                                        <div 
+                                          className={`mt-0.5 flex-shrink-0 rounded-full transition-colors ${
+                                            activity.status === 'completed' ? 'text-emerald-500' : 'text-slate-300'
+                                          }`}
+                                        >
+                                          {activity.status === 'completed' ? (
+                                            <CheckCircle className="h-6 w-6" />
+                                          ) : (
+                                            <Circle className="h-6 w-6" />
+                                          )}
+                                        </div>
+                                        
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-2">
+                                            <h3 className={`font-black text-lg truncate ${activity.status === 'completed' ? 'text-slate-400 line-through' : currentTheme.cardTitle}`}>
+                                              {activity.activity_type}
+                                            </h3>
+                                            {activity.link?.includes('/social-stories/view/') && (
+                                              <div className={`flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-blue-600`}>
+                                                <Eye className="h-3 w-3" />
+                                              </div>
+                                            )}
+
+                                          </div>
+                                          
+                                          {activity.description && (
+                                            <p className={`mt-0.5 text-sm font-medium ${currentTheme.cardSubtext} line-clamp-2 leading-tight`}>
+                                              {activity.description}
+                                            </p>
+                                          )}
+
+                                          <div className={`mt-2 flex items-center gap-3 text-[11px] font-bold ${currentTheme.bannerSubtext} uppercase tracking-wider`}>
+                                            {activity.due_date && activity.due_date !== today && (
+                                              <div className="flex items-center gap-1">
+                                                <Calendar className="h-3 w-3" />
+                                                {activity.due_date}
+                                              </div>
+                                            )}
+                                            {activity.steps && activity.steps.length > 0 && (
+                                              <div className="flex items-center gap-1">
+                                                <LayoutList className="h-3 w-3" />
+                                                {activity.steps.length} steps
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+
+                                        {activity.image_url && !activity.description && (
+                                          <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border border-slate-100 bg-slate-50">
+                                            <img 
+                                              key={activity.image_url}
+                                              src={activity.image_url} 
+                                              alt={activity.activity_type} 
+                                              className="aspect-square w-full object-cover"
+                                              referrerPolicy="no-referrer"
+                                            />
                                           </div>
                                         )}
-
-                                      </div>
-                                      
-                                      {activity.description && (
-                                        <p className={`mt-0.5 text-sm font-medium ${currentTheme.cardSubtext} line-clamp-2 leading-tight`}>
-                                          {activity.description}
-                                        </p>
-                                      )}
-
-                                      <div className={`mt-2 flex items-center gap-3 text-[11px] font-bold ${currentTheme.bannerSubtext} uppercase tracking-wider`}>
-                                        {activity.due_date && activity.due_date !== today && (
-                                          <div className="flex items-center gap-1">
-                                            <Calendar className="h-3 w-3" />
-                                            {activity.due_date}
-                                          </div>
-                                        )}
-                                        {activity.steps && activity.steps.length > 0 && (
-                                          <div className="flex items-center gap-1">
-                                            <LayoutList className="h-3 w-3" />
-                                            {activity.steps.length} steps
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-
-                                    {activity.image_url && !activity.description && (
-                                      <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border border-slate-100 bg-slate-50">
-                                        <img 
-                                          key={activity.image_url}
-                                          src={activity.image_url} 
-                                          alt={activity.activity_type} 
-                                          className="aspect-square w-full object-cover"
-                                          referrerPolicy="no-referrer"
-                                        />
-                                      </div>
-                                    )}
-                                  </CardContent>
-                                </Card>
-                              ))}
-                            </div>
+                                      </CardContent>
+                                    </Card>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                        ));
-                      })())}
+                        );
+                      })()}
                     </div>
-                  </div>
+                  )}
+                </div>
 
                 {/* Right Sidebar: Rules / Reminders */}
                 <aside className="w-full lg:w-72 shrink-0 space-y-4">
@@ -1265,8 +1271,8 @@ export default function KidsDashboard() {
               </div>
             </div>
           </div>
-        )
-        }
+        </div>
+        )}
       </main>
 
     </div>

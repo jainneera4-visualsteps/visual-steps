@@ -148,7 +148,7 @@ export default function Home() {
                 Personalized <span className="text-blue-600">Growth</span> for Every Child
               </h1>
               <p className="text-lg text-slate-600 max-w-2xl">
-                The all-in-one platform designed to empower children with unique learning needs through AI-driven personalization and engaging activities.
+                The all-in-one platform dedicated to helping parents and children with autism stay engaged with meaningful activities all day long. We help you motivate your kids for learning while having fun at the same time.
               </p>
               <div className="space-y-3 pt-4">
                 <p className="text-[10px] font-black text-blue-900 uppercase tracking-[0.2em] opacity-60">
@@ -160,8 +160,8 @@ export default function Home() {
                       <Sparkles className="h-3.5 w-3.5 text-blue-600" />
                     </div>
                     <div className="flex flex-col">
-                      <strong className="text-slate-900 font-bold">AI Chatbot Buddy</strong>
-                      <p className="text-xs text-slate-500 leading-relaxed">A personalized, friendly AI companion that engages your child in safe, educational conversations tailored to their interests.</p>
+                      <strong className="text-slate-900 font-bold">Daily Connection & Motivation</strong>
+                      <p className="text-xs text-slate-500 leading-relaxed">Send encouraging messages and fun emojis to your child throughout the day. This simple support builds their confidence and makes learning a joyful experience.</p>
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
@@ -169,8 +169,8 @@ export default function Home() {
                       <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
                     </div>
                     <div className="flex flex-col">
-                      <strong className="text-slate-900 font-bold">Smart Quiz Generator</strong>
-                      <p className="text-xs text-slate-500 leading-relaxed">Instantly create personalized quizzes for any subject using Gemini AI, adapting to your child's unique learning level.</p>
+                      <strong className="text-slate-900 font-bold">Engaging Learning Quizzes</strong>
+                      <p className="text-xs text-slate-500 leading-relaxed">Create fun quizzes that match your child's interests and learning pace. These activities turn lessons into exciting challenges that keep them motivated.</p>
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
@@ -178,8 +178,8 @@ export default function Home() {
                       <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
                     </div>
                     <div className="flex flex-col">
-                      <strong className="text-slate-900 font-bold">Visual Social Stories</strong>
-                      <p className="text-xs text-slate-500 leading-relaxed">Build custom narratives with clear imagery to help children navigate social situations and transitions with confidence.</p>
+                      <strong className="text-slate-900 font-bold">Daily Routine Social Stories</strong>
+                      <p className="text-xs text-slate-500 leading-relaxed">Use simple picture stories to help your child understand daily routines and transitions. These visual guides reduce anxiety and help them feel more independent.</p>
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
@@ -187,8 +187,8 @@ export default function Home() {
                       <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
                     </div>
                     <div className="flex flex-col">
-                      <strong className="text-slate-900 font-bold">Custom Worksheet Creator</strong>
-                      <p className="text-xs text-slate-500 leading-relaxed">Generate tailored educational resources to reinforce skills, easily printable for offline practice.</p>
+                      <strong className="text-slate-900 font-bold">Meaningful Offline Activities</strong>
+                      <p className="text-xs text-slate-500 leading-relaxed">Print custom worksheets to keep your child learning even when they are away from the screen. These hands-on activities are a great way to practice skills at home.</p>
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
@@ -196,8 +196,8 @@ export default function Home() {
                       <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
                     </div>
                     <div className="flex flex-col">
-                      <strong className="text-slate-900 font-bold">Kid-Friendly Interface</strong>
-                      <p className="text-xs text-slate-500 leading-relaxed">A simplified, joyful dashboard where children can independently access activities and track their progress.</p>
+                      <strong className="text-slate-900 font-bold">Motivating Reward Systems</strong>
+                      <p className="text-xs text-slate-500 leading-relaxed">Give your child fun rewards for completing their daily tasks and learning goals. This exciting system makes every success feel special and keeps them moving forward.</p>
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
@@ -205,8 +205,8 @@ export default function Home() {
                       <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
                     </div>
                     <div className="flex flex-col">
-                      <strong className="text-slate-900 font-bold">Parental Insight Hub</strong>
-                      <p className="text-xs text-slate-500 leading-relaxed">Monitor growth with real-time progress tracking, manage profiles, and assign activities from one central location.</p>
+                      <strong className="text-slate-900 font-bold">Daily Progress Insights</strong>
+                      <p className="text-xs text-slate-500 leading-relaxed">See how much your child is learning with simple daily progress reports. These insights help you celebrate their wins and plan for future growth.</p>
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
@@ -214,8 +214,8 @@ export default function Home() {
                       <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
                     </div>
                     <div className="flex flex-col">
-                      <strong className="text-slate-900 font-bold">Gamified Rewards</strong>
-                      <p className="text-xs text-slate-500 leading-relaxed">Motivate daily learning with customizable points and rewards, celebrating every milestone along the way.</p>
+                      <strong className="text-slate-900 font-bold">Independent Daily Engagement</strong>
+                      <p className="text-xs text-slate-500 leading-relaxed">Give your child a simple dashboard they can use all by themselves. This easy interface helps them feel proud of their own progress and accomplishments.</p>
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
@@ -223,8 +223,8 @@ export default function Home() {
                       <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
                     </div>
                     <div className="flex flex-col">
-                      <strong className="text-slate-900 font-bold">Safe & Private</strong>
-                      <p className="text-xs text-slate-500 leading-relaxed">Industry-standard security ensures a protected digital space where your family's privacy is our top priority.</p>
+                      <strong className="text-slate-900 font-bold">Safe & Secure Engagement</strong>
+                      <p className="text-xs text-slate-500 leading-relaxed">We use strong security to keep your child's learning environment safe and private. You can focus on their growth knowing their digital journey is protected.</p>
                     </div>
                   </li>
                 </ul>

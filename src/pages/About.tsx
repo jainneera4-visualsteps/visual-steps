@@ -14,7 +14,7 @@ export default function About() {
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <h1 className="text-5xl font-normal text-slate-900 tracking-tight leading-none">About Visual Steps</h1>
-            <p className="mt-2 text-lg text-slate-500 font-medium">Empowering children through visual learning and personalized engagement.</p>
+            <p className="mt-2 text-lg text-slate-500 font-medium">Empowering parents and children with autism through meaningful daily engagement and motivation.</p>
           </div>
         </div>
       </div>
@@ -25,60 +25,50 @@ export default function About() {
             <section className="space-y-3">
               <h2 className="text-2xl font-bold text-blue-900">A Supportive Companion for Growth</h2>
               <p className="text-slate-600 leading-relaxed text-justify">
-                Visual Steps is designed as a supportive companion for families navigating the unique journey of childhood development. 
-                It is important to understand that this website is not a replacement for professional therapies, licensed therapists, dedicated teachers, or the essential role of parents. 
-                Instead, our platform serves as a specialized tool to help parents organize their children's daily activities more effectively. 
-                By providing a structured environment, we aim to encourage and motivate kids to learn at their own pace and in their own way. 
-                Our mission is to complement existing support systems by offering a digital space where progress and engagement go hand in hand. 
-                We believe that with the right organization, every child can find new paths to success and confidence.
+                Visual Steps is born from a deep understanding of the unique journey families navigate during childhood development, particularly for those with autism. 
+                Our platform is dedicated to being a supportive companion, offering a structured digital environment where children can thrive. 
+                Every effort is made to help parents and children bridge the gap between clinical support and daily home life. 
+                By providing a clear roadmap for learning, we aim to empower every child to discover their potential at their own pace.
               </p>
             </section>
 
             <section className="space-y-3">
               <h2 className="text-2xl font-bold text-blue-900">Purposeful Engagement Made Simple</h2>
               <p className="text-slate-600 leading-relaxed text-justify">
-                Many parents find themselves spending countless hours searching for ways to keep their children purposefully engaged throughout the day. 
-                Often, a significant portion of that time is consumed by the tedious task of collecting physical materials and preparing manual activities. 
-                Visual Steps was created to alleviate this burden by streamlining the creation and management of educational content. 
-                We provide a centralized hub where parents can quickly find or generate meaningful tasks without the usual logistical stress. 
-                This efficiency allows families to spend more quality time interacting and less time on administrative preparation. 
-                Our goal is to ensure that purposeful engagement is always just a few clicks away for every busy household.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h2 className="text-2xl font-bold text-blue-900">Bridging the Gaps in Daily Life</h2>
-              <p className="text-slate-600 leading-relaxed text-justify">
-                There are inevitably days when regular routines are disrupted, such as when schools are closed or therapists are unavailable. 
-                During these times, parents may find it challenging to be constantly present while also managing other household or work responsibilities. 
-                Kids often need something they can engage with independently that is both safe and constructive for their development. 
-                Visual Steps fills these gaps by providing a reliable resource that children can access whenever the need arises. 
-                Whether it is a weekend, a holiday, or a quiet afternoon at home, our platform ensures that learning never has to stop. 
-                We provide the continuity that families need to maintain progress even when external support systems are temporarily out of reach.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h2 className="text-2xl font-bold text-blue-900">A Comprehensive Digital Toolset</h2>
-              <p className="text-slate-600 leading-relaxed text-justify">
-                Our platform gives parents a wide array of tools to teach and engage their children in diverse and exciting ways. 
-                From interactive quizzes and educational worksheets to engaging games and visual social stories, there is something for every learning style. 
-                Parents can leverage advanced AI to generate new content instantly or take full control by creating their own custom activities. 
-                Every resource can be easily modified to fit a child's specific needs, saved for future use, or printed for offline practice. 
-                This flexibility ensures that the educational experience remains fresh, relevant, and perfectly tailored to each individual user. 
-                By combining digital innovation with practical utility, we provide a holistic approach to modern home-based learning.
+                We know that parents spend countless hours searching for meaningful ways to keep their children engaged throughout the entire day. 
+                Visual Steps alleviates the burden of manual preparation by streamlining the creation and management of educational content. 
+                Our centralized hub allows you to quickly generate personalized tasks, from customizable quizzes to visual stories, ensuring your child stays productive and motivated. 
+                This efficiency means less time on administration and more quality time spent interacting and celebrating milestones together.
               </p>
             </section>
 
             <section className="space-y-3">
               <h2 className="text-2xl font-bold text-blue-900">The Power of Visual Learning</h2>
               <p className="text-slate-600 leading-relaxed text-justify">
-                Visual Steps is built on the fundamental assumption that many children, particularly those with autism, are significantly more responsive to visual instructions. 
-                Verbal directions can often be overwhelming or confusing, leading children to get lost or frustrated during simple transitions. 
-                By translating complex tasks into clear, visual steps, we provide a roadmap that is much easier for them to follow and understand. 
-                This visual-first approach reduces anxiety and fosters a sense of independence as children learn to navigate their day with clarity. 
-                We prioritize high-contrast imagery and simple layouts to ensure that the message is always the primary focus of the experience. 
-                Harnessing the power of sight allows us to unlock potential that might otherwise be hindered by traditional communication barriers.
+                At the heart of Visual Steps is the belief that visual communication is a powerful key to unlocking understanding. 
+                For many children, verbal directions can be overwhelming; by translating complex tasks into clear, visual steps, we reduce anxiety and foster independence. 
+                Our visual-first approach provides a predictable and safe environment where children can navigate their day with clarity and confidence. 
+                We prioritize high-contrast imagery and intuitive layouts to ensure that every interaction is constructive and accessible.
+              </p>
+            </section>
+
+            <section className="space-y-3">
+              <h2 className="text-2xl font-bold text-blue-900">A Comprehensive Digital Toolset</h2>
+              <p className="text-slate-600 leading-relaxed text-justify">
+                Our platform offers a diverse array of tools tailored to various learning styles, focusing on making learning fun and motivating. 
+                Whether it's interactive quizzes, educational worksheets, or personalized social stories, Visual Steps provides a holistic approach to home-based learning. 
+                Parents have the flexibility to create and manage customizable content that fits their child's unique needs while keeping them excited about their progress. 
+                With direct messaging, progress reports, and location-based rewards, every resource is designed to be fresh, relevant, and perfectly tailored to each child's specific journey.
+              </p>
+            </section>
+
+            <section className="space-y-3">
+              <h2 className="text-2xl font-bold text-blue-900">Our Commitment to Privacy and Safety</h2>
+              <p className="text-slate-600 leading-relaxed text-justify">
+                We believe that a safe learning environment is non-negotiable. 
+                Visual Steps is built with industry-standard security to ensure that your family's data and privacy are always protected. 
+                We provide a secure digital space where children can explore and learn without external distractions or risks. 
+                Your trust is our most valuable asset, and we are committed to maintaining the highest standards of safety as we grow together.
               </p>
             </section>
           </div>

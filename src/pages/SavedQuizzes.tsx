@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import { ArrowLeft, Gamepad2, Trash2, Plus, PlayCircle, Sparkles } from 'lucide-react';
+import { ArrowLeft, Gamepad2, Trash2, Plus, PlayCircle, Pencil } from 'lucide-react';
 
 export default function SavedQuizzes() {
   const navigate = useNavigate();
@@ -63,7 +63,7 @@ export default function SavedQuizzes() {
   }
 
   return (
-    <div className="space-y-4 max-w-5xl mx-auto">
+    <div className="space-y-6 max-w-6xl mx-auto pb-10">
       <div className="mb-6">
         <button onClick={() => navigate('/dashboard')} className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1 mb-2 transition-colors">
           <ArrowLeft className="h-4 w-4" /> Back to Dashboard
@@ -128,7 +128,7 @@ export default function SavedQuizzes() {
                       {quiz.subject}
                     </span>
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                      {quiz.target_age} {quiz.grade_level ? `• ${quiz.grade_level}` : ''}
+                      {quiz.grade_level ? `• ${quiz.grade_level}` : ''}
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-500 line-clamp-1 mt-1">{quiz.topic}</p>
@@ -152,7 +152,7 @@ export default function SavedQuizzes() {
                       className="h-8 w-8 p-0 text-slate-400 hover:bg-amber-50 hover:text-amber-600"
                       title="Edit Quiz"
                     >
-                      <Sparkles className="h-4 w-4" />
+                      <Pencil className="h-4 w-4" />
                     </Button>
                   </Link>
                   <Button

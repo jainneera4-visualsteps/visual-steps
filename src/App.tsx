@@ -58,6 +58,7 @@ export default function App() {
               <Route path="saved-worksheets" element={<SavedWorksheets />} />
               <Route path="quiz-generator" element={<QuizGenerator />} />
               <Route path="saved-quizzes" element={<SavedQuizzes />} />
+              <Route path="play-quiz/:id" element={<PlayQuiz />} />
               <Route path="edit-quiz/:id" element={<EditQuiz />} />
               <Route path="activity-library" element={<ActivityLibrary />} />
               <Route path="games" element={<Games />} />
@@ -74,7 +75,7 @@ export default function App() {
           
           <Route element={<KidProtectedRoute />}>
             <Route path="/kids-dashboard/:kidId" element={<KidsDashboard />} />
-            <Route path="/play-quiz/:id" element={<PlayQuiz />} />
+            <Route path="/play-quiz/:id/:kidId" element={<PlayQuiz />} />
             <Route path="/level-up-challenge" element={<LevelUpGame />} />
             <Route path="/brain-quest" element={<BrainQuest />} />
             <Route path="/memory-match" element={<MemoryGame />} />

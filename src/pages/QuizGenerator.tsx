@@ -23,36 +23,18 @@ export default function QuizGenerator() {
   const location = useLocation();
   const [topic, setTopic] = useState('');
   const [difficulty, setDifficulty] = useState('Medium');
-  const [targetAge, setTargetAge] = useState('5-7 years');
   const [gradeLevel, setGradeLevel] = useState('Grade 1');
   const [subject, setSubject] = useState('General Knowledge');
   const [questionType, setQuestionType] = useState('Multiple Choice');
   const [numQuestions, setNumQuestions] = useState(5);
   const [questionScore, setQuestionScore] = useState(1);
-  const [kidId, setKidId] = useState('');
-  const [kids, setKids] = useState<any[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [quiz, setQuiz] = useState<QuizContent | null>(null);
 
   useEffect(() => {
-    fetchKids();
+    // No longer fetching kids
   }, []);
-
-  const fetchKids = async () => {
-    try {
-      const res = await apiFetch('/api/kids');
-      if (res.ok) {
-        const data = await res.json();
-        setKids(data.kids);
-        if (data.kids.length > 0) {
-          setKidId(data.kids[0].id);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to fetch kids', err);
-    }
-  };
 
   const handleGenerate = async () => {
     if (!topic.trim()) return;
@@ -83,13 +65,12 @@ export default function QuizGenerator() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            model: "gemini-3-flash-preview",
-            contents: `Generate an interactive ${questionType} quiz for a person aged ${targetAge} at a ${gradeLevel} reading/comprehension level on the topic: "${topic}". 
+            model: "gemini-2.0-flash",
+            contents: `Generate an interactive ${questionType} quiz at a ${gradeLevel} reading/comprehension level on the topic: "${topic}". 
         Subject: ${subject}.
         Difficulty Level: ${difficulty}.
         
         CRITICAL CRITERIA:
-        - Target Age: ${targetAge} (Ensure tone and context are appropriate for this age).
         - Grade Level: ${gradeLevel} (Ensure vocabulary, concepts, and reading complexity are perfectly aligned with this grade level).
         
         The quiz should be educational, fun, and engaging.
@@ -127,9 +108,15 @@ export default function QuizGenerator() {
         });
         if (!res.ok) {
           const errorData = await res.json();
-          throw new Error(errorData.error || 'Failed to generate content');
+          console.error('API Error:', errorData);
+          const message = typeof errorData.error === 'string' 
+            ? errorData.error 
+            : (errorData.error?.message || 'Failed to generate content');
+          throw new Error(message);
         }
-        return await res.json();
+        const data = await res.json();
+        console.log('API Response:', data);
+        return data;
       });
 
       let responseText = response.text;
@@ -150,8 +137,10 @@ export default function QuizGenerator() {
     } catch (error: any) {
       console.error('Failed to generate quiz:', error);
       const errorMessage = error.message || "Unknown error";
-      if (errorMessage.includes("500") || errorMessage.includes("Rpc failed")) {
-        alert("The AI service is currently busy or experiencing a temporary issue. We tried retrying, but it failed. Please wait a moment and try again.");
+      if (errorMessage.includes("503") || errorMessage.includes("UNAVAILABLE") || errorMessage.includes("high demand")) {
+        alert("The AI service is currently experiencing high demand. Please wait a moment and try again.");
+      } else if (errorMessage.includes("500") || errorMessage.includes("Rpc failed")) {
+        alert("The AI service is currently busy or experiencing a temporary issue. Please wait a moment and try again.");
       } else {
         alert(`Failed to generate quiz: ${errorMessage}. Please try again.`);
       }
@@ -169,11 +158,9 @@ export default function QuizGenerator() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          kidId: kidId || null,
           title: quiz.title,
           topic,
           difficulty,
-          targetAge,
           gradeLevel,
           content: quiz
         })
@@ -209,9 +196,9 @@ export default function QuizGenerator() {
         <button onClick={() => navigate('/dashboard')} className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1 mb-2 transition-colors">
           <ArrowLeft className="h-4 w-4" /> Back to Dashboard
         </button>
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <h1 className="text-5xl font-normal text-slate-900 tracking-tight leading-none">Quiz & Game Generator</h1>
+            <h1 className="text-5xl font-normal text-slate-900 tracking-tight leading-none">Quiz Generator</h1>
             <p className="text-lg font-normal text-slate-500 mt-3">Create interactive learning games</p>
           </div>
           <Link to="/saved-quizzes">
@@ -226,25 +213,6 @@ export default function QuizGenerator() {
       <Card className="border-none ring-1 ring-slate-200 shadow-sm">
         <CardContent className="p-4 space-y-4">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <div className="space-y-1.5 lg:col-span-2">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Topic</label>
-              <Input 
-                placeholder="e.g., Animals, Space, Math..." 
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                className="h-9 text-sm"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Target Age</label>
-              <select 
-                className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                value={targetAge}
-                onChange={(e) => setTargetAge(e.target.value)}
-              >
-                {targetAges.map(g => <option key={g} value={g}>{g}</option>)}
-              </select>
-            </div>
             <div className="space-y-1.5">
               <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Grade Level</label>
               <select 
@@ -263,6 +231,25 @@ export default function QuizGenerator() {
                 onChange={(e) => setSubject(e.target.value)}
               >
                 {subjects.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1.5 lg:col-span-2">
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Topic</label>
+              <Input 
+                placeholder="e.g., Animals, Space, Math..." 
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                className="h-9 text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Questions</label>
+              <select 
+                className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                value={numQuestions}
+                onChange={(e) => setNumQuestions(Number(e.target.value))}
+              >
+                {numQuestionsOptions.map(n => <option key={n} value={n}>{n}</option>)}
               </select>
             </div>
             <div className="space-y-1.5">
@@ -286,16 +273,6 @@ export default function QuizGenerator() {
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Questions</label>
-              <select 
-                className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                value={numQuestions}
-                onChange={(e) => setNumQuestions(Number(e.target.value))}
-              >
-                {numQuestionsOptions.map(n => <option key={n} value={n}>{n}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1.5">
               <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Score / Q</label>
               <select 
                 className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
@@ -303,17 +280,6 @@ export default function QuizGenerator() {
                 onChange={(e) => setQuestionScore(Number(e.target.value))}
               >
                 {scoreOptions.map(s => <option key={s} value={s}>{s} pts</option>)}
-              </select>
-            </div>
-            <div className="space-y-1.5 lg:col-span-2">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Assign To (Optional)</label>
-              <select 
-                className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                value={kidId}
-                onChange={(e) => setKidId(e.target.value)}
-              >
-                <option value="">None (Save to library)</option>
-                {kids.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
               </select>
             </div>
           </div>

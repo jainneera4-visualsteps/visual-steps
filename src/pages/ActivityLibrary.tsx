@@ -53,6 +53,8 @@ export default function ActivityLibrary() {
   const navigate = useNavigate();
   const [templates, setTemplates] = useState<ActivityTemplate[]>([]);
   const [socialStories, setSocialStories] = useState<any[]>([]);
+  const [quizzes, setQuizzes] = useState<any[]>([]);
+  const [worksheets, setWorksheets] = useState<any[]>([]);
   const [kids, setKids] = useState<Kid[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -63,6 +65,8 @@ export default function ActivityLibrary() {
   const [selectedKidForSuggestions, setSelectedKidForSuggestions] = useState<string>('');
   const [aiSuggestions, setAiSuggestions] = useState<any[]>([]);
   const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false);
+  const [predefinedType, setPredefinedType] = useState<string>('');
+  const [predefinedId, setPredefinedId] = useState<string>('');
   
   const [formData, setFormData] = useState({
     activityType: '',
@@ -80,10 +84,12 @@ export default function ActivityLibrary() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [templatesRes, kidsRes, storiesRes] = await Promise.all([
+      const [templatesRes, kidsRes, storiesRes, quizzesRes, worksheetsRes] = await Promise.all([
         apiFetch('/api/activity-templates'),
         apiFetch('/api/kids'),
-        apiFetch('/api/social-stories')
+        apiFetch('/api/social-stories'),
+        apiFetch('/api/quizzes'),
+        apiFetch('/api/worksheets')
       ]);
 
       if (templatesRes.ok) {
@@ -99,6 +105,16 @@ export default function ActivityLibrary() {
       if (storiesRes.ok) {
         const data = await safeJson(storiesRes);
         setSocialStories(data.stories || []);
+      }
+
+      if (quizzesRes.ok) {
+        const data = await safeJson(quizzesRes);
+        setQuizzes(data.quizzes || []);
+      }
+
+      if (worksheetsRes.ok) {
+        const data = await safeJson(worksheetsRes);
+        setWorksheets(data.worksheets || []);
       }
     } catch (error) {
       console.error('Failed to fetch library data', error);
@@ -209,7 +225,7 @@ export default function ActivityLibrary() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: "gemini-3-flash-preview",
+          model: "gemini-2.0-flash",
           contents: `Generate 3 creative activity ideas for a child named ${kid.name} based on their profile:
         Hobbies: ${kid.hobbies || 'Not specified'}
         Interests: ${kid.interests || 'Not specified'}
@@ -277,6 +293,8 @@ export default function ActivityLibrary() {
           <Button variant="ghost" size="xs" onClick={() => {
             setView('library');
             setEditingTemplateId(null);
+            setPredefinedType('');
+            setPredefinedId('');
           }} className="pl-0 h-7 hover:bg-transparent hover:text-blue-600 text-[12px] font-bold uppercase">
             <ArrowLeft className="mr-1 h-3 w-3" />
             Back to Library
@@ -379,65 +397,84 @@ export default function ActivityLibrary() {
                     )}
                   </div>
 
-                  {templates.length > 0 && (
+                  <div className="grid gap-2.5 md:grid-cols-2">
                     <div className="space-y-0.5 p-2 bg-blue-50 rounded border border-blue-100">
-                      <label className="text-[12px] font-bold text-blue-600 uppercase">Clone from Existing Template</label>
+                      <label className="text-[12px] font-bold text-blue-600 uppercase">Select Activity Type (Optional)</label>
                       <select
                         className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
+                        value={predefinedType}
                         onChange={(e) => {
-                          const templateId = e.target.value;
-                          if (!templateId) return;
-                          const template = templates.find(t => t.id === templateId);
-                          if (template) {
-                            setFormData({
-                              ...formData,
-                              activityType: template.activity_type,
-                              category: template.category || '',
-                              description: template.description || '',
-                              link: template.link || '',
-                              imageUrl: template.image_url || '',
-                              steps: (template.steps || []).map(s => ({ ...s, id: undefined })),
-                            });
-                          }
+                          setPredefinedType(e.target.value);
+                          setPredefinedId('');
                         }}
-                        value=""
                       >
-                        <option value="">-- Select a template to clone --</option>
-                        {templates.map(t => (
-                          <option key={t.id} value={t.id}>{t.activity_type} ({t.category})</option>
-                        ))}
+                        <option value="">-- Select Type --</option>
+                        <option value="quiz">Quizzes</option>
+                        <option value="story">Social Stories</option>
+                        <option value="worksheet">Worksheets</option>
                       </select>
                     </div>
-                  )}
 
-                  {socialStories.length > 0 && (
                     <div className="space-y-0.5 p-2 bg-blue-50 rounded border border-blue-100">
-                      <label className="text-[12px] font-bold text-blue-600 uppercase">Social Story Activity</label>
+                      <label className="text-[12px] font-bold text-blue-600 uppercase">Select Pre-defined Activity</label>
                       <select
-                        className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
+                        className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 disabled:bg-slate-50 disabled:cursor-not-allowed"
+                        disabled={!predefinedType}
+                        value={predefinedId}
                         onChange={(e) => {
-                          const storyId = e.target.value;
-                          if (!storyId) return;
-                          const story = socialStories.find(s => s.id === storyId);
-                          if (story) {
-                            setFormData({
-                              ...formData,
-                              activityType: 'Social Story',
-                              description: story.title,
-                              link: `/social-stories/view/${story.id}`,
-                              category: 'Social Skills'
-                            });
+                          const val = e.target.value;
+                          setPredefinedId(val);
+                          if (!val) return;
+                          
+                          if (predefinedType === 'story') {
+                            const story = socialStories.find(s => s.id === val);
+                            if (story) {
+                              setFormData({
+                                ...formData,
+                                activityType: 'Social Story',
+                                description: story.title,
+                                link: `/social-stories/view/${story.id}`,
+                                category: 'Social Skills'
+                              });
+                            }
+                          } else if (predefinedType === 'quiz') {
+                            const quiz = quizzes.find(q => q.id === val);
+                            if (quiz) {
+                              setFormData({
+                                ...formData,
+                                activityType: 'Quiz',
+                                description: quiz.title,
+                                link: `/play-quiz/${quiz.id}`,
+                                category: 'Education'
+                              });
+                            }
+                          } else if (predefinedType === 'worksheet') {
+                            const worksheet = worksheets.find(w => w.id === val);
+                            if (worksheet) {
+                              setFormData({
+                                ...formData,
+                                activityType: 'Worksheet',
+                                description: worksheet.title,
+                                link: `/worksheet-generator?id=${worksheet.id}`,
+                                category: 'Education'
+                              });
+                            }
                           }
                         }}
-                        value=""
                       >
-                        <option value="">-- Select a Social Story --</option>
-                        {socialStories.map(s => (
+                        <option value="">-- Select Activity --</option>
+                        {predefinedType === 'quiz' && quizzes.map(q => (
+                          <option key={q.id} value={q.id}>{q.title}</option>
+                        ))}
+                        {predefinedType === 'story' && socialStories.map(s => (
                           <option key={s.id} value={s.id}>{s.title}</option>
                         ))}
+                        {predefinedType === 'worksheet' && worksheets.map(w => (
+                          <option key={w.id} value={w.id}>{w.title}</option>
+                        ))}
                       </select>
                     </div>
-                  )}
+                  </div>
                 </div>
               )}
 
@@ -615,6 +652,8 @@ export default function ActivityLibrary() {
                   <Button type="button" variant="ghost" size="xs" onClick={() => {
                     setView('library');
                     setEditingTemplateId(null);
+                    setPredefinedType('');
+                    setPredefinedId('');
                   }} className="h-7 text-[12px]">
                     Cancel
                   </Button>
@@ -641,7 +680,11 @@ export default function ActivityLibrary() {
             <h1 className="text-5xl font-normal text-slate-900 tracking-tight leading-none">Activity Library</h1>
             <p className="text-lg font-normal text-slate-500 mt-3">Manage your personalized activities and assign them to your kids.</p>
           </div>
-          <Button onClick={() => setView('create')} className="h-10 px-6 font-bold uppercase tracking-wider">
+          <Button onClick={() => {
+            setPredefinedType('');
+            setPredefinedId('');
+            setView('create');
+          }} className="h-10 px-6 font-bold uppercase tracking-wider">
             <Plus className="mr-2 h-4 w-4" />
             Create Activity
           </Button>

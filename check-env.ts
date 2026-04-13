@@ -1,5 +1,11 @@
 
-console.log('SUPABASE_URL:', process.env.SUPABASE_URL ? 'set' : 'not set');
-console.log('SUPABASE_KEY:', process.env.SUPABASE_KEY ? 'set' : 'not set');
-console.log('VITE_SUPABASE_URL:', process.env.VITE_SUPABASE_URL ? 'set' : 'not set');
-console.log('VITE_SUPABASE_ANON_KEY:', process.env.VITE_SUPABASE_ANON_KEY ? 'set' : 'not set');
+import dotenv from 'dotenv';
+dotenv.config();
+
+console.log('--- Environment Variables ---');
+for (const key in process.env) {
+  if (key.includes('GEMINI') || key.includes('GOOGLE') || key.includes('KEY')) {
+    const val = process.env[key] || '';
+    console.log(`${key}: length=${val.length}, prefix=${val.substring(0, 5)}`);
+  }
+}

@@ -226,7 +226,7 @@ export default function WorksheetGenerator() {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                model: "gemini-3-flash-preview",
+                model: "gemini-2.0-flash",
                 contents: `Generate a highly refined, professional-grade printable worksheet for a person aged ${targetAge} at a ${gradeLevel} reading/comprehension level for the subject ${subject} on the topic: "${topic}". 
               
               CRITICAL CRITERIA:
@@ -396,8 +396,10 @@ export default function WorksheetGenerator() {
     } catch (error: any) {
       console.error('Failed to generate worksheets:', error);
       const errorMessage = error.message || "Unknown error";
-      if (errorMessage.includes("500") || errorMessage.includes("Rpc failed")) {
-        alert("The AI service is currently busy or experiencing a temporary issue. We tried retrying, but it failed. Please wait a moment and try again.");
+      if (errorMessage.includes("503") || errorMessage.includes("UNAVAILABLE") || errorMessage.includes("high demand")) {
+        alert("The AI service is currently experiencing high demand. Please wait a moment and try again.");
+      } else if (errorMessage.includes("500") || errorMessage.includes("Rpc failed")) {
+        alert("The AI service is currently busy or experiencing a temporary issue. Please wait a moment and try again.");
       } else {
         alert(`Failed to generate worksheets: ${errorMessage}. Please try again.`);
       }

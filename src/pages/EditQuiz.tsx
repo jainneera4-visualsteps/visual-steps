@@ -27,32 +27,16 @@ export default function EditQuiz() {
   const [title, setTitle] = useState('');
   const [topic, setTopic] = useState('');
   const [difficulty, setDifficulty] = useState('Medium');
-  const [targetAge, setTargetAge] = useState('5-7 years');
   const [gradeLevel, setGradeLevel] = useState('Grade 1');
   const [description, setDescription] = useState('');
   const [questionScore, setQuestionScore] = useState(1);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
-  const [kidId, setKidId] = useState('');
-  const [kids, setKids] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    fetchKids();
     fetchQuiz();
   }, [id]);
-
-  const fetchKids = async () => {
-    try {
-      const res = await apiFetch('/api/kids');
-      if (res.ok) {
-        const data = await res.json();
-        setKids(data.kids || []);
-      }
-    } catch (err) {
-      console.error('Failed to fetch kids', err);
-    }
-  };
 
   const fetchQuiz = async () => {
     try {
@@ -63,9 +47,7 @@ export default function EditQuiz() {
         setTitle(quiz.title);
         setTopic(quiz.topic || '');
         setDifficulty(quiz.difficulty || 'Medium');
-        setTargetAge(quiz.target_age || '5-7 years');
         setGradeLevel(quiz.grade_level || 'Grade 1');
-        setKidId(quiz.kid_id || '');
 
         const content = typeof quiz.content === 'string' ? JSON.parse(quiz.content) : quiz.content;
         setDescription(content.description || '');
@@ -101,11 +83,9 @@ export default function EditQuiz() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          kidId: kidId || null,
           title,
           topic,
           difficulty,
-          targetAge,
           gradeLevel,
           content: quizContent
         })
@@ -151,6 +131,25 @@ export default function EditQuiz() {
     setQuestions(newQuestions);
   };
 
+  const addOption = (qIndex: number) => {
+    const newQuestions = [...questions];
+    newQuestions[qIndex].options.push('');
+    setQuestions(newQuestions);
+  };
+
+  const removeOption = (qIndex: number, optIndex: number) => {
+    const newQuestions = [...questions];
+    if (newQuestions[qIndex].options.length > 2) {
+      newQuestions[qIndex].options.splice(optIndex, 1);
+      if (newQuestions[qIndex].correctAnswerIndex === optIndex) {
+        newQuestions[qIndex].correctAnswerIndex = 0;
+      } else if (newQuestions[qIndex].correctAnswerIndex > optIndex) {
+        newQuestions[qIndex].correctAnswerIndex -= 1;
+      }
+      setQuestions(newQuestions);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-slate-50">
@@ -180,60 +179,6 @@ export default function EditQuiz() {
           </Button>
         </div>
       </div>
-
-      <Card className="border-none ring-1 ring-slate-200 shadow-sm">
-        <CardHeader className="bg-slate-50/50 border-b border-slate-100">
-          <CardTitle className="text-sm font-bold text-slate-900 uppercase tracking-wider">Quiz Metadata</CardTitle>
-        </CardHeader>
-        <CardContent className="p-4 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Quiz Title</label>
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} className="h-9 text-sm font-bold" />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Topic</label>
-              <Input value={topic} onChange={(e) => setTopic(e.target.value)} className="h-9 text-sm" />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Description</label>
-              <Input value={description} onChange={(e) => setDescription(e.target.value)} className="h-9 text-sm" />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Assign To</label>
-              <select 
-                value={kidId} 
-                onChange={(e) => setKidId(e.target.value)}
-                className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600"
-              >
-                <option value="">None (Library only)</option>
-                {kids.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Difficulty</label>
-              <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)} className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600">
-                {difficulties.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Target Age</label>
-              <select value={targetAge} onChange={(e) => setTargetAge(e.target.value)} className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600">
-                {targetAges.map(a => <option key={a} value={a}>{a}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Grade Level</label>
-              <select value={gradeLevel} onChange={(e) => setGradeLevel(e.target.value)} className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600">
-                {gradeLevels.map(g => <option key={g} value={g}>{g}</option>)}
-              </select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -277,6 +222,13 @@ export default function EditQuiz() {
                           onChange={() => updateQuestion(qIdx, 'correctAnswerIndex', optIdx)}
                           className="h-3.5 w-3.5 text-blue-600 focus:ring-blue-500"
                         />
+                        <button 
+                          onClick={() => removeOption(qIdx, optIdx)}
+                          className="text-slate-400 hover:text-red-500"
+                          disabled={q.options.length <= 2}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                     </div>
                     <Input 
@@ -288,6 +240,16 @@ export default function EditQuiz() {
                   </div>
                 ))}
               </div>
+              
+              <Button 
+                variant="outline" 
+                size="xs" 
+                onClick={() => addOption(qIdx)}
+                className="mt-3 text-[11px]"
+              >
+                <Plus className="mr-1 h-3 w-3" />
+                Add Option
+              </Button>
 
               <div className="space-y-1.5">
                 <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Explanation</label>
