@@ -111,7 +111,7 @@ export default function SocialStories() {
     const isDense = pages.length > 8;
     
     return (
-      <div className="bg-white min-h-screen p-4 md:p-8 text-black absolute inset-0 z-[500] overflow-y-auto">
+      <div className="bg-white min-h-screen p-4 md:p-8 text-black absolute inset-0 z-[500] overflow-y-auto print-view-container">
         <div className="max-w-4xl mx-auto mb-8 no-print flex items-center justify-between bg-slate-50 p-4 rounded-xl border border-slate-200">
           <Button onClick={() => setPrintingStory(null)} variant="outline" className="bg-white">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Stories
@@ -165,12 +165,24 @@ export default function SocialStories() {
               background: white !important; 
               overflow: visible !important;
             }
-            .print-container {
-              max-height: 100vh;
-              break-inside: avoid;
-              padding: 15mm;
+            .print-view-container {
+              position: static !important;
+              padding: 0 !important;
+              margin: 0 !important;
+              overflow: visible !important;
+              height: auto !important;
+              min-height: auto !important;
             }
-            @page { margin: 0; size: portrait; }
+            .print-container {
+              max-width: 100% !important;
+              padding: 10mm !important;
+              margin: 0 !important;
+              height: auto !important;
+            }
+            @page { 
+              margin: 0; 
+              size: auto;
+            }
           }
         `}</style>
       </div>
