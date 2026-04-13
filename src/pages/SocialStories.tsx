@@ -123,28 +123,7 @@ export default function SocialStories() {
           </div>
         </div>
         
-        <div className="print-content max-w-4xl mx-auto bg-white print-container relative">
-          {/* Custom Print Header */}
-          <div className="hidden print:block fixed top-0 left-0 right-0 h-16 px-8 border-b border-slate-100 bg-white z-[100]">
-            <div className="flex items-center justify-between h-full">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded bg-blue-600 text-white shadow-sm" style={{ printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact' } as any}>
-                  <Lightbulb className="h-5 w-5" />
-                </div>
-                <span className="font-bold text-slate-900">Visual Steps</span>
-              </div>
-              <span className="text-slate-500 text-sm italic">{printingStory.title}</span>
-            </div>
-          </div>
-
-          {/* Custom Print Footer */}
-          <div className="hidden print:block fixed bottom-0 left-0 right-0 h-12 px-8 border-t border-slate-100 bg-white z-[100]">
-            <div className="flex items-center justify-between h-full text-[10px] text-slate-400 uppercase tracking-widest font-bold">
-              <span>Social Story</span>
-              <span>visualsteps.com</span>
-            </div>
-          </div>
-
+        <div className="print-content max-w-4xl mx-auto bg-white print-container">
           <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-6">
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded bg-blue-600 text-white shadow-sm" style={{ printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact' } as any}>
@@ -201,12 +180,8 @@ export default function SocialStories() {
               height: auto !important;
             }
             @page { 
-              margin: 2cm 1.5cm; 
+              margin: 0; 
               size: auto;
-            }
-            .print-container {
-              padding-top: 1cm !important;
-              padding-bottom: 1cm !important;
             }
           }
         `}</style>
