@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import { Plus, BookOpen, Trash2, ChevronRight, MessageSquare, ArrowLeft, Eye, Sparkles, X, Printer, Loader2 } from 'lucide-react';
+import { Plus, BookOpen, Trash2, ChevronRight, MessageSquare, ArrowLeft, Eye, Pencil, X, Printer, Loader2, Lightbulb } from 'lucide-react';
 import { SocialStoryModal } from '../components/SocialStoryModal';
 
 interface SocialStory {
@@ -124,13 +124,19 @@ export default function SocialStories() {
         </div>
         
         <div className="print-content max-w-4xl mx-auto bg-white print-container">
-          <div className="text-center border-b-2 border-black pb-4 mb-6">
-            <h1 className="text-3xl font-black uppercase tracking-tight text-black">{printingStory.title}</h1>
+          <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-6">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded bg-blue-600 text-white shadow-sm">
+                <Lightbulb className="h-5 w-5" />
+              </div>
+              <span className="text-xl font-bold tracking-tight text-blue-900 uppercase">Visual Steps</span>
+            </div>
+            <h1 className="text-2xl font-black uppercase tracking-tight text-black text-right flex-1 ml-4">{printingStory.title}</h1>
           </div>
           
           <div className={`grid grid-cols-2 gap-4 ${isDense ? 'gap-y-2 text-xs' : 'gap-y-6 text-sm'}`}>
             {pages.map((page: any, index: number) => (
-              <div key={index} className="break-inside-avoid border border-gray-300 rounded-lg p-4 flex flex-col items-center">
+              <div key={index} className="break-inside-avoid border border-gray-300 rounded-lg p-4 flex flex-col items-center relative">
                 {page.imageUrl && (
                   <div className={`aspect-square w-full ${isDense ? 'max-w-[120px] mb-2' : 'max-w-[180px] mb-4'} flex items-center justify-center overflow-hidden rounded border border-gray-200 bg-gray-50`}>
                     <img 
@@ -260,7 +266,7 @@ export default function SocialStories() {
                         className="h-8 w-8 p-0 text-slate-400 hover:bg-amber-50 hover:text-amber-600"
                         title="Edit Story"
                       >
-                        <Sparkles className="h-4 w-4" />
+                        <Pencil className="h-4 w-4" />
                       </Button>
                     </Link>
                     <Button

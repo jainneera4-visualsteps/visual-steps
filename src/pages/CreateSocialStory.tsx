@@ -401,10 +401,6 @@ export default function CreateSocialStory() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 space-y-4">
-            <p className="text-sm text-slate-500">
-              Tell the AI what situation you want to explain (e.g., "Going to the dentist", "Sharing toys at school"), and it will draft the story for you.
-            </p>
-            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1.5">
@@ -412,7 +408,8 @@ export default function CreateSocialStory() {
                   <select 
                     value={language}
                     onChange={(e) => setLanguage(e.target.value)}
-                    className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600"
+                    disabled={isEditing}
+                    className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <option>English</option>
                     <option>Spanish</option>
@@ -430,7 +427,8 @@ export default function CreateSocialStory() {
                   <select 
                     value={tone}
                     onChange={(e) => setTone(e.target.value)}
-                    className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600"
+                    disabled={isEditing}
+                    className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <option>Calming</option>
                     <option>Encouraging</option>
@@ -446,7 +444,8 @@ export default function CreateSocialStory() {
                   <select 
                     value={length}
                     onChange={(e) => setLength(e.target.value)}
-                    className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600"
+                    disabled={isEditing}
+                    className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <option value="Short">Short (3-4 pages)</option>
                     <option value="Medium">Medium (5-6 pages)</option>
@@ -458,7 +457,8 @@ export default function CreateSocialStory() {
                   <select 
                     value={sentencesPerParagraph}
                     onChange={(e) => setSentencesPerParagraph(parseInt(e.target.value))}
-                    className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600"
+                    disabled={isEditing}
+                    className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <option value={1}>1 Sentence</option>
                     <option value={2}>2 Sentences</option>
@@ -472,23 +472,28 @@ export default function CreateSocialStory() {
 
             <div className="space-y-1.5">
               <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">What is the story about?</label>
-              <div className="flex gap-2">
-                <Input 
+              <div className="space-y-2">
+                <Textarea 
                   placeholder="e.g., Going to the dentist, Sharing toys..." 
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && generateStory()}
-                  className="h-9 text-sm"
+                  disabled={isEditing}
+                  className="text-sm disabled:opacity-50 disabled:cursor-not-allowed min-h-[80px] resize-none"
+                  rows={3}
                 />
-                <Button 
-                  size="sm"
-                  onClick={generateStory} 
-                  disabled={isGenerating || !prompt}
-                  className="shrink-0 font-bold"
-                >
-                  {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                  Generate
-                </Button>
+                {!isEditing && (
+                  <div className="flex justify-end">
+                    <Button 
+                      size="sm"
+                      onClick={generateStory} 
+                      disabled={isGenerating || !prompt}
+                      className="font-bold"
+                    >
+                      {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                      Generate Story
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>
