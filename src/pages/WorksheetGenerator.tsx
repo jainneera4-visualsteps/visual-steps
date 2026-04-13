@@ -38,7 +38,6 @@ export default function WorksheetGenerator() {
   const location = useLocation();
   const [topic, setTopic] = useState('');
   const [subject, setSubject] = useState('General');
-  const [targetAge, setTargetAge] = useState('8-10 years');
   const [gradeLevel, setGradeLevel] = useState('Grade 3');
   const [worksheetType, setWorksheetType] = useState('Mixed');
   const [difficulty, setDifficulty] = useState('Medium');
@@ -70,7 +69,6 @@ export default function WorksheetGenerator() {
       setWorksheet(content);
       setTopic(data.worksheet.topic || '');
       setSubject(data.worksheet.subject || 'General');
-      setTargetAge(data.worksheet.target_age || '8-10 years');
       setGradeLevel(data.worksheet.grade_level || 'Grade 3');
       setWorksheetType(data.worksheet.worksheet_type || 'Mixed');
       setIsViewingSaved(!isEdit);
@@ -91,7 +89,6 @@ export default function WorksheetGenerator() {
         title: titleToSave,
         topic,
         subject,
-        targetAge,
         gradeLevel,
         worksheetType
       });
@@ -103,7 +100,6 @@ export default function WorksheetGenerator() {
           title: titleToSave,
           topic,
           subject,
-          targetAge,
           gradeLevel,
           worksheetType,
           content: { ...worksheet, title: titleToSave }
@@ -128,7 +124,6 @@ export default function WorksheetGenerator() {
   const subjects = ['General', 'Math', 'Science', 'English', 'History', 'Geography', 'Social Studies', 'Art', 'Music', 'Physical Education'];
   const worksheetTypes = ['Mixed', 'One-choice', 'Multiple-choice', 'Fill in the blanks', 'Word Search', 'Reading Comprehension', 'Drawing', 'Coloring Page', 'Connect the Dots', 'Puzzle', 'Matching Puzzle'];
   const difficulties = ['Very Easy', 'Easy', 'Medium', 'Hard', 'Very Hard'];
-  const targetAges = ['Under 5 years', '5-7 years', '8-10 years', '11-13 years', '14-17 years', '18+ years'];
   const gradeLevels = ['Pre-K', 'Kindergarten', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8', 'High School', 'Adult Basic Education'];
 
   const handleGenerate = async () => {
@@ -188,10 +183,10 @@ export default function WorksheetGenerator() {
         // Calculate dynamic word count based on age and difficulty
         let baseWords = 400;
         
-        if (targetAge === 'Under 5 years') baseWords = 80;
-        else if (targetAge === '5-7 years') baseWords = 150;
-        else if (targetAge === '8-10 years') baseWords = 350;
-        else if (targetAge === '11-13 years') baseWords = 600;
+        if (gradeLevel === 'Pre-K' || gradeLevel === 'Kindergarten') baseWords = 80;
+        else if (gradeLevel === 'Grade 1' || gradeLevel === 'Grade 2') baseWords = 150;
+        else if (gradeLevel === 'Grade 3' || gradeLevel === 'Grade 4') baseWords = 350;
+        else if (gradeLevel === 'Grade 5' || gradeLevel === 'Grade 6') baseWords = 600;
         else baseWords = 800;
 
         let diffMultiplier = 1;
@@ -227,10 +222,9 @@ export default function WorksheetGenerator() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 model: "gemini-3.1-flash-lite-preview",
-                contents: `Generate a highly refined, professional-grade printable worksheet for a person aged ${targetAge} at a ${gradeLevel} reading/comprehension level for the subject ${subject} on the topic: "${topic}". 
+                contents: `Generate a highly refined, professional-grade printable worksheet at a ${gradeLevel} reading/comprehension level for the subject ${subject} on the topic: "${topic}". 
               
               CRITICAL CRITERIA:
-              - Target Age: ${targetAge} (Ensure tone and context are appropriate for this age).
               - Grade Level: ${gradeLevel} (Ensure vocabulary, concepts, and reading complexity are perfectly aligned with this grade level).
               - Subject: ${subject}
               - Topic: ${topic}
@@ -465,13 +459,14 @@ export default function WorksheetGenerator() {
           <CardContent className="p-4 space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Topic</label>
-                <Input 
-                  placeholder="e.g., Solar System, Fractions, Dinosaurs..." 
-                  value={topic}
-                  onChange={(e) => setTopic(e.target.value)}
-                  className="h-9 text-sm"
-                />
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Grade Level</label>
+                <select 
+                  className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  value={gradeLevel}
+                  onChange={(e) => setGradeLevel(e.target.value)}
+                >
+                  {gradeLevels.map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
               </div>
               <div className="space-y-1.5">
                 <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Subject</label>
@@ -483,25 +478,14 @@ export default function WorksheetGenerator() {
                   {subjects.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Target Age</label>
-                <select 
-                  className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  value={targetAge}
-                  onChange={(e) => setTargetAge(e.target.value)}
-                >
-                  {targetAges.map(g => <option key={g} value={g}>{g}</option>)}
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Grade Level</label>
-                <select 
-                  className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  value={gradeLevel}
-                  onChange={(e) => setGradeLevel(e.target.value)}
-                >
-                  {gradeLevels.map(g => <option key={g} value={g}>{g}</option>)}
-                </select>
+              <div className="space-y-1.5 md:col-span-2">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Topic</label>
+                <Input 
+                  placeholder="e.g., Solar System, Fractions, Dinosaurs..." 
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                  className="h-9 text-sm"
+                />
               </div>
               <div className="space-y-1.5">
                 <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Worksheet Type</label>

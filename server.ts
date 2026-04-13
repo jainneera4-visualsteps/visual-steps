@@ -478,24 +478,6 @@ app.get('/api/health', (req, res) => {
 });
 
 // Generate Content Endpoint (Proxy for Gemini API)
-app.get('/api/health', (req, res) => {
-  const placeholders = ['MY_GEMINI_API_KEY', 'YOUR_API_KEY', 'MY_API_KEY', 'API_KEY', 'undefined', 'null', ''];
-  const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.VITE_GEMINI_API_KEY || '';
-  const supabaseUrlVal = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
-  const supabaseKeyVal = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
-  
-  res.json({
-    status: 'ok',
-    env: {
-      GEMINI_API_KEY: !placeholders.includes(geminiKey.trim()) && geminiKey.length > 10 ? 'configured' : 'missing',
-      SUPABASE_URL: !placeholders.includes(supabaseUrlVal.trim()) ? 'configured' : 'missing',
-      SUPABASE_KEY: !placeholders.includes(supabaseKeyVal.trim()) ? 'configured' : 'missing',
-      NODE_ENV: process.env.NODE_ENV,
-      VERCEL: !!process.env.VERCEL
-    }
-  });
-});
-
 app.post('/api/generate', authenticateToken, async (req: any, res) => {
   try {
     const { model, contents, config } = req.body;

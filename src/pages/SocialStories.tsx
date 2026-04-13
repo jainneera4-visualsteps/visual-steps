@@ -180,7 +180,7 @@ export default function SocialStories() {
               height: auto !important;
             }
             @page { 
-              margin: 15mm; 
+              margin: 0; 
               size: auto;
             }
           }
