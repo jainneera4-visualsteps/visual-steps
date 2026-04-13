@@ -43,6 +43,7 @@ export default function WorksheetGenerator() {
   const [difficulty, setDifficulty] = useState('Medium');
   const [numWorksheets, setNumWorksheets] = useState(1);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showGenerator, setShowGenerator] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isViewingSaved, setIsViewingSaved] = useState(false);
   const [worksheet, setWorksheet] = useState<WorksheetContent | null>(null);
@@ -72,6 +73,7 @@ export default function WorksheetGenerator() {
       setGradeLevel(data.worksheet.grade_level || 'Grade 3');
       setWorksheetType(data.worksheet.worksheet_type || 'Mixed');
       setIsViewingSaved(!isEdit);
+      setShowGenerator(false);
     } catch (err) {
       console.error(err);
       alert('Failed to load worksheet');
@@ -381,6 +383,7 @@ export default function WorksheetGenerator() {
       if (newWorksheets.length > 0) {
         setWorksheet(newWorksheets[0]);
         setCurrentWorksheetIndex(0);
+        setShowGenerator(false);
         
         if (hasError) {
           alert(`Generated ${newWorksheets.length} worksheet(s), but some could not be created due to network errors.`);
@@ -454,7 +457,7 @@ export default function WorksheetGenerator() {
         </div>
       </div>
 
-      {!isViewingSaved && (
+      {showGenerator && !isViewingSaved && (
         <Card className="no-print border-none ring-1 ring-slate-200 shadow-sm">
           <CardContent className="p-4 space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
@@ -573,18 +576,21 @@ export default function WorksheetGenerator() {
           )}
           
           <div className="flex justify-end gap-2 no-print">
-            {isViewingSaved && (
+            {worksheet && !showGenerator && (
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={() => setIsViewingSaved(false)}
+                onClick={() => {
+                  setIsViewingSaved(false);
+                  setShowGenerator(true);
+                }}
                 className="h-8 text-[12px] text-amber-600 border-amber-200 hover:bg-amber-50"
               >
                 <Edit2 className="mr-1.5 h-3.5 w-3.5" />
                 Edit Settings
               </Button>
             )}
-            {!isViewingSaved && (
+            {!isViewingSaved && worksheet && !showGenerator && (
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -858,7 +864,7 @@ export default function WorksheetGenerator() {
             page-break-before: always;
           }
           @page {
-            margin: 1.5cm;
+            margin: 0;
           }
         }
       `}</style>
