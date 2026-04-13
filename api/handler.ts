@@ -1,6 +1,2 @@
 import { app } from '../server.js';
-
-export default function handler(req: any, res: any) {
-  console.log(`[Vercel Handler] Invoking for ${req.url}`);
-  return app(req, res);
-}
+export default app;

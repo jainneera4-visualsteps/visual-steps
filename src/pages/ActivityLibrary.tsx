@@ -264,7 +264,9 @@ export default function ActivityLibrary() {
       });
       if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.error || 'Failed to generate content');
+        console.error('API Error:', errorData);
+        const message = errorData.details || errorData.error || 'Failed to generate content';
+        throw new Error(message);
       }
       const response = await res.json();
 

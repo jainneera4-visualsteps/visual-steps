@@ -10,6 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import multer from 'multer';
 import dotenv from 'dotenv';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import nodemailer from 'nodemailer';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -477,6 +478,24 @@ app.get('/api/health', (req, res) => {
 });
 
 // Generate Content Endpoint (Proxy for Gemini API)
+app.get('/api/health', (req, res) => {
+  const placeholders = ['MY_GEMINI_API_KEY', 'YOUR_API_KEY', 'MY_API_KEY', 'API_KEY', 'undefined', 'null', ''];
+  const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.VITE_GEMINI_API_KEY || '';
+  const supabaseUrlVal = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
+  const supabaseKeyVal = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
+  
+  res.json({
+    status: 'ok',
+    env: {
+      GEMINI_API_KEY: !placeholders.includes(geminiKey.trim()) && geminiKey.length > 10 ? 'configured' : 'missing',
+      SUPABASE_URL: !placeholders.includes(supabaseUrlVal.trim()) ? 'configured' : 'missing',
+      SUPABASE_KEY: !placeholders.includes(supabaseKeyVal.trim()) ? 'configured' : 'missing',
+      NODE_ENV: process.env.NODE_ENV,
+      VERCEL: !!process.env.VERCEL
+    }
+  });
+});
+
 app.post('/api/generate', authenticateToken, async (req: any, res) => {
   try {
     const { model, contents, config } = req.body;
@@ -505,8 +524,7 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
       });
     }
 
-    const { GoogleGenAI } = await import('@google/genai');
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenerativeAI(apiKey);
 
     // Ensure contents is an array of Content objects
     const formattedContents = typeof contents === 'string' 
@@ -521,14 +539,15 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
     while (retryCount < maxRetries) {
       try {
         console.log(`Generating content with model: ${currentModel} (attempt ${retryCount + 1}/${maxRetries})`);
-        const response = await ai.models.generateContent({
-          model: currentModel,
+        const genModel = ai.getGenerativeModel({ model: currentModel });
+        const result = await genModel.generateContent({
           contents: formattedContents,
-          config
+          generationConfig: config
         });
+        const response = result.response;
 
         return res.json({ 
-          text: response.text,
+          text: response.text(),
           candidates: response.candidates
         });
       } catch (error: any) {
@@ -560,6 +579,9 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
             if (currentModel === 'gemini-2.0-flash') {
               console.log('Switching to gemini-2.0-flash-lite as fallback due to persistent errors on gemini-2.0-flash');
               currentModel = 'gemini-2.0-flash-lite';
+            } else if (currentModel === 'gemini-2.0-flash-lite') {
+              console.log('Switching to gemini-1.5-flash as fallback due to persistent errors on gemini-2.0-flash-lite');
+              currentModel = 'gemini-1.5-flash';
             } else if (!currentModel.includes('flash')) {
               console.log('Switching to gemini-2.0-flash as fallback due to persistent errors on current model');
               currentModel = 'gemini-2.0-flash';

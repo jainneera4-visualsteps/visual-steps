@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build && esbuild server.ts --bundle --platform=node --outfile=dist/server.cjs --format=cjs --external:vite --external:express --external:socket.io --external:@supabase/supabase-js --external:bcryptjs --external:jsonwebtoken --external:cookie-parser --external:uuid --external:dotenv --external:nodemailer --external:multer --external:@google/genai",
+    "build": "vite build && esbuild server.ts --bundle --platform=node --outfile=dist/server.cjs --format=cjs --external:vite --external:express --external:socket.io --external:@supabase/supabase-js --external:bcryptjs --external:jsonwebtoken --external:cookie-parser --external:uuid --external:dotenv --external:nodemailer --external:multer --external:@google/generative-ai",
     "start": "node dist/server.cjs",
     "preview": "vite preview",
     "clean": "rm -rf dist",
@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@google/genai": "^1.48.0",
+    "@google/generative-ai": "^0.24.1",
     "@supabase/supabase-js": "^2.98.0",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",

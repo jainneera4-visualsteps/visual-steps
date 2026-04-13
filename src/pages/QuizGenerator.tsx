@@ -109,9 +109,7 @@ export default function QuizGenerator() {
         if (!res.ok) {
           const errorData = await res.json();
           console.error('API Error:', errorData);
-          const message = typeof errorData.error === 'string' 
-            ? errorData.error 
-            : (errorData.error?.message || 'Failed to generate content');
+          const message = errorData.details || errorData.error || 'Failed to generate content';
           throw new Error(message);
         }
         const data = await res.json();
