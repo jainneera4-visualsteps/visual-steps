@@ -226,7 +226,7 @@ export default function WorksheetGenerator() {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                model: "gemini-1.5-flash",
+                model: "gemini-3.1-flash-lite-preview",
                 contents: `Generate a highly refined, professional-grade printable worksheet for a person aged ${targetAge} at a ${gradeLevel} reading/comprehension level for the subject ${subject} on the topic: "${topic}". 
               
               CRITICAL CRITERIA:

@@ -268,7 +268,7 @@ export default function CreateSocialStory() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            model: "gemini-1.5-flash",
+            model: "gemini-3.1-flash-lite-preview",
             contents: `Create a social story about: ${prompt}. 
         The story should be written in ${language}.
         The story should be written in the second person, as if a narrator is talking directly to the child (using 'you').

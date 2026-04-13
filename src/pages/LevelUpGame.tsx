@@ -109,7 +109,7 @@ export default function LevelUpGame() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: "gemini-1.5-flash",
+          model: "gemini-3.1-flash-lite-preview",
           contents: `Generate 10 multiple-choice questions for a ${selectedGrade} student in the subject of ${selectedSubject}. 
         Return the response as a JSON array of objects, each with 'question', 'options' (array of 4 strings), 'correctAnswer' (one of the options), and 'explanation'.`,
           config: {
