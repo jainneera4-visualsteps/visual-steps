@@ -128,22 +128,20 @@ export default function SavedWorksheets() {
                     <Button
                       variant="ghost"
                       size="xs"
-                      className="h-8 px-2 text-blue-600 hover:bg-blue-50 flex items-center gap-1"
+                      className="h-8 w-8 p-0 text-blue-600 hover:bg-blue-50"
                       title="View Worksheet"
                     >
                       <Eye className="h-4 w-4" />
-                      <span className="text-[10px] font-bold uppercase">View</span>
                     </Button>
                   </Link>
                   <Link to={`/worksheet-generator?id=${worksheet.id}&edit=true`}>
                     <Button
                       variant="ghost"
                       size="xs"
-                      className="h-8 px-2 text-amber-600 hover:bg-amber-50 flex items-center gap-1"
+                      className="h-8 w-8 p-0 text-amber-600 hover:bg-amber-50"
                       title="Edit Worksheet Settings"
                     >
                       <Edit2 className="h-4 w-4" />
-                      <span className="text-[10px] font-bold uppercase">Edit</span>
                     </Button>
                   </Link>
                   <Button

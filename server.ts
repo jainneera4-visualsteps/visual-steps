@@ -3429,6 +3429,38 @@ app.post('/api/worksheets', authenticateToken, async (req: any, res) => {
   }
 });
 
+// Update a worksheet
+app.put('/api/worksheets/:id', authenticateToken, async (req: any, res) => {
+  const supabase = getSupabaseForUser(req);
+  const { id } = req.params;
+  const { title, topic, subject, targetAge, gradeLevel, worksheetType, content } = req.body;
+  const userId = req.user.id;
+
+  if (!title || !content) return res.status(400).json({ error: 'Title and content are required' });
+
+  try {
+    const { error } = await supabase
+      .from('worksheets')
+      .update({
+        title,
+        topic,
+        subject,
+        target_age: targetAge,
+        grade_level: gradeLevel,
+        worksheet_type: worksheetType,
+        content: typeof content === 'string' ? content : JSON.stringify(content)
+      })
+      .eq('id', id)
+      .eq('user_id', userId);
+
+    if (error) throw error;
+    res.json({ message: 'Worksheet updated successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Delete a worksheet
 app.delete('/api/worksheets/:id', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);

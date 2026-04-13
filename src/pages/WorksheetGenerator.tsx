@@ -46,11 +46,33 @@ export default function WorksheetGenerator() {
   const [showGenerator, setShowGenerator] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isViewingSaved, setIsViewingSaved] = useState(false);
+  const [worksheetId, setWorksheetId] = useState<string | null>(null);
   const [worksheet, setWorksheet] = useState<WorksheetContent | null>(null);
   const [generatedWorksheets, setGeneratedWorksheets] = useState<WorksheetContent[]>([]);
   const [currentWorksheetIndex, setCurrentWorksheetIndex] = useState(0);
   const [showAnswers, setShowAnswers] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
+
+  const updateWorksheet = (updates: Partial<WorksheetContent>) => {
+    if (!worksheet) return;
+    setWorksheet({ ...worksheet, ...updates });
+  };
+
+  const updateSection = (index: number, updates: any) => {
+    if (!worksheet) return;
+    const newSections = [...worksheet.sections];
+    newSections[index] = { ...newSections[index], ...updates };
+    setWorksheet({ ...worksheet, sections: newSections });
+  };
+
+  const updateQuestion = (sectionIdx: number, questionIdx: number, updates: any) => {
+    if (!worksheet) return;
+    const newSections = [...worksheet.sections];
+    const newQuestions = [...(newSections[sectionIdx].questions || [])];
+    newQuestions[questionIdx] = { ...newQuestions[questionIdx], ...updates };
+    newSections[sectionIdx] = { ...newSections[sectionIdx], questions: newQuestions };
+    setWorksheet({ ...worksheet, sections: newSections });
+  };
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -68,6 +90,7 @@ export default function WorksheetGenerator() {
       const data = await res.json();
       const content = typeof data.worksheet.content === 'string' ? JSON.parse(data.worksheet.content) : data.worksheet.content;
       setWorksheet(content);
+      setWorksheetId(id);
       setTopic(data.worksheet.topic || '');
       setSubject(data.worksheet.subject || 'General');
       setGradeLevel(data.worksheet.grade_level || 'Grade 3');
@@ -88,6 +111,7 @@ export default function WorksheetGenerator() {
     
     try {
       console.log('Saving worksheet:', {
+        id: worksheetId,
         title: titleToSave,
         topic,
         subject,
@@ -95,8 +119,11 @@ export default function WorksheetGenerator() {
         worksheetType
       });
 
-      const res = await apiFetch('/api/worksheets', {
-        method: 'POST',
+      const url = worksheetId ? `/api/worksheets/${worksheetId}` : '/api/worksheets';
+      const method = worksheetId ? 'PUT' : 'POST';
+
+      const res = await apiFetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: titleToSave,
@@ -134,6 +161,7 @@ export default function WorksheetGenerator() {
     setIsGenerating(true);
     setGeneratedWorksheets([]);
     setWorksheet(null);
+    setWorksheetId(null);
     setCurrentWorksheetIndex(0);
 
     const withRetry = async <T,>(fn: () => Promise<T>, retries = 3, delay = 2000): Promise<T> => {
@@ -576,20 +604,6 @@ export default function WorksheetGenerator() {
           )}
           
           <div className="flex justify-end gap-2 no-print">
-            {worksheet && !showGenerator && (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => {
-                  setIsViewingSaved(false);
-                  setShowGenerator(true);
-                }}
-                className="h-8 text-[12px] text-amber-600 border-amber-200 hover:bg-amber-50"
-              >
-                <Edit2 className="mr-1.5 h-3.5 w-3.5" />
-                Edit Settings
-              </Button>
-            )}
             {!isViewingSaved && worksheet && !showGenerator && (
               <Button 
                 variant="outline" 
@@ -623,7 +637,15 @@ export default function WorksheetGenerator() {
 
           <div ref={printRef} className="print-area bg-white p-8 rounded-lg shadow-sm ring-1 ring-slate-200 min-h-[11in] worksheet-container">
             <div className="text-center border-b-2 border-slate-900 pb-6 mb-8">
-              <h1 className="text-3xl font-black uppercase tracking-tight text-slate-900">{worksheet.title}</h1>
+              {isViewingSaved ? (
+                <h1 className="text-3xl font-black uppercase tracking-tight text-slate-900">{worksheet.title}</h1>
+              ) : (
+                <input 
+                  value={worksheet.title}
+                  onChange={(e) => updateWorksheet({ title: e.target.value })}
+                  className="text-3xl font-black uppercase tracking-tight text-slate-900 text-center w-full bg-transparent border-none focus:ring-0"
+                />
+              )}
               <div className="flex justify-between mt-6 text-sm font-bold text-slate-600">
                 <span>Name: __________________________</span>
                 <span>Date: __________________________</span>
@@ -633,13 +655,29 @@ export default function WorksheetGenerator() {
             <div className="space-y-8">
               <div className="bg-slate-50 p-4 rounded border border-slate-200 italic text-slate-700">
                 <p className="font-bold not-italic mb-1">Instructions:</p>
-                {worksheet.instructions}
+                {isViewingSaved ? (
+                  worksheet.instructions
+                ) : (
+                  <textarea 
+                    value={worksheet.instructions}
+                    onChange={(e) => updateWorksheet({ instructions: e.target.value })}
+                    className="w-full bg-transparent border-none focus:ring-0 p-0 resize-none min-h-[60px]"
+                  />
+                )}
               </div>
 
               {worksheet.sections.map((section, sIdx) => (
                 <div key={sIdx} className="space-y-4 section-container">
                   <h2 className="text-xl font-bold border-b border-slate-200 pb-1 text-slate-800">
-                    {section.title.toLowerCase().startsWith('section') ? section.title : `Section ${sIdx + 1}: ${section.title}`}
+                    {isViewingSaved ? (
+                      section.title.toLowerCase().startsWith('section') ? section.title : `Section ${sIdx + 1}: ${section.title}`
+                    ) : (
+                      <input 
+                        value={section.title}
+                        onChange={(e) => updateSection(sIdx, { title: e.target.value })}
+                        className="w-full bg-transparent border-none focus:ring-0 p-0 font-bold"
+                      />
+                    )}
                   </h2>
                   <div className="space-y-6">
                     {section.type === 'coloring' && worksheet.imageUrl && (
@@ -666,7 +704,15 @@ export default function WorksheetGenerator() {
 
                     {section.type === 'puzzle' && section.puzzleContent && (
                       <div className="p-6 bg-slate-50 rounded-lg border border-slate-200 whitespace-pre-wrap font-medium text-slate-800 leading-relaxed">
-                        {section.puzzleContent}
+                        {isViewingSaved ? (
+                          section.puzzleContent
+                        ) : (
+                          <textarea 
+                            value={section.puzzleContent}
+                            onChange={(e) => updateSection(sIdx, { puzzleContent: e.target.value })}
+                            className="w-full bg-transparent border-none focus:ring-0 p-0 resize-none min-h-[100px]"
+                          />
+                        )}
                       </div>
                     )}
 
@@ -695,16 +741,35 @@ export default function WorksheetGenerator() {
 
                     {section.type === 'reading_comprehension' && section.readingPassage && (
                       <div className="p-6 bg-slate-50 rounded-lg border border-slate-200 mb-8">
-                        <div className="prose prose-slate max-w-none text-slate-800 leading-relaxed whitespace-pre-wrap">
-                          {section.readingPassage}
-                        </div>
+                        {isViewingSaved ? (
+                          <div className="prose prose-slate max-w-none text-slate-800 leading-relaxed whitespace-pre-wrap">
+                            {section.readingPassage}
+                          </div>
+                        ) : (
+                          <textarea 
+                            value={section.readingPassage}
+                            onChange={(e) => updateSection(sIdx, { readingPassage: e.target.value })}
+                            className="w-full bg-transparent border-none focus:ring-0 p-0 resize-none min-h-[200px] leading-relaxed"
+                          />
+                        )}
                       </div>
                     )}
 
                     {section.type === 'drawing' && section.drawingPrompt && (
                       <div className="space-y-4 py-4">
                         <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-900 font-medium italic">
-                          Prompt: {section.drawingPrompt}
+                          {isViewingSaved ? (
+                            `Prompt: ${section.drawingPrompt}`
+                          ) : (
+                            <div className="flex gap-2">
+                              <span>Prompt:</span>
+                              <input 
+                                value={section.drawingPrompt}
+                                onChange={(e) => updateSection(sIdx, { drawingPrompt: e.target.value })}
+                                className="flex-1 bg-transparent border-none focus:ring-0 p-0 italic"
+                              />
+                            </div>
+                          )}
                         </div>
                         <div className="aspect-[4/3] w-full border-2 border-dashed border-slate-300 rounded-xl flex items-center justify-center text-slate-400 bg-white">
                           <div className="text-center">
@@ -722,7 +787,19 @@ export default function WorksheetGenerator() {
                             <div key={idx} className="flex items-center gap-1">
                               <div className="w-6 h-6 rounded-full border-2 border-slate-300 flex items-center justify-center text-[10px] font-bold flex-shrink-0">{idx + 1}</div>
                               <div className="flex-1 p-3 border border-slate-200 rounded-lg bg-white font-medium">
-                                {pair.left}
+                                {isViewingSaved ? (
+                                  pair.left
+                                ) : (
+                                  <input 
+                                    value={pair.left}
+                                    onChange={(e) => {
+                                      const newPairs = [...(section.matching?.pairs || [])];
+                                      newPairs[idx] = { ...newPairs[idx], left: e.target.value };
+                                      updateSection(sIdx, { matching: { ...section.matching, pairs: newPairs } });
+                                    }}
+                                    className="w-full bg-transparent border-none focus:ring-0 p-0"
+                                  />
+                                )}
                               </div>
                             </div>
                           ))}
@@ -731,7 +808,19 @@ export default function WorksheetGenerator() {
                           {section.matching.shuffledRight.map((item, idx) => (
                             <div key={idx} className="flex items-center gap-1">
                               <div className="flex-1 p-3 border border-slate-200 rounded-lg bg-white font-medium text-right">
-                                {item}
+                                {isViewingSaved ? (
+                                  item
+                                ) : (
+                                  <input 
+                                    value={item}
+                                    onChange={(e) => {
+                                      const newShuffled = [...(section.matching?.shuffledRight || [])];
+                                      newShuffled[idx] = e.target.value;
+                                      updateSection(sIdx, { matching: { ...section.matching, shuffledRight: newShuffled } });
+                                    }}
+                                    className="w-full bg-transparent border-none focus:ring-0 p-0 text-right"
+                                  />
+                                )}
                               </div>
                               <div className="w-6 h-6 rounded-full border-2 border-slate-300 flex items-center justify-center text-[10px] font-bold flex-shrink-0">{String.fromCharCode(65 + idx)}</div>
                             </div>
@@ -749,9 +838,19 @@ export default function WorksheetGenerator() {
                           <span className="font-bold text-slate-900 min-w-[1.5rem] text-center">
                             {qIdx + 1}.
                           </span>
-                          <p className="font-medium text-slate-900 flex-1">
-                            {q.question}
-                          </p>
+                          <div className="flex-1">
+                            {isViewingSaved ? (
+                              <p className="font-medium text-slate-900">
+                                {q.question}
+                              </p>
+                            ) : (
+                              <textarea 
+                                value={q.question}
+                                onChange={(e) => updateQuestion(sIdx, qIdx, { question: e.target.value })}
+                                className="w-full bg-transparent border-none focus:ring-0 p-0 font-medium text-slate-900 resize-none min-h-[40px]"
+                              />
+                            )}
+                          </div>
                         </div>
                         
                         {/* Options for Multiple Choice */}
@@ -760,7 +859,19 @@ export default function WorksheetGenerator() {
                             {q.options.map((opt, oIdx) => (
                               <div key={oIdx} className="flex items-center gap-2 text-slate-700">
                                 <div className="h-4 w-4 rounded-full border border-slate-400" />
-                                <span>{opt}</span>
+                                {isViewingSaved ? (
+                                  <span>{opt}</span>
+                                ) : (
+                                  <input 
+                                    value={opt}
+                                    onChange={(e) => {
+                                      const newOptions = [...(q.options || [])];
+                                      newOptions[oIdx] = e.target.value;
+                                      updateQuestion(sIdx, qIdx, { options: newOptions });
+                                    }}
+                                    className="flex-1 bg-transparent border-none focus:ring-0 p-0"
+                                  />
+                                )}
                               </div>
                             ))}
                           </div>
@@ -818,7 +929,16 @@ export default function WorksheetGenerator() {
                           )}
                           {section.questions?.map((q, qIdx) => (
                             <div key={qIdx} className="text-sm">
-                              <span className="font-bold">{qIdx + 1}.</span> {q.answer}
+                              <span className="font-bold">{qIdx + 1}.</span> 
+                              {isViewingSaved ? (
+                                q.answer
+                              ) : (
+                                <input 
+                                  value={q.answer}
+                                  onChange={(e) => updateQuestion(sIdx, qIdx, { answer: e.target.value })}
+                                  className="ml-1 bg-transparent border-none focus:ring-0 p-0 inline-block"
+                                />
+                              )}
                             </div>
                           ))}
                         </div>
