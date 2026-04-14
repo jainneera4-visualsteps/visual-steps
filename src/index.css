@@ -24,11 +24,7 @@
       display: none !important;
     }
     @page {
-      margin: 0;
-    }
-    body {
-      padding: 1cm !important;
-      background: white !important;
+      margin: 0.5in;
     }
   }
 
