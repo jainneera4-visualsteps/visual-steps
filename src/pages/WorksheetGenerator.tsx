@@ -967,11 +967,6 @@ export default function WorksheetGenerator() {
           .no-print {
             display: none !important;
           }
-          body {
-            background: white !important;
-            padding: 0 !important;
-            margin: 0 !important;
-          }
           .print-area {
             box-shadow: none !important;
             ring: none !important;
@@ -984,7 +979,7 @@ export default function WorksheetGenerator() {
             page-break-before: always;
           }
           @page {
-            margin: 0.5in;
+            margin: 0;
           }
         }
       `}</style>

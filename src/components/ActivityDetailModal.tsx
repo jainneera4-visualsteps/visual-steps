@@ -116,12 +116,11 @@ export function ActivityDetailModal({
           <style>
             @page {
               size: auto;
-              margin: 0.5in;
+              margin: 0;
             }
             @media print {
               .no-print { display: none !important; }
               ${!includeImages ? '.print-image { display: none !important; }' : ''}
-              body { margin: 0; padding: 0; background: white; }
               * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             }
             body { 
