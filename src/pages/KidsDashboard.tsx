@@ -720,15 +720,7 @@ export default function KidsDashboard() {
             <span className={`text-lg font-bold tracking-tight text-white hidden sm:inline`}>Visual Steps</span>
           </div>
 
-          {/* Centered Child Profile Card */}
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center bg-white/10 px-4 py-0.5 rounded-lg backdrop-blur-sm border border-white/20">
-            <span className="text-sm font-bold text-white leading-tight">{kid?.name}</span>
-            {kid?.dob && (
-              <span className="text-[10px] font-medium text-white/80 uppercase tracking-wider">
-                {calculateAge(kid.dob)}
-              </span>
-            )}
-          </div>
+          {/* Centered Child Profile Card removed */}
 
           <div className="ml-auto flex items-center gap-3">
             {isOffline && (
@@ -812,7 +804,7 @@ export default function KidsDashboard() {
                     </div>
                   )}
                   <div>
-                    <h1 className={`text-4xl font-normal ${currentTheme.bannerText} leading-none`}>Hi, {kid?.name}! 👋</h1>
+                    <h1 className={`text-4xl font-normal ${currentTheme.bannerText} leading-none`}>Hi! 👋</h1>
                     <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mt-2">
                       <p className={`text-lg font-normal ${currentTheme.bannerSubtext}`}>Your activities</p>
                       <div className={`hidden sm:block h-1 w-1 rounded-full ${kid?.theme === 'space' ? 'bg-slate-700' : 'bg-slate-300'}`} />
@@ -880,398 +872,411 @@ export default function KidsDashboard() {
                 </div>
               </div>
 
-              <div className="flex flex-col lg:flex-row gap-4 items-start">
-                {/* Content Area */}
-                <div className="flex-1 min-w-0 w-full">
+              {/* Dashboard Content Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+                
+                {/* Left Column: Activities / Main Content (2/3 width on desktop) */}
+                <div className="lg:col-span-2 w-full min-w-0">
                   <div className="flex flex-col gap-6">
-                      {activeTab === 'rewards' ? (
-                        <div className="space-y-6">
-                          <div className={`rounded-xl p-6 shadow-sm ring-1 ${currentTheme.banner} flex flex-col items-center text-center`}>
-                             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 shadow-inner">
-                                <img src={rewardIcon} alt={kid?.reward_type} className="h-10 w-10 drop-shadow-md" />
-                              </div>
-                              <h2 className={`text-2xl font-black ${currentTheme.bannerText}`}>Available Rewards</h2>
-                              <p className={`mt-1 font-medium ${currentTheme.bannerSubtext}`}>
-                                You have <span className="text-emerald-600 font-bold">{kid?.reward_balance || 0}</span> {formatReward(kid?.reward_type, kid?.reward_balance || 0)}!
-                              </p>
+                    {activeTab === 'rewards' ? (
+                      <div className="space-y-6">
+                        <div className={`rounded-xl p-6 shadow-sm ring-1 ${currentTheme.banner} flex flex-col items-center text-center`}>
+                          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 shadow-inner">
+                            <img src={rewardIcon} alt={kid?.reward_type} className="h-10 w-10 drop-shadow-md" />
                           </div>
+                          <h2 className={`text-2xl font-black ${currentTheme.bannerText}`}>Available Rewards</h2>
+                          <p className={`mt-1 font-medium ${currentTheme.bannerSubtext}`}>
+                            You have <span className="text-emerald-600 font-bold">{kid?.reward_balance || 0}</span> {formatReward(kid?.reward_type, kid?.reward_balance || 0)}!
+                          </p>
+                        </div>
 
-                          <div className="space-y-6">
-                            {Object.entries(rewardItems.reduce((acc, item) => {
-                              const location = item.location || 'General';
-                              if (!acc[location]) acc[location] = [];
-                              acc[location].push(item);
-                              return acc;
-                            }, {} as Record<string, RewardItem[]>)).map(([location, items]) => (
-                              <div key={location} className="space-y-3">
-                                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">{location}</h3>
-                                {items.map((item) => (
-                                  <div 
-                                    key={item.id} 
-                                    className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
-                                      (kid?.reward_balance || 0) >= item.cost 
-                                        ? `border-slate-100 ${kid?.theme === 'space' ? 'bg-slate-900' : 'bg-white'}` 
-                                        : `border-slate-50 ${kid?.theme === 'space' ? 'bg-slate-900/40' : 'bg-slate-50'} opacity-60`
-                                    }`}
-                                  >
-                                    <div className="flex items-center gap-4">
-                                      <div className="h-12 w-12 rounded-lg bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
-                                        {item.image_url ? (
-                                          <img src={item.image_url} alt={item.name} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                                        ) : (
-                                          <div className="flex h-full w-full items-center justify-center text-slate-300">
-                                            <Trophy className="h-6 w-6" />
-                                          </div>
-                                        )}
-                                      </div>
-                                      <div>
-                                        <h4 className={`font-bold ${currentTheme.cardTitle}`}>{item.name}</h4>
-                                        <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider">
-                                          Cost: {item.cost} {formatReward(kid?.reward_type, item.cost)}
+                        <div className="space-y-6">
+                          {Object.entries(rewardItems.reduce((acc, item) => {
+                            const location = item.location || 'General';
+                            if (!acc[location]) acc[location] = [];
+                            acc[location].push(item);
+                            return acc;
+                          }, {} as Record<string, RewardItem[]>)).map(([location, items]) => (
+                            <div key={location} className="space-y-3">
+                              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">{location}</h3>
+                              {items.map((item) => (
+                                <div 
+                                  key={item.id} 
+                                  className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
+                                    (kid?.reward_balance || 0) >= item.cost 
+                                      ? `border-slate-100 ${kid?.theme === 'space' ? 'bg-slate-900' : 'bg-white'}` 
+                                      : `border-slate-50 ${kid?.theme === 'space' ? 'bg-slate-900/40' : 'bg-slate-50'} opacity-60`
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-4">
+                                    <div className="h-12 w-12 rounded-lg bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
+                                      {item.image_url ? (
+                                        <img src={item.image_url} alt={item.name} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                                      ) : (
+                                        <div className="flex h-full w-full items-center justify-center text-slate-300">
+                                          <Trophy className="h-6 w-6" />
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div>
+                                      <h4 className={`font-bold ${currentTheme.cardTitle}`}>{item.name}</h4>
+                                      <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider">
+                                        Cost: {item.cost} {formatReward(kid?.reward_type, item.cost)}
+                                      </p>
+                                      {(kid?.reward_balance || 0) < item.cost && (
+                                        <p className={`mt-0.5 text-[10px] font-bold ${currentTheme.cardSubtext} uppercase`}>
+                                          Need {item.cost - (kid?.reward_balance || 0)} more
                                         </p>
-                                        {(kid?.reward_balance || 0) < item.cost && (
-                                          <p className={`mt-0.5 text-[10px] font-bold ${currentTheme.cardSubtext} uppercase`}>
-                                            Need {item.cost - (kid?.reward_balance || 0)} more
-                                          </p>
-                                        )}
-                                      </div>
+                                      )}
                                     </div>
                                   </div>
-                                ))}
-                              </div>
-                            ))}
-                            {rewardItems.length === 0 && (
-                              <div className={`text-center py-12 rounded-2xl border-2 border-dashed ${kid?.theme === 'space' ? 'border-slate-800 text-slate-500' : 'border-slate-200 text-slate-400'}`}>
-                                <Sparkles className="h-12 w-12 opacity-20 mx-auto mb-4" />
-                                <p className="font-bold">No rewards in the catalog yet!</p>
-                                <p className="text-sm mt-1">Ask your parent to add some prizes.</p>
-                              </div>
-                            )}
-                          </div>
-
-                          <div className={`bg-blue-50 p-4 rounded-xl border border-blue-100 text-center`}>
-                            <p className="text-blue-800 font-bold">
-                              Ask your parent to buy these rewards for you! 🎁
-                            </p>
-                          </div>
-                        </div>
-                      ) : activeTab === 'games' ? (
-                        <div className="space-y-6">
-                          <div className={`rounded-xl p-6 shadow-sm ring-1 ${currentTheme.banner} flex flex-col items-center text-center`}>
-                             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 shadow-inner">
-                                <Gamepad2 className="h-10 w-10 text-emerald-600" />
-                              </div>
-                              <h2 className={`text-2xl font-black ${currentTheme.bannerText}`}>Fun Games</h2>
-                              <p className={`mt-1 font-medium ${currentTheme.bannerSubtext}`}>
-                                Play games and have fun while learning!
-                              </p>
-                          </div>
-
-                          <div className="grid gap-4 sm:grid-cols-2">
-                            {quizzes.map(quiz => (
-                              <Card 
-                                key={quiz.id}
-                                className={`p-6 cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all ${kid?.theme === 'space' ? 'bg-slate-900 ring-slate-800' : 'bg-white ring-slate-200'}`}
-                                onClick={() => navigate(`/play-quiz/${quiz.id}/${kidId}`)}
-                              >
-                                <div className="flex items-center gap-4">
-                                  <div className="h-16 w-16 rounded-2xl bg-blue-100 flex items-center justify-center text-3xl">
-                                    📝
-                                  </div>
-                                  <div>
-                                    <h3 className={`text-xl font-black ${currentTheme.cardTitle}`}>{quiz.title}</h3>
-                                    <p className={`text-sm ${currentTheme.cardSubtext}`}>{quiz.topic}</p>
-                                  </div>
                                 </div>
-                              </Card>
-                            ))}
-                            <Card 
-                              className={`p-6 cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all ${kid?.theme === 'space' ? 'bg-slate-900 ring-slate-800' : 'bg-white ring-slate-200'}`}
-                              onClick={() => navigate('/memory-match')}
-                            >
-                              <div className="flex items-center gap-4">
-                                <div className="h-16 w-16 rounded-2xl bg-blue-100 flex items-center justify-center text-3xl">
-                                  🐶
-                                </div>
-                                <div>
-                                  <h3 className={`text-xl font-black ${currentTheme.cardTitle}`}>Memory Match</h3>
-                                  <p className={`text-sm ${currentTheme.cardSubtext}`}>Find all the pairs!</p>
-                                </div>
-                              </div>
-                            </Card>
-
-                            <Card 
-                              className={`p-6 cursor-pointer hover:ring-2 hover:ring-amber-500 transition-all ${kid?.theme === 'space' ? 'bg-slate-900 ring-slate-800' : 'bg-white ring-slate-200'}`}
-                              onClick={() => navigate('/sorting-game')}
-                            >
-                              <div className="flex items-center gap-4">
-                                <div className="h-16 w-16 rounded-2xl bg-amber-100 flex items-center justify-center text-3xl">
-                                  🍎
-                                </div>
-                                <div>
-                                  <h3 className={`text-xl font-black ${currentTheme.cardTitle}`}>Sorting Fun</h3>
-                                  <p className={`text-sm ${currentTheme.cardSubtext}`}>Sort fruits and veggies!</p>
-                                </div>
-                              </div>
-                            </Card>
-
-                            <Card 
-                              className={`p-6 cursor-pointer hover:ring-2 hover:ring-pink-500 transition-all ${kid?.theme === 'space' ? 'bg-slate-900 ring-slate-800' : 'bg-white ring-slate-200'}`}
-                              onClick={() => navigate('/brain-quest')}
-                            >
-                              <div className="flex items-center gap-4">
-                                <div className="h-16 w-16 rounded-2xl bg-pink-100 flex items-center justify-center text-3xl">
-                                  💡
-                                </div>
-                                <div>
-                                  <h3 className={`text-xl font-black ${currentTheme.cardTitle}`}>Brain Quest</h3>
-                                  <p className={`text-sm ${currentTheme.cardSubtext}`}>Fun facts and questions!</p>
-                                </div>
-                              </div>
-                            </Card>
-
-                            <Card 
-                              className={`p-6 cursor-pointer hover:ring-2 hover:ring-yellow-500 transition-all ${kid?.theme === 'space' ? 'bg-slate-900 ring-slate-800' : 'bg-white ring-slate-200'}`}
-                              onClick={() => navigate('/level-up-challenge')}
-                            >
-                              <div className="flex items-center gap-4">
-                                <div className="h-16 w-16 rounded-2xl bg-yellow-100 flex items-center justify-center text-3xl">
-                                  🏆
-                                </div>
-                                <div>
-                                  <h3 className={`text-xl font-black ${currentTheme.cardTitle}`}>Level Up!</h3>
-                                  <p className={`text-sm ${currentTheme.cardSubtext}`}>Challenge yourself!</p>
-                                </div>
-                              </div>
-                            </Card>
-
-                            <Card 
-                              className={`p-6 cursor-pointer hover:ring-2 hover:ring-purple-500 transition-all ${kid?.theme === 'space' ? 'bg-slate-900 ring-slate-800' : 'bg-white ring-slate-200'}`}
-                              onClick={() => navigate('/even-odd')}
-                            >
-                              <div className="flex items-center gap-4">
-                                <div className="h-16 w-16 rounded-2xl bg-purple-100 flex items-center justify-center text-3xl">
-                                  🔢
-                                </div>
-                                <div>
-                                  <h3 className={`text-xl font-black ${currentTheme.cardTitle}`}>Even or Odd</h3>
-                                  <p className={`text-sm ${currentTheme.cardSubtext}`}>Fun math game!</p>
-                                </div>
-                              </div>
-                            </Card>
-
-                            <Card 
-                              className={`p-6 cursor-pointer hover:ring-2 hover:ring-emerald-500 transition-all ${kid?.theme === 'space' ? 'bg-slate-900 ring-slate-800' : 'bg-white ring-slate-200'}`}
-                              onClick={() => navigate('/polygons-game')}
-                            >
-                              <div className="flex items-center gap-4">
-                                <div className="h-16 w-16 rounded-2xl bg-emerald-100 flex items-center justify-center text-3xl">
-                                  ⬡
-                                </div>
-                                <div>
-                                  <h3 className={`text-xl font-black ${currentTheme.cardTitle}`}>Polygons</h3>
-                                  <p className={`text-sm ${currentTheme.cardSubtext}`}>Learn about shapes!</p>
-                                </div>
-                              </div>
-                            </Card>
-
-                            <Card 
-                              className={`p-6 cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all ${kid?.theme === 'space' ? 'bg-slate-900 ring-slate-800' : 'bg-white ring-slate-200'}`}
-                              onClick={() => navigate('/polygon-hunt')}
-                            >
-                              <div className="flex items-center gap-4">
-                                <div className="h-16 w-16 rounded-2xl bg-blue-100 flex items-center justify-center text-3xl">
-                                  🔍
-                                </div>
-                                <div>
-                                  <h3 className={`text-xl font-black ${currentTheme.cardTitle}`}>Polygon Hunt</h3>
-                                  <p className={`text-sm ${currentTheme.cardSubtext}`}>Find the right shape!</p>
-                                </div>
-                              </div>
-                            </Card>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="w-full">
-                          {(() => {
-                         const filtered = activities.filter(a => {
-                          if (activeTab === 'todo') {
-                            return a.status !== 'completed' && a.due_date === today;
-                          } else {
-                            if (a.status !== 'completed') return false;
-                            if (!a.completed_at) return a.due_date === today;
-                            const completedDate = a.completed_at.split('T')[0];
-                            return completedDate === today;
-                          }
-                        });
-                        
-                        if (filtered.length === 0) {
-                          return (
-                            <div className={`py-12 text-center rounded-xl border-2 border-dashed ${kid?.theme === 'space' ? 'border-slate-800 text-slate-500' : 'border-slate-200 text-slate-400'}`}>
-                              <p className="font-bold">No activities yet!</p>
-                              <p className="text-sm mt-1">Check back later for more fun things to do.</p>
+                              ))}
                             </div>
-                          );
-                        }
+                          ))}
+                          {rewardItems.length === 0 && (
+                            <div className={`text-center py-12 rounded-2xl border-2 border-dashed ${kid?.theme === 'space' ? 'border-slate-800 text-slate-500' : 'border-slate-200 text-slate-400'}`}>
+                              <Sparkles className="h-12 w-12 opacity-20 mx-auto mb-4" />
+                              <p className="font-bold">No rewards in the catalog yet!</p>
+                              <p className="text-sm mt-1">Ask your parent to add some prizes.</p>
+                            </div>
+                          )}
+                        </div>
 
-                        const timeOfDayOrder = ['Morning', 'Afternoon', 'Evening', 'Night', 'Any time'];
-                        const grouped = timeOfDayOrder.reduce((acc, time) => {
-                          const items = filtered.filter(a => (a.time_of_day || 'Any time') === time);
-                          if (items.length > 0) {
-                            acc.push({ time, items });
-                          }
-                          return acc;
-                        }, [] as { time: string, items: Activity[] }[]);
+                        <div className={`bg-blue-50 p-4 rounded-xl border border-blue-100 text-center`}>
+                          <p className="text-blue-800 font-bold">
+                            Ask your parent to buy these rewards for you! 🎁
+                          </p>
+                        </div>
+                      </div>
+                    ) : activeTab === 'games' ? (
+                      <div className="space-y-6">
+                        <div className={`rounded-xl p-6 shadow-sm ring-1 ${currentTheme.banner} flex flex-col items-center text-center`}>
+                          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 shadow-inner">
+                            <Gamepad2 className="h-10 w-10 text-emerald-600" />
+                          </div>
+                          <h2 className={`text-2xl font-black ${currentTheme.bannerText}`}>Fun Games</h2>
+                          <p className={`mt-1 font-medium ${currentTheme.bannerSubtext}`}>
+                            Play games and have fun while learning!
+                          </p>
+                        </div>
 
-                        // Also catch any that might not match the order list
-                        const others = filtered.filter(a => !timeOfDayOrder.includes(a.time_of_day || 'Any time'));
-                        if (others.length > 0) {
-                          grouped.push({ time: 'Other', items: others });
-                        }
-
-                        const timeIcons: Record<string, any> = {
-                          'Morning': <Sun className="h-4 w-4 text-amber-500" />,
-                          'Afternoon': <CloudSun className="h-4 w-4 text-orange-400" />,
-                          'Evening': <Moon className="h-4 w-4 text-indigo-400" />,
-                          'Night': <Sparkles className="h-4 w-4 text-slate-400" />,
-                          'Any time': <Clock className="h-4 w-4 text-slate-400" />,
-                          'Other': <Clock className="h-4 w-4 text-slate-400" />
-                        };
-
-                        return (
-                          <div className="space-y-6">
-                            {grouped.map((group) => (
-                              <div key={group.time} className="space-y-3">
-                                <div className="flex items-center gap-2 px-1">
-                                  {timeIcons[group.time]}
-                                  <h3 className={`text-xs font-black uppercase tracking-[0.2em] ${currentTheme.cardSubtext}`}>
-                                    {group.time}
-                                  </h3>
-                                  <div className={`h-px flex-1 ${kid?.theme === 'space' ? 'bg-slate-800' : 'bg-slate-200'}`} />
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          {quizzes.map(quiz => (
+                            <Card 
+                              key={quiz.id}
+                              className={`p-6 cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all ${kid?.theme === 'space' ? 'bg-slate-900 ring-slate-800' : 'bg-white ring-slate-200'}`}
+                              onClick={() => navigate(`/play-quiz/${quiz.id}/${kidId}`)}
+                            >
+                              <div className="flex items-center gap-4">
+                                <div className="h-16 w-16 rounded-2xl bg-blue-100 flex items-center justify-center text-3xl">
+                                  📝
                                 </div>
-                                <div className="flex flex-col gap-3">
-                                  {group.items.map((activity) => (
-                                    <Card 
-                                      key={activity.id} 
-                                      className={`transition-all border-none ring-1 ${currentTheme.card} ${activity.status === 'completed' ? 'bg-slate-50 opacity-75 cursor-default' : (kid?.theme === 'space' ? 'bg-slate-900' : 'bg-white') + ' cursor-pointer hover:shadow-sm'}`}
-                                      onClick={() => {
-                                        if (activity.status !== 'completed') {
-                                          setSelectedActivity(activity);
-                                        }
-                                      }}
-                                    >
-                                      <CardContent className="p-2.5 flex items-start gap-2.5">
-                                        <div 
-                                          className={`mt-0.5 flex-shrink-0 rounded-full transition-colors ${
-                                            activity.status === 'completed' ? 'text-emerald-500' : 'text-slate-300'
-                                          }`}
-                                        >
-                                          {activity.status === 'completed' ? (
-                                            <CheckCircle className="h-6 w-6" />
-                                          ) : (
-                                            <Circle className="h-6 w-6" />
-                                          )}
-                                        </div>
-                                        
-                                        <div className="flex-1 min-w-0">
-                                          <div className="flex items-center gap-2">
-                                            <h3 className={`font-black text-lg truncate ${activity.status === 'completed' ? 'text-slate-400 line-through' : currentTheme.cardTitle}`}>
-                                              {activity.activity_type}
-                                            </h3>
-                                            {activity.link?.includes('/social-stories/view/') && (
-                                              <div className={`flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-blue-600`}>
-                                                <Eye className="h-3 w-3" />
-                                              </div>
-                                            )}
+                                <div>
+                                  <h3 className={`text-xl font-black ${currentTheme.cardTitle}`}>{quiz.title}</h3>
+                                  <p className={`text-sm ${currentTheme.cardSubtext}`}>{quiz.topic}</p>
+                                </div>
+                              </div>
+                            </Card>
+                          ))}
+                          <Card 
+                            className={`p-6 cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all ${kid?.theme === 'space' ? 'bg-slate-900 ring-slate-800' : 'bg-white ring-slate-200'}`}
+                            onClick={() => navigate('/memory-match')}
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="h-16 w-16 rounded-2xl bg-blue-100 flex items-center justify-center text-3xl">
+                                🐶
+                              </div>
+                              <div>
+                                <h3 className={`text-xl font-black ${currentTheme.cardTitle}`}>Memory Match</h3>
+                                <p className={`text-sm ${currentTheme.cardSubtext}`}>Find all the pairs!</p>
+                              </div>
+                            </div>
+                          </Card>
 
+                          <Card 
+                            className={`p-6 cursor-pointer hover:ring-2 hover:ring-amber-500 transition-all ${kid?.theme === 'space' ? 'bg-slate-900 ring-slate-800' : 'bg-white ring-slate-200'}`}
+                            onClick={() => navigate('/sorting-game')}
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="h-16 w-16 rounded-2xl bg-amber-100 flex items-center justify-center text-3xl">
+                                🍎
+                              </div>
+                              <div>
+                                <h3 className={`text-xl font-black ${currentTheme.cardTitle}`}>Sorting Fun</h3>
+                                <p className={`text-sm ${currentTheme.cardSubtext}`}>Sort fruits and veggies!</p>
+                              </div>
+                            </div>
+                          </Card>
+
+                          <Card 
+                            className={`p-6 cursor-pointer hover:ring-2 hover:ring-pink-500 transition-all ${kid?.theme === 'space' ? 'bg-slate-900 ring-slate-800' : 'bg-white ring-slate-200'}`}
+                            onClick={() => navigate('/brain-quest')}
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="h-16 w-16 rounded-2xl bg-pink-100 flex items-center justify-center text-3xl">
+                                💡
+                              </div>
+                              <div>
+                                <h3 className={`text-xl font-black ${currentTheme.cardTitle}`}>Brain Quest</h3>
+                                <p className={`text-sm ${currentTheme.cardSubtext}`}>Fun facts and questions!</p>
+                              </div>
+                            </div>
+                          </Card>
+
+                          <Card 
+                            className={`p-6 cursor-pointer hover:ring-2 hover:ring-yellow-500 transition-all ${kid?.theme === 'space' ? 'bg-slate-900 ring-slate-800' : 'bg-white ring-slate-200'}`}
+                            onClick={() => navigate('/level-up-challenge')}
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="h-16 w-16 rounded-2xl bg-yellow-100 flex items-center justify-center text-3xl">
+                                🏆
+                              </div>
+                              <div>
+                                <h3 className={`text-xl font-black ${currentTheme.cardTitle}`}>Level Up!</h3>
+                                <p className={`text-sm ${currentTheme.cardSubtext}`}>Challenge yourself!</p>
+                              </div>
+                            </div>
+                          </Card>
+
+                          <Card 
+                            className={`p-6 cursor-pointer hover:ring-2 hover:ring-purple-500 transition-all ${kid?.theme === 'space' ? 'bg-slate-900 ring-slate-800' : 'bg-white ring-slate-200'}`}
+                            onClick={() => navigate('/even-odd')}
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="h-16 w-16 rounded-2xl bg-purple-100 flex items-center justify-center text-3xl">
+                                🔢
+                              </div>
+                              <div>
+                                <h3 className={`text-xl font-black ${currentTheme.cardTitle}`}>Even or Odd</h3>
+                                <p className={`text-sm ${currentTheme.cardSubtext}`}>Fun math game!</p>
+                              </div>
+                            </div>
+                          </Card>
+
+                          <Card 
+                            className={`p-6 cursor-pointer hover:ring-2 hover:ring-emerald-500 transition-all ${kid?.theme === 'space' ? 'bg-slate-900 ring-slate-800' : 'bg-white ring-slate-200'}`}
+                            onClick={() => navigate('/polygons-game')}
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="h-16 w-16 rounded-2xl bg-emerald-100 flex items-center justify-center text-3xl">
+                                ⬡
+                              </div>
+                              <div>
+                                <h3 className={`text-xl font-black ${currentTheme.cardTitle}`}>Polygons</h3>
+                                <p className={`text-sm ${currentTheme.cardSubtext}`}>Learn about shapes!</p>
+                              </div>
+                            </div>
+                          </Card>
+
+                          <Card 
+                            className={`p-6 cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all ${kid?.theme === 'space' ? 'bg-slate-900 ring-slate-800' : 'bg-white ring-slate-200'}`}
+                            onClick={() => navigate('/polygon-hunt')}
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="h-16 w-16 rounded-2xl bg-blue-100 flex items-center justify-center text-3xl">
+                                🔍
+                              </div>
+                              <div>
+                                <h3 className={`text-xl font-black ${currentTheme.cardTitle}`}>Polygon Hunt</h3>
+                                <p className={`text-sm ${currentTheme.cardSubtext}`}>Find the right shape!</p>
+                              </div>
+                            </div>
+                          </Card>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="w-full">
+                        {(() => {
+                          const filtered = activities.filter(a => {
+                            if (activeTab === 'todo') {
+                              return a.status !== 'completed' && a.due_date === today;
+                            } else {
+                              if (a.status !== 'completed') return false;
+                              if (!a.completed_at) return a.due_date === today;
+                              const completedDate = a.completed_at.split('T')[0];
+                              return completedDate === today;
+                            }
+                          });
+                          
+                          if (filtered.length === 0) {
+                            return (
+                              <div className={`py-12 text-center rounded-xl border-2 border-dashed ${kid?.theme === 'space' ? 'border-slate-800 text-slate-500' : 'border-slate-200 text-slate-400'}`}>
+                                <p className="font-bold">No activities yet!</p>
+                                <p className="text-sm mt-1">Check back later for more fun things to do.</p>
+                              </div>
+                            );
+                          }
+
+                          const timeOfDayOrder = ['Morning', 'Afternoon', 'Evening', 'Night', 'Any time'];
+                          const grouped = timeOfDayOrder.reduce((acc, time) => {
+                            const items = filtered.filter(a => (a.time_of_day || 'Any time') === time);
+                            if (items.length > 0) {
+                              acc.push({ time, items });
+                            }
+                            return acc;
+                          }, [] as { time: string, items: Activity[] }[]);
+
+                          const others = filtered.filter(a => !timeOfDayOrder.includes(a.time_of_day || 'Any time'));
+                          if (others.length > 0) {
+                            grouped.push({ time: 'Other', items: others });
+                          }
+
+                          const timeIcons: Record<string, any> = {
+                            'Morning': <Sun className="h-4 w-4 text-amber-500" />,
+                            'Afternoon': <CloudSun className="h-4 w-4 text-orange-400" />,
+                            'Evening': <Moon className="h-4 w-4 text-indigo-400" />,
+                            'Night': <Sparkles className="h-4 w-4 text-slate-400" />,
+                            'Any time': <Clock className="h-4 w-4 text-slate-400" />,
+                            'Other': <Clock className="h-4 w-4 text-slate-400" />
+                          };
+
+                          return (
+                            <div className="space-y-6">
+                              {grouped.map((group) => (
+                                <div key={group.time} className="space-y-3">
+                                  <div className="flex items-center gap-2 px-1">
+                                    {timeIcons[group.time]}
+                                    <h3 className={`text-xs font-black uppercase tracking-[0.2em] ${currentTheme.cardSubtext}`}>
+                                      {group.time}
+                                    </h3>
+                                    <div className={`h-px flex-1 ${kid?.theme === 'space' ? 'bg-slate-800' : 'bg-slate-200'}`} />
+                                  </div>
+                                  <div className="flex flex-col gap-3">
+                                    {group.items.map((activity) => (
+                                      <Card 
+                                        key={activity.id} 
+                                        className={`transition-all border-none ring-1 ${currentTheme.card} ${activity.status === 'completed' ? 'bg-slate-50 opacity-75 cursor-default' : (kid?.theme === 'space' ? 'bg-slate-900' : 'bg-white') + ' cursor-pointer hover:shadow-sm'}`}
+                                        onClick={() => {
+                                          if (activity.status !== 'completed') {
+                                            setSelectedActivity(activity);
+                                          }
+                                        }}
+                                      >
+                                        <CardContent className="p-2.5 flex items-start gap-2.5">
+                                          <div 
+                                            className={`mt-0.5 flex-shrink-0 rounded-full transition-colors ${
+                                              activity.status === 'completed' ? 'text-emerald-500' : 'text-slate-300'
+                                            }`}
+                                          >
+                                            {activity.status === 'completed' ? (
+                                              <CheckCircle className="h-6 w-6" />
+                                            ) : (
+                                              <Circle className="h-6 w-6" />
+                                            )}
                                           </div>
                                           
-                                          {activity.description && (
-                                            <p className={`mt-0.5 text-sm font-medium ${currentTheme.cardSubtext} line-clamp-2 leading-tight`}>
-                                              {activity.description}
-                                            </p>
+                                          <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2">
+                                              <h3 className={`font-black text-lg truncate ${activity.status === 'completed' ? 'text-slate-400 line-through' : currentTheme.cardTitle}`}>
+                                                {activity.activity_type}
+                                              </h3>
+                                              {activity.link?.includes('/social-stories/view/') && (
+                                                <div className={`flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-blue-600`}>
+                                                  <Eye className="h-3 w-3" />
+                                                </div>
+                                              )}
+                                            </div>
+                                            
+                                            {activity.description && (
+                                              <p className={`mt-0.5 text-sm font-medium ${currentTheme.cardSubtext} line-clamp-2 leading-tight`}>
+                                                {activity.description}
+                                              </p>
+                                            )}
+
+                                            <div className={`mt-2 flex items-center gap-3 text-[11px] font-bold ${currentTheme.bannerSubtext} uppercase tracking-wider`}>
+                                              {activity.due_date && activity.due_date !== today && (
+                                                <div className="flex items-center gap-1">
+                                                  <Calendar className="h-3 w-3" />
+                                                  {activity.due_date}
+                                                </div>
+                                              )}
+                                              {activity.steps && activity.steps.length > 0 && (
+                                                <div className="flex items-center gap-1">
+                                                  <LayoutList className="h-3 w-3" />
+                                                  {activity.steps.length} steps
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+
+                                          {activity.image_url && !activity.description && (
+                                            <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border border-slate-100 bg-slate-50">
+                                              <img 
+                                                key={activity.image_url}
+                                                src={activity.image_url} 
+                                                alt={activity.activity_type} 
+                                                className="aspect-square w-full object-cover"
+                                                referrerPolicy="no-referrer"
+                                              />
+                                            </div>
                                           )}
-
-                                          <div className={`mt-2 flex items-center gap-3 text-[11px] font-bold ${currentTheme.bannerSubtext} uppercase tracking-wider`}>
-                                            {activity.due_date && activity.due_date !== today && (
-                                              <div className="flex items-center gap-1">
-                                                <Calendar className="h-3 w-3" />
-                                                {activity.due_date}
-                                              </div>
-                                            )}
-                                            {activity.steps && activity.steps.length > 0 && (
-                                              <div className="flex items-center gap-1">
-                                                <LayoutList className="h-3 w-3" />
-                                                {activity.steps.length} steps
-                                              </div>
-                                            )}
-                                          </div>
-                                        </div>
-
-                                        {activity.image_url && !activity.description && (
-                                          <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border border-slate-100 bg-slate-50">
-                                            <img 
-                                              key={activity.image_url}
-                                              src={activity.image_url} 
-                                              alt={activity.activity_type} 
-                                              className="aspect-square w-full object-cover"
-                                              referrerPolicy="no-referrer"
-                                            />
-                                          </div>
-                                        )}
-                                      </CardContent>
-                                    </Card>
-                                  ))}
+                                        </CardContent>
+                                      </Card>
+                                    ))}
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  )}
+                              ))}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {/* Right Sidebar: Rules / Reminders */}
-                <aside className="w-full lg:w-72 shrink-0 space-y-4">
-                  <div className={`rounded-xl border ${currentTheme.rules} p-4 shadow-sm`}>
-                    <div className="flex items-center justify-around">
-                      <div className="flex flex-col items-center gap-1">
+                {/* Right Column: Sidebar (1/3 width on desktop, stacks on mobile) */}
+                <aside className="lg:col-span-1 flex flex-col gap-8 lg:sticky lg:top-8 self-start">
+                  
+                  {/* Right Top: My Progress */}
+                  <div className={`rounded-2xl border ${currentTheme.banner} p-6 shadow-sm ring-1`}>
+                    <h3 className={`text-xs font-black uppercase tracking-[0.2em] ${currentTheme.bannerSubtext} mb-6 text-center`}>
+                      My Progress
+                    </h3>
+                    <div className="flex flex-col gap-4">
+                      <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-white/40 backdrop-blur-sm shadow-inner">
                         <span className={`text-[10px] font-black uppercase tracking-widest ${currentTheme.cardSubtext} opacity-60`}>Done Today</span>
-                        <div className={`flex items-center gap-1.5 text-lg font-bold ${currentTheme.cardSubtext}`}>
+                        <div className={`flex items-center gap-2 text-2xl font-black ${currentTheme.cardSubtext}`}>
                           <CheckCircle className="h-6 w-6 text-emerald-500" />
                           {completedTodayCount}
                         </div>
                       </div>
-                      <div className="flex flex-col items-center gap-1">
+                      <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-white/40 backdrop-blur-sm shadow-inner">
                         <span className={`text-[10px] font-black uppercase tracking-widest ${currentTheme.cardSubtext} opacity-60`}>Balance</span>
-                        <div className={`flex items-center gap-1.5 text-lg font-bold ${currentTheme.cardSubtext}`}>
+                        <div className={`flex items-center gap-2 text-2xl font-black ${currentTheme.cardSubtext}`}>
                           <img src={rewardIcon} alt={kid?.reward_type} className="h-6 w-6 object-contain" referrerPolicy="no-referrer" />
                           {kid?.reward_balance || 0}
                         </div>
                       </div>
                     </div>
-
-                    {kid?.rules && (
-                      <>
-                        <div className="mt-6 pt-4 border-t border-slate-200 mb-4" />
-                        <div className="flex items-center gap-2 mb-3">
-                          <div className={`flex h-8 w-8 items-center justify-center rounded-full ${currentTheme.rulesHeader}`}>
-                            <Lightbulb className="h-5 w-5" />
-                          </div>
-                          <h3 className={`text-sm font-bold ${currentTheme.rulesTitle} uppercase tracking-wide`}>Remember</h3>
-                        </div>
-                        <p className="text-base whitespace-pre-wrap leading-relaxed">
-                          {kid.rules}
-                        </p>
-                      </>
-                    )}
                   </div>
+
+                  {/* Right Bottom: Rules */}
+                  {kid?.rules && (
+                    <div className={`rounded-2xl border ${currentTheme.rules} p-6 shadow-sm ring-1 ring-black/5`}>
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className={`flex h-10 w-10 items-center justify-center rounded-full ${currentTheme.rulesHeader} shadow-sm`}>
+                          <Lightbulb className="h-5 w-5" />
+                        </div>
+                        <h3 className={`text-lg font-black ${currentTheme.rulesTitle} uppercase tracking-wider`}>My Rules</h3>
+                      </div>
+                      <div className="space-y-4">
+                        {kid.rules.split('\n').filter(r => r.trim()).map((rule, idx) => (
+                          <div key={idx} className="flex gap-3 items-start group">
+                            <div className={`mt-2 h-2 w-2 rounded-full shrink-0 ${currentTheme.accent} group-hover:scale-125 transition-transform`} />
+                            <p className="text-sm sm:text-base font-medium leading-relaxed break-words">
+                              {rule}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </aside>
+
               </div>
             </div>
           </div>
-        </div>
         )}
       </main>
 
