@@ -1,4 +1,5 @@
 import { apiFetch } from '../utils/api';
+import { generateContent, modelNames } from '../lib/gemini';
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Button } from '../components/Button';
@@ -61,12 +62,9 @@ export default function QuizGenerator() {
 
     try {
       const response = await withRetry(async () => {
-        const res = await apiFetch('/api/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: "gemini-3.1-flash-lite-preview",
-            contents: `Generate an interactive ${questionType} quiz at a ${gradeLevel} reading/comprehension level on the topic: "${topic}". 
+        return await generateContent({
+          model: modelNames.flash,
+          prompt: `Generate an interactive ${questionType} quiz at a ${gradeLevel} reading/comprehension level on the topic: "${topic}". 
         Subject: ${subject}.
         Difficulty Level: ${difficulty}.
         
@@ -75,57 +73,43 @@ export default function QuizGenerator() {
         
         The quiz should be educational, fun, and engaging.
         Include exactly ${numQuestions} questions.`,
-            config: {
-              maxOutputTokens: 4096,
-              responseMimeType: "application/json",
-              responseSchema: {
-                type: "OBJECT",
-                properties: {
-                  title: { type: "STRING", description: "The title of the quiz" },
-                  description: { type: "STRING", description: "A short description of the quiz" },
-                  questions: {
-                    type: "ARRAY",
-                    items: {
-                      type: "OBJECT",
-                      properties: {
-                        question: { type: "STRING", description: "The question text" },
-                        options: { 
-                          type: "ARRAY", 
-                          items: { type: "STRING" },
-                          description: "2 to 4 options depending on the question type"
-                        },
-                        correctAnswerIndex: { type: "INTEGER", description: "The index of the correct option (0-based)" },
-                        explanation: { type: "STRING", description: "A brief explanation of why the answer is correct" }
-                      },
-                      required: ["question", "options", "correctAnswerIndex", "explanation"]
-                    }
-                  }
-                },
-                required: ["title", "description", "questions"]
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: "OBJECT",
+            properties: {
+              title: { type: "STRING", description: "The title of the quiz" },
+              description: { type: "STRING", description: "A short description of the quiz" },
+              questions: {
+                type: "ARRAY",
+                items: {
+                  type: "OBJECT",
+                  properties: {
+                    question: { type: "STRING", description: "The question text" },
+                    options: { 
+                      type: "ARRAY", 
+                      items: { type: "STRING" },
+                      description: "2 to 4 options depending on the question type"
+                    },
+                    correctAnswerIndex: { type: "INTEGER", description: "The index of the correct option (0-based)" },
+                    explanation: { type: "STRING", description: "A brief explanation of why the answer is correct" }
+                  },
+                  required: ["question", "options", "correctAnswerIndex", "explanation"]
+                }
               }
-            }
-          })
+            },
+            required: ["title", "description", "questions"]
+          }
         });
-        if (!res.ok) {
-          const errorData = await res.json();
-          console.error('API Error:', errorData);
-          const message = errorData.details || errorData.error || 'Failed to generate content';
-          throw new Error(message);
-        }
-        const data = await res.json();
-        console.log('API Response:', data);
-        return data;
       });
 
-      let responseText = response.text;
-      
+      const responseText = response.text;
       if (!responseText) {
         throw new Error('Empty response from AI model');
       }
 
       let cleanedJson = responseText.trim();
-      if (cleanedJson.startsWith('\`\`\`')) {
-        cleanedJson = cleanedJson.replace(/^\`\`\`(?:json)?\n?/, '').replace(/\n?\`\`\`$/, '').trim();
+      if (cleanedJson.startsWith('```')) {
+        cleanedJson = cleanedJson.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
       }
 
       const data = JSON.parse(cleanedJson);

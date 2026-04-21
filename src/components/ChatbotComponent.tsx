@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { apiFetch, safeJson } from '../utils/api';
+import { generateContent, modelNames } from '../lib/gemini';
 import { Send, Loader2, MessageSquare, Mic, MicOff, Volume2, VolumeX, Maximize2, Minimize2, X, ExternalLink } from 'lucide-react';
 import Markdown from 'react-markdown';
 
@@ -310,29 +311,12 @@ export function ChatbotComponent({ kidId, kidName, chatbotName, activities, rewa
       // Include more context from history (last 50 messages for deep memory)
       const historyContext = messages.slice(-50).map(m => `${m.role === 'user' ? 'Child' : 'Assistant'}: ${m.text}`).join('\n');
 
-      const res = await apiFetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: "gemini-3.1-flash-lite-preview",
-          contents: [
-            { role: 'user', parts: [{ text: `System Instruction: ${systemInstruction}\n\nRecent History:\n${historyContext}\n\nChild: ${userMessage}` }] }
-          ],
-          config: {
-            tools: [{ googleSearch: {} }],
-          },
-        })
+      const response = await generateContent({
+        model: modelNames.flash,
+        prompt: `System Instruction: ${systemInstruction}\n\nRecent History:\n${historyContext}\n\nChild: ${userMessage}`,
+        tools: [{ googleSearch: {} }],
       });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        console.error('API Error:', errorData);
-        const message = errorData.details || errorData.error || 'Failed to generate content';
-        throw new Error(message);
-      }
       
-      const response = await res.json();
-
       const reply = response.text || "I'm not sure what to say to that. Can you tell me more, friend?";
       
       // Extract grounding links if available

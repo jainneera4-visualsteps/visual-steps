@@ -1,4 +1,5 @@
 import { apiFetch } from '../utils/api';
+import { generateContent, generateImage, modelNames } from '../lib/gemini';
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '../components/Button';
@@ -247,12 +248,7 @@ export default function WorksheetGenerator() {
       for (let i = 0; i < numWorksheets; i++) {
         try {
           const data = await withRetry(async () => {
-            const res = await apiFetch('/api/generate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                model: "gemini-3.1-flash-lite-preview",
-                contents: `Generate a highly refined, professional-grade printable worksheet at a ${gradeLevel} reading/comprehension level for the subject ${subject} on the topic: "${topic}". 
+            const prompt = `Generate a highly refined, professional-grade printable worksheet at a ${gradeLevel} reading/comprehension level for the subject ${subject} on the topic: "${topic}". 
               
               CRITICAL CRITERIA:
               - Grade Level: ${gradeLevel} (Ensure vocabulary, concepts, and reading complexity are perfectly aligned with this grade level).
@@ -297,23 +293,15 @@ export default function WorksheetGenerator() {
                     "puzzleContent": "string" (optional)
                   }
                 ]
-              }`,
-                config: {
-                  maxOutputTokens: 8192,
-                  responseMimeType: "application/json"
-                }
-              })
+              }`;
+
+            const response = await generateContent({
+              model: modelNames.flash,
+              prompt,
+              responseMimeType: "application/json"
             });
             
-            if (!res.ok) {
-              const errorData = await res.json();
-              console.error('API Error:', errorData);
-              const message = errorData.details || errorData.error || 'Failed to generate content';
-              throw new Error(message);
-            }
-            const response = await res.json();
-
-            let responseText = response.text;
+            const responseText = response.text;
             if (!responseText) throw new Error('Empty response from AI model');
 
             let cleanedJson = responseText.trim();
@@ -341,35 +329,10 @@ export default function WorksheetGenerator() {
                 await new Promise(resolve => setTimeout(resolve, 2000));
               }
 
-              const imageResponse = await withRetry(async () => {
-                const res = await apiFetch('/api/generate', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    model: 'gemini-2.5-flash-image',
-                    contents: {
-                      parts: [
-                        {
-                          text: `${data.imagePrompt}. Black and white line art, coloring book style, clean white background, high contrast, simple for kids.`,
-                        },
-                      ],
-                    },
-                  })
-                });
-                if (!res.ok) {
-                  const errorData = await res.json();
-                  throw new Error(errorData.error || 'Failed to generate image');
-                }
-                return await res.json();
+              const imageUrl = await withRetry(async () => {
+                const prompt = `${data.imagePrompt}. Black and white line art, coloring book style, clean white background, high contrast, simple for kids.`;
+                return await generateImage(prompt);
               }, 2, 4000);
-
-              let imageUrl = '';
-              for (const part of imageResponse.candidates?.[0]?.content?.parts || []) {
-                if (part.inlineData) {
-                  imageUrl = `data:image/png;base64,${part.inlineData.data}`;
-                  break;
-                }
-              }
               
               if (imageUrl) {
                 data.imageUrl = imageUrl;

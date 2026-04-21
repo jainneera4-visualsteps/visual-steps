@@ -1,4 +1,5 @@
 import { apiFetch } from '../utils/api';
+import { generateContent, modelNames } from '../lib/gemini';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '../components/Button';
@@ -264,12 +265,9 @@ export default function CreateSocialStory() {
     try {
       const storyLength = length === 'Short' ? '3-4' : length === 'Medium' ? '5-6' : '7-8';
       const response = await withRetry(async () => {
-        const res = await apiFetch('/api/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: "gemini-3.1-flash-lite-preview",
-            contents: `Create a social story about: ${prompt}. 
+        return await generateContent({
+          model: modelNames.flash,
+          prompt: `Create a social story about: ${prompt}. 
         The story should be written in ${language}.
         The story should be written in the second person, as if a narrator is talking directly to the child (using 'you').
         The tone of the story should be ${tone.toLowerCase()}.
@@ -277,38 +275,29 @@ export default function CreateSocialStory() {
         Break it down into exactly ${storyLength} pages. Each page should have friendly, interactive text, consisting of exactly ${sentencesPerParagraph} sentences.
         The story should suggest how to deal with the issues, what the child can do in the situation, and emphasize that nothing stays the same all the time.
         Format the response as a JSON object with a "title" property and a "pages" array of objects with a "text" property.`,
-            config: {
-              responseMimeType: "application/json",
-              responseSchema: {
-                type: "OBJECT",
-                properties: {
-                  title: { type: "STRING", description: "An interesting and engaging title for the story" },
-                  pages: {
-                    type: "ARRAY",
-                    items: {
-                      type: "OBJECT",
-                      properties: {
-                        text: { type: "STRING", description: "Friendly, interactive text for the page, consisting of exactly 2-3 sentences." }
-                      },
-                      required: ["text"]
-                    }
-                  }
-                },
-                required: ["title", "pages"]
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: "OBJECT",
+            properties: {
+              title: { type: "STRING", description: "An interesting and engaging title for the story" },
+              pages: {
+                type: "ARRAY",
+                items: {
+                  type: "OBJECT",
+                  properties: {
+                    text: { type: "STRING", description: "Friendly, interactive text for the page, consisting of exactly 2-3 sentences." }
+                  },
+                  required: ["text"]
+                }
               }
-            }
-          })
+            },
+            required: ["title", "pages"]
+          }
         });
-        if (!res.ok) {
-          const errorData = await res.json();
-          console.error('API Error:', errorData);
-          const message = errorData.details || errorData.error || 'Failed to generate content';
-          throw new Error(message);
-        }
-        return await res.json();
       });
 
-      const generatedData = JSON.parse(response.text || '{}');
+      const responseText = response.text;
+      const generatedData = JSON.parse(responseText || '{}');
       if (generatedData.pages && Array.isArray(generatedData.pages)) {
         setPages(generatedData.pages.map((p: any) => ({ text: p.text, imageUrl: '' })));
         setTitle(generatedData.title || prompt);

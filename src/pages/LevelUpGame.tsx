@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { apiFetch, safeJson } from '../utils/api';
+import { generateContent, modelNames } from '../lib/gemini';
 import { 
   Gamepad2, 
   Trophy, 
@@ -105,43 +106,35 @@ export default function LevelUpGame() {
   const generateQuestions = async () => {
     setGameState('loading');
     try {
-      const res = await apiFetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: "gemini-3.1-flash-lite-preview",
-          contents: `Generate 10 multiple-choice questions for a ${selectedGrade} student in the subject of ${selectedSubject}. 
-        Return the response as a JSON array of objects, each with 'question', 'options' (array of 4 strings), 'correctAnswer' (one of the options), and 'explanation'.`,
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: "ARRAY",
-              items: {
-                type: "OBJECT",
-                properties: {
-                  question: { type: "STRING" },
-                  options: { 
-                    type: "ARRAY", 
-                    items: { type: "STRING" }
-                  },
-                  correctAnswer: { type: "STRING" },
-                  explanation: { type: "STRING" }
-                },
-                required: ['question', 'options', 'correctAnswer', 'explanation']
-              }
-            }
+      const response = await generateContent({
+        model: modelNames.flash,
+        prompt: `Generate 10 multiple-choice questions for a ${selectedGrade} student in the subject of ${selectedSubject}. 
+      Return the response as a JSON array of objects, each with 'question', 'options' (array of 4 strings), 'correctAnswer' (one of the options), and 'explanation'.`,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "ARRAY",
+          items: {
+            type: "OBJECT",
+            properties: {
+              question: { type: "STRING" },
+              options: { 
+                type: "ARRAY", 
+                items: { type: "STRING" }
+              },
+              correctAnswer: { type: "STRING" },
+              explanation: { type: "STRING" }
+            },
+            required: ['question', 'options', 'correctAnswer', 'explanation']
           }
-        })
+        }
       });
-      if (!res.ok) {
-        const errorData = await res.json();
-        console.error('API Error:', errorData);
-        const message = errorData.details || errorData.error || 'Failed to generate content';
-        throw new Error(message);
+      
+      const responseText = response.text;
+      if (!responseText) {
+        throw new Error('Empty response from AI model');
       }
-      const response = await res.json();
 
-      const data = JSON.parse(response.text);
+      const data = JSON.parse(responseText);
       setQuestions(data);
       setGameState('playing');
       setCurrentQuestionIndex(0);

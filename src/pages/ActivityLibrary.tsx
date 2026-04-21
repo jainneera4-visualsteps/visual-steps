@@ -1,4 +1,5 @@
 import { apiFetch, safeJson } from '../utils/api';
+import { generateContent, modelNames } from '../lib/gemini';
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '../components/Button';
@@ -231,12 +232,9 @@ export default function ActivityLibrary() {
 
     setIsGeneratingSuggestions(true);
     try {
-      const res = await apiFetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: "gemini-3.1-flash-lite-preview",
-          contents: `Generate 3 creative activity ideas for a child named ${kid.name} based on their profile:
+      const response = await generateContent({
+        model: modelNames.flash,
+        prompt: `Generate 3 creative activity ideas for a child named ${kid.name} based on their profile:
         Hobbies: ${kid.hobbies || 'Not specified'}
         Interests: ${kid.interests || 'Not specified'}
         Therapies: ${kid.therapies || 'Not specified'}
@@ -251,36 +249,27 @@ export default function ActivityLibrary() {
         - category (e.g., Education, Sensory, Motor Skills, Social, Chores)
         - description (detailed explanation)
         - steps (list of 3-5 clear steps)`,
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: "ARRAY",
-              items: {
-                type: "OBJECT",
-                properties: {
-                  activityType: { type: "STRING" },
-                  category: { type: "STRING" },
-                  description: { type: "STRING" },
-                  steps: {
-                    type: "ARRAY",
-                    items: { type: "STRING" }
-                  }
-                },
-                required: ["activityType", "category", "description", "steps"]
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "ARRAY",
+          items: {
+            type: "OBJECT",
+            properties: {
+              activityType: { type: "STRING" },
+              category: { type: "STRING" },
+              description: { type: "STRING" },
+              steps: {
+                type: "ARRAY",
+                items: { type: "STRING" }
               }
-            }
+            },
+            required: ["activityType", "category", "description", "steps"]
           }
-        })
+        }
       });
-      if (!res.ok) {
-        const errorData = await res.json();
-        console.error('API Error:', errorData);
-        const message = errorData.details || errorData.error || 'Failed to generate content';
-        throw new Error(message);
-      }
-      const response = await res.json();
-
-      const suggestions = JSON.parse(response.text || '[]');
+      
+      const responseText = response.text;
+      const suggestions = JSON.parse(responseText || '[]');
       setAiSuggestions(suggestions);
     } catch (error) {
       console.error('Failed to generate AI suggestions', error);

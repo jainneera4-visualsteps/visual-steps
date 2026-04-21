@@ -10,7 +10,6 @@ import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import multer from 'multer';
 import dotenv from 'dotenv';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import nodemailer from 'nodemailer';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -475,126 +474,6 @@ const moveOverdueActivities = async (supabase: any, kidId: string, kid: any, tod
 // Health Check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
-});
-
-// Generate Content Endpoint (Proxy for Gemini API)
-app.post('/api/generate', authenticateToken, async (req: any, res) => {
-  try {
-    const { model, contents, config } = req.body;
-    
-    const placeholders = ['MY_GEMINI_API_KEY', 'YOUR_API_KEY', 'MY_API_KEY', 'API_KEY', 'undefined', 'null'];
-    
-    let apiKey = (process.env.GEMINI_API_KEY || '').trim();
-    if (placeholders.includes(apiKey)) apiKey = '';
-    
-    if (!apiKey) {
-      apiKey = (process.env.GOOGLE_GENERATIVE_AI_API_KEY || '').trim();
-      if (placeholders.includes(apiKey)) apiKey = '';
-    }
-    
-    if (!apiKey) {
-      apiKey = (process.env.VITE_GEMINI_API_KEY || '').trim();
-      if (placeholders.includes(apiKey)) apiKey = '';
-    }
-    
-    if (!apiKey || apiKey.length < 10) {
-      console.error('Gemini API key is missing, too short, or is a placeholder:', apiKey ? `[length ${apiKey.length}]` : 'EMPTY');
-      return res.status(500).json({ 
-        error: 'Gemini API key is not configured correctly on the server.',
-        details: 'The API key is either missing, too short, or set to a placeholder value. ' + 
-                 'If you are in AI Studio, please configure GEMINI_API_KEY in the Secrets panel.'
-      });
-    }
-
-    const ai = new GoogleGenerativeAI(apiKey);
-
-    // Ensure contents is an array of Content objects
-    const formattedContents = typeof contents === 'string' 
-      ? [{ role: 'user', parts: [{ text: contents }] }] 
-      : Array.isArray(contents) ? contents : [contents];
-
-    const maxRetries = 5;
-    let retryCount = 0;
-    let lastError = null;
-    let currentModel = model || 'gemini-3.1-flash-lite-preview';
-
-    while (retryCount < maxRetries) {
-      try {
-        console.log(`Generating content with model: ${currentModel} (attempt ${retryCount + 1}/${maxRetries})`);
-        const genModel = ai.getGenerativeModel({ model: currentModel });
-        const result = await genModel.generateContent({
-          contents: formattedContents,
-          generationConfig: config
-        });
-        const response = result.response;
-
-        return res.json({ 
-          text: response.text(),
-          candidates: response.candidates
-        });
-      } catch (error: any) {
-        lastError = error;
-        
-        // Check for 503 Service Unavailable, 429 Rate Limit, or high demand errors
-        const errorMsg = error.message || '';
-        const isRetryable = errorMsg.includes('503') || 
-                           errorMsg.includes('429') ||
-                           errorMsg.includes('UNAVAILABLE') || 
-                           errorMsg.includes('RESOURCE_EXHAUSTED') ||
-                           errorMsg.includes('high demand') ||
-                           errorMsg.includes('404') ||
-                           error.status === 'UNAVAILABLE' || 
-                           error.status === 'RESOURCE_EXHAUSTED' ||
-                           error.code === 503 ||
-                           error.code === 429 ||
-                           error.code === 404;
-        
-        if (isRetryable && retryCount < maxRetries - 1) {
-          retryCount++;
-          // Exponential backoff with jitter: 2s, 4s, 8s, 16s + random
-          const backoffMs = (Math.pow(2, retryCount) * 1000) + (Math.random() * 1000);
-          console.warn(`Gemini API retryable error (attempt ${retryCount}/${maxRetries}). Retrying in ${Math.round(backoffMs/1000)}s... Error: ${errorMsg.substring(0, 100)}`);
-          
-          await new Promise(resolve => setTimeout(resolve, backoffMs));
-          
-          // On later retries, try to ensure we're using a flash model if we weren't already
-          // If we were already using gemini-2.0-flash, try gemini-2.0-flash-lite as a last resort
-          if (retryCount >= 2) {
-            if (currentModel === 'gemini-3.1-flash-lite-preview') {
-              console.log('Switching to gemini-3-flash-preview as fallback due to persistent errors on gemini-3.1-flash-lite-preview');
-              currentModel = 'gemini-3-flash-preview';
-            } else if (currentModel === 'gemini-3-flash-preview') {
-              console.log('Switching to gemini-2.5-flash as fallback due to persistent errors on gemini-3-flash-preview');
-              currentModel = 'gemini-2.5-flash';
-            } else if (!currentModel.includes('flash')) {
-              console.log('Switching to gemini-3.1-flash-lite-preview as fallback due to persistent errors on current model');
-              currentModel = 'gemini-3.1-flash-lite-preview';
-            }
-          }
-          continue;
-        }
-        
-        // If we've exhausted retries or it's not a retryable error, throw it
-        throw error;
-      }
-    }
-  } catch (error: any) {
-    console.error('Error generating content:', error);
-    console.error('Stack trace:', error.stack);
-    
-    const errorMsg = error.message || '';
-    const isUnavailable = errorMsg.includes('503') || 
-                         errorMsg.includes('UNAVAILABLE') || 
-                         errorMsg.includes('high demand') ||
-                         error.status === 'UNAVAILABLE' || 
-                         error.code === 503;
-    
-    const status = isUnavailable ? 503 : 500;
-    res.status(status).json({ 
-      error: isUnavailable ? 'Gemini service is currently overloaded' : 'Failed to generate content', 
-      details: error.message 
-    });
-  }
 });
 
 // Upload File Endpoint
