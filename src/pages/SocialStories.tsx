@@ -112,7 +112,7 @@ export default function SocialStories() {
     
     return (
       <div className="bg-white min-h-screen p-4 md:p-8 text-black absolute inset-0 z-[500] overflow-y-auto print-view-container">
-        <div className="max-w-4xl mx-auto mb-8 no-print flex items-center justify-between bg-slate-50 p-4 rounded-xl border border-slate-200">
+        <div className="w-full mb-8 no-print flex items-center justify-between bg-slate-50 p-4 rounded-xl border border-slate-200">
           <Button onClick={() => setPrintingStory(null)} variant="outline" className="bg-white">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Stories
           </Button>
@@ -123,7 +123,7 @@ export default function SocialStories() {
           </div>
         </div>
         
-        <div className="print-content max-w-4xl mx-auto bg-white print-container">
+        <div className="print-content w-full bg-white print-container">
           <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-6">
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded bg-blue-600 text-white shadow-sm" style={{ printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact' } as any}>
@@ -190,7 +190,7 @@ export default function SocialStories() {
   }
 
   return (
-    <div className="relative">
+    <div className="relative w-full">
       <div className="space-y-3 no-print-area">
         <div className="mb-6">
           <button onClick={() => navigate('/dashboard')} className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1 mb-2 transition-colors">

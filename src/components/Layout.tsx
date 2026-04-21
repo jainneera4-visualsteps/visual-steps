@@ -39,23 +39,23 @@ export function Layout() {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
-      <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white shadow-sm no-print">
-        <div className="container mx-auto flex h-10 items-center justify-between px-4">
-          <div className="flex items-center gap-4">
-            <Link to="/" className="flex items-center gap-2">
-              <div className="flex h-6 w-6 items-center justify-center rounded bg-blue-600 text-white shadow-sm">
-                <Lightbulb className="h-3.5 w-3.5" />
+    <div className="h-dvh w-full bg-slate-50 font-sans text-slate-900 flex flex-col overflow-hidden">
+      <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/80 backdrop-blur-md no-print">
+        <div className="w-full flex h-16 items-center justify-between px-4 lg:px-8">
+          <div className="flex items-center gap-8">
+            <Link to="/" className="flex items-center gap-2.5 group transition-all">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-600 text-white shadow-lg shadow-brand-200 group-hover:scale-105 transition-transform">
+                <Lightbulb className="h-6 w-6" />
               </div>
-              <span className="text-base font-bold tracking-tight text-blue-900">Visual Steps</span>
+              <span className="text-xl font-display font-bold tracking-tight text-slate-900">Visual Steps</span>
             </Link>
 
             {user && (
-              <nav className="hidden md:flex items-center gap-3">
+              <nav className="hidden md:flex items-center gap-1">
                 <Link
                   to="/dashboard"
-                  className={`text-[12px] font-bold uppercase tracking-wider transition-colors hover:text-blue-600 ${
-                    isActive('/dashboard') ? 'text-blue-600' : 'text-slate-600'
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:bg-slate-100 ${
+                    isActive('/dashboard') ? 'bg-brand-50 text-brand-700' : 'text-slate-600'
                   }`}
                 >
                   Dashboard
@@ -66,46 +66,53 @@ export function Layout() {
                   <button
                     onMouseEnter={() => setIsActivitiesOpen(true)}
                     onMouseLeave={() => setIsActivitiesOpen(false)}
-                    className={`flex items-center gap-1 text-[12px] font-bold uppercase tracking-wider transition-colors hover:text-blue-600 ${
+                    className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:bg-slate-100 ${
                       location.pathname.includes('activities') || 
                       location.pathname.includes('quizzes') || 
                       location.pathname.includes('social-stories') || 
                       location.pathname.includes('worksheets') 
-                        ? 'text-blue-600' : 'text-slate-600'
+                        ? 'bg-brand-50 text-brand-700' : 'text-slate-600'
                     }`}
                   >
                     Activities
-                    <ChevronDown size={12} className={`transition-transform ${isActivitiesOpen ? 'rotate-180' : ''}`} />
+                    <ChevronDown size={14} className={`transition-transform duration-200 ${isActivitiesOpen ? 'rotate-180' : ''}`} />
                   </button>
                   
+                  {/* ... contents preserved ... */}
                   {isActivitiesOpen && (
                     <div 
                       onMouseEnter={() => setIsActivitiesOpen(true)}
                       onMouseLeave={() => setIsActivitiesOpen(false)}
-                      className="absolute left-0 mt-0 w-48 rounded-lg bg-white shadow-xl ring-1 ring-black/5 py-1 z-[60]"
+                      className="absolute left-0 mt-0 w-56 rounded-2xl bg-white shadow-2xl shadow-slate-200 ring-1 ring-slate-200 p-2 z-[60] animate-in fade-in zoom-in-95 duration-100"
                     >
                       <Link
                         to="/saved-quizzes"
-                        className="flex items-center gap-2 px-4 py-2 text-[12px] font-bold text-slate-600 hover:bg-blue-50 hover:text-blue-600 uppercase tracking-wider"
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-brand-600 transition-all leading-tight"
                         onClick={() => setIsActivitiesOpen(false)}
                       >
-                        <Gamepad2 size={14} className="text-indigo-500" />
+                        <div className="h-8 w-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-500">
+                          <Gamepad2 size={18} />
+                        </div>
                         Quizzes
                       </Link>
                       <Link
                         to="/social-stories"
-                        className="flex items-center gap-2 px-4 py-2 text-[12px] font-bold text-slate-600 hover:bg-blue-50 hover:text-blue-600 uppercase tracking-wider"
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-brand-600 transition-all leading-tight"
                         onClick={() => setIsActivitiesOpen(false)}
                       >
-                        <BookOpen size={14} className="text-pink-500" />
+                        <div className="h-8 w-8 rounded-lg bg-pink-50 flex items-center justify-center text-pink-500">
+                          <BookOpen size={18} />
+                        </div>
                         Social Stories
                       </Link>
                       <Link
                         to="/saved-worksheets"
-                        className="flex items-center gap-2 px-4 py-2 text-[12px] font-bold text-slate-600 hover:bg-blue-50 hover:text-blue-600 uppercase tracking-wider"
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-brand-600 transition-all leading-tight"
                         onClick={() => setIsActivitiesOpen(false)}
                       >
-                        <FileText size={14} className="text-amber-500" />
+                        <div className="h-8 w-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-500">
+                          <FileText size={18} />
+                        </div>
                         Worksheets
                       </Link>
                     </div>
@@ -114,8 +121,8 @@ export function Layout() {
 
                 <Link
                   to="/profile"
-                  className={`text-[12px] font-bold uppercase tracking-wider transition-colors hover:text-blue-600 ${
-                    isActive('/profile') ? 'text-blue-600' : 'text-slate-600'
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:bg-slate-100 ${
+                    isActive('/profile') ? 'bg-brand-50 text-brand-700' : 'text-slate-600'
                   }`}
                 >
                   Profile
@@ -124,25 +131,26 @@ export function Layout() {
             )}
           </div>
 
-          <div className="hidden md:flex items-center gap-2">
-            <Link to="/about" className="text-[12px] font-bold text-slate-600 hover:text-blue-600 uppercase tracking-wider transition-colors mr-4">
+          <div className="hidden md:flex items-center gap-4">
+            <Link to="/about" className="text-sm font-semibold text-slate-600 hover:text-brand-600 transition-all">
               About
             </Link>
+            <div className="h-4 w-px bg-slate-200" />
             {user ? (
-              <div className="flex items-center gap-2">
-                <span className="text-[12px] font-medium text-slate-500">Hi, {user.name.split(' ')[0]}</span>
-                <Button variant="ghost" size="xs" onClick={logout} className="h-7 text-[11px] px-1.5">
-                  <LogOut className="mr-1 h-3 w-3" />
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-medium text-slate-500">Hi, <span className="text-slate-900 font-bold">{user.name.split(' ')[0]}</span></span>
+                <Button variant="outline" size="sm" onClick={logout} className="h-9">
+                  <LogOut className="mr-2 h-4 w-4" />
                   Sign out
                 </Button>
               </div>
             ) : (
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-3">
                 <Link to="/login">
-                  <Button variant="ghost" size="xs" className="h-7 text-[12px] px-2">Sign in</Button>
+                  <Button variant="ghost" size="sm">Sign in</Button>
                 </Link>
                 <Link to="/signup">
-                  <Button size="xs" className="h-7 text-[12px] px-2">Join now</Button>
+                  <Button size="sm">Join free</Button>
                 </Link>
               </div>
             )}
@@ -206,12 +214,14 @@ export function Layout() {
         )}
       </header>
 
-      <main className="container mx-auto px-4 py-2">
-        <Outlet />
+      <main className="flex-grow overflow-y-auto p-2 md:p-4 scrollbar-hide">
+        <div className="w-full h-full">
+          <Outlet />
+        </div>
       </main>
       
       <footer className="border-t border-slate-200 bg-white py-1 mt-auto no-print">
-        <div className="container mx-auto px-4 flex flex-col items-center gap-1">
+        <div className="w-full flex flex-col items-center gap-1 px-4">
           <div className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">
             &copy; {new Date().getFullYear()} Visual Steps.
           </div>

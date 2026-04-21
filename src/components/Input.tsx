@@ -5,24 +5,31 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
   rightElement?: React.ReactNode;
+  icon?: React.ReactNode;
 }
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, error, rightElement, ...props }, ref) => {
+  ({ className, label, error, rightElement, icon, ...props }, ref) => {
     return (
-      <div className="w-full space-y-1">
+      <div className="w-full space-y-2">
         {label && (
-          <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-700">
+          <label className="text-[12px] font-black text-slate-400 uppercase tracking-widest pl-1">
             {label}
           </label>
         )}
-        <div className="relative">
+        <div className="relative group">
+          {icon && (
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-brand-600 transition-colors">
+              {icon}
+            </div>
+          )}
           <input
             ref={ref}
             className={cn(
-              'flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50',
-              error && 'border-red-500 focus:ring-red-500',
-              rightElement && 'pr-10',
+              'flex h-11 w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm transition-all focus:outline-none focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 placeholder:text-slate-400 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-50 ring-offset-white',
+              error && 'border-red-500 focus:ring-red-500/10 focus:border-red-500',
+              rightElement && 'pr-12',
+              icon && 'pl-12',
               className
             )}
             {...props}

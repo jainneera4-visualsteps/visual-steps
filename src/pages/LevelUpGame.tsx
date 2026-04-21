@@ -209,7 +209,7 @@ export default function LevelUpGame() {
   if (gameState === 'success') {
     const nextGrade = GRADES[GRADES.indexOf(selectedGrade) + 1];
     return (
-      <div className="container mx-auto px-4 py-8 max-w-2xl text-center">
+      <div className="w-full py-8 text-center">
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -245,7 +245,7 @@ export default function LevelUpGame() {
 
   if (gameState === 'setup') {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-2xl">
+      <div className="w-full py-8">
         <Button variant="ghost" onClick={goBack} className="mb-6 text-slate-500 hover:text-yellow-600 hover:bg-yellow-50">
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to {isKidMode ? 'Dashboard' : 'Games'}
         </Button>
@@ -344,7 +344,7 @@ export default function LevelUpGame() {
     const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
 
     return (
-      <div className="container mx-auto px-4 py-8 max-w-2xl">
+      <div className="w-full py-8">
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-black text-yellow-600 uppercase tracking-widest">Question {currentQuestionIndex + 1} of 10</span>

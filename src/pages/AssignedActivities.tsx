@@ -1,3 +1,5 @@
+import { Tooltip as ChartRechartsTooltip, Legend, ResponsiveContainer, Label, LabelList, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { Tooltip as CustomTooltip } from '../components/ui/Tooltip';
 import { io } from 'socket.io-client';
 import { apiFetch, safeJson } from '../utils/api';
 import { formatReward } from '../utils/rewardUtils';
@@ -8,21 +10,12 @@ import { Input } from '../components/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { ArrowLeft, Plus, Trash2, Edit2, CheckCircle, Circle, Calendar, Clock, Repeat, Image as ImageIcon, Eye, Sparkles, Loader2, LayoutList, ChevronLeft, ChevronRight, Activity, TrendingUp, PieChart as PieChartIcon, Award, BarChart as BarChartIcon, History, Lock } from 'lucide-react';
 import { ActivityDetailModal } from '../components/ActivityDetailModal';
-import { 
-  PieChart, 
-  Pie, 
-  Cell, 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  Legend, 
-  ResponsiveContainer,
-  Label,
-  LabelList
-} from 'recharts';
+
+// Global Chart Tooltip helper
+const CustomChartTooltip = (props: any) => <ChartRechartsTooltip {...props} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />;
+
+
+
 
 interface ActivityStep {
   id?: number;
@@ -1536,7 +1529,7 @@ export default function AssignedActivities() {
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 w-full">
       {!isModalOpen && !previewActivity && !viewingQuizResult ? (
         <>
           <div className="mb-6">
@@ -1571,51 +1564,61 @@ export default function AssignedActivities() {
               
               <div className="flex gap-2">
                 <div className="flex rounded-lg border border-slate-200 bg-white p-0.5 overflow-x-auto scrollbar-hide">
-                  <button
-                    onClick={() => setActiveTab('activities')}
-                    className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
-                      activeTab === 'activities' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
-                    }`}
-                  >
-                    <LayoutList className="h-3 w-3" />
-                    Activities
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('completed')}
-                    className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
-                      activeTab === 'completed' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
-                    }`}
-                  >
-                    <CheckCircle className="h-3 w-3" />
-                    Completed
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('history')}
-                    className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
-                      activeTab === 'history' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
-                    }`}
-                  >
-                    <History className="h-3 w-3" />
-                    History
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('rewards')}
-                    className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
-                      activeTab === 'rewards' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
-                    }`}
-                  >
-                    <Sparkles className="h-3 w-3" />
-                    Rewards
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('progress')}
-                    className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
-                      activeTab === 'progress' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
-                    }`}
-                  >
-                    <Activity className="h-3 w-3" />
-                    Progress Report
-                  </button>
+                  <CustomTooltip content="View all assigned activities">
+                    <button
+                      onClick={() => setActiveTab('activities')}
+                      className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
+                        activeTab === 'activities' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+                      }`}
+                    >
+                      <LayoutList className="h-3 w-3" />
+                      Activities
+                    </button>
+                  </CustomTooltip>
+                  <CustomTooltip content="View completed activities">
+                    <button
+                      onClick={() => setActiveTab('completed')}
+                      className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
+                        activeTab === 'completed' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+                      }`}
+                    >
+                      <CheckCircle className="h-3 w-3" />
+                      Completed
+                    </button>
+                  </CustomTooltip>
+                  <CustomTooltip content="View activity history">
+                    <button
+                      onClick={() => setActiveTab('history')}
+                      className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
+                        activeTab === 'history' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+                      }`}
+                    >
+                      <History className="h-3 w-3" />
+                      History
+                    </button>
+                  </CustomTooltip>
+                  <CustomTooltip content="Manage your rewards">
+                    <button
+                      onClick={() => setActiveTab('rewards')}
+                      className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
+                        activeTab === 'rewards' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+                      }`}
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      Rewards
+                    </button>
+                  </CustomTooltip>
+                  <CustomTooltip content="View progress report">
+                    <button
+                      onClick={() => setActiveTab('progress')}
+                      className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
+                        activeTab === 'progress' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+                      }`}
+                    >
+                      <Activity className="h-3 w-3" />
+                      Progress Report
+                    </button>
+                  </CustomTooltip>
                 </div>
                 {activeTab === 'activities' ? (
                   <Button size="xs" onClick={() => handleOpenForm()} className="h-7 text-[12px] shrink-0">

@@ -90,7 +90,7 @@ export default function EvenOddGame() {
 
   if (isWon) {
     return (
-      <div className="container mx-auto px-4 py-12 max-w-2xl text-center">
+      <div className="w-full h-full py-4 flex flex-col items-center justify-center">
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -133,7 +133,7 @@ export default function EvenOddGame() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-2xl">
+    <div className="w-full py-8">
       <div className="mb-8 flex items-center justify-between">
         <Button variant="ghost" onClick={goBack} className="font-bold text-slate-500">
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to {isKidMode ? 'Dashboard' : 'Games'}

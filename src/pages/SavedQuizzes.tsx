@@ -63,7 +63,7 @@ export default function SavedQuizzes() {
   }
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto pb-10">
+    <div className="space-y-6 w-full pb-10">
       <div className="mb-6">
         <button onClick={() => navigate('/dashboard')} className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1 mb-2 transition-colors">
           <ArrowLeft className="h-4 w-4" /> Back to Dashboard

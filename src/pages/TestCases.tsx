@@ -112,9 +112,8 @@ export default function TestCases() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-center justify-between mb-8 no-print">
+    <div className="w-full">
+      <div className="flex items-center justify-between mb-8 no-print">
           <Link to="/" className="flex items-center text-blue-600 hover:text-blue-800 transition-colors">
             <ArrowLeft className="h-5 w-5 mr-2" />
             Back to Home
@@ -200,6 +199,5 @@ export default function TestCases() {
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
 }

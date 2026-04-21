@@ -7,7 +7,7 @@ export default function Games() {
   const navigate = useNavigate();
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="w-full py-8">
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-black text-slate-900">Games</h1>

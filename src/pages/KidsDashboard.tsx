@@ -709,10 +709,10 @@ export default function KidsDashboard() {
   }
 
   return (
-    <div className={`min-h-screen ${currentTheme.bg} font-sans pb-12`} style={currentTheme.bgStyle}>
+    <div className={`w-full ${currentTheme.bg} font-sans pb-12`} style={currentTheme.bgStyle}>
       {/* Global Header */}
       <header className={`sticky top-0 z-50 w-full border-b border-slate-200 ${currentTheme.header} shadow-sm`}>
-        <div className="container mx-auto flex h-12 items-center px-4 relative">
+        <div className="w-full flex h-12 items-center px-4 relative">
           <div className="flex items-center gap-2">
             <div className={`flex h-7 w-7 items-center justify-center rounded ${kid?.theme === 'space' ? 'bg-blue-600' : 'bg-white/20'} text-white shadow-sm`}>
               <Lightbulb className="h-4 w-4" />
@@ -734,6 +734,7 @@ export default function KidsDashboard() {
               <button 
                 onClick={() => setActiveTab('rewards')}
                 className="rounded bg-white/30 px-2 py-1 hover:bg-white/40 transition-colors text-[10px] uppercase"
+                title="View available rewards"
               >
                 Available Rewards
               </button>
@@ -753,7 +754,7 @@ export default function KidsDashboard() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-3">
+      <main className="w-full px-4 py-3">
         {!isAccessAllowed ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <div className={`mb-3 rounded-full ${currentTheme.rulesHeader} p-4 shadow-md`}>
@@ -832,6 +833,7 @@ export default function KidsDashboard() {
                         ? 'bg-blue-600 text-white shadow-sm' 
                         : `${kid?.theme === 'space' ? 'text-slate-400 hover:bg-slate-800' : 'text-slate-500 hover:bg-slate-50'}`
                     }`}
+                    title="View activities to be done"
                   >
                     <Clock className="h-3.5 w-3.5" />
                     📝 To Be Done
@@ -843,6 +845,7 @@ export default function KidsDashboard() {
                         ? 'bg-emerald-600 text-white shadow-sm' 
                         : `${kid?.theme === 'space' ? 'text-slate-400 hover:bg-slate-800' : 'text-slate-500 hover:bg-slate-50'}`
                     }`}
+                    title="View completed activities"
                   >
                     <CheckCircle className="h-3.5 w-3.5" />
                     ✅ Completed
@@ -854,6 +857,7 @@ export default function KidsDashboard() {
                         ? 'bg-amber-500 text-white shadow-sm' 
                         : `${kid?.theme === 'space' ? 'text-slate-400 hover:bg-slate-800' : 'text-slate-500 hover:bg-slate-50'}`
                     }`}
+                    title="View available rewards"
                   >
                     <Sparkles className="h-3.5 w-3.5" />
                     🎁 Rewards

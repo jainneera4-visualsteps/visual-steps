@@ -327,7 +327,7 @@ export default function PlayQuiz() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <div className="bg-white border-b border-slate-200 p-4 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
+        <div className="w-full flex items-center justify-between">
           <button onClick={() => navigate(-1)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
             <ArrowLeft className="h-5 w-5 text-slate-600" />
           </button>
@@ -339,7 +339,7 @@ export default function PlayQuiz() {
           </div>
           <div className="w-9" /> {/* Spacer for centering */}
         </div>
-        <div className="max-w-6xl mx-auto mt-4 h-2 bg-slate-100 rounded-full overflow-hidden">
+        <div className="w-full mt-4 h-2 bg-slate-100 rounded-full overflow-hidden">
           <div 
             className="h-full bg-blue-500 transition-all duration-500 ease-out"
             style={{ width: `${progress}%` }}
@@ -347,7 +347,7 @@ export default function PlayQuiz() {
         </div>
       </div>
 
-      <div className="flex-1 max-w-6xl w-full mx-auto p-4 md:p-8 flex flex-col">
+      <div className="flex-1 w-full p-4 md:p-8 flex flex-col">
         <Card className="flex-1 border-none ring-1 ring-slate-200 shadow-lg overflow-hidden flex flex-col relative">
           <div className="absolute top-4 right-4 z-10">
             <button 

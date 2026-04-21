@@ -137,10 +137,10 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4">
+    <div className="w-full flex items-center justify-center">
       {/* Hero Section with Login */}
-      <section className="relative w-full overflow-hidden rounded-2xl bg-gradient-to-br from-blue-50 via-white to-sky-50 py-6 px-6 shadow-md ring-1 ring-slate-200/50">
-        <div className="mx-auto max-w-7xl">
+      <section className="relative w-full overflow-hidden rounded-2xl bg-gradient-to-br from-blue-50 via-white to-sky-50 py-12 px-8 shadow-md ring-1 ring-slate-200/50">
+        <div className="w-full">
           <div className="flex flex-col items-center gap-8 lg:flex-row">
             {/* Left: Hero Text */}
             <div className="flex-1 text-center lg:text-left space-y-4">

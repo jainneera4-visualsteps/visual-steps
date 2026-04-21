@@ -6,7 +6,7 @@ export default function About() {
   const navigate = useNavigate();
 
   return (
-    <div className="space-y-4 pb-12">
+    <div className="space-y-4 pb-12 w-full">
       <div className="mb-6 no-print">
         <button onClick={() => navigate(-1)} className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1 mb-2 transition-colors">
           <ArrowLeft className="h-4 w-4" /> Back

@@ -133,7 +133,7 @@ export default function MemoryGame() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div className="w-full py-8">
       <div className="mb-8 flex items-center justify-between">
         <Button variant="ghost" onClick={goBack} className="font-bold text-slate-500">
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to {isKidMode ? 'Dashboard' : 'Games'}

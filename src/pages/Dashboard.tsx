@@ -1,3 +1,4 @@
+import { Tooltip } from '../components/ui/Tooltip';
 import { apiFetch, safeJson } from '../utils/api';
 import { io } from 'socket.io-client';
 import { formatReward, rewardImages } from '../utils/rewardUtils';
@@ -5,7 +6,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import { Plus, User, Calendar, BookOpen, Gamepad2, Clock, Trophy, Sparkles, Loader2, ArrowLeft, Edit2, ShoppingBag } from 'lucide-react';
+import { Select } from '../components/Select';
+import { Plus, User, Calendar, BookOpen, Gamepad2, Clock, Trophy, Sparkles, Loader2, ArrowLeft, Edit2, ShoppingBag, Activity, Brain } from 'lucide-react';
 
 interface Kid {
   id: string;
@@ -216,211 +218,236 @@ export default function Dashboard() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-slate-50 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div>
-            <h1 className="text-4xl font-bold text-slate-900 tracking-tight">Dashboard</h1>
-            <p className="text-lg text-slate-600 mt-2">Empower your child's growth with personalized activities and real-time progress insights.</p>
-          </div>
-          <div className="flex items-center gap-4">
-            {kids.length > 0 && !showBuyGrid && (
-              <div className="flex flex-col">
-                <label htmlFor="kid-select" className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Select Profile</label>
-                <select
-                  id="kid-select"
-                  className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm min-w-[180px]"
-                  value={dashboardSelectedKidId}
-                  onChange={(e) => setDashboardSelectedKidId(e.target.value)}
-                >
-                  {kids.map(k => (
-                    <option key={k.id} value={k.id}>{k.name}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-            <Link to="/add-kid">
-              <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
-                <Plus className="mr-2 h-4 w-4" />
-                Add Child
-              </Button>
-            </Link>
-          </div>
+  const renderContent = () => {
+    if (isLoading) {
+      return (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-64 animate-pulse rounded-2xl bg-white shadow-sm" />
+          ))}
         </div>
+      );
+    }
 
-        {isLoading ? (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-64 animate-pulse rounded-2xl bg-white shadow-sm" />
-            ))}
-          </div>
-        ) : showBuyGrid && selectedKid ? (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex items-center justify-between">
-              <Button variant="ghost" onClick={() => setShowBuyGrid(false)}>
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Dashboard
-              </Button>
-              <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-full border border-blue-100">
-                <span className="text-sm font-medium text-blue-900">
-                  {selectedKid.name}'s Balance:
-                </span>
-                <span className="text-lg font-bold text-blue-600">
-                  {selectedKid.reward_balance} {formatReward(selectedKid.reward_type, selectedKid.reward_balance)}
-                </span>
-              </div>
+    if (showBuyGrid && selectedKid) {
+      return (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="flex items-center justify-between">
+            <Button variant="ghost" onClick={() => setShowBuyGrid(false)}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Dashboard
+            </Button>
+            <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-full border border-blue-100">
+              <span className="text-sm font-medium text-blue-900">
+                {selectedKid.name}'s Balance:
+              </span>
+              <span className="text-lg font-bold text-blue-600">
+                {selectedKid.reward_balance} {formatReward(selectedKid.reward_type, selectedKid.reward_balance)}
+              </span>
             </div>
+          </div>
 
-            {rewardItems.length === 0 ? (
-              <div className="text-center py-12 bg-white rounded-2xl border border-slate-200">
-                <Trophy className="mx-auto h-12 w-12 text-slate-300 mb-4" />
-                <h3 className="text-lg font-medium text-slate-900">No rewards available</h3>
-                <p className="text-slate-500 mt-1">Add some rewards in the child's settings.</p>
-              </div>
-            ) : (
-              <div className="grid gap-6 md:grid-cols-3 lg:grid-cols-4">
-                {rewardItems.map((item) => (
-                  <Card key={item.id} className="flex flex-col overflow-hidden hover:shadow-md transition-shadow">
-                    <div className="aspect-square bg-slate-50 flex items-center justify-center p-6 border-b border-slate-100">
-                      {item.icon ? (
-                        <span className="text-6xl">{item.icon}</span>
-                      ) : (
-                        <Trophy className="h-16 w-16 text-slate-300" />
+          {rewardItems.length === 0 ? (
+            <div className="text-center py-12 bg-white rounded-2xl border border-slate-200">
+              <Trophy className="mx-auto h-12 w-12 text-slate-300 mb-4" />
+              <h3 className="text-lg font-medium text-slate-900">No rewards available</h3>
+              <p className="text-slate-500 mt-1">Add some rewards in the child's settings.</p>
+            </div>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-3 lg:grid-cols-4">
+              {rewardItems.map((item) => (
+                <Card key={item.id} className="flex flex-col overflow-hidden hover:shadow-md transition-shadow">
+                  <div className="aspect-square bg-slate-50 flex items-center justify-center p-6 border-b border-slate-100">
+                    {item.icon ? (
+                      <span className="text-6xl">{item.icon}</span>
+                    ) : (
+                      <Trophy className="h-16 w-16 text-slate-300" />
+                    )}
+                  </div>
+                  <CardContent className="flex-1 flex flex-col p-4">
+                    <h3 className="font-bold text-slate-900 mb-1 text-lg">{item.name}</h3>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="text-blue-600 font-bold">
+                        {item.cost} {formatReward(selectedKid.reward_type, item.cost)}
+                      </div>
+                      {item.location && (
+                        <div className="text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                          {item.location}
+                        </div>
                       )}
                     </div>
-                    <CardContent className="flex-1 flex flex-col p-4">
-                      <h3 className="font-bold text-slate-900 mb-1 text-lg">{item.name}</h3>
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="text-blue-600 font-bold">
-                          {item.cost} {formatReward(selectedKid.reward_type, item.cost)}
-                        </div>
-                        {item.location && (
-                          <div className="text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
-                            {item.location}
-                          </div>
-                        )}
-                      </div>
-                      <Button
-                        className="mt-auto w-full"
-                        disabled={selectedKid.reward_balance < item.cost || isBuying === item.id}
-                        onClick={() => handleBuyReward(item)}
-                      >
-                        {isBuying === item.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : selectedKid.reward_balance >= item.cost ? (
-                          'Buy'
-                        ) : (
-                          'Not enough balance'
-                        )}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
-        ) : kids.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-white py-16 text-center">
-            <div className="rounded-full bg-slate-100 p-4">
-              <User className="h-8 w-8 text-slate-400" />
-            </div>
-            <h3 className="mt-4 text-xl font-bold text-slate-900">No profiles yet</h3>
-            <p className="mt-2 text-slate-500 max-w-xs">
-              Get started by adding a child.
-            </p>
-            <Link to="/add-kid" className="mt-6">
-              <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white">Add Child</Button>
-            </Link>
-          </div>
-        ) : (
-          <div className="space-y-8">
-            <div className="w-full mx-auto">
-              {kids.filter(k => k.id === dashboardSelectedKidId).map((kid) => (
-                <Card key={kid.id} className="rounded-xl shadow-lg bg-white relative overflow-hidden">
-                  <CardHeader className="bg-blue-600 text-white relative h-28 p-6 flex flex-col justify-start rounded-t-xl">
-                    <div className="flex justify-between items-start w-full">
-                      <div>
-                        <CardTitle className="text-2xl font-bold text-white leading-tight">{kid.name}</CardTitle>
-                        <p className="text-sm text-blue-100 font-medium">{calculateAge(kid.dob)}</p>
-                      </div>
-                      <div className="flex items-center gap-3 text-xl">
-                        <Button size="xs" variant="ghost" onClick={() => handleShowBuyGrid(kid)} className="text-white hover:bg-blue-700/50 p-2" aria-label="Buy"><ShoppingBag className="h-5 w-5" /></Button>
-                        {rewardImages[kid.reward_type] ? (
-                          <img src={rewardImages[kid.reward_type]} alt={kid.reward_type} className="h-7 w-7" referrerPolicy="no-referrer" />
-                        ) : (
-                          <Trophy className="h-7 w-7 text-yellow-300" />
-                        )}
-                        <span className="font-bold text-2xl">{kid.reward_balance || 0}</span>
-                        <button 
-                          onClick={() => handleGiveReward(kid)}
-                          className="p-1.5 rounded-full hover:bg-blue-500 transition-colors"
-                        >
-                          <Plus className="h-6 w-6" />
-                        </button>
-                      </div>
-                    </div>
-                    <Link to={`/edit-kid/${kid.id}`} className="absolute bottom-4 right-4 text-white hover:text-blue-100">
-                      <Edit2 className="h-5 w-5" />
-                    </Link>
-                    <div className="absolute -bottom-8 left-6 h-16 w-16 rounded-full bg-white flex items-center justify-center text-2xl overflow-hidden border-4 border-white shadow-md z-10">
-                        {kid.avatar && (kid.avatar.startsWith('http') || kid.avatar.startsWith('data:')) ? (
-                          <img src={kid.avatar} alt={kid.name} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                        ) : (
-                          kid.avatar || '👤'
-                        )}
-                      </div>
-                  </CardHeader>
-                  <CardContent className="pt-10">
-                    <div className="flex flex-col gap-4">
-                      {/* Parent Message Input */}
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Send Message to {kid.name}</label>
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            placeholder="Type a message or emoji... 🌟"
-                            className="flex-1 h-9 px-3 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            value={parentMessage}
-                            onChange={(e) => setParentMessage(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSendMessage(kid.id)}
-                          />
-                          <Button 
-                            size="sm" 
-                            onClick={() => handleSendMessage(kid.id)}
-                            disabled={isSendingMessage || !parentMessage.trim()}
-                          >
-                            {isSendingMessage ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send'}
-                          </Button>
-                        </div>
-                        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
-                          {['🌟', '❤️', '👍', '🎉', '😊', '🚀', '🌈', '🍦', '🎮', '📚'].map(emoji => (
-                            <button
-                              key={emoji}
-                              type="button"
-                              onClick={() => setParentMessage(prev => prev + emoji)}
-                              className="text-lg hover:scale-125 transition-transform p-1"
-                            >
-                              {emoji}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div className="flex gap-2 items-center">
-                        <Link to={`/assigned-activities/${kid.id}`}>
-                          <Button size="sm" variant="outline">Activities</Button>
-                        </Link>
-                      </div>
-                    </div>
+                    <Button
+                      className="mt-auto w-full"
+                      disabled={selectedKid.reward_balance < item.cost || isBuying === item.id}
+                      onClick={() => handleBuyReward(item)}
+                    >
+                      {isBuying === item.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : selectedKid.reward_balance >= item.cost ? (
+                        'Buy'
+                      ) : (
+                        'Not enough balance'
+                      )}
+                    </Button>
                   </CardContent>
                 </Card>
               ))}
             </div>
+          )}
+        </div>
+      );
+    }
+
+    if (kids.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-white py-16 text-center">
+          <div className="rounded-full bg-slate-100 p-4">
+            <User className="h-8 w-8 text-slate-400" />
           </div>
-        )}
+          <h3 className="mt-4 text-xl font-bold text-slate-900">No profiles yet</h3>
+          <p className="mt-2 text-slate-500 max-w-xs">
+            Get started by adding a child.
+          </p>
+          <Link to="/add-kid" className="mt-6">
+            <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white">Add Child</Button>
+          </Link>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-8">
+        <div className="w-full mx-auto">
+          {kids.filter(k => k.id === dashboardSelectedKidId).map((kid) => (
+            <Card key={kid.id} className="rounded-xl shadow-lg bg-white relative overflow-hidden">
+              <CardHeader className="bg-blue-600 text-white relative h-28 p-6 flex flex-col justify-start rounded-t-xl">
+                <div className="flex justify-between items-start w-full">
+                  <div>
+                    <CardTitle className="text-2xl font-bold text-white leading-tight">{kid.name}</CardTitle>
+                    <p className="text-sm text-blue-100 font-medium">{calculateAge(kid.dob)}</p>
+                  </div>
+                  <div className="flex items-center gap-3 text-xl">
+                    <Tooltip content="Buy rewards">
+                      <Button size="sm" variant="ghost" onClick={() => handleShowBuyGrid(kid)} className="text-white hover:bg-white/20 p-2" aria-label="Buy"><ShoppingBag className="h-5 w-5" /></Button>
+                    </Tooltip>
+                    {rewardImages[kid.reward_type] ? (
+                      <img src={rewardImages[kid.reward_type]} alt={kid.reward_type} className="h-7 w-7" referrerPolicy="no-referrer" />
+                    ) : (
+                      <Trophy className="h-7 w-7 text-yellow-300" />
+                    )}
+                    <span className="font-bold text-2xl">{kid.reward_balance || 0}</span>
+                    <Tooltip content="Add reward">
+                      <button 
+                        onClick={() => handleGiveReward(kid)}
+                        className="p-1.5 rounded-full hover:bg-blue-500 transition-colors"
+                      >
+                        <Plus className="h-6 w-6" />
+                      </button>
+                    </Tooltip>
+                  </div>
+                </div>
+                <div className="absolute -bottom-8 left-6 h-16 w-16 rounded-full bg-white flex items-center justify-center text-2xl overflow-hidden border-4 border-white shadow-md z-10">
+                    {kid.avatar && (kid.avatar.startsWith('http') || kid.avatar.startsWith('data:')) ? (
+                      <img src={kid.avatar} alt={kid.name} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                    ) : (
+                      kid.avatar || '👤'
+                    )}
+                  </div>
+                    <Tooltip content="Edit child profile settings">
+                      <Link to={`/edit-kid/${kid.id}`} className="absolute bottom-4 right-4 text-white hover:text-blue-100">
+                        <Edit2 className="h-5 w-5" />
+                      </Link>
+                    </Tooltip>
+                </CardHeader>
+              <CardContent className="pt-10">
+                <div className="flex flex-col gap-4">
+                  {/* Parent Message Input */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Send Message to {kid.name}</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Type a message or emoji... 🌟"
+                        className="flex-1 h-9 px-3 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={parentMessage}
+                        onChange={(e) => setParentMessage(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSendMessage(kid.id)}
+                        title="Enter a message to send to your child"
+                      />
+                      <Tooltip content="Send message">
+                        <Button 
+                          size="sm" 
+                          onClick={() => handleSendMessage(kid.id)}
+                          disabled={isSendingMessage || !parentMessage.trim()}
+                        >
+                          {isSendingMessage ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send'}
+                        </Button>
+                      </Tooltip>
+                    </div>
+                    <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+                      {['🌟', '❤️', '👍', '🎉', '😊', '🚀', '🌈', '🍦', '🎮', '📚'].map(emoji => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          onClick={() => setParentMessage(prev => prev + emoji)}
+                          className="text-lg hover:scale-125 transition-transform p-1"
+                          title={`Add ${emoji}`}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 items-center text-sm">
+                    <Tooltip content="View assigned activities">
+                      <Link to={`/assigned-activities/${kid.id}`}>
+                        <Button size="sm" variant="outline">Activities</Button>
+                      </Link>
+                    </Tooltip>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
+    );
+  };
+
+  return (
+    <div className="w-full space-y-10">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-slate-200 pb-8">
+        <div className="space-y-2">
+          <h1 className="text-5xl font-display font-extrabold text-slate-900 tracking-tight">Dashboard</h1>
+          <p className="text-xl text-slate-600 max-w-2xl leading-relaxed">
+            Empower your child's growth with personalized activities and real-time progress insights.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-4">
+          {kids.length > 0 && !showBuyGrid && (
+            <Select
+              className="min-w-[200px]"
+              label="Select Profile"
+              value={dashboardSelectedKidId}
+              onChange={(e) => setDashboardSelectedKidId(e.target.value)}
+            >
+              {kids.map(k => (
+                <option key={k.id} value={k.id}>{k.name}</option>
+              ))}
+            </Select>
+          )}
+          <Link to="/add-kid">
+            <Button size="md" className="h-11 shadow-brand-200">
+              <Plus className="mr-2 h-5 w-5" />
+              Add Child
+            </Button>
+          </Link>
+        </div>
+      </div>
+
+      {renderContent()}
     </div>
   );
 }

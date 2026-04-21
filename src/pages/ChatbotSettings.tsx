@@ -107,7 +107,7 @@ export default function ChatbotSettingsPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto py-6 px-4 space-y-4">
+    <div className="w-full py-6 px-4 space-y-4">
       <div className="flex items-center gap-3">
         <Button 
           variant="ghost" 

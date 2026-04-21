@@ -70,7 +70,7 @@ export default function ChatbotsDashboard() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto py-6 px-4 space-y-6">
+    <div className="w-full py-6 px-4 space-y-6">
       <h1 className="text-2xl font-bold text-slate-900">Chatbot Management</h1>
       <div className="grid gap-4">
         {kids.map((kid) => {

@@ -66,7 +66,7 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-6rem)] items-center justify-center p-2">
+    <div className="w-full h-full flex items-center justify-center">
       <Card className="w-full max-w-sm shadow-sm border-none ring-1 ring-slate-200">
         <CardHeader className="space-y-0.5 py-3 px-5">
           <CardTitle className="text-xl text-center font-bold">Reset Password</CardTitle>

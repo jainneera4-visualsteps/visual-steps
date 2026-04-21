@@ -124,7 +124,7 @@ export default function ChatHistory() {
               </div>
             </div>
           ) : (
-            <div className="p-4 md:p-8 space-y-8 max-w-4xl mx-auto w-full">
+            <div className="p-4 md:p-8 space-y-8 w-full">
               {history.map((msg, index) => {
                 const date = new Date(msg.created_at);
                 const showDate = index === 0 || 

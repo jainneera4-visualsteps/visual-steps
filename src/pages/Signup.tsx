@@ -74,7 +74,7 @@ export default function Signup() {
   };
 
   return (
-    <div className="h-[calc(100vh-6rem)] flex items-center justify-center py-2">
+    <div className="w-full h-full flex items-center justify-center">
       <Card className="w-full max-w-md shadow-sm border-none ring-1 ring-slate-200">
         <CardHeader className="py-3 space-y-0.5">
           <CardTitle className="text-xl text-center font-bold">Create an account</CardTitle>

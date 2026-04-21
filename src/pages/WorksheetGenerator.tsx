@@ -462,7 +462,7 @@ export default function WorksheetGenerator() {
   };
 
   return (
-    <div className="space-y-4 max-w-5xl mx-auto">
+    <div className="space-y-4 w-full">
       <div className="mb-6 no-print">
         <button onClick={() => navigate('/dashboard')} className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1 mb-2 transition-colors">
           <ArrowLeft className="h-4 w-4" /> Back to Dashboard

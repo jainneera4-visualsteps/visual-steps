@@ -83,7 +83,7 @@ export default function Profile() {
   };
 
   return (
-    <div className="max-w-xl mx-auto space-y-3">
+    <div className="w-full space-y-3">
       <div className="mb-6">
         <button onClick={() => navigate('/dashboard')} className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1 mb-2 transition-colors">
           <ArrowLeft className="h-4 w-4" /> Back to Dashboard

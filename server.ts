@@ -1812,7 +1812,7 @@ app.get('/api/kids/:kidId/behavior-definitions', authenticateToken, async (req: 
 app.post('/api/kids/:kidId/behavior-definitions', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
   const { kidId } = req.params;
-  const { name, type, token_reward } = req.body;
+  const { name, type, token_reward, icon } = req.body;
 
   if (!name || !type || token_reward === undefined) {
     return res.status(400).json({ error: 'Missing required fields: name, type, token_reward' });
@@ -1821,7 +1821,7 @@ app.post('/api/kids/:kidId/behavior-definitions', authenticateToken, async (req:
   try {
     const { data: definition, error } = await supabase
       .from('behavior_definitions')
-      .insert([{ kid_id: kidId, name, type, token_reward }])
+      .insert([{ kid_id: kidId, name, type, token_reward, icon: icon || null }])
       .select()
       .single();
 
@@ -1861,6 +1861,7 @@ app.get('/api/kids/:kidId/behaviors', authenticateToken, async (req: any, res) =
       .select('*, behavior_definitions(*)')
       .eq('kid_id', kidId)
       .order('date', { ascending: false })
+      .order('hour', { ascending: false })
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -1875,7 +1876,7 @@ app.post('/api/kids/:kidId/behaviors', authenticateToken, async (req: any, res) 
   const adminSupabase = getAdminSupabaseClient(); // Use admin client for balance update
   const supabase = getSupabaseForUser(req); // Use user client for inserting behavior log
   const { kidId } = req.params;
-  const { type, description, definition_id, token_change, date } = req.body;
+  const { type, description, definition_id, token_change, date, hour } = req.body;
 
   if (!type && !definition_id) {
     return res.status(400).json({ error: 'Missing required fields: type or definition_id' });
@@ -1888,6 +1889,7 @@ app.post('/api/kids/:kidId/behaviors', authenticateToken, async (req: any, res) 
       type: type || 'desired',
       description: description || '',
       date: date || new Date().toISOString().split('T')[0],
+      hour: hour !== undefined ? hour : null,
       token_change: token_change || 0,
     };
 
