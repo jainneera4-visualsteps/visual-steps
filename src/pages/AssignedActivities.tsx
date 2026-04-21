@@ -2392,7 +2392,7 @@ export default function AssignedActivities() {
                               <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                             ))}
                           </Pie>
-                          <Tooltip 
+                          <ChartRechartsTooltip 
                             contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                           />
                           <Legend 
@@ -2465,7 +2465,7 @@ export default function AssignedActivities() {
                               }}
                             />
                           </Pie>
-                          <Tooltip 
+                          <ChartRechartsTooltip 
                             contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                           />
                           <Legend 
@@ -2510,7 +2510,7 @@ export default function AssignedActivities() {
                             tickLine={false} 
                             tick={{ fontSize: 10, fontWeight: 600, fill: '#64748b' }}
                           />
-                          <Tooltip 
+                          <ChartRechartsTooltip 
                             cursor={{ fill: '#f8fafc' }}
                             contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                           />
@@ -2559,7 +2559,7 @@ export default function AssignedActivities() {
                             tick={{ fontSize: 10, fontWeight: 600, fill: '#64748b' }}
                             width={100}
                           />
-                          <Tooltip 
+                          <ChartRechartsTooltip 
                             cursor={{ fill: '#f8fafc' }}
                             contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                           />
