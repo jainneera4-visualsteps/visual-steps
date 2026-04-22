@@ -168,15 +168,6 @@ export function ActivityDetailModal({
               -webkit-print-color-adjust: exact !important;
               print-color-adjust: exact !important;
             }
-            .activity-title-print {
-              font-size: 24px;
-              font-weight: 900;
-              text-transform: uppercase;
-              text-align: right;
-              flex: 1;
-              margin-left: 20px;
-              color: black !important;
-            }
             .print-container { width: 100%; position: relative; }
             ${!includeImages ? '.print-image { display: none !important; }' : ''}
           </style>
@@ -190,7 +181,6 @@ export function ActivityDetailModal({
                 </div>
                 <span class="logo-text">Visual Steps</span>
               </div>
-              <h1 class="activity-title-print">${activity.activity_type}</h1>
             </div>
             ${contentHtml}
           </div>
@@ -240,7 +230,7 @@ export function ActivityDetailModal({
       </div>
 
       <Card className="border-slate-200 bg-white shadow-sm print:shadow-none print:border-none">
-        <CardHeader className="flex flex-row items-center justify-between py-4 px-6 space-y-0 border-b border-slate-100">
+        <CardHeader className="flex flex-row items-center justify-between py-4 px-6 space-y-0 border-b border-slate-100 no-print">
           <div className="flex items-center gap-3">
             {!isReadOnly && onToggleStatus && showToggleOnly && (
               <button
@@ -372,10 +362,10 @@ export function ActivityDetailModal({
               <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Steps</h3>
               <div className="grid gap-4 sm:grid-cols-2 print:grid-cols-1">
                 {activity.steps.map((step, index) => (
-                  <div key={index} className="flex gap-4 print:gap-2 items-start print:items-center rounded-2xl border border-slate-200 bg-white p-4 shadow-sm print:shadow-none print:break-inside-avoid">
-                    <div className="hidden print:flex items-center gap-2 flex-shrink-0">
-                      <div className="h-6 w-6 border-2 border-slate-400 rounded-lg bg-white"></div>
-                      <span className="text-base font-bold text-slate-800">{index + 1}.</span>
+                  <div key={index} className="flex gap-4 print:gap-2 items-start print:items-center rounded-2xl border border-slate-200 bg-white p-4 shadow-sm print:shadow-none print:break-inside-avoid print:border-0 print:bg-transparent print:p-2">
+                    <div className="hidden print:!flex items-center gap-2 flex-shrink-0">
+                      <div className="h-5 w-5 border-2 border-slate-400 rounded-sm bg-white"></div>
+                      <span className="text-base font-bold text-slate-900">{index + 1}.</span>
                     </div>
                     <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-slate-100 text-sm font-black text-slate-600 print:hidden">
                       {index + 1}
@@ -464,15 +454,6 @@ export function ActivityDetailModal({
             font-weight: bold;
             color: #1e3a8a !important;
             text-transform: uppercase;
-          }
-          .activity-title-print {
-            font-size: 24px;
-            font-weight: 900;
-            text-transform: uppercase;
-            text-align: right;
-            flex: 1;
-            margin-left: 20px;
-            color: black !important;
           }
         }
       `}</style>
