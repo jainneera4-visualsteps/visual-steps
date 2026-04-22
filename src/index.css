@@ -25,7 +25,7 @@
 
 @layer base {
   html, body {
-    @apply h-full m-0 overflow-hidden;
+    @apply min-h-screen m-0;
   }
 
   body {

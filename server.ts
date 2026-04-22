@@ -1755,7 +1755,7 @@ app.post('/api/kids/:kidId/behaviors', authenticateToken, async (req: any, res) 
   const adminSupabase = getAdminSupabaseClient(); // Use admin client for balance update
   const supabase = getSupabaseForUser(req); // Use user client for inserting behavior log
   const { kidId } = req.params;
-  const { type, description, definition_id, token_change, date, hour } = req.body;
+  const { type, description, definition_id, token_change, date, hour, completed, remarks } = req.body;
 
   if (!type && !definition_id) {
     return res.status(400).json({ error: 'Missing required fields: type or definition_id' });
@@ -1770,6 +1770,8 @@ app.post('/api/kids/:kidId/behaviors', authenticateToken, async (req: any, res) 
       date: date || new Date().toISOString().split('T')[0],
       hour: hour !== undefined ? hour : null,
       token_change: token_change || 0,
+      completed: completed !== undefined ? completed : true,
+      remarks: remarks || null
     };
 
     if (definition_id) {
@@ -1823,6 +1825,42 @@ app.post('/api/kids/:kidId/behaviors', authenticateToken, async (req: any, res) 
   } catch (error: any) {
     console.error('[POST behaviors] Error:', error);
     res.status(500).json({ error: 'Failed to log behavior', details: error.message });
+  }
+});
+
+app.put('/api/behaviors/:id', authenticateToken, async (req: any, res) => {
+  const supabase = getSupabaseForUser(req);
+  const { id } = req.params;
+  const { type, description, date, hour, token_change, completed, remarks } = req.body;
+
+  try {
+    const updates: any = {};
+    if (type !== undefined) updates.type = type;
+    if (description !== undefined) updates.description = description;
+    if (date !== undefined) updates.date = date;
+    if (hour !== undefined) updates.hour = hour;
+    if (token_change !== undefined) updates.token_change = token_change;
+    if (completed !== undefined) updates.completed = completed;
+    if (remarks !== undefined) updates.remarks = remarks;
+
+    const { data: updatedBehavior, error } = await supabase
+      .from('behaviors')
+      .update(updates)
+      .eq('id', id)
+      .select('*, behavior_definitions(*)')
+      .single();
+
+    if (error) throw error;
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`kid_${updatedBehavior.kid_id}`).emit('data_updated', { kidId: updatedBehavior.kid_id });
+    }
+
+    res.json({ behavior: updatedBehavior });
+  } catch (error: any) {
+    console.error('[PUT behaviors] Error:', error);
+    res.status(500).json({ error: 'Failed to update behavior', details: error.message });
   }
 });
 

@@ -7,6 +7,8 @@ import Home from './pages/Home';
 import Signup from './pages/Signup';
 import ForgotPassword from './pages/ForgotPassword';
 import Dashboard from './pages/Dashboard';
+import BehaviorsList from './pages/BehaviorsList';
+import AddBehavior from './pages/AddBehavior';
 import Behaviors from './pages/Behaviors';
 import AddEditKid from './pages/AddEditKid';
 import Profile from './pages/Profile';
@@ -46,7 +48,8 @@ export default function App() {
             
             <Route element={<ProtectedRoute />}>
               <Route path="dashboard" element={<Dashboard />} />
-              <Route path="behaviors/:kidId" element={<Behaviors />} />
+              <Route path="behaviors/:kidId" element={<BehaviorsList />} />
+              <Route path="behaviors/add/:kidId" element={<AddBehavior />} />
               <Route path="add-kid" element={<AddEditKid />} />
               <Route path="edit-kid/:id" element={<AddEditKid />} />
               <Route path="assigned-activities/:kidId" element={<AssignedActivities />} />

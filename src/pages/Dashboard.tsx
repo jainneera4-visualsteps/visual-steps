@@ -406,6 +406,11 @@ export default function Dashboard() {
                         <Button size="sm" variant="outline">Activities</Button>
                       </Link>
                     </Tooltip>
+                    <Tooltip content="Manage child behaviors">
+                      <Link to={`/behaviors/${kid.id}`}>
+                        <Button size="sm" variant="outline">Behaviors</Button>
+                      </Link>
+                    </Tooltip>
                   </div>
                 </div>
               </CardContent>
