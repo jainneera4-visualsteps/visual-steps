@@ -1,11 +1,10 @@
 import { apiFetch } from '../utils/api';
-import { generateContent, generateImage, modelNames } from '../lib/gemini';
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Input } from '../components/Input';
-import { ArrowLeft, Printer, Sparkles, Loader2, FileText, CheckCircle2, Save, Edit2 } from 'lucide-react';
+import { ArrowLeft, Printer, Sparkles, Loader2, FileText, CheckCircle2, Save, Edit2, Lightbulb } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface WorksheetContent {
@@ -248,7 +247,12 @@ export default function WorksheetGenerator() {
       for (let i = 0; i < numWorksheets; i++) {
         try {
           const data = await withRetry(async () => {
-            const prompt = `Generate a highly refined, professional-grade printable worksheet at a ${gradeLevel} reading/comprehension level for the subject ${subject} on the topic: "${topic}". 
+            const res = await apiFetch('/api/generate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                model: "gemini-3.1-flash-lite-preview",
+                contents: `Generate a highly refined, professional-grade printable worksheet at a ${gradeLevel} reading/comprehension level for the subject ${subject} on the topic: "${topic}". 
               
               CRITICAL CRITERIA:
               - Grade Level: ${gradeLevel} (Ensure vocabulary, concepts, and reading complexity are perfectly aligned with this grade level).
@@ -293,15 +297,23 @@ export default function WorksheetGenerator() {
                     "puzzleContent": "string" (optional)
                   }
                 ]
-              }`;
-
-            const response = await generateContent({
-              model: modelNames.flash,
-              prompt,
-              responseMimeType: "application/json"
+              }`,
+                config: {
+                  maxOutputTokens: 8192,
+                  responseMimeType: "application/json"
+                }
+              })
             });
             
-            const responseText = response.text;
+            if (!res.ok) {
+              const errorData = await res.json();
+              console.error('API Error:', errorData);
+              const message = errorData.details || errorData.error || 'Failed to generate content';
+              throw new Error(message);
+            }
+            const response = await res.json();
+
+            let responseText = response.text;
             if (!responseText) throw new Error('Empty response from AI model');
 
             let cleanedJson = responseText.trim();
@@ -329,10 +341,35 @@ export default function WorksheetGenerator() {
                 await new Promise(resolve => setTimeout(resolve, 2000));
               }
 
-              const imageUrl = await withRetry(async () => {
-                const prompt = `${data.imagePrompt}. Black and white line art, coloring book style, clean white background, high contrast, simple for kids.`;
-                return await generateImage(prompt);
+              const imageResponse = await withRetry(async () => {
+                const res = await apiFetch('/api/generate', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    model: 'gemini-2.5-flash-image',
+                    contents: {
+                      parts: [
+                        {
+                          text: `${data.imagePrompt}. Black and white line art, coloring book style, clean white background, high contrast, simple for kids.`,
+                        },
+                      ],
+                    },
+                  })
+                });
+                if (!res.ok) {
+                  const errorData = await res.json();
+                  throw new Error(errorData.error || 'Failed to generate image');
+                }
+                return await res.json();
               }, 2, 4000);
+
+              let imageUrl = '';
+              for (const part of imageResponse.candidates?.[0]?.content?.parts || []) {
+                if (part.inlineData) {
+                  imageUrl = `data:image/png;base64,${part.inlineData.data}`;
+                  break;
+                }
+              }
               
               if (imageUrl) {
                 data.imageUrl = imageUrl;
@@ -401,11 +438,161 @@ export default function WorksheetGenerator() {
   const [isPrinting, setIsPrinting] = useState(false);
 
   const handlePrint = () => {
+    if (!printRef.current) return;
     setIsPrinting(true);
-    setTimeout(() => {
-      window.print();
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Please allow popups to print this worksheet.');
       setIsPrinting(false);
-    }, 100);
+      return;
+    }
+
+    const contentHtml = printRef.current.outerHTML;
+    const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+      .map(style => style.outerHTML)
+      .join('\n');
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Print Worksheet - ${worksheet.title}</title>
+          ${styles}
+          <style>
+            @page {
+              size: auto;
+            }
+            @media print {
+              .no-print { display: none !important; }
+              html, body { 
+                margin: 0; 
+                padding: 0 !important; 
+                background: white !important; 
+                height: auto !important; 
+                overflow: visible !important;
+              }
+              /* Force layout containers to use flex and grid for alignment parity */
+              .flex { display: flex !important; }
+              .flex-row { flex-direction: row !important; }
+              .flex-col { flex-direction: column !important; }
+              .justify-between { justify-content: space-between !important; }
+              .justify-center { justify-content: center !important; }
+              .items-center { align-items: center !important; }
+              .items-start { align-items: flex-start !important; }
+              .flex-1 { flex: 1 1 0% !important; }
+              .flex-shrink-0 { flex-shrink: 0 !important; }
+              .gap-1 { gap: 0.25rem !important; }
+              .gap-2 { gap: 0.5rem !important; }
+              .gap-3 { gap: 0.75rem !important; }
+              .gap-4 { gap: 1rem !important; }
+              .gap-6 { gap: 1.5rem !important; }
+              
+              .grid { display: grid !important; }
+              .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+              .grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+              .grid-cols-15 { grid-template-columns: repeat(15, minmax(0, 1fr)) !important; }
+              .col-span-2 { grid-column: span 2 / span 2 !important; }
+              .col-span-full { grid-column: 1 / -1 !important; }
+              
+              /* Padding and margins parity */
+              .pl-4 { padding-left: 1rem !important; }
+              .mb-2 { margin-bottom: 0.5rem !important; }
+              .mb-8 { margin-bottom: 2rem !important; }
+              .space-y-3 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.75rem !important; }
+              .space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: 1rem !important; }
+              .space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-top: 1.5rem !important; }
+              .space-y-8 > :not([hidden]) ~ :not([hidden]) { margin-top: 2rem !important; }
+              
+              * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            }
+            body { 
+              font-family: inherit;
+              padding: 0;
+              margin: 0;
+              height: auto !important;
+              overflow: visible !important;
+              background-color: transparent !important;
+            }
+            .print-header {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              border-bottom: 2px solid black;
+              padding-bottom: 15px;
+              margin-bottom: 25px;
+            }
+            .logo-container {
+              display: flex;
+              align-items: center;
+              gap: 10px;
+            }
+            .logo-icon {
+              width: 32px;
+              height: 32px;
+              background: #2563eb;
+              border-radius: 8px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: white;
+            }
+            .logo-text {
+              font-size: 20px;
+              font-weight: bold;
+              color: #1e3a8a !important;
+              text-transform: uppercase;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            .worksheet-title-print {
+              font-size: 24px;
+              font-weight: 900;
+              text-transform: uppercase;
+              text-align: right;
+              flex: 1;
+              margin-left: 20px;
+              color: black !important;
+            }
+            .print-area { 
+              width: 100% !important; 
+              max-width: 100% !important;
+              position: relative !important; 
+              box-shadow: none !important;
+              ring: none !important;
+              border: none !important;
+              padding: 8px !important;
+              min-height: auto !important;
+              background: white !important;
+            }
+            /* Align worksheet to generated look */
+            .worksheet-container {
+               padding: 2rem !important; /* Match p-8 */
+               box-shadow: none !important;
+               border: none !important;
+               width: 100% !important;
+            }
+            .page-break { page-break-before: always; padding-top: 1rem; }
+            .question-item, .answer-section, .answer-item { page-break-inside: avoid; }
+            .section-container { page-break-inside: auto; }
+            input, textarea { border: none !important; background: transparent !important; resize: none !important; color: inherit !important; font-family: inherit !important; font-size: inherit !important; font-weight: inherit !important; padding: 0 !important; margin: 0 !important; width: 100% !important; display: block !important; }
+          </style>
+        </head>
+        <body class="bg-white">
+          ${contentHtml}
+          <script>
+            window.onload = () => {
+              setTimeout(() => {
+                window.print();
+                window.close();
+              }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    setIsPrinting(false);
   };
 
   const handleNextWorksheet = () => {
@@ -599,20 +786,29 @@ export default function WorksheetGenerator() {
           </div>
 
           <div ref={printRef} className="print-area bg-white p-8 rounded-lg shadow-sm ring-1 ring-slate-200 min-h-[11in] worksheet-container">
-            <div className="text-center border-b-2 border-slate-900 pb-6 mb-8">
-              {isViewingSaved ? (
-                <h1 className="text-3xl font-black uppercase tracking-tight text-slate-900">{worksheet.title}</h1>
-              ) : (
-                <input 
-                  value={worksheet.title}
-                  onChange={(e) => updateWorksheet({ title: e.target.value })}
-                  className="text-3xl font-black uppercase tracking-tight text-slate-900 text-center w-full bg-transparent border-none focus:ring-0"
-                />
-              )}
-              <div className="flex justify-between mt-6 text-sm font-bold text-slate-600">
-                <span>Name: __________________________</span>
-                <span>Date: __________________________</span>
+            <div className="print-header">
+              <div className="logo-container">
+                <div className="logo-icon">
+                  <Lightbulb className="h-5 w-5" />
+                </div>
+                <span className="logo-text">Visual Steps</span>
               </div>
+              <div className="worksheet-title-print">
+                {isViewingSaved ? (
+                  <h1 className="text-2xl font-black truncate">{worksheet.title}</h1>
+                ) : (
+                  <input 
+                    value={worksheet.title}
+                    onChange={(e) => updateWorksheet({ title: e.target.value })}
+                    className="text-2xl font-black uppercase text-right bg-transparent border-none focus:ring-0 p-0 w-full"
+                  />
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-between mb-8 text-sm font-bold text-slate-600">
+              <span>Name: __________________________</span>
+              <span>Date: __________________________</span>
             </div>
 
             <div className="space-y-8">
@@ -796,7 +992,7 @@ export default function WorksheetGenerator() {
                     )}
 
                     {section.questions?.map((q, qIdx) => (
-                      <div key={qIdx} className="space-y-3">
+                      <div key={qIdx} className="space-y-3 question-item">
                         <div className="flex gap-1 items-start">
                           <span className="font-bold text-slate-900 min-w-[1.5rem] text-center">
                             {qIdx + 1}.
@@ -866,7 +1062,7 @@ export default function WorksheetGenerator() {
                   </h2>
                   <div className="space-y-6">
                     {worksheet.sections.map((section, sIdx) => (
-                      <div key={sIdx} className="space-y-2">
+                      <div key={sIdx} className="space-y-2 answer-section">
                         <h3 className="font-bold text-slate-800">
                           {section.title.toLowerCase().startsWith('section') ? section.title : `Section ${sIdx + 1}: ${section.title}`}
                         </h3>
@@ -891,7 +1087,7 @@ export default function WorksheetGenerator() {
                             </div>
                           )}
                           {section.questions?.map((q, qIdx) => (
-                            <div key={qIdx} className="text-sm">
+                            <div key={qIdx} className="text-sm answer-item">
                               <span className="font-bold">{qIdx + 1}.</span> 
                               {isViewingSaved ? (
                                 q.answer
@@ -926,7 +1122,55 @@ export default function WorksheetGenerator() {
       )}
 
       <style>{`
+        .print-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          border-bottom: 2px solid black;
+          padding-bottom: 15px;
+          margin-bottom: 25px;
+        }
+        .logo-container {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .logo-icon {
+          width: 32px;
+          height: 32px;
+          background: #2563eb;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+        }
+        .logo-text {
+          font-size: 20px;
+          font-weight: bold;
+          color: #1e3a8a !important;
+          text-transform: uppercase;
+        }
+        .worksheet-title-print {
+          font-size: 24px;
+          font-weight: 900;
+          text-transform: uppercase;
+          text-align: right;
+          flex: 1;
+          margin-left: 20px;
+          color: black !important;
+        }
+
         @media print {
+          html, body, #root, [data-reactroot], .flex, .flex-col, .grid {
+            height: auto !important;
+            min-height: 0 !important;
+            overflow: visible !important;
+            display: block !important;
+            float: none !important;
+            position: static !important;
+          }
+          
           .no-print {
             display: none !important;
           }
@@ -942,12 +1186,33 @@ export default function WorksheetGenerator() {
             margin: 0 !important;
             border: none !important;
             width: 100% !important;
+            height: auto !important;
+            min-height: auto !important;
+            overflow: visible !important;
+            display: block !important;
           }
-          .page-break-before {
+          .page-break {
             page-break-before: always;
+            padding-top: 1rem;
+          }
+          .section-container {
+            page-break-inside: avoid;
+            margin-bottom: 2rem;
+          }
+          .question-item, .answer-section, .answer-item {
+            page-break-inside: avoid;
           }
           @page {
-            margin: 0.5in;
+          }
+          .print-logo-icon {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          
+          /* Reset layout component flex structure */
+          div.flex.flex-col.h-dvh {
+            display: block !important;
+            height: auto !important;
           }
         }
       `}</style>

@@ -79,3 +79,39 @@
   .markdown-body code { @apply font-mono bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded text-[13px] border border-slate-200; }
   .markdown-body blockquote { @apply border-l-4 border-brand-500 pl-4 py-1 italic bg-brand-50/50 rounded-r-lg; }
 }
+
+@media print {
+  html, body, #root, [data-reactroot] {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    display: block !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  .flex, .flex-col, .grid, main, section, article {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  
+  /* Only force block on outer layout divs to ensure pagination */
+  #root, [data-reactroot], main {
+    display: block !important;
+  }
+  
+  .no-print, header, footer, nav, aside, .hidden, [hidden] {
+    display: none !important;
+  }
+
+  /* Specific fix for the layout structure */
+  .h-dvh {
+    height: auto !important;
+  }
+  
+  .overflow-hidden, .overflow-y-auto {
+    overflow: visible !important;
+  }
+}

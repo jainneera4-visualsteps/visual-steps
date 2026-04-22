@@ -183,6 +183,17 @@ export function SocialStoryModal({
             </h2>
           </div>
           <div className="flex items-center gap-2">
+            {onPrint && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={onPrint}
+                className="h-10 px-4 rounded-xl font-bold uppercase tracking-wider text-slate-600 hover:bg-blue-50 transition-all"
+              >
+                <Printer className="mr-2 h-4 w-4" />
+                Print
+              </Button>
+            )}
             <Button 
               variant="ghost" 
               size="sm" 

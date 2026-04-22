@@ -42,6 +42,7 @@ export default function ViewSocialStory() {
   const [isKidMode, setIsKidMode] = useState(false);
   const [currentWordIndex, setCurrentWordIndex] = useState<number | null>(null);
   const [currentWordLength, setCurrentWordLength] = useState<number>(0);
+  const [isPrinting, setIsPrinting] = useState(false);
   const [storyLanguage, setStoryLanguage] = useState('English');
 
   useEffect(() => {
@@ -179,6 +180,160 @@ export default function ViewSocialStory() {
     }
   };
 
+  const handlePrint = () => {
+    if (!story || pages.length === 0 || isPrinting) return;
+    setIsPrinting(true);
+    
+    // Use New Window Strategy for robust printing
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Please allow popups to print this story.');
+      setIsPrinting(false);
+      return;
+    }
+
+    const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+      .map(style => style.outerHTML)
+      .join('\n');
+
+    const pagesHtml = pages.map((page, index) => `
+      <div class="story-paragraph">
+        <div class="paragraph-content-wrapper">
+          ${page.imageUrl ? `
+            <div class="paragraph-image">
+              <img src="${page.imageUrl}" alt="Page ${index + 1}" referrerpolicy="no-referrer" />
+            </div>
+          ` : ''}
+          <div class="paragraph-text-container">
+            <p class="paragraph-text font-bold">${page.text}</p>
+          </div>
+        </div>
+      </div>
+    `).join('');
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Print Social Story - ${story.title}</title>
+          ${styles}
+          <style>
+            @page { size: auto; margin: 0.75in; }
+            @media print {
+              html, body { 
+                margin: 0; padding: 0 !important; 
+                background: white !important; 
+                height: auto !important; 
+                overflow: visible !important;
+              }
+              * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            }
+            body { 
+              font-family: inherit; 
+              padding: 0; 
+              background: white;
+              color: black;
+            }
+            .print-header { 
+              display: flex; 
+              align-items: center; 
+              justify-content: space-between; 
+              border-bottom: 2px solid black; 
+              padding-bottom: 15px; 
+              margin-bottom: 30px; 
+            }
+            .logo-container { display: flex; align-items: center; gap: 10px; }
+            .logo-icon { width: 32px; height: 32px; background: #2563eb; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; }
+            .logo-text {
+              font-size: 20px;
+              font-weight: bold;
+              color: #1e3a8a !important;
+              text-transform: uppercase;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            .story-title {
+              font-size: 24px;
+              font-weight: 900;
+              text-transform: uppercase;
+              text-align: right;
+              flex: 1;
+              margin-left: 20px;
+              color: black !important;
+            }
+            
+            .pages-column { display: flex; flex-direction: column; gap: 30px; }
+            .story-paragraph { 
+              break-inside: avoid; 
+              padding: 0;
+            }
+
+            .paragraph-content-wrapper {
+              display: flex;
+              gap: 25px;
+              align-items: flex-start;
+            }
+            
+            .paragraph-image { 
+              width: 180px; 
+              flex-shrink: 0;
+              aspect-ratio: 1; 
+              border: 1px solid #e2e8f0; 
+              background: #f8fafc; 
+              border-radius: 12px; 
+              overflow: hidden; 
+              display: flex; 
+              align-items: center; 
+              justify-content: center; 
+            }
+            .paragraph-image img { width: 100%; height: 100%; object-fit: cover; }
+            
+            .paragraph-text-container { 
+              flex: 1; 
+              display: flex;
+            }
+            .paragraph-text { 
+              font-size: 20px; 
+              line-height: 1.5;
+              color: #1e293b;
+              margin: 0; 
+              white-space: pre-wrap;
+              font-weight: 700;
+              text-align: justify;
+            }
+            
+            @media (max-width: 600px) {
+              .paragraph-content-wrapper { flex-direction: column; }
+              .paragraph-image { width: 100%; max-width: 250px; margin: 0 auto 15px; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="print-header">
+            <div class="logo-container">
+              <div class="logo-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
+              </div>
+              <span class="logo-text">Visual Steps</span>
+            </div>
+            <h1 class="story-title">${story.title}</h1>
+          </div>
+          <div class="pages-column">${pagesHtml}</div>
+          <script>
+            window.onload = () => {
+              setTimeout(() => {
+                window.print();
+                window.close();
+              }, 800);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    setIsPrinting(false);
+  };
+
   const handleClose = () => {
     if (isKidMode) {
       const kidSession = localStorage.getItem('kid_session');
@@ -227,6 +382,16 @@ export default function ViewSocialStory() {
             </h2>
           </div>
           <div className="flex items-center gap-2">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handlePrint}
+              disabled={isPrinting}
+              className="h-10 px-4 rounded-xl font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-50 transition-all"
+            >
+              <Printer className={`mr-2 h-4 w-4 ${isPrinting ? 'animate-pulse' : ''}`} />
+              {isPrinting ? 'Preparing' : 'Print'}
+            </Button>
             <Button 
               variant="ghost" 
               size="sm" 

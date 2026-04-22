@@ -709,7 +709,7 @@ export default function KidsDashboard() {
   }
 
   return (
-    <div className={`w-full h-screen overflow-y-auto ${currentTheme.bg} font-sans pb-12`} style={currentTheme.bgStyle}>
+    <div className={`w-full ${currentTheme.bg} font-sans pb-12`} style={currentTheme.bgStyle}>
       {/* Global Header */}
       <header className={`sticky top-0 z-50 w-full border-b border-slate-200 ${currentTheme.header} shadow-sm`}>
         <div className="w-full flex h-12 items-center px-4 relative">

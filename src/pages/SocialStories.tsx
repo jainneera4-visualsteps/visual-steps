@@ -52,31 +52,172 @@ export default function SocialStories() {
       if (res.ok) {
         const data = await res.json();
         const story = data.story;
-        let content;
+        let storyContent;
         try {
           const parsed = typeof story.content === 'string' ? JSON.parse(story.content) : story.content;
           if (Array.isArray(parsed)) {
-            content = { pages: parsed };
+            storyContent = { pages: parsed };
           } else if (parsed && typeof parsed === 'object') {
-            content = parsed;
+            storyContent = parsed;
           } else {
-            content = { pages: [] };
+            storyContent = { pages: [] };
           }
         } catch (e) {
           console.error('Failed to parse story content', e);
-          content = { pages: [] };
+          storyContent = { pages: [] };
         }
-        setPrintingStory({ ...story, content });
-        setIsPrinting(false);
         
-        // Auto-trigger print dialog after a short delay to allow images to load
-        setTimeout(() => {
-          try {
-            window.print();
-          } catch (e) {
-            console.error("Print failed", e);
-          }
-        }, 500);
+        // Use New Window Strategy for robust printing
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+          alert('Please allow popups to print this story.');
+          setIsPrinting(false);
+          return;
+        }
+
+        const pages = storyContent.pages || [];
+        const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+          .map(style => style.outerHTML)
+          .join('\n');
+
+        const pagesHtml = pages.map((page: any, index: number) => `
+          <div class="story-paragraph">
+            <div class="paragraph-content-wrapper">
+              ${page.imageUrl ? `
+                <div class="paragraph-image">
+                  <img src="${page.imageUrl}" alt="Page ${index + 1}" referrerpolicy="no-referrer" />
+                </div>
+              ` : ''}
+              <div class="paragraph-text-container">
+                <p class="paragraph-text font-bold">${page.text}</p>
+              </div>
+            </div>
+          </div>
+        `).join('');
+
+        printWindow.document.write(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>Print Social Story - ${story.title}</title>
+              ${styles}
+              <style>
+                @page { size: auto; margin: 0.75in; }
+                @media print {
+                  html, body { 
+                    margin: 0; padding: 0 !important; 
+                    background: white !important; 
+                    height: auto !important; 
+                    overflow: visible !important;
+                  }
+                  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                }
+                body { 
+                  font-family: inherit; 
+                  padding: 0; 
+                  background: white;
+                  color: black;
+                }
+                .print-header { 
+                  display: flex; 
+                  align-items: center; 
+                  justify-content: space-between; 
+                  border-bottom: 2px solid black; 
+                  padding-bottom: 15px; 
+                  margin-bottom: 30px; 
+                }
+                .logo-container { display: flex; align-items: center; gap: 10px; }
+                .logo-icon { width: 32px; height: 32px; background: #2563eb; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; }
+                .logo-text {
+                  font-size: 20px;
+                  font-weight: bold;
+                  color: #1e3a8a !important;
+                  text-transform: uppercase;
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                }
+                .story-title {
+                  font-size: 24px;
+                  font-weight: 900;
+                  text-transform: uppercase;
+                  text-align: right;
+                  flex: 1;
+                  margin-left: 20px;
+                  color: black !important;
+                }
+                
+                .pages-column { display: flex; flex-direction: column; gap: 30px; }
+                .story-paragraph { 
+                  break-inside: avoid; 
+                  padding: 0;
+                }
+
+                .paragraph-content-wrapper {
+                  display: flex;
+                  gap: 25px;
+                  align-items: flex-start;
+                }
+                
+                .paragraph-image { 
+                  width: 180px; 
+                  flex-shrink: 0;
+                  aspect-ratio: 1; 
+                  border: 1px solid #e2e8f0; 
+                  background: #f8fafc; 
+                  border-radius: 12px; 
+                  overflow: hidden; 
+                  display: flex; 
+                  align-items: center; 
+                  justify-content: center; 
+                }
+                .paragraph-image img { width: 100%; height: 100%; object-fit: cover; }
+                
+                .paragraph-text-container { 
+                  flex: 1; 
+                  display: flex;
+                }
+                .paragraph-text { 
+                  font-size: 20px; 
+                  line-height: 1.5;
+                  color: #1e293b;
+                  margin: 0; 
+                  white-space: pre-wrap;
+                  font-weight: 700;
+                  text-align: justify;
+                }
+                
+                @media (max-width: 600px) {
+                  .paragraph-content-wrapper { flex-direction: column; }
+                  .paragraph-image { width: 100%; max-width: 250px; margin: 0 auto 15px; }
+                }
+              </style>
+            </head>
+            <body>
+              <div class="print-header">
+                <div class="logo-container">
+                  <div class="logo-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
+                  </div>
+                  <span class="logo-text">Visual Steps</span>
+                </div>
+                <h1 class="story-title">${story.title}</h1>
+              </div>
+              <div class="pages-column">
+                ${pagesHtml}
+              </div>
+              <script>
+                window.onload = () => {
+                  setTimeout(() => {
+                    window.print();
+                    window.close();
+                  }, 800);
+                };
+              </script>
+            </body>
+          </html>
+        `);
+        printWindow.document.close();
+        setIsPrinting(false);
       } else {
         setIsPrinting(false);
         alert('Failed to load story for printing. Please try again.');
@@ -106,85 +247,14 @@ export default function SocialStories() {
     }
   };
 
-  if (printingStory) {
-    const pages = printingStory.content.pages || [];
-    const isDense = pages.length > 8;
-    
+  if (isLoading) {
     return (
-      <div className="bg-white min-h-screen p-4 md:p-8 text-black absolute inset-0 z-[500] overflow-y-auto print-view-container">
-        <div className="w-full mb-8 no-print flex items-center justify-between bg-slate-50 p-4 rounded-xl border border-slate-200">
-          <Button onClick={() => setPrintingStory(null)} variant="outline" className="bg-white">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Stories
-          </Button>
-          <div className="flex items-center gap-4">
-            <Button onClick={() => window.print()} className="bg-blue-600 hover:bg-blue-700 text-white font-bold">
-              <Printer className="mr-2 h-4 w-4" /> Print Story
-            </Button>
-          </div>
+      <div className="relative w-full">
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-16 animate-pulse rounded-xl bg-slate-100" />
+          ))}
         </div>
-        
-        <div className="print-content w-full bg-white print-container">
-          <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-6">
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded bg-blue-600 text-white shadow-sm" style={{ printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact' } as any}>
-                <Lightbulb className="h-5 w-5" />
-              </div>
-              <span className="text-xl font-bold tracking-tight text-blue-900 uppercase">Visual Steps</span>
-            </div>
-            <h1 className="text-2xl font-black uppercase tracking-tight text-black text-right flex-1 ml-4">{printingStory.title}</h1>
-          </div>
-          
-          <div className={`grid grid-cols-2 gap-4 ${isDense ? 'gap-y-2 text-xs' : 'gap-y-6 text-sm'}`}>
-            {pages.map((page: any, index: number) => (
-              <div key={index} className="break-inside-avoid border border-gray-300 rounded-lg p-4 flex flex-col items-center relative">
-                {page.imageUrl && (
-                  <div className={`aspect-square w-full ${isDense ? 'max-w-[120px] mb-2' : 'max-w-[180px] mb-4'} flex items-center justify-center overflow-hidden rounded border border-gray-200 bg-gray-50`}>
-                    <img 
-                      src={page.imageUrl} 
-                      alt={`Page ${index + 1}`} 
-                      className="h-full w-full object-cover"
-                      referrerPolicy="no-referrer"
-                    />
-                  </div>
-                )}
-                <p className={`font-bold text-justify px-2 whitespace-pre-wrap text-black flex-1 ${isDense ? 'text-xs' : 'text-base'}`}>
-                  {page.text}
-                </p>
-                <div className="text-right text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-2 w-full">
-                  {index + 1}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        
-        <style>{`
-          @media print {
-            .no-print { display: none !important; }
-            body { 
-              background: white !important; 
-              overflow: visible !important;
-            }
-            .print-view-container {
-              position: static !important;
-              padding: 0 !important;
-              margin: 0 !important;
-              overflow: visible !important;
-              height: auto !important;
-              min-height: auto !important;
-            }
-            .print-container {
-              max-width: 100% !important;
-              padding: 0 !important;
-              margin: 0 !important;
-              height: auto !important;
-            }
-            @page { 
-              margin: 0.5in; 
-              size: auto;
-            }
-          }
-        `}</style>
       </div>
     );
   }

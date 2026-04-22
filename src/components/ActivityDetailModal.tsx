@@ -116,12 +116,17 @@ export function ActivityDetailModal({
           <style>
             @page {
               size: auto;
-              margin: 0.5in;
             }
             @media print {
               .no-print { display: none !important; }
               ${!includeImages ? '.print-image { display: none !important; }' : ''}
-              body { margin: 0; padding: 0; background: white; }
+              html, body { 
+                margin: 0; 
+                padding: 0; 
+                background: white; 
+                height: auto !important; 
+                overflow: visible !important;
+              }
               * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             }
             body { 
@@ -129,6 +134,48 @@ export function ActivityDetailModal({
               padding: 20px;
               max-width: 800px;
               margin: 0 auto;
+              height: auto !important;
+              overflow: visible !important;
+            }
+            .print-header {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              border-bottom: 2px solid black;
+              padding-bottom: 15px;
+              margin-bottom: 25px;
+            }
+            .logo-container {
+              display: flex;
+              align-items: center;
+              gap: 10px;
+            }
+            .logo-icon {
+              width: 32px;
+              height: 32px;
+              background: #2563eb;
+              border-radius: 8px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: white;
+            }
+            .logo-text {
+              font-size: 20px;
+              font-weight: bold;
+              color: #1e3a8a !important;
+              text-transform: uppercase;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            .activity-title-print {
+              font-size: 24px;
+              font-weight: 900;
+              text-transform: uppercase;
+              text-align: right;
+              flex: 1;
+              margin-left: 20px;
+              color: black !important;
             }
             .print-container { width: 100%; position: relative; }
             ${!includeImages ? '.print-image { display: none !important; }' : ''}
@@ -136,6 +183,15 @@ export function ActivityDetailModal({
         </head>
         <body>
           <div class="print-container">
+            <div class="print-header">
+              <div class="logo-container">
+                <div class="logo-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
+                </div>
+                <span class="logo-text">Visual Steps</span>
+              </div>
+              <h1 class="activity-title-print">${activity.activity_type}</h1>
+            </div>
             ${contentHtml}
           </div>
           <script>
@@ -156,12 +212,12 @@ export function ActivityDetailModal({
   
   return (
     <div className="w-full max-w-3xl mx-auto space-y-6 p-6" ref={printRef}>
-      {/* Print-only Header */}
-      <div className="hidden print:flex items-center gap-2 mb-6 pb-4 border-b border-slate-200">
-        <div className="flex h-8 w-8 items-center justify-center rounded bg-blue-600 text-white shadow-sm">
-          <Lightbulb className="h-5 w-5" />
+      {/* Visual Step Banner for UI */}
+      <div className="flex items-center gap-3 no-print">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg">
+          <Lightbulb className="h-6 w-6" />
         </div>
-        <span className="text-xl font-bold tracking-tight text-blue-900">Visual Steps</span>
+        <h2 className="text-2xl font-black text-slate-900 uppercase">Activity Details</h2>
       </div>
 
       {showPraise && (
@@ -373,6 +429,53 @@ export function ActivityDetailModal({
           onClose={() => setViewingStoryId(null)} 
         />
       )}
+
+      <style>{`
+        .print-header {
+          display: none;
+        }
+
+        @media print {
+          .print-header {
+            display: flex !important;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 2px solid black;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+          }
+          .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+          }
+          .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: #2563eb;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+          }
+          .logo-text {
+            font-size: 20px;
+            font-weight: bold;
+            color: #1e3a8a !important;
+            text-transform: uppercase;
+          }
+          .activity-title-print {
+            font-size: 24px;
+            font-weight: 900;
+            text-transform: uppercase;
+            text-align: right;
+            flex: 1;
+            margin-left: 20px;
+            color: black !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

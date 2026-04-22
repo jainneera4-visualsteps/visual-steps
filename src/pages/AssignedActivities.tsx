@@ -3,12 +3,12 @@ import { Tooltip as CustomTooltip } from '../components/ui/Tooltip';
 import { io } from 'socket.io-client';
 import { apiFetch, safeJson } from '../utils/api';
 import { formatReward } from '../utils/rewardUtils';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import { ArrowLeft, Plus, Trash2, Edit2, CheckCircle, Circle, Calendar, Clock, Repeat, Image as ImageIcon, Eye, Sparkles, Loader2, LayoutList, ChevronLeft, ChevronRight, Activity, TrendingUp, PieChart as PieChartIcon, Award, BarChart as BarChartIcon, History, Lock } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Edit2, CheckCircle, Circle, Calendar, Clock, Repeat, Image as ImageIcon, Eye, Sparkles, Loader2, LayoutList, ChevronLeft, ChevronRight, Activity, TrendingUp, PieChart as PieChartIcon, Award, BarChart as BarChartIcon, History, Lock, Printer, Lightbulb } from 'lucide-react';
 import { ActivityDetailModal } from '../components/ActivityDetailModal';
 
 // Global Chart Tooltip helper
@@ -98,8 +98,9 @@ interface ActivityTemplate {
 
 export default function AssignedActivities() {
   const { kidId } = useParams();
-  console.log('AssignedActivities: kidId:', kidId);
   const navigate = useNavigate();
+  const [isPrinting, setIsPrinting] = useState(false);
+  const printRef = useRef<HTMLDivElement>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [historyActivities, setHistoryActivities] = useState<Activity[]>([]);
   const [kid, setKid] = useState<Kid | null>(null);
@@ -1159,6 +1160,121 @@ export default function AssignedActivities() {
     }
   };
 
+  const handlePrint = () => {
+    if (!printRef.current) return;
+    setIsPrinting(true);
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Please allow popups to print this list.');
+      setIsPrinting(false);
+      return;
+    }
+
+    const contentHtml = printRef.current.innerHTML;
+    const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+      .map(style => style.outerHTML)
+      .join('\n');
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Activities Report - ${kid?.name || 'Kid'}</title>
+          ${styles}
+          <style>
+            @page {
+              size: auto;
+            }
+            @media print {
+              .no-print { display: none !important; }
+              html, body { 
+                margin: 0; 
+                padding: 0; 
+                background: white; 
+                height: auto !important; 
+                overflow: visible !important;
+              }
+              * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            }
+            body { 
+              font-family: system-ui, -apple-system, sans-serif;
+              padding: 20px;
+              height: auto !important;
+              overflow: visible !important;
+            }
+            .print-header {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              border-bottom: 2px solid black;
+              padding-bottom: 15px;
+              margin-bottom: 25px;
+            }
+            .logo-container {
+              display: flex;
+              align-items: center;
+              gap: 10px;
+            }
+            .logo-icon {
+              width: 32px;
+              height: 32px;
+              background: #2563eb;
+              border-radius: 8px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: white;
+            }
+            .logo-text {
+              font-size: 20px;
+              font-weight: bold;
+              color: #1e3a8a !important;
+              text-transform: uppercase;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            .report-title {
+              font-size: 24px;
+              font-weight: 900;
+              text-transform: uppercase;
+              text-align: right;
+              flex: 1;
+              margin-left: 20px;
+              color: black !important;
+            }
+            .print-container { width: 100%; position: relative; }
+            .card { border: 1px solid #e2e8f0 !important; margin-bottom: 1rem !important; break-inside: avoid; }
+          </style>
+        </head>
+        <body>
+          <div class="print-container">
+            <div class="print-header">
+              <div class="logo-container">
+                <div class="logo-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
+                </div>
+                <span class="logo-text">Visual Steps</span>
+              </div>
+              <h1 class="report-title">Activities Report</h1>
+            </div>
+            ${contentHtml}
+          </div>
+          <script>
+            window.onload = () => {
+              setTimeout(() => {
+                window.print();
+                window.close();
+              }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    setIsPrinting(false);
+  };
+
   const handleSaveReward = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newReward.name || newReward.cost <= 0) return;
@@ -1529,14 +1645,14 @@ export default function AssignedActivities() {
   };
 
   return (
-    <div className="space-y-3 w-full">
+    <div className="space-y-3 w-full" ref={printRef}>
       {!isModalOpen && !previewActivity && !viewingQuizResult ? (
         <>
           <div className="mb-6">
             <button onClick={() => navigate('/dashboard')} className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1 mb-2 transition-colors">
               <ArrowLeft className="h-4 w-4" /> Back to Dashboard
             </button>
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 no-print">
               <div>
                 <h1 className="text-5xl font-normal text-slate-900 tracking-tight leading-none">
                   {activeTab === 'activities' 
@@ -1620,23 +1736,29 @@ export default function AssignedActivities() {
                     </button>
                   </CustomTooltip>
                 </div>
-                {activeTab === 'activities' ? (
-                  <Button size="xs" onClick={() => handleOpenForm()} className="h-7 text-[12px] shrink-0">
-                    <Plus className="mr-1 h-3 w-3" />
-                    Add Activity
+                <div className="flex gap-2">
+                  <Button variant="outline" size="xs" onClick={handlePrint} disabled={isPrinting} className="h-7 text-[12px] shrink-0">
+                    <Printer className={`mr-1 h-3 w-3 ${isPrinting ? 'animate-pulse' : ''}`} />
+                    Print List
                   </Button>
-                ) : activeTab === 'rewards' ? (
-                  <Button size="xs" onClick={() => setIsRewardModalOpen(true)} className="h-7 text-[12px] shrink-0">
-                    <Plus className="mr-1 h-3 w-3" />
-                    Add Item
-                  </Button>
-                ) : null}
+                  {activeTab === 'activities' ? (
+                    <Button size="xs" onClick={() => handleOpenForm()} className="h-7 text-[12px] shrink-0">
+                      <Plus className="mr-1 h-3 w-3" />
+                      Add Activity
+                    </Button>
+                  ) : activeTab === 'rewards' ? (
+                    <Button size="xs" onClick={() => setIsRewardModalOpen(true)} className="h-7 text-[12px] shrink-0">
+                      <Plus className="mr-1 h-3 w-3" />
+                      Add Item
+                    </Button>
+                  ) : null}
+                </div>
               </div>
             </div>
           </div>
 
           {(activeTab === 'activities' || activeTab === 'completed' || activeTab === 'history') && (
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center justify-between gap-4 no-print">
                 <div className="flex border-b border-slate-200">
                   <button
                     onClick={() => setViewMode('list')}
