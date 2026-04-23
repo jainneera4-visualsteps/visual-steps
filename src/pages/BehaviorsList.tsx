@@ -172,8 +172,8 @@ export default function BehaviorsList() {
       date: behavior.date,
       type: behavior.type,
       definition_id: behavior.definition_id || '',
-      remarks: behavior.remarks || behavior.description || '',
-      completed: behavior.completed ?? true,
+      remarks: behavior.description || '',
+      completed: true,
     });
     setIsModalOpen(true);
   };
@@ -310,7 +310,7 @@ export default function BehaviorsList() {
                 <th className="px-8 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Behavior Name</th>
                 <th className="px-8 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Type</th>
                 <th className="px-8 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Completed</th>
-                <th className="px-8 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Parent's Remarks</th>
+                <th className="px-8 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Behavior Description</th>
                 <th className="px-8 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px] text-right">Actions</th>
               </tr>
             </thead>
@@ -335,7 +335,9 @@ export default function BehaviorsList() {
                         </div>
                         <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
                           <Clock className="h-3 w-3" />
-                          {behavior.hour !== null ? `${behavior.hour}:00` : 'Not specified'}
+                          {behavior.hour !== undefined && behavior.hour !== null 
+                            ? `${behavior.hour}:00` 
+                            : new Date(behavior.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </div>
                       </div>
                     </td>
@@ -355,7 +357,7 @@ export default function BehaviorsList() {
                     </td>
                     <td className="px-8 py-5">
                       <div className="flex items-center gap-2">
-                        {behavior.completed ? (
+                        {behavior.completed !== false ? (
                           <div className="flex items-center gap-1.5 text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-md text-[11px]">
                             <CheckCircle2 className="h-3.5 w-3.5" /> Yes
                           </div>
@@ -367,8 +369,8 @@ export default function BehaviorsList() {
                       </div>
                     </td>
                     <td className="px-8 py-5">
-                      <p className="text-slate-600 text-xs italic line-clamp-1 max-w-[200px]" title={behavior.description || behavior.remarks}>
-                        {behavior.description || behavior.remarks || 'No remarks added...'}
+                      <p className="text-slate-600 text-xs italic line-clamp-1 max-w-[200px]" title={behavior.description}>
+                        {behavior.description || 'No description added...'}
                       </p>
                     </td>
                     <td className="px-8 py-5 text-right">
@@ -459,7 +461,7 @@ export default function BehaviorsList() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Parent's Remarks</label>
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Behavior Description</label>
                   <textarea 
                     className="w-full min-h-[100px] p-4 text-sm border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none bg-slate-50/50"
                     placeholder="Tell us more about what happened..."

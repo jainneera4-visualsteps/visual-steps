@@ -438,8 +438,15 @@ const moveOverdueActivities = async (supabase: any, kidId: string, kid: any, tod
   const { data: overdueActivities, error: overdueError } = await query;
   
   if (overdueError) {
+    // Check if it's an HTML error (Cloudflare/Supabase infrastructure)
+    const errorMsg = overdueError.message || '';
+    if (errorMsg.includes('<!DOCTYPE html>') || errorMsg.includes('<html') || (typeof overdueError === 'string' && overdueError.includes('<html'))) {
+      console.warn(`moveOverdueActivities: Supabase/Cloudflare connection issue (5xx error) for kid ${kidId}. Skipping this check.`);
+      return;
+    }
     console.error('moveOverdueActivities: Error fetching overdue activities:', overdueError);
-    throw overdueError;
+    // Don't throw for transient infrastructure errors
+    return;
   }
 
   console.log('moveOverdueActivities: overdueActivities:', overdueActivities);
@@ -463,8 +470,14 @@ const moveOverdueActivities = async (supabase: any, kidId: string, kid: any, tod
       .in('id', overdueActivities.map((a: any) => a.id));
 
     if (moveError) {
+      // Check if it's an HTML error
+      const errorMsg = moveError.message || '';
+      if (errorMsg.includes('<!DOCTYPE html>') || errorMsg.includes('<html') || (typeof moveError === 'string' && moveError.includes('<html'))) {
+        console.warn(`moveOverdueActivities: Supabase/Cloudflare connection issue (5xx error) during move for kid ${kidId}.`);
+        return;
+      }
       console.error('moveOverdueActivities: Error updating activities:', moveError);
-      throw moveError;
+      return;
     }
   }
 };
@@ -1343,11 +1356,15 @@ app.post('/api/kids/verify-code', async (req, res) => {
 });
 
 const extractParentMessage = (kid: any) => {
-  if (kid && kid.notes) {
-    const matches = [...kid.notes.matchAll(/\[Message\]: (.*)/g)];
-    if (matches.length > 0) {
-      kid.parent_message = matches[matches.length - 1][1];
+  try {
+    if (kid && kid.notes && typeof kid.notes === 'string') {
+      const matches = [...kid.notes.matchAll(/\[Message\]: (.*)/g)];
+      if (matches.length > 0) {
+        kid.parent_message = matches[matches.length - 1][1];
+      }
     }
+  } catch (err) {
+    console.error('Error in extractParentMessage:', err);
   }
   return kid;
 };
@@ -1409,36 +1426,53 @@ app.get('/api/kids', authenticateToken, async (req: any, res) => {
 
 // Get Single Kid
 app.get('/api/kids/:id', authenticateToken, async (req: any, res) => {
-  const supabase = getSupabaseForUser(req);
   const { id } = req.params;
-  const userId = req.user.id;
-
+  console.log(`[${new Date().toISOString()}] GET /api/kids/${id} - Request by ${req.user.id}`);
+  
   try {
+    const supabase = getSupabaseForUser(req);
     const { data: kid, error } = await supabase
       .from('kids')
       .select('*')
       .eq('id', id)
       .single();
     
-    if (error || !kid) return res.status(404).json({ error: 'Kid not found' });
-    if (kid.user_id !== userId) return res.status(403).json({ error: 'Forbidden' });
-
-    // Fetch chatbot settings
-    const { data: chatbot, error: chatbotError } = await supabase
-      .from('chatbots')
-      .select('*')
-      .eq('kid_id', id)
-      .single();
-
-    const processedKid = { ...extractParentMessage(kid) };
-    if (chatbot && chatbot.name) {
-      processedKid.chatbot_name = chatbot.name;
+    if (error) {
+      console.error(`Error fetching kid ${id}:`, error);
+      return res.status(error.code === 'PGRST116' ? 404 : 500).json({ 
+        error: error.code === 'PGRST116' ? 'Kid not found' : 'Database error',
+        details: error.message 
+      });
+    }
+    
+    if (!kid) return res.status(404).json({ error: 'Kid not found' });
+    
+    if (kid.user_id !== req.user.id && req.user.role !== 'kid') {
+      console.warn(`Access denied for kid ${id} to user ${req.user.id}`);
+      return res.status(403).json({ error: 'Forbidden' });
     }
 
+    // Fetch chatbot settings if available
+    try {
+      const { data: chatbot } = await supabase
+        .from('chatbots')
+        .select('*')
+        .eq('kid_id', id)
+        .single();
+
+      if (chatbot && chatbot.name) {
+        kid.chatbot_name = chatbot.name;
+      }
+    } catch (cbErr) {
+      // Chatbot is optional, don't crash if it fails
+      console.warn('Chatbot settings fetch failed:', cbErr);
+    }
+
+    const processedKid = extractParentMessage({ ...kid });
     res.json({ kid: processedKid });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Internal server error' });
+  } catch (error: any) {
+    console.error(`Unexpected error in GET /api/kids/${id}:`, error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
@@ -1740,14 +1774,16 @@ app.get('/api/kids/:kidId/behaviors', authenticateToken, async (req: any, res) =
       .select('*, behavior_definitions(*)')
       .eq('kid_id', kidId)
       .order('date', { ascending: false })
-      .order('hour', { ascending: false })
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      console.error('[GET behaviors] Query Error:', error);
+      throw error;
+    }
     res.json({ behaviors: behaviors || [] });
   } catch (error: any) {
-    console.error('[GET behaviors] Error:', error);
-    res.status(500).json({ error: 'Failed to fetch behaviors', details: error.message });
+    console.error('[GET behaviors] Caught Exception:', error);
+    res.status(500).json({ error: 'Failed to fetch behaviors', details: error.message || error });
   }
 });
 
@@ -1755,7 +1791,7 @@ app.post('/api/kids/:kidId/behaviors', authenticateToken, async (req: any, res) 
   const adminSupabase = getAdminSupabaseClient(); // Use admin client for balance update
   const supabase = getSupabaseForUser(req); // Use user client for inserting behavior log
   const { kidId } = req.params;
-  const { type, description, definition_id, token_change, date, hour, completed, remarks } = req.body;
+  const { type, description, definition_id, token_change, date, hour, completed, remarks, occurrence } = req.body;
 
   if (!type && !definition_id) {
     return res.status(400).json({ error: 'Missing required fields: type or definition_id' });
@@ -1763,15 +1799,16 @@ app.post('/api/kids/:kidId/behaviors', authenticateToken, async (req: any, res) 
 
   try {
     // 1. Log the behavior
+    const finalDescription = remarks 
+      ? `${description || 'Behavior'}\n\nNotes: ${remarks}${ (occurrence || 0) > 1 ? `\n(Occurred ${occurrence} times)` : ''}`
+      : description || 'Behavior';
+
     const behaviorLog: any = {
       kid_id: kidId,
       type: type || 'desired',
-      description: description || '',
+      description: finalDescription,
       date: date || new Date().toISOString().split('T')[0],
-      hour: hour !== undefined ? hour : null,
-      token_change: token_change || 0,
-      completed: completed !== undefined ? completed : true,
-      remarks: remarks || null
+      token_change: token_change || 0
     };
 
     if (definition_id) {
@@ -1838,10 +1875,7 @@ app.put('/api/behaviors/:id', authenticateToken, async (req: any, res) => {
     if (type !== undefined) updates.type = type;
     if (description !== undefined) updates.description = description;
     if (date !== undefined) updates.date = date;
-    if (hour !== undefined) updates.hour = hour;
     if (token_change !== undefined) updates.token_change = token_change;
-    if (completed !== undefined) updates.completed = completed;
-    if (remarks !== undefined) updates.remarks = remarks;
 
     const { data: updatedBehavior, error } = await supabase
       .from('behaviors')
@@ -3676,79 +3710,89 @@ async function startServer() {
       console.log(`Server running on http://localhost:${PORT}`);
     });
 
-    // Background task to process overdue activities every minute
+    // Background task to process overdue activities every 5 minutes
     setInterval(async () => {
       console.log('Background Task: Checking for overdue activities...');
       if (!supabaseUrl || !supabaseKey || supabaseUrl.includes('placeholder')) return;
 
       const supabase = getAdminSupabaseClient();
       try {
-        // Use select('*') to avoid errors if specific columns are missing from schema
         const { data: kids, error: kidsError } = await supabase.from('kids').select('*');
-        if (kidsError) throw kidsError;
+        if (kidsError) {
+          // Gracefully handle Supabase infrastructure errors
+          const errorMsg = kidsError.message || '';
+          if (errorMsg.includes('<!DOCTYPE html>') || errorMsg.includes('<html')) {
+            console.warn('Background Task: Skipping overdue check due to Supabase/Cloudflare connection timeout (5xx).');
+            return;
+          }
+          throw kidsError;
+        }
         
         console.log(`Background Task: Checking ${kids?.length || 0} kids.`);
 
         for (const kid of kids || []) {
-          const timezone = kid.timezone || 'UTC';
-          const now = new Date();
-          
-          // Get current local time for the kid
-          let localYear, localMonth, localDay, localHour, localMinute;
-          let validatedTimezone = 'UTC';
-
           try {
-            const formatter = new Intl.DateTimeFormat('en-US', {
-              timeZone: timezone,
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: false
-            });
+            const timezone = kid.timezone || 'UTC';
+            const now = new Date();
             
-            const parts = formatter.formatToParts(now);
-            const getPart = (type: string) => parts.find(p => p.type === type)?.value;
-            localYear = getPart('year');
-            localMonth = getPart('month');
-            localDay = getPart('day');
-            localHour = parseInt(getPart('hour') || '0', 10);
-            localMinute = parseInt(getPart('minute') || '0', 10);
-            validatedTimezone = timezone;
-          } catch (e) {
-            // Fallback to UTC if timezone is invalid
-            const utcFormatter = new Intl.DateTimeFormat('en-US', {
-              timeZone: 'UTC',
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: false
-            });
-            const parts = utcFormatter.formatToParts(now);
-            const getPart = (type: string) => parts.find(p => p.type === type)?.value;
-            localYear = getPart('year');
-            localMonth = getPart('month');
-            localDay = getPart('day');
-            localHour = parseInt(getPart('hour') || '0', 10);
-            localMinute = parseInt(getPart('minute') || '0', 10);
-            validatedTimezone = 'UTC';
-          }
-          
-          const localDateStr = `${localYear}-${localMonth}-${localDay}`;
-          const localTimeInMinutes = localHour * 60 + localMinute;
+            let localYear, localMonth, localDay, localHour, localMinute;
+            
+            try {
+              const formatter = new Intl.DateTimeFormat('en-US', {
+                timeZone: timezone,
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+              });
+              
+              const parts = formatter.formatToParts(now);
+              const getPart = (type: string) => parts.find(p => p.type === type)?.value;
+              localYear = getPart('year');
+              localMonth = getPart('month');
+              localDay = getPart('day');
+              localHour = parseInt(getPart('hour') || '0', 10);
+              localMinute = parseInt(getPart('minute') || '0', 10);
+            } catch (e) {
+              const utcFormatter = new Intl.DateTimeFormat('en-US', {
+                timeZone: 'UTC',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+              });
+              const parts = utcFormatter.formatToParts(now);
+              const getPart = (type: string) => parts.find(p => p.type === type)?.value;
+              localYear = getPart('year');
+              localMonth = getPart('month');
+              localDay = getPart('day');
+              localHour = parseInt(getPart('hour') || '0', 10);
+              localMinute = parseInt(getPart('minute') || '0', 10);
+            }
+            
+            const localDateStr = `${localYear}-${localMonth}-${localDay}`;
+            const localTimeInMinutes = localHour * 60 + localMinute;
 
-          console.log(`Background Task: Processing kid ${kid.id} (${kid.name}), Local Date: ${localDateStr}, Local Time: ${localHour}:${localMinute}`);
-          await moveOverdueActivities(supabase, kid.id, kid, localDateStr, localTimeInMinutes);
+            await moveOverdueActivities(supabase, kid.id, kid, localDateStr, localTimeInMinutes);
+          } catch (kidError: any) {
+            console.error(`Background Task: Error processing kid ${kid.id}:`, kidError.message || kidError);
+          }
         }
       } catch (error: any) {
-        console.error('Error in background task:', error.message || error);
-        if (error.details) console.error('Details:', error.details);
-        if (error.code) console.error('Code:', error.code);
+        const errorMsg = error.message || '';
+        if (errorMsg.includes('<!DOCTYPE html>') || errorMsg.includes('<html')) {
+          console.warn('Background Task: Supabase/Cloudflare connection timeout (5xx).');
+        } else {
+          console.error('Error in background task:', error.message || error);
+          if (error.details) console.error('Details:', error.details);
+          if (error.code) console.error('Code:', error.code);
+        }
       }
-    }, 60000);
+    }, 300000); // 5 minutes
   } else {
     console.log(`[${new Date().toISOString()}] Running in Vercel serverless mode. Skipping server.listen() and background tasks.`);
   }

@@ -9,20 +9,13 @@ import { ArrowLeft, Loader2, History, Info, Target, Settings, Calendar, Clock } 
 interface Kid {
   id: string;
   name: string;
-}
-
-interface BehaviorDefinition {
-  id: string;
-  name: string;
-  type: 'desired' | 'undesired';
-  token_reward: number;
+  reward_type?: string;
 }
 
 export default function AddBehavior() {
   const { kidId } = useParams<{ kidId: string }>();
   const navigate = useNavigate();
   const [kid, setKid] = useState<Kid | null>(null);
-  const [definitions, setDefinitions] = useState<BehaviorDefinition[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -30,30 +23,30 @@ export default function AddBehavior() {
   const [formData, setFormData] = useState({
     name: '',
     type: 'desired' as 'desired' | 'undesired',
-    trackingType: 'Yes/No' as 'Yes/No' | 'Frequency',
     remarks: '',
     date: new Date().toISOString().split('T')[0],
     hour: new Date().getHours(),
-    definition_id: '',
+    rewards: 10,
+    occurrence: 1,
   });
+
+  useEffect(() => {
+    // Update default reward based on type
+    setFormData(prev => ({
+      ...prev,
+      rewards: formData.type === 'desired' ? 10 : 5
+    }));
+  }, [formData.type]);
 
   useEffect(() => {
     const fetchData = async () => {
       if (!kidId) return;
       setIsLoading(true);
       try {
-        const [kidRes, defsRes] = await Promise.all([
-          apiFetch(`/api/kids/${kidId}`),
-          apiFetch(`/api/kids/${kidId}/behavior-definitions`)
-        ]);
-
+        const kidRes = await apiFetch(`/api/kids/${kidId}`);
         if (kidRes.ok) {
           const data = await safeJson(kidRes);
           setKid(data.kid);
-        }
-        if (defsRes.ok) {
-          const data = await safeJson(defsRes);
-          setDefinitions(data.definitions || []);
         }
       } catch (err) {
         console.error('Error fetching data:', err);
@@ -66,8 +59,8 @@ export default function AddBehavior() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name && !formData.definition_id) {
-      setFormError('Please provide a behavior name or select a rule.');
+    if (!formData.name) {
+      setFormError('Please provide a behavior name.');
       return;
     }
 
@@ -78,14 +71,17 @@ export default function AddBehavior() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          definition_id: formData.definition_id || null,
+          definition_id: null,
           description: formData.remarks || formData.name,
           type: formData.type,
           date: formData.date,
           hour: formData.hour,
-          // trackingType is UI level for now or we could extend backend
-          completed: formData.trackingType === 'Yes/No' ? true : undefined,
-          remarks: formData.remarks
+          completed: true,
+          remarks: formData.remarks,
+          token_change: formData.type === 'desired' 
+            ? formData.rewards * formData.occurrence 
+            : -(formData.rewards * formData.occurrence),
+          occurrence: formData.occurrence
         })
       });
 
@@ -141,29 +137,6 @@ export default function AddBehavior() {
             )}
 
             <div className="grid gap-2.5 md:grid-cols-2">
-              <div className="space-y-0.5 p-2 bg-blue-50 rounded border border-blue-100">
-                <label className="text-[12px] font-bold text-blue-600 uppercase">Select Behavior Rule (Optional)</label>
-                <select
-                  className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
-                  value={formData.definition_id}
-                  onChange={(e) => {
-                    const defId = e.target.value;
-                    const def = definitions.find(d => d.id === defId);
-                    setFormData(prev => ({
-                      ...prev,
-                      definition_id: defId,
-                      name: def ? def.name : prev.name,
-                      type: def ? def.type : prev.type
-                    }));
-                  }}
-                >
-                  <option value="">-- Choose a Rule --</option>
-                  {definitions.map(def => (
-                    <option key={def.id} value={def.id}>{def.name} ({def.type === 'desired' ? '+' : '-'}{def.token_reward})</option>
-                  ))}
-                </select>
-              </div>
-
               <div className="space-y-0.5">
                 <label className="text-[12px] font-bold text-slate-500 uppercase">Behavior Name</label>
                 <input
@@ -171,12 +144,10 @@ export default function AddBehavior() {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="e.g., Quiet Hands, Sharing"
-                  required={!formData.definition_id}
+                  required
                 />
               </div>
-            </div>
 
-            <div className="grid gap-2.5 md:grid-cols-2">
               <div className="space-y-0.5">
                 <label className="text-[12px] font-bold text-slate-500 uppercase">Type</label>
                 <select
@@ -188,54 +159,40 @@ export default function AddBehavior() {
                   <option value="undesired">Undesired</option>
                 </select>
               </div>
+            </div>
+
+            <div className="grid gap-2.5 md:grid-cols-2">
+              <div className="space-y-0.5">
+                <label className="text-[12px] font-bold text-slate-500 uppercase">Behavior Rewards ({kid?.reward_type || 'Tokens'})</label>
+                <input
+                  type="number"
+                  className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
+                  value={formData.rewards}
+                  onChange={(e) => setFormData({ ...formData, rewards: parseInt(e.target.value) || 0 })}
+                  min="0"
+                />
+              </div>
 
               <div className="space-y-0.5">
-                <label className="text-[12px] font-bold text-slate-500 uppercase">Tracking Type</label>
-                <select
+                <label className="text-[12px] font-bold text-slate-500 uppercase">Occurrence</label>
+                <input
+                  type="number"
                   className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
-                  value={formData.trackingType}
-                  onChange={(e) => setFormData({ ...formData, trackingType: e.target.value as any })}
-                >
-                  <option value="Yes/No">Yes/No</option>
-                  <option value="Frequency">Frequency</option>
-                </select>
+                  value={formData.occurrence}
+                  onChange={(e) => setFormData({ ...formData, occurrence: parseInt(e.target.value) || 1 })}
+                  min="1"
+                />
               </div>
             </div>
 
             <div className="space-y-0.5">
-              <label className="text-[12px] font-bold text-slate-500 uppercase">Parent Remarks</label>
+              <label className="text-[12px] font-bold text-slate-500 uppercase">Behavior Description</label>
               <textarea
                 className="flex min-h-[40px] w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
                 value={formData.remarks}
                 onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
                 placeholder="Add details..."
               />
-            </div>
-
-            <div className="grid gap-2.5 md:grid-cols-2">
-              <div className="space-y-0.5">
-                <label className="text-[12px] font-bold text-slate-500 uppercase">Date</label>
-                <input
-                  className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                />
-              </div>
-              <div className="space-y-0.5">
-                <label className="text-[12px] font-bold text-slate-500 uppercase">Time</label>
-                <select
-                  className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
-                  value={formData.hour}
-                  onChange={(e) => setFormData({ ...formData, hour: parseInt(e.target.value) })}
-                >
-                  {Array.from({ length: 24 }).map((_, i) => (
-                    <option key={i} value={i}>
-                      {i === 0 ? '12 AM' : i < 12 ? `${i} AM` : i === 12 ? '12 PM' : `${i - 12} PM`}
-                    </option>
-                  ))}
-                </select>
-              </div>
             </div>
 
             <div className="flex justify-end items-center pt-1 gap-2">
