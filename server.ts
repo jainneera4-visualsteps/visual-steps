@@ -163,6 +163,27 @@ app.use((req, res, next) => {
 // Serve uploaded files statically
 app.use('/uploads', express.static(uploadDir));
 
+app.get('/api/backend-health', async (req, res) => {
+  const url = process.env.SUPABASE_URL || '';
+  const key = process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  const geminiKey = process.env.GEMINI_API_KEY || '';
+  
+  const health = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    env: {
+      hasSupabaseUrl: !!url && !url.includes('placeholder'),
+      supabaseUrlPrefix: url ? url.substring(0, 15) : 'none',
+      hasSupabaseKey: !!key && !key.includes('placeholder'),
+      keyLength: key ? key.length : 0,
+      hasGeminiKey: !!geminiKey && !geminiKey.includes('placeholder'),
+      nodeEnv: process.env.NODE_ENV
+    }
+  };
+  
+  res.json(health);
+});
+
 // Auth Middleware
 const authenticateToken = async (req: any, res: any, next: any) => {
   const authHeader = req.headers['authorization'];
@@ -187,70 +208,58 @@ const authenticateToken = async (req: any, res: any, next: any) => {
 
     // 2. Check Supabase token
     if (!supabaseUrl || !supabaseKey || supabaseUrl.includes('placeholder')) {
-      console.error('authenticateToken: Supabase credentials missing or placeholders');
-      return res.status(500).json({ error: 'Server configuration error' });
+      console.error('authenticateToken: Supabase credentials missing (check SUPABASE_URL / SUPABASE_KEY)');
+      return res.status(500).json({ 
+        error: 'Supabase Connection Error', 
+        details: 'Server is missing Supabase credentials. Ensure SUPABASE_URL and SUPABASE_KEY are set in environment.' 
+      });
     }
 
-    // Create a fresh client for this request with the token in headers
+    // Create a fresh client for this request
     const supabase = createClient(supabaseUrl, supabaseKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-        detectSessionInUrl: false
-      },
-      global: {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
+      auth: { persistSession: false }
     });
     
     // Verify the token with Supabase
-    let user, error;
-    try {
-      // Use getUser() without arguments since we set the header in the client config
-      const { data, error: authError } = await supabase.auth.getUser();
-      user = data?.user;
-      error = authError;
-    } catch (e: any) {
-      console.error('authenticateToken: Supabase request failed:', e.message);
-      return res.status(500).json({ 
-        error: 'Supabase Connection Error', 
-        details: e.message || 'Failed to connect to Supabase.'
-      });
-    }
+    const { data: { user }, error } = await supabase.auth.getUser(token);
 
     if (error || !user) {
-      console.error('authenticateToken: Supabase auth error:', error?.message || 'No user found', 'Status:', error?.status);
+      console.error(`[AUTH] Supabase verification failed:`, error?.message || 'No user', 'Status:', error?.status);
       
-      // If it's a "session missing" error, it might be because the token is invalid or from another project
-      if (error?.message === 'Auth session missing!' || error?.status === 400 || error?.status === 401) {
-        let tokenIssuer = 'unknown';
-        try {
-          const decoded = jwt.decode(token) as any;
-          tokenIssuer = decoded?.iss || 'unknown';
-        } catch (e) {}
-        
+      // Detailed mismatch check
+      let projectIdFromToken = 'unknown';
+      try {
+        const decoded = jwt.decode(token) as any;
+        const tokenIssuer = decoded?.iss || 'unknown';
+        if (tokenIssuer.includes('.supabase.co')) {
+            projectIdFromToken = tokenIssuer.split('//')[1]?.split('.')[0];
+        }
+      } catch (e) {}
+      
+      const backendProjectId = supabaseUrl.split('//')[1]?.split('.')[0];
+      const isProjectMismatch = projectIdFromToken !== 'unknown' && projectIdFromToken !== backendProjectId;
+
+      if (isProjectMismatch) {
         return res.status(401).json({ 
-          error: 'Invalid Session', 
-          details: `The authentication session is invalid or has expired. Issuer: ${tokenIssuer}. Backend: ${supabaseUrl}`,
-          code: error?.status || 401
+          error: 'Supabase Project Mismatch', 
+          details: `Your browser is using Supabase project "${projectIdFromToken}" but the backend is using "${backendProjectId}". Please ensure your Vercel/environment variables match.`,
+          code: 401
         });
       }
-      
-      return res.status(403).json({ 
-        error: 'Forbidden', 
-        details: error?.message || 'Invalid session',
-        code: error?.status || 403
+
+      return res.status(401).json({ 
+        error: 'Invalid Session', 
+        details: error?.message || 'The session has expired or is invalid.',
+        code: error?.status || 401
       });
     }
 
-    req.user = user;
+    req.user = { id: user.id, email: user.email, role: 'parent' };
     req.token = token;
     next();
   } catch (err: any) {
     console.error('authenticateToken: Unexpected error:', err.message);
-    return res.status(500).json({ error: 'Internal Server Error' });
+    res.status(500).json({ error: 'Authentication processing error' });
   }
 };
 

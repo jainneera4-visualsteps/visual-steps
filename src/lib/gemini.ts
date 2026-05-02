@@ -1,10 +1,8 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { Type } from "@google/genai";
+import { apiFetch } from "../utils/api";
 
-// Initialize the GoogleGenAI client
-// The API key is injected by the platform at runtime
-const ai = new GoogleGenAI({ 
-  apiKey: process.env.GEMINI_API_KEY || '' 
-});
+// This file is now a proxy to our server-side AI endpoints to keep keys secure
+// and avoid browser-side SDK initialization errors.
 
 export const modelNames = {
   flash: 'gemini-flash-latest',
@@ -20,52 +18,71 @@ export async function generateContent(options: {
   responseSchema?: any;
   tools?: any[];
 }) {
-  const { 
-    model = modelNames.flash, 
-    systemInstruction, 
-    prompt, 
-    responseMimeType, 
-    responseSchema,
-    tools
-  } = options;
-
   try {
-    const response = await ai.models.generateContent({
-      model,
-      contents: prompt,
-      config: {
-        systemInstruction,
-        responseMimeType,
-        responseSchema,
-        tools,
-      },
+    const response = await apiFetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(options),
     });
 
-    return response;
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'AI generation failed');
+    }
+
+    const data = await response.json();
+    
+    // Transform back to expected response structure if needed
+    // The server returns { text, response: { candidates: [...] } }
+    return data.response || { candidates: [{ content: { parts: [{ text: data.text }] } }] };
   } catch (error: any) {
-    console.error("Gemini API Error:", error);
+    console.error("Gemini Proxy API Error:", error);
     throw error;
   }
 }
 
 export async function generateImage(prompt: string) {
   try {
-    const response = await ai.models.generateContent({
-      model: modelNames.image,
-      contents: prompt,
+    const response = await apiFetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: modelNames.image,
+        prompt: prompt
+      }),
     });
 
-    for (const part of response.candidates?.[0]?.content?.parts || []) {
-      if (part.inlineData) {
-        return `data:image/png;base64,${part.inlineData.data}`;
-      }
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Image generation failed');
     }
+
+    const data = await response.json();
+    
+    // The server returns { text } where text is the base64 data for images
+    if (data.text && data.text.startsWith('data:image')) {
+        return data.text;
+    }
+    
+    // If it's just base64
+    if (data.text && !data.text.includes(' ') && data.text.length > 100) {
+        return `data:image/png;base64,${data.text}`;
+    }
+    
     return null;
   } catch (error: any) {
-    console.error("Gemini Image API Error:", error);
+    console.error("Gemini Image Proxy API Error:", error);
     throw error;
   }
 }
 
+// Dummy object for backward compatibility if any imports use it directly
+const ai = {
+    models: {
+        generateContent: async (options: any) => generateContent(options)
+    }
+};
+
 export { Type };
 export default ai;
+
