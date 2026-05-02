@@ -40,32 +40,41 @@ app.use((req, res, next) => {
 const server = http.createServer(app);
 let io: Server | null = null;
 
-io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST", "PUT", "DELETE"]
-  }
-});
-
-app.set('io', io);
-
-io.on('connection', (socket) => {
-  console.log('A user connected:', socket.id);
-  
-  socket.on('join_kid_room', (kidId) => {
-    socket.join(`kid_${kidId}`);
-    console.log(`Socket ${socket.id} joined room kid_${kidId}`);
+if (!process.env.VERCEL) {
+  io = new Server(server, {
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST", "PUT", "DELETE"]
+    }
   });
 
-  socket.on('leave_kid_room', (kidId) => {
-    socket.leave(`kid_${kidId}`);
-    console.log(`Socket ${socket.id} left room kid_${kidId}`);
-  });
+  app.set('io', io);
 
-  socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
+  io.on('connection', (socket) => {
+    console.log('A user connected:', socket.id);
+    
+    socket.on('join_kid_room', (kidId) => {
+      socket.join(`kid_${kidId}`);
+      console.log(`Socket ${socket.id} joined room kid_${kidId}`);
+    });
+
+    socket.on('leave_kid_room', (kidId) => {
+      socket.leave(`kid_${kidId}`);
+      console.log(`Socket ${socket.id} left room kid_${kidId}`);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('User disconnected:', socket.id);
+    });
   });
-});
+} else {
+  // Mock io for Vercel to prevent crashes if something tries to use it
+  app.set('io', {
+    emit: () => {},
+    to: () => ({ emit: () => {} }),
+    in: () => ({ emit: () => {} })
+  });
+}
 
 const PORT = 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-change-in-prod';
@@ -4555,6 +4564,22 @@ process.on('uncaughtException', (err) => {
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
+
+  // Catch-all for unhandled requests
+  app.use((req, res, next) => {
+    if (req.url.startsWith('/api/')) {
+      console.log(`[${new Date().toISOString()}] Unhandled API request: ${req.method} ${req.url}`);
+    }
+    next();
+  });
+
+  app.use((err: any, req: any, res: any, next: any) => {
+    console.error('Global error handler:', err);
+    if (res.headersSent) {
+      return next(err);
+    }
+    res.status(500).json({ error: 'Internal server error', details: err.message });
+  });
 
   if (!process.env.VERCEL) {
     startServer().catch(err => {
