@@ -27,6 +27,13 @@ app.use((req, res, next) => {
   if (req.url.startsWith('/api/')) {
     console.log(`[API_REQ] ${new Date().toISOString()} ${req.method} ${req.url}`);
   }
+  
+  // Vercel prefix fix: If we are in Vercel and the URL is missing /api prefix but is handled by this function
+  if (process.env.VERCEL && !req.url.startsWith('/api/') && !req.url.includes('.')) {
+    const originalUrl = req.url;
+    req.url = '/api' + (originalUrl.startsWith('/') ? originalUrl : '/' + originalUrl);
+    console.log(`[VERCEL_PATCH] Prefixed URL: ${originalUrl} -> ${req.url}`);
+  }
   next();
 });
 
@@ -3954,7 +3961,18 @@ app.get('/api/kids/:kidId/purchases', authenticateToken, async (req: any, res) =
 
 // --- AI Generation API ---
 app.post('/api/generate', authenticateToken, async (req: any, res) => {
-  const { model: modelName, contents, config, prompt, responseMimeType, responseSchema } = req.body;
+  const { 
+    model: model_body, 
+    modelName: model_name_body, 
+    contents, 
+    config, 
+    prompt, 
+    systemInstruction, 
+    responseMimeType, 
+    responseSchema 
+  } = req.body;
+  
+  const modelName = model_body || model_name_body || 'gemini-flash-latest';
   
   try {
     let apiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
@@ -3980,17 +3998,25 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${finalModelName}:generateContent?key=${apiKey}`;
     
+    const requestBody: any = {
+      contents: Array.isArray(contents) ? contents : [{ role: 'user', parts: [{ text: contents || prompt }] }],
+      generationConfig: {
+        ...(config || {}),
+        responseMimeType: responseMimeType || config?.responseMimeType,
+        responseSchema: responseSchema || config?.responseSchema,
+      }
+    };
+
+    if (systemInstruction) {
+      requestBody.system_instruction = {
+        parts: [{ text: systemInstruction }]
+      };
+    }
+
     const aiApiRes = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: Array.isArray(contents) ? contents : [{ role: 'user', parts: [{ text: contents || prompt }] }],
-        generationConfig: {
-          ...(config || {}),
-          responseMimeType: responseMimeType || config?.responseMimeType,
-          responseSchema: responseSchema || config?.responseSchema,
-        }
-      })
+      body: JSON.stringify(requestBody)
     });
 
     const data: any = await aiApiRes.json();
