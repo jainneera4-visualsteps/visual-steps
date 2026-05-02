@@ -1,7 +1,7 @@
 const { spawn } = require('child_process');
 const fs = require('fs');
 
-const child = spawn('npx', ['tsx', 'server.ts']);
+const child = spawn('npx', ['tsx', 'api/server.ts']);
 
 child.stdout.on('data', (data) => {
   fs.appendFileSync('server-out.log', data.toString());

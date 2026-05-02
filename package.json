@@ -4,9 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx server.ts",
-    "build": "vite build && npx esbuild server.ts --bundle --platform=node --format=esm --outfile=dist/server.js --external:express --external:socket.io --external:@supabase/supabase-js --external:bcryptjs --external:jsonwebtoken --external:cookie-parser --external:uuid --external:@google/generative-ai --external:multer --external:dotenv --external:nodemailer --external:serverless-http",
-    "start": "node dist/server.js",
+    "dev": "tsx api/server.ts",
+    "build": "vite build",
+    "start": "tsx api/server.ts",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"
