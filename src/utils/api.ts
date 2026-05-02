@@ -27,6 +27,10 @@ export const safeJson = async (response: Response) => {
   const snippet = text.substring(0, 100).replace(/\n/g, ' ');
   console.error(`Response is not JSON (Status: ${status}, URL: ${url}):`, snippet + '...');
   
+  if (status === 404) {
+    throw new Error(`API endpoint not found: ${url}. Please ensure the backend is running and the route is defined.`);
+  }
+
   if (status === 401 || status === 403) {
     // If we get a 403 HTML response, it's likely the AI Studio proxy blocking the request
     // because the user's AI Studio session expired. Reloading the page will trigger the login flow.

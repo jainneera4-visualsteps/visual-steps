@@ -24,7 +24,9 @@ export const app = express();
 
 // Request logging
 app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  if (req.url.startsWith('/api/')) {
+    console.log(`[API_REQ] ${new Date().toISOString()} ${req.method} ${req.url}`);
+  }
   next();
 });
 
@@ -155,6 +157,10 @@ app.use(cookieParser());
 app.get('/api/ping', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString(), env: process.env.NODE_ENV || 'development' });
 });
+
+app.get('/api/test-no-auth', (req, res) => {
+  res.json({ message: 'API is working without auth', timestamp: new Date().toISOString() });
+});
 app.use((req, res, next) => {
   console.log('Request URL:', req.url);
   next();
@@ -231,7 +237,7 @@ const authenticateToken = async (req: any, res: any, next: any) => {
       try {
         const decoded = jwt.decode(token) as any;
         const tokenIssuer = decoded?.iss || 'unknown';
-        if (tokenIssuer.includes('.supabase.co')) {
+        if (tokenIssuer && tokenIssuer.includes('.supabase.co')) {
             projectIdFromToken = tokenIssuer.split('//')[1]?.split('.')[0];
         }
       } catch (e) {}
@@ -242,7 +248,7 @@ const authenticateToken = async (req: any, res: any, next: any) => {
       if (isProjectMismatch) {
         return res.status(401).json({ 
           error: 'Supabase Project Mismatch', 
-          details: `Your browser is using Supabase project "${projectIdFromToken}" but the backend is using "${backendProjectId}". Please ensure your Vercel/environment variables match.`,
+          details: `Your project mismatch detected. Token: ${projectIdFromToken}, Backend: ${backendProjectId}. Ensure VITE_SUPABASE_URL and SUPABASE_URL match the same project.`,
           code: 401
         });
       }
@@ -254,7 +260,13 @@ const authenticateToken = async (req: any, res: any, next: any) => {
       });
     }
 
-    req.user = { id: user.id, email: user.email, role: 'parent' };
+    // Set user with more info
+    req.user = { 
+        id: user.id, 
+        email: user.email, 
+        role: 'parent',
+        name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0]
+    };
     req.token = token;
     next();
   } catch (err: any) {
@@ -1465,7 +1477,7 @@ const aggregateRewardMessages = (currentNotes: string, newRewardAmount: number, 
 
 app.get('/api/kids', authenticateToken, async (req: any, res) => {
   const userId = req.user?.id;
-  console.log('Fetching kids for userId:', userId);
+  console.log(`[API_REQ] GET /api/kids - User: ${userId}`);
   if (!userId) {
     console.error('No userId found in req.user');
     return res.status(401).json({ error: 'Unauthorized' });
@@ -4351,6 +4363,7 @@ app.use((err: any, req: any, res: any, next: any) => {
 
 // 404 handler for API routes
 app.use('/api/*', (req, res) => {
+  console.log(`[API_404] ${req.method} ${req.originalUrl} - No route matched`);
   res.status(404).json({ error: 'API route not found', path: req.originalUrl });
 });
 
@@ -4398,8 +4411,8 @@ async function startServer() {
     } catch (e: any) {
       console.error(`[${new Date().toISOString()}] Failed to initialize Vite middleware:`, e.message);
     }
-  } else {
-    // In production, serve static files from dist
+  } else if (!process.env.VERCEL) {
+    // In production (non-Vercel), serve static files from dist
     const distPath = currentDirname.endsWith('dist') ? currentDirname : path.join(currentDirname, 'dist');
     console.log(`[${new Date().toISOString()}] Production mode: serving static files from ${distPath}`);
     
@@ -4432,11 +4445,16 @@ async function startServer() {
     res.status(500).json({ error: 'Internal server error', details: err.message });
   });
 
-  server.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
+  if (!process.env.VERCEL) {
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  } else {
+    console.log('[STARTUP] Detected Vercel environment, skipping server.listen()');
+  }
 
-    // Background task to process overdue activities every 5 minutes
+  // Background task to process overdue activities every 5 minutes
+  if (!process.env.VERCEL) {
     setInterval(async () => {
       console.log('Background Task: Checking for overdue activities...');
       if (!supabaseUrl || !supabaseKey || supabaseUrl.includes('placeholder')) return;
@@ -4519,6 +4537,7 @@ async function startServer() {
         }
       }
     }, 300000); // 5 minutes
+  }
 }
 
 process.on('uncaughtException', (err) => {
@@ -4529,6 +4548,13 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
-startServer().catch(err => {
-  console.error('Failed to start server:', err);
-});
+  if (!process.env.VERCEL) {
+    startServer().catch(err => {
+      console.error('Failed to start server:', err);
+    });
+  } else {
+    // In Vercel, we still need to run the setup but not the listener
+    startServer().catch(err => {
+      console.error('Vercel setup error:', err);
+    });
+  }
