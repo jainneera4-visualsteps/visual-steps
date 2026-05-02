@@ -7,7 +7,7 @@ const ai = new GoogleGenAI({
 });
 
 export const modelNames = {
-  flash: 'gemini-3.1-flash-lite-preview',
+  flash: 'gemini-flash-latest',
   pro: 'gemini-3.1-pro-preview',
   image: 'gemini-2.5-flash-image',
 };

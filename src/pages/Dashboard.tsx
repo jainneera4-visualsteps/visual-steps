@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Select } from '../components/Select';
-import { Plus, User, Calendar, BookOpen, Gamepad2, Clock, Trophy, Sparkles, Loader2, ArrowLeft, Edit2, ShoppingBag, Activity, Brain } from 'lucide-react';
+import { Plus, User, Calendar, BookOpen, Gamepad2, Clock, Trophy, Sparkles, Loader2, ArrowLeft, Edit2, Activity, Brain, Save, Send } from 'lucide-react';
 
 interface Kid {
   id: string;
@@ -26,6 +26,20 @@ interface Kid {
   parent_message?: string;
 }
 
+interface BehaviorDefinition {
+  id: string;
+  name: string;
+  type: 'desired' | 'undesired';
+  description?: string;
+  icon?: string;
+  priority?: string;
+  goal_rewards?: number;
+  target_time?: string;
+  target_seconds?: number;
+  goal?: number;
+  is_active?: boolean;
+}
+
 export default function Dashboard() {
   const [kids, setKids] = useState<Kid[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -34,15 +48,80 @@ export default function Dashboard() {
   const [selectedKid, setSelectedKid] = useState<Kid | null>(null);
   const [rewardItems, setRewardItems] = useState<any[]>([]);
   const [isBuying, setIsBuying] = useState<string | null>(null);
-  const [dashboardSelectedKidId, setDashboardSelectedKidId] = useState<string>('');
+  const [dashboardSelectedKidId, setDashboardSelectedKidId] = useState<string>(() => localStorage.getItem('dashboard_selected_kid_id') || '');
   const [parentMessage, setParentMessage] = useState<string>('');
   const [isSendingMessage, setIsSendingMessage] = useState(false);
+  
+  // Quick Behavior Log State
+  const [behaviorDefinitions, setBehaviorDefinitions] = useState<BehaviorDefinition[]>([]);
+  const [selectedBehaviorDefId, setSelectedBehaviorDefId] = useState<string>('');
+  const [isLogged, setIsLogged] = useState<boolean>(true);
+  const [behaviorRemarks, setBehaviorRemarks] = useState<string>('');
+  const [isLoggingBehavior, setIsLoggingBehavior] = useState(false);
+  const [behaviorLogs, setBehaviorLogs] = useState<any[]>([]);
+  const [behaviorTracker, setBehaviorTracker] = useState<any[]>([]);
+  const [selectedBehaviors, setSelectedBehaviors] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    if (kids.length > 0 && !dashboardSelectedKidId) {
-      setDashboardSelectedKidId(kids[0].id);
+    if (dashboardSelectedKidId) {
+      localStorage.setItem('dashboard_selected_kid_id', dashboardSelectedKidId);
     }
-  }, [kids, dashboardSelectedKidId]);
+  }, [dashboardSelectedKidId]);
+
+  useEffect(() => {
+    if (kids.length > 0) {
+      // If none selected or selected kid is no longer in the list (e.g. deleted), select the first one
+      if (!dashboardSelectedKidId || !kids.some(k => k.id === dashboardSelectedKidId)) {
+        setDashboardSelectedKidId(kids[0].id);
+      }
+    }
+  }, [kids]);
+
+  const fetchTrackerData = async () => {
+    if (!dashboardSelectedKidId) return;
+    try {
+      const [defRes, trackerRes] = await Promise.all([
+        apiFetch(`/api/kids/${dashboardSelectedKidId}/behavior-definitions`),
+        apiFetch(`/api/kids/${dashboardSelectedKidId}/behavior-tracker`)
+      ]);
+                
+      if (defRes.ok) {
+        const data = await safeJson(defRes);
+        setBehaviorDefinitions(data.definitions || []);
+      }
+      if (trackerRes.ok) {
+        const data = await safeJson(trackerRes);
+        setBehaviorTracker(data.tracker || []);
+      }
+    } catch (err) {
+      console.error('Error fetching definitions/tracker:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchTrackerData();
+  }, [dashboardSelectedKidId]);
+
+  const fetchLogs = async () => {
+    if (!dashboardSelectedKidId) return;
+    try {
+      const behaviorRes = await apiFetch(`/api/kids/${dashboardSelectedKidId}/behaviors`);
+      
+      if (behaviorRes.ok) {
+        const data = await safeJson(behaviorRes);
+        setBehaviorLogs(data.behaviors || []);
+      }
+      await fetchTrackerData();
+    } catch (err) {
+      console.error('Error fetching behavior logs:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (dashboardSelectedKidId) {
+      fetchLogs();
+    }
+  }, [dashboardSelectedKidId]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -218,6 +297,121 @@ export default function Dashboard() {
     }
   };
 
+  const handleQuickLogBehavior = async (kidId: string) => {
+    if (!selectedBehaviorDefId) return;
+    
+    const behaviorDef = behaviorDefinitions.find(d => d.id === selectedBehaviorDefId);
+    if (!behaviorDef) return;
+
+    setIsLoggingBehavior(true);
+    try {
+      const res = await apiFetch(`/api/kids/${kidId}/behaviors`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          definition_id: behaviorDef.id,
+          description: behaviorDef.name,
+          type: behaviorDef.type,
+          date: new Date().toLocaleDateString('sv-SE'), // Local date YYYY-MM-DD
+          hour: new Date().getHours(),
+          completed: true,
+          remarks: behaviorRemarks || 'Manual entry',
+          token_change: 0
+        }),
+      });
+
+      if (res.ok) {
+        setBehaviorRemarks('');
+        await fetchLogs();
+      } else {
+        const data = await safeJson(res);
+        alert(data.info || data.message || 'Failed to log behavior');
+      }
+    } catch (err) {
+      console.error('Quick log error:', err);
+    } finally {
+      setIsLoggingBehavior(false);
+    }
+  };
+
+  const handleIncrementBehavior = async (kidId: string, defId: string) => {
+    const behaviorDef = behaviorDefinitions.find(d => d.id === defId);
+    if (!behaviorDef) return;
+
+    // Optimistic UI update
+    const tempLog = { definition_id: defId, description: 'Added entry' };
+    setBehaviorLogs(prev => [...prev, tempLog]);
+
+    try {
+      const res = await apiFetch(`/api/kids/${kidId}/behaviors`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          definition_id: behaviorDef.id,
+          description: behaviorDef.name,
+          type: behaviorDef.type,
+          date: new Date().toLocaleDateString('sv-SE'), // Local date YYYY-MM-DD
+          hour: new Date().getHours(),
+          completed: true,
+          remarks: 'Incremented from dashboard',
+          token_change: 0
+        }),
+      });
+
+      if (res.ok) {
+        await fetchLogs(); // Refresh with server data
+      } else {
+        // Rollback on error
+        setBehaviorLogs(prev => prev.filter(log => log !== tempLog));
+        const errData = await safeJson(res);
+        alert(errData.message || 'Failed to log behavior');
+      }
+    } catch (err) {
+      // Rollback on error
+      setBehaviorLogs(prev => prev.filter(log => log !== tempLog));
+      console.error('Log behavior error:', err);
+    }
+  };
+
+  const handleUpdateTracker = async (kidId: string, definition_id: string, points: number, remarks: string) => {
+    // Optimistic UI update
+    handleLocalTrackerUpdate(kidId, definition_id, points, remarks);
+
+    try {
+      const res = await apiFetch(`/api/kids/${kidId}/behavior-tracker`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          definition_id,
+          points,
+          remarks,
+          date: new Date().toLocaleDateString('sv-SE') // Local date in YYYY-MM-DD format
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to update tracker');
+      }
+      await fetchLogs(); // Fetch fresh data
+    } catch (err) {
+      console.error('Update tracker error:', err);
+      // Rollback is implicitly handled by fetchLogs
+      await fetchLogs();
+    }
+  };
+
+  const handleLocalTrackerUpdate = (kidId: string, definition_id: string, points: number, remarks: string) => {
+    setBehaviorTracker(prev => {
+      const index = prev.findIndex(t => t.definition_id === definition_id);
+      if (index > -1) {
+        const next = [...prev];
+        next[index] = { ...next[index], points, remarks };
+        return next;
+      }
+      return [...prev, { kid_id: kidId, definition_id, points, remarks }];
+    });
+  };
+
   const renderContent = () => {
     if (isLoading) {
       return (
@@ -249,7 +443,7 @@ export default function Dashboard() {
 
           {rewardItems.length === 0 ? (
             <div className="text-center py-12 bg-white rounded-2xl border border-slate-200">
-              <Trophy className="mx-auto h-12 w-12 text-slate-300 mb-4" />
+              <span className="block text-5xl mb-4">🛍️</span>
               <h3 className="text-lg font-medium text-slate-900">No rewards available</h3>
               <p className="text-slate-500 mt-1">Add some rewards in the child's settings.</p>
             </div>
@@ -261,7 +455,7 @@ export default function Dashboard() {
                     {item.icon ? (
                       <span className="text-6xl">{item.icon}</span>
                     ) : (
-                      <Trophy className="h-16 w-16 text-slate-300" />
+                      <span className="text-6xl">🛍️</span>
                     )}
                   </div>
                   <CardContent className="flex-1 flex flex-col p-4">
@@ -284,7 +478,10 @@ export default function Dashboard() {
                       {isBuying === item.id ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : selectedKid.reward_balance >= item.cost ? (
-                        'Buy'
+                        <div className="flex items-center">
+                          <span className="mr-2">🛍️</span>
+                          <span>Buy</span>
+                        </div>
                       ) : (
                         'Not enough balance'
                       )}
@@ -309,33 +506,34 @@ export default function Dashboard() {
             Get started by adding a child.
           </p>
           <Link to="/add-kid" className="mt-6">
-            <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white">Add Child</Button>
+            <Tooltip content="Add Child's Profile">
+              <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white">Add Child</Button>
+            </Tooltip>
           </Link>
         </div>
       );
     }
 
     return (
-      <div className="space-y-8">
+      <div className="space-y-6">
         <div className="w-full mx-auto">
           {kids.filter(k => k.id === dashboardSelectedKidId).map((kid) => (
             <Card key={kid.id} className="rounded-xl shadow-lg bg-white relative overflow-hidden">
-              <CardHeader className="bg-blue-600 text-white relative h-28 p-6 flex flex-col justify-start rounded-t-xl">
+              <CardHeader className="bg-blue-600 text-white relative h-24 p-4 flex flex-col justify-start rounded-t-xl">
                 <div className="flex justify-between items-start w-full">
                   <div>
                     <CardTitle className="text-2xl font-bold text-white leading-tight">{kid.name}</CardTitle>
-                    <p className="text-sm text-blue-100 font-medium">{calculateAge(kid.dob)}</p>
                   </div>
                   <div className="flex items-center gap-3 text-xl">
                     <Tooltip content="Buy rewards">
-                      <Button size="sm" variant="ghost" onClick={() => handleShowBuyGrid(kid)} className="text-white hover:bg-white/20 p-2" aria-label="Buy"><ShoppingBag className="h-5 w-5" /></Button>
+                      <Button size="sm" variant="ghost" onClick={() => handleShowBuyGrid(kid)} className="text-white hover:bg-white/20 p-2 text-2xl" aria-label="Buy">🛍️</Button>
                     </Tooltip>
                     {rewardImages[kid.reward_type] ? (
-                      <img src={rewardImages[kid.reward_type]} alt={kid.reward_type} className="h-7 w-7" referrerPolicy="no-referrer" />
+                      <img src={rewardImages[kid.reward_type]} alt={kid.reward_type} className="h-8 w-8" referrerPolicy="no-referrer" />
                     ) : (
-                      <Trophy className="h-7 w-7 text-yellow-300" />
+                      <span className="text-3xl">🛍️</span>
                     )}
-                    <span className="font-bold text-2xl">{kid.reward_balance || 0}</span>
+                    <span className="font-bold text-2xl text-white">{kid.reward_balance || 0}</span>
                     <Tooltip content="Add reward">
                       <button 
                         onClick={() => handleGiveReward(kid)}
@@ -359,7 +557,7 @@ export default function Dashboard() {
                       </Link>
                     </Tooltip>
                 </CardHeader>
-              <CardContent className="pt-10">
+              <CardContent className="pt-6">
                 <div className="flex flex-col gap-4">
                   {/* Parent Message Input */}
                   <div className="space-y-2">
@@ -379,8 +577,9 @@ export default function Dashboard() {
                           size="sm" 
                           onClick={() => handleSendMessage(kid.id)}
                           disabled={isSendingMessage || !parentMessage.trim()}
+                          aria-label="Send message"
                         >
-                          {isSendingMessage ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send'}
+                          {isSendingMessage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                         </Button>
                       </Tooltip>
                     </div>
@@ -401,16 +600,130 @@ export default function Dashboard() {
 
                   {/* Action Buttons */}
                   <div className="flex gap-2 items-center text-sm">
-                    <Tooltip content="View assigned activities">
+                    <Tooltip content={`Manage ${kid.name}'s Activities`}>
                       <Link to={`/assigned-activities/${kid.id}`}>
                         <Button size="sm" variant="outline">Activities</Button>
                       </Link>
                     </Tooltip>
-                    <Tooltip content="Manage child behaviors">
-                      <Link to={`/behaviors/${kid.id}`}>
+                    <Tooltip content={`Manage ${kid.name}'s Behaviors`}>
+                      <Link to={`/behaviors-list/${kid.id}`}>
                         <Button size="sm" variant="outline">Behaviors</Button>
                       </Link>
                     </Tooltip>
+                    <Tooltip content={`View ${kid.name}'s Progress Report`}>
+                      <Link to={`/assigned-activities/${kid.id}?tab=progress`}>
+                        <Button size="sm" variant="outline">Progress Report</Button>
+                      </Link>
+                    </Tooltip>
+                  </div>
+
+                  {/* Behavior Logging Tool */}
+                  <div className="pt-1 mt-1 border-t border-slate-100 space-y-2">
+                    {/* Behavior Tracker Grid */}
+                    {behaviorDefinitions.length > 0 && (
+                      <div className="mt-1 border border-slate-100 rounded-xl overflow-hidden shadow-sm">
+                        <div className="bg-slate-50 px-4 py-2 border-b border-slate-100 flex justify-between items-center">
+                          <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Daily Behavior Tracker</h4>
+                          <Tooltip content={`Update ${kid.name}'s Achievements`}>
+                            <Button 
+                              size="sm" 
+                              onClick={async () => {
+                                // Save All implementation
+                                for (const defId of selectedBehaviors) {
+                                  const tracker = behaviorTracker.find(t => t.definition_id === defId);
+                                  const remarks = tracker?.remarks || '';
+                                  const behaviorDef = behaviorDefinitions.find(d => d.id === defId);
+                                  const pointsIncrement = 1;
+                                  const newPoints = (tracker?.points || 0) + pointsIncrement;
+                                  
+                                  await handleUpdateTracker(dashboardSelectedKidId, defId, newPoints, remarks);
+                                }
+                                setSelectedBehaviors(new Set());
+                                fetchTrackerData();
+                              }}
+                            >
+                              Update
+                            </Button>
+                          </Tooltip>
+                        </div>
+                        <div className="max-h-[300px] overflow-y-auto">
+                          <table className="w-full text-left text-sm border-collapse">
+                            <thead className="sticky top-0 bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase">
+                              <tr>
+                                <th className="px-4 py-3"></th>
+                                <th className="px-4 py-3">Desired Behavior</th>
+                                <th className="px-4 py-3">Behavior Description</th>
+                                <th className="px-4 py-3">Target Time</th>
+                                <th className="px-4 py-3 text-center w-24">Goal to reach</th>
+                                <th className="px-4 py-3 text-center w-24">Points earned</th>
+                                <th className="px-4 py-3 text-center w-24">Points (%)</th>
+                                <th className="px-4 py-3 border-b border-slate-100 text-center w-48">Parent's remarks</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                              {behaviorDefinitions
+                                .filter(def => def.is_active !== false)
+                                .filter(def => {
+                                  const tracker = behaviorTracker.find(t => t.definition_id === def.id);
+                                  // Always show if never tracked
+                                  if (!tracker) return true;
+                                  // If tracked, only show if enough time elapsed since last_checked
+                                  const targetSeconds = def.target_seconds !== undefined ? def.target_seconds : (parseInt(def.target_time || '0') || 0) * 60;
+                                  const lastCheckedTime = tracker.last_checked_time 
+                                    ? new Date(tracker.last_checked_time).getTime() 
+                                    : (tracker.created_at ? new Date(tracker.created_at).getTime() : 0);
+                                  const elapsedSeconds = (new Date().getTime() - lastCheckedTime) / 1000;
+                                  return elapsedSeconds > targetSeconds;
+                                })
+                                .map((def) => {
+                                  const tracker = behaviorTracker.find(t => t.definition_id === def.id);
+                                  
+                                  return (
+                                    <tr key={def.id} className="hover:bg-slate-50 transition-colors border-b border-slate-100">
+                                      <td className="px-4 py-3 text-center">
+                                        <input type="checkbox"
+                                          checked={selectedBehaviors.has(def.id)}
+                                          onChange={(e) => {
+                                            if (e.target.checked) {
+                                              setSelectedBehaviors(prev => new Set(prev).add(def.id));
+                                            } else {
+                                              setSelectedBehaviors(prev => {
+                                                const next = new Set(prev);
+                                                next.delete(def.id);
+                                                return next;
+                                              });
+                                            }
+                                          }}
+                                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                        />
+                                      </td>
+                                      <td className="px-4 py-3 font-bold text-slate-900">{def.name}</td>
+                                      <td className="px-4 py-3 text-xs text-slate-600">{def.description || '---'}</td>
+                                      <td className="px-4 py-3 text-slate-600">{def.target_time || '---'}</td>
+                                      <td className="px-4 py-3 text-center font-bold text-slate-600">{def.goal || 1}</td>
+                                      <td className="px-4 py-3 text-center font-bold text-slate-600">{tracker?.points || 0}</td>
+                                      <td className="px-4 py-3 text-center font-bold text-slate-600">
+                                        {tracker ? Math.round(((tracker.points || 0) / (def.goal || 1)) * 100) : 0}%
+                                      </td>
+                                      <td className="px-4 py-3 text-center">
+                                        <input type="text"
+                                           value={tracker?.remarks || ''}
+                                           onChange={(e) => {
+                                             const newRemarks = e.target.value;
+                                             setBehaviorTracker(prev => prev.map(t => t.definition_id === def.id ? {...t, remarks: newRemarks} : t));
+                                           }}
+                                           className="w-full border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                                           placeholder="Add a remark..."
+                                        />
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -422,32 +735,35 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="w-full space-y-10">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-slate-200 pb-8">
-        <div className="space-y-2">
-          <h1 className="text-5xl font-display font-extrabold text-slate-900 tracking-tight">Dashboard</h1>
-          <p className="text-xl text-slate-600 max-w-2xl leading-relaxed">
-            Empower your child's growth with personalized activities and real-time progress insights.
+    <div className="w-full space-y-4">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-2">
+        <div className="space-y-1">
+          <h1 className="text-4xl font-display font-extrabold text-slate-900 tracking-tight">Dashboard</h1>
+          <p className="text-lg text-slate-600 max-w-2xl leading-relaxed">
+            Climb together. Effortless tools for certain steps and positive growth.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex items-end gap-3">
           {kids.length > 0 && !showBuyGrid && (
-            <Select
-              className="min-w-[200px]"
-              label="Select Profile"
-              value={dashboardSelectedKidId}
-              onChange={(e) => setDashboardSelectedKidId(e.target.value)}
-            >
-              {kids.map(k => (
-                <option key={k.id} value={k.id}>{k.name}</option>
-              ))}
-            </Select>
+            <div className="w-44">
+              <Select
+                label="Select Child"
+                value={dashboardSelectedKidId}
+                onChange={(e) => setDashboardSelectedKidId(e.target.value)}
+              >
+                {kids.map(k => (
+                  <option key={k.id} value={k.id}>{k.name}</option>
+                ))}
+              </Select>
+            </div>
           )}
           <Link to="/add-kid">
-            <Button size="md" className="h-11 shadow-brand-200">
-              <Plus className="mr-2 h-5 w-5" />
-              Add Child
-            </Button>
+            <Tooltip content="Add Child's Profile">
+              <Button size="md" className="h-11 shadow-brand-200">
+                <Plus className="mr-2 h-5 w-5" />
+                Add Child
+              </Button>
+            </Tooltip>
           </Link>
         </div>
       </div>

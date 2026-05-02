@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build && esbuild server.ts --bundle --platform=node --outfile=dist/server.cjs --format=cjs --external:vite --external:express --external:socket.io --external:@supabase/supabase-js --external:bcryptjs --external:jsonwebtoken --external:cookie-parser --external:uuid --external:dotenv --external:nodemailer --external:multer --external:@google/generative-ai",
-    "start": "node dist/server.cjs",
+    "build": "vite build && npx esbuild server.ts --bundle --platform=node --format=esm --outfile=dist/server.js --external:express --external:socket.io --external:@supabase/supabase-js --external:bcryptjs --external:jsonwebtoken --external:cookie-parser --external:uuid --external:@google/generative-ai --external:multer --external:dotenv --external:nodemailer --external:serverless-http",
+    "start": "node dist/server.js",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"
@@ -24,6 +24,7 @@
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.2.3",
     "emoji-picker-react": "^4.18.0",
+    "esbuild": "^0.27.4",
     "express": "^4.21.2",
     "framer-motion": "^12.38.0",
     "html2canvas": "^1.4.1",
@@ -33,6 +34,7 @@
     "motion": "^12.38.0",
     "multer": "^2.0.2",
     "nodemailer": "^8.0.3",
+    "pg": "^8.20.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",
@@ -42,7 +44,8 @@
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3",
     "tailwind-merge": "^3.5.0",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "vite": "^6.2.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -56,11 +59,8 @@
     "@types/react-router-dom": "^5.3.3",
     "@types/uuid": "^10.0.0",
     "autoprefixer": "^10.4.21",
-    "esbuild": "^0.27.4",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0",
-    "vite-plugin-pwa": "^1.2.0"
+    "typescript": "~5.8.2"
   }
 }

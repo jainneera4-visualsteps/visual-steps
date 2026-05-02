@@ -1,6 +1,4 @@
 -- Drop tables in reverse order of dependencies
-DROP TABLE IF EXISTS public.behaviors CASCADE;
-DROP TABLE IF EXISTS public.behavior_definitions CASCADE;
 DROP TABLE IF EXISTS public.activity_history_steps CASCADE;
 DROP TABLE IF EXISTS public.activity_history CASCADE;
 DROP TABLE IF EXISTS public.activity_steps CASCADE;
@@ -226,7 +224,12 @@ CREATE TABLE public.behavior_definitions (
     kid_id UUID REFERENCES public.kids(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     type TEXT NOT NULL, -- 'desired' or 'undesired'
-    token_reward INTEGER NOT NULL DEFAULT 0,
+    description TEXT,
+    priority TEXT DEFAULT 'Medium',
+    goal_rewards INTEGER DEFAULT 1,
+    target_time TEXT DEFAULT '00:00:00',
+    target_seconds INTEGER DEFAULT 0,
+    goal INTEGER,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -239,6 +242,12 @@ CREATE TABLE public.behaviors (
     description TEXT NOT NULL,
     token_change INTEGER NOT NULL DEFAULT 0,
     date DATE NOT NULL DEFAULT CURRENT_DATE,
+    hour INTEGER,
+    completed BOOLEAN DEFAULT true,
+    remarks TEXT,
+    occurrence INTEGER DEFAULT 1,
+    points INTEGER DEFAULT 0,
+    goal INTEGER,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -258,6 +267,7 @@ ALTER TABLE public.reward_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reward_purchases ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.worksheets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.quizzes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.behavior_definitions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.behaviors ENABLE ROW LEVEL SECURITY;
 
 -- Users
@@ -348,6 +358,12 @@ CREATE POLICY "Users can view their own quizzes" ON public.quizzes FOR SELECT US
 CREATE POLICY "Users can insert their own quizzes" ON public.quizzes FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can update their own quizzes" ON public.quizzes FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete their own quizzes" ON public.quizzes FOR DELETE USING (auth.uid() = user_id);
+
+-- Behavior Definitions
+CREATE POLICY "Users can view their kids behavior definitions" ON public.behavior_definitions FOR SELECT USING (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
+CREATE POLICY "Users can insert their kids behavior definitions" ON public.behavior_definitions FOR INSERT WITH CHECK (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
+CREATE POLICY "Users can update their kids behavior definitions" ON public.behavior_definitions FOR UPDATE USING (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
+CREATE POLICY "Users can delete their kids behavior definitions" ON public.behavior_definitions FOR DELETE USING (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
 
 -- Behaviors
 CREATE POLICY "Users can view their kids behaviors" ON public.behaviors FOR SELECT USING (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));

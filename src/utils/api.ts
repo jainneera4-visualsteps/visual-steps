@@ -1,16 +1,22 @@
 import { supabase } from '../lib/supabase';
 
 export const safeJson = async (response: Response) => {
+  const text = await response.text();
   const contentType = response.headers.get('content-type');
+  
   if (contentType && contentType.includes('application/json')) {
+    if (!text || text.trim() === '') {
+      return {}; // Handle empty JSON responses gracefully
+    }
     try {
-      return await response.json();
+      return JSON.parse(text);
     } catch (e) {
-      console.error('Failed to parse JSON even though content-type was application/json');
+      console.error('Failed to parse JSON even though content-type was application/json', e);
+      console.error('Problematic response body (first 200 chars):', text.substring(0, 200));
+      // Fall through to text-based error checks
     }
   }
   
-  const text = await response.text();
   if (text.includes('Starting Server...') || text.includes('Please wait while your application starts') || text.includes('action required to load new app') || text.includes('__cookie_check.html')) {
     console.warn('Server is starting, app needs loading, or cookie check required...');
     throw new Error('The application is still loading or requires a quick browser check. Please refresh the page in a few seconds.');

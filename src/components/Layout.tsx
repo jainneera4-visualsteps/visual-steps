@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { Button } from './Button';
 import { User, LogOut, Menu, X, Lightbulb, ChevronDown, Sparkles, BookOpen, FileText, Gamepad2, LayoutGrid } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { Tooltip } from './ui/Tooltip';
 
 export function Layout() {
   const { user, logout } = useAuth();
@@ -52,97 +53,106 @@ export function Layout() {
 
             {user && (
               <nav className="hidden md:flex items-center gap-1">
-                <Link
-                  to="/dashboard"
-                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:bg-slate-100 ${
-                    isActive('/dashboard') ? 'bg-brand-50 text-brand-700' : 'text-slate-600'
-                  }`}
-                >
-                  Dashboard
-                </Link>
-                
-                {/* Activities Dropdown */}
-                <div className="relative group">
-                  <button
-                    onMouseEnter={() => setIsActivitiesOpen(true)}
-                    onMouseLeave={() => setIsActivitiesOpen(false)}
-                    className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:bg-slate-100 ${
-                      location.pathname.includes('activities') || 
-                      location.pathname.includes('quizzes') || 
-                      location.pathname.includes('social-stories') || 
-                      location.pathname.includes('worksheets') 
-                        ? 'bg-brand-50 text-brand-700' : 'text-slate-600'
+                <Tooltip content="Parent's Dashboard">
+                  <Link
+                    to="/dashboard"
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:bg-slate-100 ${
+                      isActive('/dashboard') ? 'bg-brand-50 text-brand-700' : 'text-slate-600'
                     }`}
                   >
-                    Activities
-                    <ChevronDown size={14} className={`transition-transform duration-200 ${isActivitiesOpen ? 'rotate-180' : ''}`} />
-                  </button>
-                  
-                  {/* ... contents preserved ... */}
-                  {isActivitiesOpen && (
-                    <div 
+                    Dashboard
+                  </Link>
+                </Tooltip>
+                
+                <Tooltip content="Create Activities">
+                  <div className="relative group">
+                    <button
                       onMouseEnter={() => setIsActivitiesOpen(true)}
                       onMouseLeave={() => setIsActivitiesOpen(false)}
-                      className="absolute left-0 mt-0 w-56 rounded-2xl bg-white shadow-2xl shadow-slate-200 ring-1 ring-slate-200 p-2 z-[60] animate-in fade-in zoom-in-95 duration-100"
+                      className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:bg-slate-100 ${
+                        location.pathname.includes('activities') || 
+                        location.pathname.includes('quizzes') || 
+                        location.pathname.includes('social-stories') || 
+                        location.pathname.includes('worksheets') 
+                          ? 'bg-brand-50 text-brand-700' : 'text-slate-600'
+                      }`}
                     >
-                      <Link
-                        to="/saved-quizzes"
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-brand-600 transition-all leading-tight"
-                        onClick={() => setIsActivitiesOpen(false)}
+                      Activities
+                      <ChevronDown size={14} className={`transition-transform duration-200 ${isActivitiesOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    
+                    {/* Activity dropdown menu */}
+                    {isActivitiesOpen && (
+                      <div 
+                        onMouseEnter={() => setIsActivitiesOpen(true)}
+                        onMouseLeave={() => setIsActivitiesOpen(false)}
+                        className="absolute left-0 mt-0 w-56 rounded-2xl bg-white shadow-2xl shadow-slate-200 ring-1 ring-slate-200 p-2 z-[60] animate-in fade-in zoom-in-95 duration-100"
                       >
-                        <div className="h-8 w-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-500">
-                          <Gamepad2 size={18} />
-                        </div>
-                        Quizzes
-                      </Link>
-                      <Link
-                        to="/social-stories"
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-brand-600 transition-all leading-tight"
-                        onClick={() => setIsActivitiesOpen(false)}
-                      >
-                        <div className="h-8 w-8 rounded-lg bg-pink-50 flex items-center justify-center text-pink-500">
-                          <BookOpen size={18} />
-                        </div>
-                        Social Stories
-                      </Link>
-                      <Link
-                        to="/saved-worksheets"
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-brand-600 transition-all leading-tight"
-                        onClick={() => setIsActivitiesOpen(false)}
-                      >
-                        <div className="h-8 w-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-500">
-                          <FileText size={18} />
-                        </div>
-                        Worksheets
-                      </Link>
-                    </div>
-                  )}
-                </div>
+                        <Link
+                          to="/saved-quizzes"
+                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-brand-600 transition-all leading-tight"
+                          onClick={() => setIsActivitiesOpen(false)}
+                        >
+                          <div className="h-8 w-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-500">
+                            <Gamepad2 size={18} />
+                          </div>
+                          Quizzes
+                        </Link>
+                        <Link
+                          to="/social-stories"
+                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-brand-600 transition-all leading-tight"
+                          onClick={() => setIsActivitiesOpen(false)}
+                        >
+                          <div className="h-8 w-8 rounded-lg bg-pink-50 flex items-center justify-center text-pink-500">
+                            <BookOpen size={18} />
+                          </div>
+                          Social Stories
+                        </Link>
+                        <Link
+                          to="/saved-worksheets"
+                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-brand-600 transition-all leading-tight"
+                          onClick={() => setIsActivitiesOpen(false)}
+                        >
+                          <div className="h-8 w-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-500">
+                            <FileText size={18} />
+                          </div>
+                          Worksheets
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                </Tooltip>
 
-                <Link
-                  to="/profile"
-                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:bg-slate-100 ${
-                    isActive('/profile') ? 'bg-brand-50 text-brand-700' : 'text-slate-600'
-                  }`}
-                >
-                  Profile
-                </Link>
+                <Tooltip content="Parent's Profile">
+                  <Link
+                    to="/profile"
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:bg-slate-100 ${
+                      isActive('/profile') ? 'bg-brand-50 text-brand-700' : 'text-slate-600'
+                    }`}
+                  >
+                    Profile
+                  </Link>
+                </Tooltip>
               </nav>
             )}
           </div>
 
           <div className="hidden md:flex items-center gap-4">
-            <Link to="/about" className="text-sm font-semibold text-slate-600 hover:text-brand-600 transition-all">
-              About
-            </Link>
+            <Tooltip content="About Visual Steps">
+              <Link to="/about" className="text-sm font-semibold text-slate-600 hover:text-brand-600 transition-all">
+                About
+              </Link>
+            </Tooltip>
             <div className="h-4 w-px bg-slate-200" />
             {user ? (
               <div className="flex items-center gap-4">
                 <span className="text-sm font-medium text-slate-500">Hi, <span className="text-slate-900 font-bold">{user.name.split(' ')[0]}</span></span>
-                <Button variant="outline" size="sm" onClick={logout} className="h-9">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Sign out
-                </Button>
+                <Tooltip content="Sign Out">
+                  <Button variant="outline" size="sm" onClick={logout} className="h-9">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sign out
+                  </Button>
+                </Tooltip>
               </div>
             ) : (
               <div className="flex items-center gap-3">
@@ -214,7 +224,7 @@ export function Layout() {
         )}
       </header>
 
-      <main className="flex-grow overflow-y-auto p-2 md:p-4 print:overflow-visible print:h-auto print:p-0 print:block">
+      <main className="flex-grow overflow-y-auto p-2 md:p-3 print:overflow-visible print:h-auto print:p-0 print:block">
         <div className="w-full h-full print:h-auto print:block">
           <Outlet />
         </div>

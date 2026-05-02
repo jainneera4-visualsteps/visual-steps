@@ -1,14 +1,14 @@
-import { Tooltip as ChartRechartsTooltip, Legend, ResponsiveContainer, Label, LabelList, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { Tooltip as ChartRechartsTooltip, Legend, ResponsiveContainer, Label, LabelList, PieChart, Pie, Cell, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Tooltip as CustomTooltip } from '../components/ui/Tooltip';
 import { io } from 'socket.io-client';
 import { apiFetch, safeJson } from '../utils/api';
 import { formatReward } from '../utils/rewardUtils';
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import { ArrowLeft, Plus, Trash2, Edit2, CheckCircle, Circle, Calendar, Clock, Repeat, Image as ImageIcon, Eye, Sparkles, Loader2, LayoutList, ChevronLeft, ChevronRight, Activity, TrendingUp, PieChart as PieChartIcon, Award, BarChart as BarChartIcon, History, Lock, Printer, Lightbulb } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Edit2, CheckCircle, Circle, Calendar, Clock, Repeat, Image as ImageIcon, Eye, Sparkles, Loader2, LayoutList, ChevronLeft, ChevronRight, Activity, TrendingUp, PieChart as PieChartIcon, Award, BarChart as BarChartIcon, History, Lock, Lightbulb } from 'lucide-react';
 import { ActivityDetailModal } from '../components/ActivityDetailModal';
 
 // Global Chart Tooltip helper
@@ -99,9 +99,10 @@ interface ActivityTemplate {
 export default function AssignedActivities() {
   const { kidId } = useParams();
   const navigate = useNavigate();
-  const [isPrinting, setIsPrinting] = useState(false);
-  const printRef = useRef<HTMLDivElement>(null);
+  const [searchParams] = useSearchParams();
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [behaviorLogs, setBehaviorLogs] = useState<any[]>([]);
+  const [behaviorTracker, setBehaviorTracker] = useState<any[]>([]);
   const [historyActivities, setHistoryActivities] = useState<Activity[]>([]);
   const [kid, setKid] = useState<Kid | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -113,11 +114,18 @@ export default function AssignedActivities() {
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
 
   useEffect(() => {
+    if (kidId) {
+      localStorage.setItem('dashboard_selected_kid_id', kidId);
+    }
+  }, [kidId]);
+
+  useEffect(() => {
     console.log('Activity types:', activityTypes);
   }, [activityTypes]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'activities' | 'completed' | 'history' | 'rewards' | 'progress'>('activities');
+  const [activeTab, setActiveTab] = useState<'activities' | 'completed' | 'history' | 'rewards' | 'progress'>((searchParams.get('tab') as any) || 'activities');
+
   const [templates, setTemplates] = useState<ActivityTemplate[]>([]);
   const [socialStories, setSocialStories] = useState<any[]>([]);
   const [quizzes, setQuizzes] = useState<any[]>([]);
@@ -129,6 +137,7 @@ export default function AssignedActivities() {
   const [isRewardModalOpen, setIsRewardModalOpen] = useState(false);
   const [isHistoryDeleteConfirmOpen, setIsHistoryDeleteConfirmOpen] = useState(false);
   const [activityToDelete, setActivityToDelete] = useState<string | null>(null);
+  const [locationFilter, setLocationFilter] = useState('');
   const [rewardToDelete, setRewardToDelete] = useState<string | null>(null);
   const [newReward, setNewReward] = useState({ name: '', cost: 1, imageUrl: '', location: '' });
   const [editingReward, setEditingReward] = useState<RewardItem | null>(null);
@@ -142,6 +151,8 @@ export default function AssignedActivities() {
   const [purchaseItemsPerPage, setPurchaseItemsPerPage] = useState(10);
   const [activitiesPage, setActivitiesPage] = useState(1);
   const [activitiesItemsPerPage, setActivitiesItemsPerPage] = useState(10);
+  const [behaviorPage, setBehaviorPage] = useState(1);
+  const [behaviorItemsPerPage, setBehaviorItemsPerPage] = useState(10);
   const [viewingQuizResult, setViewingQuizResult] = useState<any | null>(null);
 
   useEffect(() => {
@@ -160,11 +171,14 @@ export default function AssignedActivities() {
   useEffect(() => {
     setPurchasePage(1);
   }, [reportDuration, purchaseItemsPerPage]);
+
+  useEffect(() => {
+    setBehaviorPage(1);
+  }, [reportDuration, behaviorItemsPerPage]);
   const [completedSearchQuery, setCompletedSearchQuery] = useState('');
   const [completedCategoryFilter, setCompletedCategoryFilter] = useState('All');
   const [completedDateFilter, setCompletedDateFilter] = useState('');
   const [historySearchQuery, setHistorySearchQuery] = useState('');
-  const [historyCategoryFilter, setHistoryCategoryFilter] = useState('All');
   const [historyDateFilter, setHistoryDateFilter] = useState('');
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([]);
 
@@ -205,6 +219,17 @@ export default function AssignedActivities() {
       console.error('formatKidDate error:', e, 'date:', date);
       return String(date);
     }
+  };
+
+  const formatSimpleDate = (dateStr: string | null | undefined) => {
+    if (!dateStr) return '';
+    const datePart = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+    return formatKidDate(datePart + 'T12:00:00', { month: 'short', day: 'numeric', year: 'numeric', hour: undefined, minute: undefined });
+  };
+
+  const formatTimeOnly = (dateStr: string | null | undefined) => {
+    if (!dateStr) return '-';
+    return formatKidDate(dateStr, { year: undefined, month: undefined, day: undefined, hour: '2-digit', minute: '2-digit', hour12: true });
   };
 
   const activitiesToRender = activeTab === 'activities' 
@@ -717,6 +742,7 @@ export default function AssignedActivities() {
     fetchQuizzes();
     fetchQuizResults();
     fetchWorksheets();
+    fetchBehaviorLogs();
 
     // Set up socket connection
     const socket = io(window.location.origin);
@@ -730,6 +756,7 @@ export default function AssignedActivities() {
       if (data.kidId === kidId) {
         fetchData({ silent: true, skipSamples: true });
         fetchRewardItems();
+        fetchBehaviorLogs();
       }
     });
 
@@ -764,6 +791,26 @@ export default function AssignedActivities() {
       socket.disconnect();
     };
   }, [kidId]);
+
+  useEffect(() => {
+    if (activeTab === 'progress') {
+      fetchBehaviorLogs();
+    }
+  }, [activeTab]);
+
+  const fetchBehaviorLogs = async () => {
+    try {
+      const res = await apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/behavior-logs`);
+      if (res.ok) {
+        const data = await safeJson(res);
+        console.log('AssignedActivities: Fetched behavior logs:', data.logs);
+        setBehaviorLogs(data.logs || []);
+        setBehaviorTracker(data.tracker || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch behavior logs', error);
+    }
+  };
 
   const fetchActivityTypes = async () => {
     try {
@@ -1160,121 +1207,6 @@ export default function AssignedActivities() {
     }
   };
 
-  const handlePrint = () => {
-    if (!printRef.current) return;
-    setIsPrinting(true);
-
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      alert('Please allow popups to print this list.');
-      setIsPrinting(false);
-      return;
-    }
-
-    const contentHtml = printRef.current.innerHTML;
-    const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
-      .map(style => style.outerHTML)
-      .join('\n');
-
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Activities Report - ${kid?.name || 'Kid'}</title>
-          ${styles}
-          <style>
-            @page {
-              size: auto;
-            }
-            @media print {
-              .no-print { display: none !important; }
-              html, body { 
-                margin: 0; 
-                padding: 0; 
-                background: white; 
-                height: auto !important; 
-                overflow: visible !important;
-              }
-              * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-            }
-            body { 
-              font-family: system-ui, -apple-system, sans-serif;
-              padding: 20px;
-              height: auto !important;
-              overflow: visible !important;
-            }
-            .print-header {
-              display: flex;
-              align-items: center;
-              justify-content: space-between;
-              border-bottom: 2px solid black;
-              padding-bottom: 15px;
-              margin-bottom: 25px;
-            }
-            .logo-container {
-              display: flex;
-              align-items: center;
-              gap: 10px;
-            }
-            .logo-icon {
-              width: 32px;
-              height: 32px;
-              background: #2563eb;
-              border-radius: 8px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              color: white;
-            }
-            .logo-text {
-              font-size: 20px;
-              font-weight: bold;
-              color: #1e3a8a !important;
-              text-transform: uppercase;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-            .report-title {
-              font-size: 24px;
-              font-weight: 900;
-              text-transform: uppercase;
-              text-align: right;
-              flex: 1;
-              margin-left: 20px;
-              color: black !important;
-            }
-            .print-container { width: 100%; position: relative; }
-            .card { border: 1px solid #e2e8f0 !important; margin-bottom: 1rem !important; break-inside: avoid; }
-          </style>
-        </head>
-        <body>
-          <div class="print-container">
-            <div class="print-header">
-              <div class="logo-container">
-                <div class="logo-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
-                </div>
-                <span class="logo-text">Visual Steps</span>
-              </div>
-              <h1 class="report-title">Activities Report</h1>
-            </div>
-            ${contentHtml}
-          </div>
-          <script>
-            window.onload = () => {
-              setTimeout(() => {
-                window.print();
-                window.close();
-              }, 500);
-            };
-          </script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    setIsPrinting(false);
-  };
-
   const handleSaveReward = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newReward.name || newReward.cost <= 0) return;
@@ -1478,7 +1410,7 @@ export default function AssignedActivities() {
               <div className="flex items-center gap-2">
                 <Calendar className="h-3.5 w-3.5 text-blue-600" />
                 <span className="text-[11px] font-bold text-blue-900">
-                  {formatKidDate(selectedDate + 'T12:00:00', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: undefined, minute: undefined })}
+                  {formatSimpleDate(selectedDate)}
                 </span>
               </div>
               <Button 
@@ -1576,67 +1508,99 @@ export default function AssignedActivities() {
               <p className="text-xs mt-1">{selectedDate ? 'Try selecting another date or clear the filter.' : 'Activities you complete will appear here.'}</p>
             </div>
           ) : (
-            <div className="divide-y divide-slate-100">
-              {paginatedCompleted.map((activity) => (
-                <div key={activity.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-bold text-slate-900 truncate flex items-center gap-2">
-                        {activity.activity_type}
-                        {activity.link?.includes('/social-stories/view/') && (
-                          <div className={`flex h-4 w-4 items-center justify-center rounded-full bg-blue-100 text-blue-600`}>
-                            <Eye className="h-2.5 w-2.5" />
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs text-slate-500 bg-slate-50 uppercase border-y border-slate-200">
+                  <tr>
+                    <th className="px-4 py-3 font-bold">Status</th>
+                    <th className="px-4 py-3 font-bold">Activity</th>
+                    <th className="px-4 py-3 font-bold">Description</th>
+                    <th className="px-4 py-3 font-bold">Repeat</th>
+                    <th className="px-4 py-3 font-bold">Completion Date</th>
+                    <th className="px-4 py-3 font-bold">Time of day</th>
+                    <th className="px-4 py-3 font-bold text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {paginatedCompleted.map((activity) => (
+                    <tr key={activity.id} className="hover:bg-slate-50 transition-colors bg-white">
+                      <td className="px-4 py-3">
+                        <div className="text-emerald-500">
+                          <CheckCircle className="h-5 w-5" />
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="font-bold text-slate-900 flex items-center gap-2">
+                          {activity.image_url && (
+                            <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded border border-slate-200">
+                              <img src={activity.image_url} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                            </div>
+                          )}
+                          {activity.activity_type}
+                          {activity.link?.includes('/social-stories/view/') && (
+                            <div className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                              <Eye className="h-2.5 w-2.5" />
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {activity.description && (
+                          <div className="text-xs text-slate-600 line-clamp-1">
+                            {activity.description}
                           </div>
                         )}
-                      </h3>
-                      {activity.category && (
-                        <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 uppercase">
-                          {activity.category}
-                        </span>
-                      )}
-                    </div>
-                    {activity.description && (
-                      <p className="text-sm text-slate-600 truncate mt-0.5">{activity.description}</p>
-                    )}
-                    <div className="flex items-center gap-3 mt-1 text-[11px] text-slate-400 font-bold uppercase tracking-wider">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="h-2.5 w-2.5" />
-                        {activity.due_date}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-2.5 w-2.5" />
+                      </td>
+                      <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
+                        {activity.repeat_frequency}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
+                        {formatSimpleDate(activity.completed_at || activity.due_date)}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
                         {activity.time_of_day}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      className="h-8 w-8 p-0"
-                      onClick={() => setPreviewActivity(activity)}
-                    >
-                      <Eye className="h-4 w-4 text-slate-400" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      className="h-8 w-8 p-0"
-                      onClick={() => handleOpenForm(activity)}
-                    >
-                      <Edit2 className="h-4 w-4 text-blue-600" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      className="h-8 w-8 p-0"
-                      onClick={() => handleDelete(activity.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-red-600" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <CustomTooltip content="View Activity Details">
+                            <Button
+                              variant="ghost"
+                              size="xs"
+                              className="h-7 w-7 p-0"
+                              onClick={() => setPreviewActivity(activity)}
+                            >
+                              <Eye className="h-4 w-4 text-slate-400 hover:text-blue-600" />
+                            </Button>
+                          </CustomTooltip>
+                          <CustomTooltip content="Edit Activity Details">
+                            <Button
+                              variant="ghost"
+                              size="xs"
+                              className="h-7 w-7 p-0"
+                              onClick={() => handleOpenForm(activity)}
+                            >
+                              <Edit2 className="h-4 w-4 text-slate-400 hover:text-blue-600" />
+                            </Button>
+                          </CustomTooltip>
+                          <CustomTooltip content="Delete Activity">
+                            <button
+                              type="button"
+                              className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-red-50 group transition-all active:scale-95"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleDelete(activity.id);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 text-slate-400 group-hover:text-red-500" />
+                            </button>
+                          </CustomTooltip>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </CardContent>
@@ -1645,7 +1609,7 @@ export default function AssignedActivities() {
   };
 
   return (
-    <div className="space-y-3 w-full" ref={printRef}>
+    <div className="space-y-3 w-full">
       {!isModalOpen && !previewActivity && !viewingQuizResult ? (
         <>
           <div className="mb-6">
@@ -1656,14 +1620,14 @@ export default function AssignedActivities() {
               <div>
                 <h1 className="text-5xl font-normal text-slate-900 tracking-tight leading-none">
                   {activeTab === 'activities' 
-                    ? <div className="flex items-center gap-4"><LayoutList className="h-12 w-12 text-blue-600" /> Assigned Activities</div>
+                    ? <div className="flex items-center gap-4"><LayoutList className="h-12 w-12 text-blue-600" /> {kid?.name ? `${kid.name}'s ` : ''}Assigned Activities</div>
                     : activeTab === 'completed' 
-                        ? <div className="flex items-center gap-4"><CheckCircle className="h-12 w-12 text-emerald-600" /> Completed Activities</div>
+                        ? <div className="flex items-center gap-4"><CheckCircle className="h-12 w-12 text-emerald-600" /> {kid?.name ? `${kid.name}'s ` : ''}Completed Activities</div>
                         : activeTab === 'history'
-                            ? <div className="flex items-center gap-4"><History className="h-12 w-12 text-purple-600" /> History</div>
+                            ? <div className="flex items-center gap-4"><History className="h-12 w-12 text-purple-600" /> {kid?.name ? `${kid.name}'s ` : ''}Activities History</div>
                             : activeTab === 'progress'
-                                ? <div className="flex items-center gap-4"><Activity className="h-12 w-12 text-indigo-600" /> Progress Report</div>
-                                : <div className="flex items-center gap-4"><Award className="h-12 w-12 text-amber-500" /> Reward Items</div>}
+                                ? <div className="flex items-center gap-4"><Activity className="h-12 w-12 text-indigo-600" /> {kid?.name ? `${kid.name}'s ` : ''}Progress Report</div>
+                                : <div className="flex items-center gap-4"><Award className="h-12 w-12 text-amber-500" /> {kid?.name ? `${kid.name}'s ` : ''}Reward Items</div>}
                 </h1>
                 <p className="text-lg font-normal text-slate-500 mt-3">
                   {activeTab === 'activities' 
@@ -1713,7 +1677,7 @@ export default function AssignedActivities() {
                       History
                     </button>
                   </CustomTooltip>
-                  <CustomTooltip content="Manage your rewards">
+                  <CustomTooltip content={`Manage ${kid?.name || 'Kid'}'s Rewards`}>
                     <button
                       onClick={() => setActiveTab('rewards')}
                       className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
@@ -1724,7 +1688,7 @@ export default function AssignedActivities() {
                       Rewards
                     </button>
                   </CustomTooltip>
-                  <CustomTooltip content="View progress report">
+                  <CustomTooltip content={`View ${kid?.name || 'Kid'}'s Progress Report`}>
                     <button
                       onClick={() => setActiveTab('progress')}
                       className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
@@ -1737,15 +1701,13 @@ export default function AssignedActivities() {
                   </CustomTooltip>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="xs" onClick={handlePrint} disabled={isPrinting} className="h-7 text-[12px] shrink-0">
-                    <Printer className={`mr-1 h-3 w-3 ${isPrinting ? 'animate-pulse' : ''}`} />
-                    Print List
-                  </Button>
                   {activeTab === 'activities' ? (
-                    <Button size="xs" onClick={() => handleOpenForm()} className="h-7 text-[12px] shrink-0">
-                      <Plus className="mr-1 h-3 w-3" />
-                      Add Activity
-                    </Button>
+                    <CustomTooltip content="Add New Activity">
+                      <Button size="xs" onClick={() => handleOpenForm()} className="h-7 text-[12px] shrink-0">
+                        <Plus className="mr-1 h-3 w-3" />
+                        Add Activity
+                      </Button>
+                    </CustomTooltip>
                   ) : activeTab === 'rewards' ? (
                     <Button size="xs" onClick={() => setIsRewardModalOpen(true)} className="h-7 text-[12px] shrink-0">
                       <Plus className="mr-1 h-3 w-3" />
@@ -1817,82 +1779,83 @@ export default function AssignedActivities() {
                 </Button>
               </div>
             ) : (
-            <div className="space-y-2">
-              {selectedDate && (
-                <div className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm font-bold text-blue-900">
-                      {formatKidDate(selectedDate + 'T12:00:00', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: undefined, minute: undefined })}
-                    </span>
+            <Card className="border-none ring-1 ring-slate-200 shadow-sm">
+              <CardContent className="p-0">
+                {selectedDate && (
+                  <div className="flex items-center justify-between border-b border-blue-100 bg-blue-50/50 px-4 py-2">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-3.5 w-3.5 text-blue-600" />
+                      <span className="text-[11px] font-bold text-blue-900">
+                        {formatSimpleDate(selectedDate)}
+                      </span>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="xs" 
+                      onClick={() => setSelectedDate(null)}
+                      className="h-6 text-[10px] text-blue-600 hover:bg-blue-100 hover:text-blue-800"
+                    >
+                      Clear Filter
+                    </Button>
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="xs" 
-                    onClick={() => setSelectedDate(null)}
-                    className="h-7 text-[11px] text-blue-600 hover:bg-blue-100 hover:text-blue-800"
-                  >
-                    Clear Filter
-                  </Button>
-                </div>
-              )}
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="text-xs text-slate-500 bg-slate-50 uppercase border-y border-slate-200">
-                    <tr>
-                      <th className="py-2 px-4">
-                        <select
-                          value={activitiesItemsPerPage}
-                          onChange={(e) => setActivitiesItemsPerPage(Number(e.target.value))}
-                          className="text-xs border border-slate-300 rounded p-1"
-                        >
-                          <option value={5}>5</option>
-                          <option value={10}>10</option>
-                          <option value={20}>20</option>
-                          <option value={50}>50</option>
-                        </select>
-                      </th>
-                      <th colSpan={4} className="py-2"></th>
-                      <th className="px-4 py-2 text-right">
-                        {(() => {
-                          const filtered = activitiesToRender.filter(a => !selectedDate || a.due_date === selectedDate);
-                          const totalActivitiesPages = Math.ceil(filtered.length / activitiesItemsPerPage);
-                          return (
-                            filtered.length > 0 && totalActivitiesPages > 1 && (
-                              <div className="flex items-center justify-end gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="xs"
-                                  disabled={activitiesPage === 1}
-                                  onClick={() => setActivitiesPage(prev => Math.max(1, prev - 1))}
-                                  className="h-7 w-7 p-0"
-                                >
-                                  <ChevronLeft className="h-4 w-4" />
-                                </Button>
-                                <span className="text-xs font-bold text-slate-600">
-                                  {activitiesPage} / {totalActivitiesPages}
-                                </span>
-                                <Button
-                                  variant="ghost"
-                                  size="xs"
-                                  disabled={activitiesPage === totalActivitiesPages}
-                                  onClick={() => setActivitiesPage(prev => Math.min(totalActivitiesPages, prev + 1))}
-                                  className="h-7 w-7 p-0"
-                                >
-                                  <ChevronRight className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            )
-                          );
-                        })()}
-                      </th>
-                    </tr>
+                )}
+                {(() => {
+                  const filteredCount = activitiesToRender.filter(a => !selectedDate || a.due_date === selectedDate).length;
+                  const totalActivitiesPages = Math.ceil(filteredCount / activitiesItemsPerPage);
+                  return (
+                    filteredCount > 0 && totalActivitiesPages > 1 && (
+                      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/30">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase">Per page:</span>
+                          <select
+                            className="h-7 rounded border border-slate-300 bg-white px-2 text-xs"
+                            value={activitiesItemsPerPage}
+                            onChange={(e) => {
+                              setActivitiesItemsPerPage(Number(e.target.value));
+                              setActivitiesPage(1);
+                            }}
+                          >
+                            <option value={10}>10</option>
+                            <option value={20}>20</option>
+                            <option value={50}>50</option>
+                          </select>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            disabled={activitiesPage === 1}
+                            onClick={() => setActivitiesPage(prev => Math.max(1, prev - 1))}
+                            className="h-7 w-7 p-0"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                          <span className="text-xs font-bold text-slate-600">
+                            Page {activitiesPage} of {totalActivitiesPages}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            disabled={activitiesPage === totalActivitiesPages}
+                            onClick={() => setActivitiesPage(prev => Math.min(totalActivitiesPages, prev + 1))}
+                            className="h-7 w-7 p-0"
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )
+                  );
+                })()}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="text-xs text-slate-500 bg-slate-50 uppercase border-y border-slate-200">
                     <tr>
                       <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSort('status')}>Status</th>
                       <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSort('activity_type')}>Activity</th>
                       <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSort('repeat_frequency')}>Repeat</th>
                       <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSort('due_date')}>Due Date</th>
-                      <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSort('time_of_day')}>Time</th>
+                      <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSort('time_of_day')}>Time of day</th>
                       <th className="px-4 py-3 font-bold text-right">Actions</th>
                     </tr>
                   </thead>
@@ -1960,45 +1923,48 @@ export default function AssignedActivities() {
                           {activity.repeat_frequency}
                         </td>
                         <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
-                          {activity.due_date}
+                          {formatSimpleDate(activity.due_date)}
                         </td>
                         <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
                           {activity.time_of_day}
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="xs"
-                              className="h-7 w-7 p-0"
-                              onClick={() => setPreviewActivity(activity)}
-                              title="View Details"
-                            >
-                              <Eye className="h-4 w-4 text-slate-400 hover:text-blue-600" />
-                            </Button>
-                            {activity.status !== 'completed' && (
+                            <CustomTooltip content="View Activity Details">
                               <Button
                                 variant="ghost"
                                 size="xs"
                                 className="h-7 w-7 p-0"
-                                onClick={() => handleOpenForm(activity)}
-                                title="Edit Activity"
+                                onClick={() => setPreviewActivity(activity)}
                               >
-                                <Edit2 className="h-4 w-4 text-slate-400 hover:text-blue-600" />
+                                <Eye className="h-4 w-4 text-slate-400 hover:text-blue-600" />
                               </Button>
+                            </CustomTooltip>
+                            {activity.status !== 'completed' && (
+                              <CustomTooltip content="Edit Activity Details">
+                                <Button
+                                  variant="ghost"
+                                  size="xs"
+                                  className="h-7 w-7 p-0"
+                                  onClick={() => handleOpenForm(activity)}
+                                >
+                                  <Edit2 className="h-4 w-4 text-slate-400 hover:text-blue-600" />
+                                </Button>
+                              </CustomTooltip>
                             )}
-                            <button
-                              type="button"
-                              className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-red-50 group transition-all active:scale-95"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleDelete(activity.id);
-                              }}
-                              title="Delete Activity"
-                            >
-                              <Trash2 className="h-4 w-4 text-slate-400 group-hover:text-red-500" />
-                            </button>
+                            <CustomTooltip content="Delete Activity">
+                              <button
+                                type="button"
+                                className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-red-50 group transition-all active:scale-95"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleDelete(activity.id);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4 text-slate-400 group-hover:text-red-500" />
+                              </button>
+                            </CustomTooltip>
                           </div>
                         </td>
                       </tr>
@@ -2010,17 +1976,19 @@ export default function AssignedActivities() {
             {selectedDate && activities.filter(a => a.status !== 'completed').filter(a => a.due_date === selectedDate).length === 0 && (
               <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 py-8 text-center">
                 <p className="text-sm font-medium text-slate-500">No activities scheduled for this day.</p>
-                <Button 
-                  size="xs" 
-                  onClick={() => {
-                    handleOpenForm();
-                    setFormData(prev => ({ ...prev, dueDate: selectedDate }));
-                  }} 
-                  className="mt-2"
-                >
-                  <Plus className="mr-1 h-3 w-3" />
-                  Add Activity
-                </Button>
+                <CustomTooltip content="Add New Activity">
+                  <Button 
+                    size="xs" 
+                    onClick={() => {
+                      handleOpenForm();
+                      setFormData(prev => ({ ...prev, dueDate: selectedDate }));
+                    }} 
+                    className="mt-2"
+                  >
+                    <Plus className="mr-1 h-3 w-3" />
+                    Add Activity
+                  </Button>
+                </CustomTooltip>
               </div>
             )}
             {!selectedDate && activities.filter(a => a.status !== 'completed').length === 0 && (
@@ -2036,7 +2004,8 @@ export default function AssignedActivities() {
                 </p>
               </div>
             )}
-          </div>
+              </CardContent>
+            </Card>
         )) : activeTab === 'completed' ? (
           renderCompletedTab()
         ) : activeTab === 'history' ? (
@@ -2047,7 +2016,7 @@ export default function AssignedActivities() {
                 <div className="flex items-center gap-2">
                   <Calendar className="h-3.5 w-3.5 text-blue-600" />
                   <span className="text-[11px] font-bold text-blue-900">
-                    {formatKidDate(selectedDate + 'T12:00:00', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: undefined, minute: undefined })}
+                    {formatSimpleDate(selectedDate)}
                   </span>
                 </div>
                 <Button 
@@ -2069,14 +2038,6 @@ export default function AssignedActivities() {
                   value={historySearchQuery}
                   onChange={(e) => setHistorySearchQuery(e.target.value)}
                 />
-                <select
-                  className="h-8 rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
-                  value={historyCategoryFilter}
-                  onChange={(e) => setHistoryCategoryFilter(e.target.value)}
-                >
-                  <option value="All">All Categories</option>
-                  {activityCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                </select>
                 <input
                   type="date"
                   className="h-8 rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
@@ -2087,12 +2048,36 @@ export default function AssignedActivities() {
             </div>
 
             {(() => {
-              const filteredHistory = historyActivities
+              const filteredHistoryBase = historyActivities
                 .filter(a => !selectedDate || a.due_date === selectedDate)
-                .filter(a => historyCategoryFilter === 'All' || (a.category || 'Uncategorized') === historyCategoryFilter)
                 .filter(a => !historyDateFilter || (a.completed_at ? a.completed_at.split('T')[0] : a.due_date) === historyDateFilter)
                 .filter(a => a.activity_type.toLowerCase().includes(historySearchQuery.toLowerCase()) || (a.description || '').toLowerCase().includes(historySearchQuery.toLowerCase()));
               
+              // Group "Parent Bonus" entries by same minute
+              const groupedHistory: any[] = [];
+              const bonusGroups: { [key: string]: any } = {};
+              
+              filteredHistoryBase.forEach(item => {
+                if (item.activity_type === 'Parent Bonus' && item.completed_at) {
+                  // Group by the formatted date/time (which is down to the minute)
+                  const timeKey = formatKidDate(item.completed_at);
+                  if (!bonusGroups[timeKey]) {
+                    bonusGroups[timeKey] = { 
+                      ...item, 
+                      reward_qty: 0,
+                      id: `bonus-group-history-${timeKey}`
+                    };
+                  }
+                  bonusGroups[timeKey].reward_qty += (Number(item.reward_qty) || 0);
+                } else {
+                  groupedHistory.push(item);
+                }
+              });
+
+              const filteredHistory = [...groupedHistory, ...Object.values(bonusGroups)];
+              // Sort by completion date descending
+              filteredHistory.sort((a, b) => new Date(b.completed_at || b.due_date).getTime() - new Date(a.completed_at || a.due_date).getTime());
+
               const totalHistoryPages = Math.ceil(filteredHistory.length / historyItemsPerPage);
               const paginatedHistory = filteredHistory.slice((historyPage - 1) * historyItemsPerPage, historyPage * historyItemsPerPage);
 
@@ -2188,10 +2173,9 @@ export default function AssignedActivities() {
                             </div>
                           </th>
                           <th className="px-4 py-3 font-bold">Activity</th>
-                          <th className="px-4 py-3 font-bold">Category</th>
+                          <th className="px-4 py-3 font-bold">Description</th>
                           <th className="px-4 py-3 font-bold">Completion Date</th>
-                          <th className="px-4 py-3 font-bold">Time</th>
-                          <th className="px-4 py-3 font-bold">Reward</th>
+                          <th className="px-4 py-3 font-bold">Rewards</th>
                           <th className="px-4 py-3 font-bold text-right">Actions</th>
                         </tr>
                       </thead>
@@ -2211,13 +2195,17 @@ export default function AssignedActivities() {
                                 }}
                               />
                             </td>
-                            <td className="px-4 py-3">
+                             <td className="px-4 py-3">
                               <div className="font-bold text-slate-900 flex items-center gap-2">
-                                {activity.image_url && (
+                                {activity.activity_type === 'Parent Bonus' ? (
+                                  <div className="h-8 w-8 flex-shrink-0 flex items-center justify-center rounded border border-blue-100 bg-blue-50 text-blue-600">
+                                    <Sparkles className="h-4 w-4" />
+                                  </div>
+                                ) : activity.image_url ? (
                                   <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded border border-slate-200">
                                     <img src={activity.image_url} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                                   </div>
-                                )}
+                                ) : null}
                                 {activity.activity_type}
                                 {activity.link?.includes('/social-stories/view/') && (
                                   <div className={`flex h-4 w-4 items-center justify-center rounded-full bg-blue-100 text-blue-600`}>
@@ -2225,23 +2213,16 @@ export default function AssignedActivities() {
                                   </div>
                                 )}
                               </div>
-                              {activity.description && (
-                                <div className="text-xs text-slate-500 line-clamp-1 mt-0.5">{activity.description}</div>
-                              )}
                             </td>
                             <td className="px-4 py-3">
-                              {activity.category && (
-                                <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 uppercase">
-                                  {activity.category}
-                                </span>
+                              {activity.description && (
+                                <div className="text-xs text-slate-500 line-clamp-2">{activity.description}</div>
                               )}
                             </td>
                             <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
-                              {formatKidDate(activity.due_date + 'T12:00:00', { month: 'short', day: 'numeric', year: 'numeric', hour: undefined, minute: undefined })}
+                              {formatSimpleDate(activity.completed_at || activity.due_date)}
                             </td>
-                            <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
-                              {activity.time_of_day}
-                            </td>
+                            
                             <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
                               <div className="text-[11px] font-black text-orange-600 bg-orange-50 px-2 py-1 rounded-full flex items-center gap-1 w-fit">
                                 <img src={rewardIcon} alt={kid?.reward_type} className="h-3 w-3 object-contain" referrerPolicy="no-referrer" />
@@ -2249,15 +2230,16 @@ export default function AssignedActivities() {
                               </div>
                             </td>
                             <td className="px-4 py-3 text-right">
-                              <Button
-                                variant="ghost"
-                                size="xs"
-                                className="h-7 w-7 p-0"
-                                onClick={() => setPreviewActivity(activity)}
-                                title="View Details"
-                              >
-                                <Eye className="h-4 w-4 text-slate-400 hover:text-blue-600" />
-                              </Button>
+                              <CustomTooltip content="View Activity Details">
+                                <Button
+                                  variant="ghost"
+                                  size="xs"
+                                  className="h-7 w-7 p-0"
+                                  onClick={() => setPreviewActivity(activity)}
+                                >
+                                  <Eye className="h-4 w-4 text-slate-400 hover:text-blue-600" />
+                                </Button>
+                              </CustomTooltip>
                             </td>
                           </tr>
                         ))}
@@ -2332,8 +2314,11 @@ export default function AssignedActivities() {
 
         const combinedCompleted = [...filteredHistory, ...currentCompleted];
 
-        // Activities completed should only count actual activities, not manual reward adjustments
-        const actualActivitiesCompleted = combinedCompleted.filter(item => item.activity_type !== 'Parent Bonus');
+        // Activities completed should only count actual activities, not manual reward adjustments or behavior goals
+        const actualActivitiesCompleted = combinedCompleted.filter(item => 
+          item.activity_type !== 'Parent Bonus' && 
+          item.activity_type !== 'Behavior Goal Achieved'
+        );
         const completedCount = actualActivitiesCompleted.length;
         
         const totalRewardsEarned = combinedCompleted.reduce((sum, item) => sum + (Number(item.reward_qty) || 0), 0);
@@ -2373,29 +2358,90 @@ export default function AssignedActivities() {
           .map(([name, completed]) => ({ name, completed }))
           .sort((a, b) => new Date(a.name.replace('Week of ', '')).getTime() - new Date(b.name.replace('Week of ', '')).getTime());
 
-        // Group by date
-        const dailyDataMap: { [key: string]: { activityCount: number, totalRewards: number, date: Date } } = {};
-        combinedCompleted.forEach(item => {
-          if (!item.completed_at) return;
-          const date = new Date(item.completed_at);
+        // Group by date and behavior
+        const filteredLogs = behaviorLogs.filter(item => {
+          if (reportDuration === 'all') return true;
+          const completedAt = new Date(item.date || '');
+          if (isNaN(completedAt.getTime())) return false;
+          const now = new Date();
+          const diffMs = Math.abs(now.getTime() - completedAt.getTime());
+          const diffHours = diffMs / (1000 * 60 * 60);
+          
+          if (reportDuration === '24h') return diffHours <= 24;
+          if (reportDuration === '7d') return diffHours <= 24 * 7;
+          if (reportDuration === '30d') return diffHours <= 24 * 30;
+          return true;
+        });
+
+        const dailyDataMap: { [key: string]: { [key: string]: any, _total: number, _date: Date } } = {};
+        filteredLogs.forEach(item => {
+          const date = new Date(item.date);
           if (isNaN(date.getTime())) return;
           const dateKey = date.toISOString().split('T')[0];
+          
           if (!dailyDataMap[dateKey]) {
-            dailyDataMap[dateKey] = { activityCount: 0, totalRewards: 0, date: date };
+            dailyDataMap[dateKey] = { _total: 0, _date: date };
           }
-          if (item.activity_type !== 'Parent Bonus') {
-            dailyDataMap[dateKey].activityCount++;
+          
+          let behavior = item.description || 'Other';
+          if (behavior.toLowerCase().startsWith('goal reached: ')) {
+            behavior = behavior.substring(14).trim();
           }
-          dailyDataMap[dateKey].totalRewards += (Number(item.reward_qty) || 0);
+          dailyDataMap[dateKey][behavior] = (dailyDataMap[dateKey][behavior] || 0) + 1;
+          dailyDataMap[dateKey]._total++;
         });
+        
+        const allBehaviors = Array.from(new Set(filteredLogs.map(a => a.description || 'Other')));
         const dailyData = Object.entries(dailyDataMap)
           .map(([key, value]) => ({ 
-            name: value.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), 
-            completed: value.activityCount,
-            rewards: value.totalRewards,
-            fullDate: value.date
+            name: value._date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), 
+            fullDate: value._date,
+            ...value
           }))
           .sort((a, b) => a.fullDate.getTime() - b.fullDate.getTime());
+
+        // Group behavior logs by Behavior Name and Date
+        const groupedLogsMap: Record<string, any> = {};
+        behaviorLogs.forEach(log => {
+          const bDef = Array.isArray(log.behavior_definitions) ? log.behavior_definitions[0] : log.behavior_definitions;
+          const behaviorName = bDef?.name || 'Manual Log';
+          
+          // Parse description to remove metadata tags like [Time: ...] [Goal: ...]
+          const rawDesc = bDef?.description || '';
+          const timeMatch = rawDesc.match(/^\[Time: (\d{2}):(\d{2}):(\d{2})\](?:\[Priority: (High|Medium|Low)\])?(?:\[Goal: (\d+)\])? (.*)$/s);
+          const behaviorDesc = timeMatch ? timeMatch[6] : rawDesc;
+
+          const dateKey = log.date || (log.created_at ? log.created_at.split('T')[0] : 'Unknown');
+          const groupKey = `${behaviorName}-${dateKey}`;
+          
+          if (!groupedLogsMap[groupKey]) {
+            const trackerEntry = behaviorTracker?.find(t => t.definition_id === log.definition_id);
+            groupedLogsMap[groupKey] = {
+              ...log, // Keep original structure for compatibility
+              id: groupKey, 
+              behavior_name: behaviorName,
+              behavior_description: behaviorDesc,
+              date: dateKey,
+              rewards_earned: 0,
+              descriptions: [],
+              parent_remarks: trackerEntry?.remarks || '-'
+            };
+          }
+          
+          groupedLogsMap[groupKey].rewards_earned += (log.rewards_earned || 0);
+          if (log.remarks && (!groupedLogsMap[groupKey].remarks_list || !groupedLogsMap[groupKey].remarks_list.includes(log.remarks))) {
+            if (!groupedLogsMap[groupKey].remarks_list) groupedLogsMap[groupKey].remarks_list = [];
+            groupedLogsMap[groupKey].remarks_list.push(log.remarks);
+          }
+          // Stay with the latest created_at for sorting
+          if (!groupedLogsMap[groupKey].created_at || new Date(log.created_at) > new Date(groupedLogsMap[groupKey].created_at)) {
+             groupedLogsMap[groupKey].created_at = log.created_at;
+          }
+        });
+
+        const sortedBehaviorLogs = Object.values(groupedLogsMap).sort((a: any, b: any) => new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime());
+        const totalBehaviorPages = Math.ceil(sortedBehaviorLogs.length / behaviorItemsPerPage);
+        const paginatedBehaviors = sortedBehaviorLogs.slice((behaviorPage - 1) * behaviorItemsPerPage, behaviorPage * behaviorItemsPerPage);
 
         // Filter purchases based on duration
         const filteredPurchases = purchases.filter(r => {
@@ -2414,6 +2460,13 @@ export default function AssignedActivities() {
         const sortedPurchases = [...filteredPurchases].sort((a, b) => new Date(b.purchased_at).getTime() - new Date(a.purchased_at).getTime());
         const totalPurchasePages = Math.ceil(sortedPurchases.length / purchaseItemsPerPage);
         const paginatedPurchases = sortedPurchases.slice((purchasePage - 1) * purchaseItemsPerPage, purchasePage * purchaseItemsPerPage);
+
+        const durationLabels: Record<string, string> = {
+          '24h': 'the last 24 hours',
+          '7d': 'the last 7 days',
+          '30d': 'the last 30 days',
+          'all': 'all time',
+        };
 
         return (
           <div className="space-y-6">
@@ -2441,21 +2494,8 @@ export default function AssignedActivities() {
                       <CheckCircle className="h-5 w-5" />
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Activities Completed</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total activities completed in {durationLabels[reportDuration]}</p>
                       <p className="text-2xl font-black text-slate-900">{completedCount}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="border-none ring-1 ring-slate-200">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-full bg-blue-100 p-2 text-blue-600">
-                      <LayoutList className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Unique Categories</p>
-                      <p className="text-2xl font-black text-slate-900">{categories.length}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -2467,7 +2507,7 @@ export default function AssignedActivities() {
                       <Award className="h-5 w-5" />
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Reward Balance</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Current Rewards Balance</p>
                       <p className="text-2xl font-black text-slate-900">{kid?.reward_balance || 0}</p>
                     </div>
                   </div>
@@ -2480,7 +2520,7 @@ export default function AssignedActivities() {
                       <Sparkles className="h-5 w-5" />
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Rewards Earned</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Rewards Earned in {durationLabels[reportDuration]}</p>
                       <p className="text-2xl font-black text-slate-900">{totalRewardsEarned}</p>
                     </div>
                   </div>
@@ -2488,227 +2528,395 @@ export default function AssignedActivities() {
               </Card>
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-2">
-              <Card className="border-none ring-1 ring-slate-200">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-bold flex items-center gap-2">
-                    <PieChartIcon className="h-4 w-4 text-blue-600" />
-                    Category Distribution
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[300px] w-full">
-                    {filteredHistory.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={categoryData}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={60}
-                            outerRadius={80}
-                            paddingAngle={5}
-                            dataKey="completed"
-                          >
-                            {categoryData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <ChartRechartsTooltip 
-                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                          />
-                          <Legend 
-                            verticalAlign="bottom" 
-                            align="center"
-                            iconType="circle"
-                            wrapperStyle={{ fontSize: '10px', fontWeight: 600, paddingTop: '10px' }}
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="flex h-full flex-col items-center justify-center text-slate-400">
-                        <History className="h-12 w-12 mb-2 opacity-20" />
-                        <p className="text-sm font-bold italic">No history</p>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+            
 
-              <Card className="border-none ring-1 ring-slate-200">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-bold flex items-center gap-2">
-                    <PieChartIcon className="h-4 w-4 text-purple-600" />
-                    Weekly Activity Distribution
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[300px] w-full">
-                    {weeklyData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={weeklyData}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={60}
-                            outerRadius={80}
-                            paddingAngle={5}
-                            dataKey="completed"
-                          >
-                            {weeklyData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={PIE_COLORS[(index + 3) % PIE_COLORS.length]} />
-                            ))}
-                            <Label 
-                              content={({ viewBox }) => {
-                                const { cx, cy } = viewBox as any;
-                                return (
-                                  <g>
-                                    <text
-                                      x={cx}
-                                      y={cy - 5}
-                                      textAnchor="middle"
-                                      dominantBaseline="central"
-                                      className="text-2xl font-black fill-slate-900"
-                                    >
-                                      {totalRewardsEarned}
-                                    </text>
-                                    <text
-                                      x={cx}
-                                      y={cy + 15}
-                                      textAnchor="middle"
-                                      dominantBaseline="central"
-                                      className="text-[8px] font-bold uppercase tracking-wider fill-slate-400"
-                                    >
-                                      Total Earned
-                                    </text>
-                                  </g>
-                                );
-                              }}
-                            />
-                          </Pie>
-                          <ChartRechartsTooltip 
-                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                          />
-                          <Legend 
-                            verticalAlign="bottom" 
-                            align="center"
-                            iconType="circle"
-                            wrapperStyle={{ fontSize: '10px', fontWeight: 600, paddingTop: '10px' }}
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="flex h-full flex-col items-center justify-center text-slate-400">
-                        <History className="h-12 w-12 mb-2 opacity-20" />
-                        <p className="text-sm font-bold italic">No history</p>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
 
-              <Card className="border-none ring-1 ring-slate-200">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-bold flex items-center gap-2">
-                    <BarChartIcon className="h-4 w-4 text-blue-600" />
-                    Activity by Dates
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[300px] w-full">
-                    {dailyData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={dailyData}>
-                          <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
-                          <XAxis 
-                            dataKey="name" 
-                            axisLine={false} 
-                            tickLine={false} 
-                            tick={{ fontSize: 10, fontWeight: 600, fill: '#64748b' }}
-                          />
-                          <YAxis 
-                            axisLine={false} 
-                            tickLine={false} 
-                            tick={{ fontSize: 10, fontWeight: 600, fill: '#64748b' }}
-                          />
-                          <ChartRechartsTooltip 
-                            cursor={{ fill: '#f8fafc' }}
-                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                          />
-                          <Bar dataKey="completed" name="Completed" radius={[4, 4, 0, 0]}>
-                            {dailyData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                            ))}
-                            <LabelList 
-                              dataKey="rewards" 
-                              position="top" 
-                              style={{ fontSize: '10px', fontWeight: 800, fill: '#3b82f6' }}
-                              formatter={(value: number) => value > 0 ? `+${value}` : ''}
-                            />
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="flex h-full flex-col items-center justify-center text-slate-400">
-                        <History className="h-12 w-12 mb-2 opacity-20" />
-                        <p className="text-sm font-bold italic">No history</p>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+            <Card className="border-none ring-1 ring-slate-200">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-indigo-600" />
+                  Rewards Earned by Behavior
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={Object.values(sortedBehaviorLogs.reduce((acc: any, log: any) => {
+                        const name = log.behavior_name;
+                        if (!acc[name]) acc[name] = { name, rewards: 0 };
+                        acc[name].rewards += (log.rewards_earned || 0);
+                        return acc;
+                      }, {}))}
+                      margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis 
+                        dataKey="name" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fontSize: 10, fill: '#64748b' }}
+                        interval={0}
+                        angle={-45}
+                        textAnchor="end"
+                      />
+                      <YAxis 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fontSize: 10, fill: '#64748b' }}
+                      />
+                      <ChartRechartsTooltip 
+                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                        cursor={{ fill: '#f8fafc' }}
+                      />
+                      <Bar dataKey="rewards" radius={[4, 4, 0, 0]} barSize={40}>
+                        {Object.values(sortedBehaviorLogs.reduce((acc: any, log: any) => {
+                          const name = log.behavior_name;
+                          if (!acc[name]) acc[name] = { name, rewards: 0 };
+                          acc[name].rewards += (log.rewards_earned || 0);
+                          return acc;
+                        }, {})).map((entry: any, index: number) => (
+                          <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#6366f1' : '#8b5cf6'} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
 
-              <Card className="border-none ring-1 ring-slate-200">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-bold flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-blue-600" />
-                    Top Activities
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[300px] w-full">
-                    {filteredHistory.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={activityData} layout="vertical">
-                          <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
-                          <XAxis type="number" hide />
-                          <YAxis 
-                            dataKey="name" 
-                            type="category" 
-                            axisLine={false} 
-                            tickLine={false} 
-                            tick={{ fontSize: 10, fontWeight: 600, fill: '#64748b' }}
-                            width={100}
-                          />
-                          <ChartRechartsTooltip 
-                            cursor={{ fill: '#f8fafc' }}
-                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                          />
-                          <Bar dataKey="completed" name="Completed" radius={[0, 4, 4, 0]}>
-                            {activityData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={PIE_COLORS[(index + 2) % PIE_COLORS.length]} />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="flex h-full flex-col items-center justify-center text-slate-400">
-                        <History className="h-12 w-12 mb-2 opacity-20" />
-                        <p className="text-sm font-bold italic">No history</p>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card className="border-none ring-1 ring-slate-200">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                  <PieChartIcon className="h-4 w-4 text-emerald-600" />
+                  Behavior Distribution
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px] w-full">
+                  {sortedBehaviorLogs.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={Object.values(sortedBehaviorLogs.reduce((acc: any, log: any) => {
+                            const name = log.behavior_name;
+                            if (!acc[name]) acc[name] = { name, count: 0 };
+                            acc[name].count += 1;
+                            return acc;
+                          }, {}))}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={80}
+                          paddingAngle={5}
+                          dataKey="count"
+                        >
+                          {Object.values(sortedBehaviorLogs.reduce((acc: any, log: any) => {
+                            const name = log.behavior_name;
+                            if (!acc[name]) acc[name] = { name, count: 0 };
+                            acc[name].count += 1;
+                            return acc;
+                          }, {})).map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={PIE_COLORS[(index + 2) % PIE_COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <ChartRechartsTooltip 
+                          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                        />
+                        <Legend 
+                          verticalAlign="bottom" 
+                          align="center"
+                          iconType="circle"
+                          wrapperStyle={{ fontSize: '10px', fontWeight: 600, paddingTop: '10px' }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex h-full flex-col items-center justify-center text-slate-400">
+                      <History className="h-12 w-12 mb-2 opacity-20" />
+                      <p className="text-sm font-bold italic">No behavior logs</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-none ring-1 ring-slate-200">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                  <PieChartIcon className="h-4 w-4 text-orange-600" />
+                  Priority Distribution
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px] w-full">
+                  {sortedBehaviorLogs.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={Object.values(sortedBehaviorLogs.reduce((acc: any, log: any) => {
+                            const bDef = Array.isArray(log.behavior_definitions) ? log.behavior_definitions[0] : log.behavior_definitions;
+                            const priority = bDef?.priority || 'None';
+                            const label = priority === 'None' ? 'No Priority' : `Priority ${priority}`;
+                            if (!acc[label]) acc[label] = { name: label, count: 0 };
+                            acc[label].count += 1;
+                            return acc;
+                          }, {}))}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={80}
+                          paddingAngle={5}
+                          dataKey="count"
+                        >
+                          {Object.values(sortedBehaviorLogs.reduce((acc: any, log: any) => {
+                            const bDef = Array.isArray(log.behavior_definitions) ? log.behavior_definitions[0] : log.behavior_definitions;
+                            const priority = bDef?.priority || 'None';
+                            const label = priority === 'None' ? 'No Priority' : `Priority ${priority}`;
+                            if (!acc[label]) acc[label] = { name: label, count: 0 };
+                            acc[label].count += 1;
+                            return acc;
+                          }, {})).map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={PIE_COLORS[(index + 4) % PIE_COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <ChartRechartsTooltip 
+                          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                        />
+                        <Legend 
+                          verticalAlign="bottom" 
+                          align="center"
+                          iconType="circle"
+                          wrapperStyle={{ fontSize: '10px', fontWeight: 600, paddingTop: '10px' }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex h-full flex-col items-center justify-center text-slate-400">
+                      <History className="h-12 w-12 mb-2 opacity-20" />
+                      <p className="text-sm font-bold italic">No behavior statistics</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-none ring-1 ring-slate-200">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                  <BarChartIcon className="h-4 w-4 text-amber-600" />
+                  Top Categories
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px] w-full">
+                  {categoryData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={categoryData} layout="vertical">
+                        <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
+                        <XAxis type="number" hide />
+                        <YAxis 
+                          dataKey="name" 
+                          type="category" 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fontSize: 10, fontWeight: 600, fill: '#64748b' }}
+                          width={100}
+                        />
+                        <ChartRechartsTooltip 
+                          cursor={{ fill: '#f8fafc' }}
+                          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                        />
+                        <Bar dataKey="completed" name="Completed" radius={[0, 4, 4, 0]}>
+                          {categoryData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={PIE_COLORS[(index + 1) % PIE_COLORS.length]} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex h-full flex-col items-center justify-center text-slate-400">
+                      <History className="h-12 w-12 mb-2 opacity-20" />
+                      <p className="text-sm font-bold italic">No history</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
             
             <Card className="border-none ring-1 ring-slate-200">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-sm font-bold flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-emerald-600" />
+                    Recent Behavior History ({sortedBehaviorLogs.length})
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">Per page:</span>
+                    <select 
+                      className="h-6 rounded border border-slate-200 bg-white px-1 text-[10px] font-bold focus:outline-none focus:ring-1 focus:ring-blue-600"
+                      value={behaviorItemsPerPage}
+                      onChange={(e) => setBehaviorItemsPerPage(Number(e.target.value))}
+                    >
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                      <option value={30}>30</option>
+                      <option value={40}>40</option>
+                      <option value={50}>50</option>
+                    </select>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="text-xs text-slate-500 bg-slate-50 uppercase border-y border-slate-200 font-bold">
+                      <tr>
+                        <th className="px-4 py-3">Behavior</th>
+                        <th className="px-4 py-3">Behavior Description</th>
+                        <th className="px-4 py-3">Parent's Remarks</th>
+                        <th className="px-4 py-3 text-center">Priority</th>
+                        <th className="px-4 py-3 text-center">Rewards</th>
+                        <th className="px-4 py-3 text-right">Achievement Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {paginatedBehaviors.map((log, idx) => (
+                        <tr key={log.id || idx} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-4 py-3">
+                            <div className="text-sm font-bold text-slate-900 truncate max-w-[120px]" 
+                                 title={Array.isArray(log.behavior_definitions) 
+                                        ? (log.behavior_definitions[0]?.name || 'Manual Log') 
+                                        : (log.behavior_definitions?.name || 'Manual Log')}>
+                              {Array.isArray(log.behavior_definitions) 
+                                ? (log.behavior_definitions[0]?.name || 'Manual Log') 
+                                : (log.behavior_definitions?.name || 'Manual Log')}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="text-sm text-slate-600 space-y-1 break-words whitespace-pre-wrap">
+                              {log.behavior_description && (
+                                <div className="mb-2 text-slate-700">
+                                  {log.behavior_description}
+                                </div>
+                              )}
+                              {log.remarks_list?.map((rem: string, i: number) => (
+                                <div key={`rem-${i}`} className="flex items-start gap-1 italic text-slate-500">
+                                  <span className="text-slate-300 mt-0.5 shrink-0">»</span>
+                                  <span className="text-[11px] leading-snug">{rem}</span>
+                                </div>
+                              ))}
+                              {!log.behavior_description && (!log.remarks_list || log.remarks_list.length === 0) && (
+                                <div className="text-slate-400 italic text-[11px]">No details logged</div>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="text-sm text-slate-600 break-words whitespace-pre-wrap" title={log.parent_remarks}>
+                              {log.parent_remarks}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-center line-through">
+                            {(() => {
+                              const bDef = Array.isArray(log.behavior_definitions) ? log.behavior_definitions[0] : log.behavior_definitions;
+                              const priority = bDef?.priority || '-';
+                              return (
+                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider border-none ${
+                                  priority === 'High' ? 'bg-red-100 text-red-700' : 
+                                  priority === 'Medium' ? 'bg-amber-100 text-amber-700' : 
+                                  priority === 'Low' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
+                                }`}>
+                                  {priority}
+                                </span>
+                              );
+                            })()}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`text-sm font-bold ${log.rewards_earned > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
+                              {log.rewards_earned > 0 
+                                ? `+${log.rewards_earned} ${formatReward(kid?.reward_type, log.rewards_earned)}` 
+                                : (log.rewards_earned || '-')}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-right whitespace-nowrap text-slate-600">
+                            {formatSimpleDate(log.created_at)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  
+                  {sortedBehaviorLogs.length > 0 && totalBehaviorPages > 1 && (
+                    <div className="mt-4 px-4 flex items-center justify-between border-t border-slate-100 pt-4">
+                      <p className="text-[10px] font-bold text-slate-500 uppercase">
+                        Page {behaviorPage} of {totalBehaviorPages}
+                      </p>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          disabled={behaviorPage === 1}
+                          onClick={() => setBehaviorPage(prev => Math.max(1, prev - 1))}
+                          className="h-7 w-7 p-0"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: Math.min(5, totalBehaviorPages) }, (_, i) => {
+                            let pageNum;
+                            if (totalBehaviorPages <= 5) {
+                              pageNum = i + 1;
+                            } else if (behaviorPage <= 3) {
+                              pageNum = i + 1;
+                            } else if (behaviorPage >= totalBehaviorPages - 2) {
+                              pageNum = totalBehaviorPages - 4 + i;
+                            } else {
+                              pageNum = behaviorPage - 2 + i;
+                            }
+                            return (
+                              <Button
+                                key={pageNum}
+                                variant={behaviorPage === pageNum ? 'primary' : 'ghost'}
+                                size="xs"
+                                onClick={() => setBehaviorPage(pageNum)}
+                                className={`h-7 w-7 p-0 text-[10px] font-bold ${behaviorPage === pageNum ? 'bg-blue-600 text-white' : 'text-slate-600'}`}
+                              >
+                                {pageNum}
+                              </Button>
+                            );
+                          })}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          disabled={behaviorPage === totalBehaviorPages}
+                          onClick={() => setBehaviorPage(prev => Math.min(totalBehaviorPages, prev + 1))}
+                          className="h-7 w-7 p-0"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {sortedBehaviorLogs.length === 0 && (
+                    <div className="text-center py-12 text-slate-400">
+                      <TrendingUp className="h-12 w-12 mx-auto mb-2 opacity-20" />
+                      <p className="text-sm font-bold italic">No behavior history found for the selected duration.</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-none ring-1 ring-slate-200">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-bold flex items-center gap-2">
                     <History className="h-4 w-4 text-blue-600" />
-                    Recent History ({sortedHistory.length})
+                    Recent Activities History ({sortedHistory.length})
                   </CardTitle>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-bold text-slate-500 uppercase">Per page:</span>
@@ -2727,38 +2935,50 @@ export default function AssignedActivities() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  {paginatedHistory.map(activity => (
-                    <div key={activity.id} className="flex items-center gap-3 rounded-lg bg-slate-50 p-2.5 border border-slate-100">
-                      <div className="rounded-full bg-emerald-100 p-1.5 text-emerald-600">
-                        <CheckCircle className="h-4 w-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-bold text-slate-900 truncate flex items-center gap-2">
-                          {activity.activity_type}
-                          {activity.link?.includes('/social-stories/view/') && (
-                            <div className={`flex h-4 w-4 items-center justify-center rounded-full bg-blue-100 text-blue-600`}>
-                              <Eye className="h-2.5 w-2.5" />
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="text-xs text-slate-500 bg-slate-50 uppercase border-y border-slate-200 font-bold">
+                      <tr>
+                        <th className="px-4 py-3">Activity Type</th>
+                        <th className="px-4 py-3">Description</th>
+                        <th className="px-4 py-3 text-center">Reward</th>
+                        <th className="px-4 py-3 text-right">Completion Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {paginatedHistory.map((activity, idx) => (
+                        <tr key={activity.id || idx} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-4 py-3">
+                            <div className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                              <div className={`rounded-full p-1 ${activity.activity_type === 'Parent Bonus' ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                                {activity.activity_type === 'Parent Bonus' ? <Sparkles className="h-3 w-3" /> : <CheckCircle className="h-3 w-3" />}
+                              </div>
+                              {activity.activity_type}
+                              {activity.link?.includes('/social-stories/view/') && (
+                                <div className={`flex h-4 w-4 items-center justify-center rounded-full bg-blue-100 text-blue-600`}>
+                                  <Eye className="h-2.5 w-2.5" />
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
-                        {activity.description && (
-                          <p className="text-[11px] text-slate-600 truncate">{activity.description}</p>
-                        )}
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{activity.category}</span>
-                          <span className="text-[10px] text-slate-300">•</span>
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                            {activity.completed_at ? formatKidDate(activity.completed_at) : activity.due_date}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="text-[11px] font-black text-orange-600 bg-orange-50 px-2 py-1 rounded-full flex items-center gap-1">
-                        <img src={rewardIcon} alt={kid?.reward_type} className="h-3 w-3 object-contain" referrerPolicy="no-referrer" />
-                        +{activity.reward_qty || 0} {formatReward(kid?.reward_type, activity.reward_qty || 0)}
-                      </div>
-                    </div>
-                  ))}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="text-xs text-slate-600">
+                              {activity.description || '-'}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <div className="text-sm font-bold text-orange-600 flex items-center justify-center gap-1">
+                              <img src={rewardIcon} alt={kid?.reward_type} className="h-3 w-3 object-contain" referrerPolicy="no-referrer" />
+                              +{activity.reward_qty || 0} {formatReward(kid?.reward_type, activity.reward_qty || 0)}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-right whitespace-nowrap text-slate-600">
+                            {formatSimpleDate(activity.completed_at || activity.due_date)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                   
                   {filteredHistory.length > 0 && totalHistoryPages > 1 && (
                     <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
@@ -2846,24 +3066,36 @@ export default function AssignedActivities() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  {paginatedPurchases.map(purchase => (
-                    <div key={purchase.id} className="flex items-center gap-3 rounded-lg bg-purple-50/30 p-2.5 border border-purple-100/50">
-                      <div className="rounded-full bg-purple-100 p-1.5 text-purple-600">
-                        <img src={rewardIcon} alt={kid?.reward_type} className="h-4 w-4 object-contain" referrerPolicy="no-referrer" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-slate-900 truncate">{purchase.item_name}</p>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                          {formatKidDate(purchase.purchased_at)}
-                        </p>
-                      </div>
-                      <div className="text-[11px] font-black text-purple-600 bg-purple-50 px-2 py-1 rounded-full flex items-center gap-1">
-                        <img src={rewardIcon} alt={kid?.reward_type} className="h-3 w-3 object-contain" referrerPolicy="no-referrer" />
-                        -{purchase.cost} {formatReward(kid?.reward_type, purchase.cost)}
-                      </div>
-                    </div>
-                  ))}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="text-xs text-slate-500 bg-slate-50 uppercase border-y border-slate-200 font-bold">
+                      <tr>
+                        <th className="px-4 py-3">Item Name</th>
+                        <th className="px-4 py-3 text-center">Cost</th>
+                        <th className="px-4 py-3 text-right">Purchase Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {paginatedPurchases.map((purchase, idx) => (
+                        <tr key={purchase.id || idx} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-4 py-3">
+                            <div className="text-sm font-bold text-slate-900">
+                              {purchase.item_name}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <div className="text-sm font-bold text-purple-600 flex items-center justify-center gap-1">
+                              <img src={rewardIcon} alt={kid?.reward_type} className="h-3 w-3 object-contain" referrerPolicy="no-referrer" />
+                              -{purchase.cost} {formatReward(kid?.reward_type, purchase.cost)}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-right whitespace-nowrap text-slate-600">
+                            {formatSimpleDate(purchase.purchased_at)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
 
                   {filteredPurchases.length > 0 && totalPurchasePages > 1 && (
                     <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
@@ -2976,7 +3208,7 @@ export default function AssignedActivities() {
                       >
                         <div>
                           <p className="font-medium">{res.quizzes?.title || 'Quiz'}</p>
-                          <p className="text-sm text-slate-500">{formatKidDate(res.completed_at)}</p>
+                          <p className="text-sm text-slate-500">{formatSimpleDate(res.completed_at)}</p>
                         </div>
                         <div className="font-bold text-blue-600">
                           {res.score} / {res.total_questions}
@@ -2991,8 +3223,19 @@ export default function AssignedActivities() {
         );
       })() : activeTab === 'rewards' ? (
         <div className="space-y-4">
+          <div className="flex justify-start items-center gap-4">
+            <select
+              className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={locationFilter}
+              onChange={(e) => setLocationFilter(e.target.value)}
+            >
+              <option value="">All Locations</option>
+              {[...new Set(rewardItems.map(item => item.location || ''))].filter(Boolean).map(loc => <option key={loc} value={loc}>{loc}</option>)}
+            </select>
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">{kid?.name ? `${kid.name}'s ` : ''}Reward Items</h2>
+          </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {rewardItems.map((item) => (
+            {rewardItems.filter(item => !locationFilter || item.location === locationFilter).map((item) => (
               <Card key={item.id} className="overflow-hidden border-slate-200 shadow-sm hover:shadow-md transition-shadow">
                 <CardContent className="p-0">
                   <div className="flex h-24">
@@ -3013,7 +3256,7 @@ export default function AssignedActivities() {
                           {item.cost} {formatReward(kid?.reward_type, item.cost)}
                         </div>
                         {item.location && (
-                          <div className="mt-1 text-[10px] font-medium text-slate-500 flex items-center gap-1">
+                          <div className="mt-1 text-xs font-bold text-slate-600 flex items-center gap-1">
                             <span className="inline-block w-1 h-1 rounded-full bg-slate-300"></span>
                             {item.location}
                           </div>
@@ -3042,7 +3285,7 @@ export default function AssignedActivities() {
                 </CardContent>
               </Card>
             ))}
-            {rewardItems.length === 0 && (
+            {rewardItems.filter(item => !locationFilter || item.location === locationFilter).length === 0 && (
               <div className="col-span-full py-12 text-center rounded-lg border-2 border-dashed border-slate-200 bg-slate-50">
                 <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
                   <Sparkles className="h-6 w-6 text-slate-400" />

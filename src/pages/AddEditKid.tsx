@@ -473,6 +473,20 @@ export default function AddEditKid() {
               </div>
             </div>
 
+            <div className="space-y-0.5">
+              <label className="text-[12px] font-bold text-slate-500 uppercase">Timezone</label>
+              <select
+                name="timezone"
+                value={formData.timezone}
+                onChange={handleChange}
+                className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
+              >
+                {Intl.supportedValuesOf('timeZone').map(tz => (
+                  <option key={tz} value={tz}>{tz}</option>
+                ))}
+              </select>
+            </div>
+
             <div className="space-y-2 pt-1 border-t border-slate-200/60">
               <h3 className="text-[12px] font-bold text-slate-500 uppercase">Permissions</h3>
               <div className="flex items-center gap-2">

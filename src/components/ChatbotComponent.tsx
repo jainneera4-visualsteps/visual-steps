@@ -3,6 +3,8 @@ import { apiFetch, safeJson } from '../utils/api';
 import { generateContent, modelNames } from '../lib/gemini';
 import { Send, Loader2, MessageSquare, Mic, MicOff, Volume2, VolumeX, Maximize2, Minimize2, X, ExternalLink } from 'lucide-react';
 import Markdown from 'react-markdown';
+import confetti from 'canvas-confetti';
+import { io } from 'socket.io-client';
 
 interface Message {
   role: 'user' | 'bot';
@@ -87,11 +89,44 @@ export function ChatbotComponent({ kidId, kidName, chatbotName, activities, rewa
   const activityList = pendingActivities.map(a => a.activity_type).join(', ');
   const rewardList = rewardItems.map(r => `${r.name} (${r.cost} ${rewardType})`).join(', ');
 
+  const lastHistoryRef = useRef<string>('');
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const playNotificationSound = () => {
+    try {
+      if (!audioRef.current) {
+        audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3');
+      }
+      audioRef.current.currentTime = 0;
+      audioRef.current.volume = 0.5;
+      audioRef.current.play().catch(e => console.log('Audio play blocked:', e));
+    } catch (e) {
+      console.error('Failed to play sound', e);
+    }
+  };
+
   useEffect(() => {
     console.log('ChatbotComponent mounted/updated, kidId:', kidId);
     fetchChatbotSettings().then(chatbotData => {
       fetchChatHistory(chatbotData);
     });
+
+    const socket = io(window.location.origin);
+    socket.emit('join_kid_room', kidId);
+
+    socket.on('data_updated', (data) => {
+      if (data.kidId === kidId) {
+        console.log('ChatbotComponent: data_updated received, refreshing history');
+        fetchChatbotSettings().then(chatbotData => {
+          fetchChatHistory(chatbotData);
+        });
+      }
+    });
+
+    return () => {
+      socket.emit('leave_kid_room', kidId);
+      socket.disconnect();
+    };
   }, [kidId]);
 
   useEffect(() => {
@@ -149,6 +184,23 @@ export function ChatbotComponent({ kidId, kidName, chatbotName, activities, rewa
         const data = await safeJson(res);
         const history = data.history || [];
         const historyMessages: Message[] = history.map((m: any) => ({ role: m.role, text: m.message }));
+
+        // Check for new messages from others (bot/parent) since last fetch
+        const historyString = JSON.stringify(historyMessages);
+        if (lastHistoryRef.current && historyString !== lastHistoryRef.current) {
+          const lastMsg = historyMessages[historyMessages.length - 1];
+          if (lastMsg && lastMsg.role === 'bot') {
+            console.log('New chatbot/parent message detected, triggering celebration');
+            playNotificationSound();
+            confetti({
+              particleCount: 50,
+              spread: 60,
+              origin: { y: 0.7 },
+              zIndex: 2000
+            });
+          }
+        }
+        lastHistoryRef.current = historyString;
 
         // Check if we should greet (only once per day)
         const today = new Date().toDateString();
@@ -337,6 +389,15 @@ export function ChatbotComponent({ kidId, kidName, chatbotName, activities, rewa
 
       setMessages(prev => [...prev, { role: 'bot', text: fullReply, links: groundingLinks.length > 0 ? groundingLinks : undefined }]);
       
+      // Trigger small celebration for new message
+      playNotificationSound();
+      confetti({
+        particleCount: 40,
+        spread: 70,
+        origin: { y: 0.8 },
+        zIndex: 2000
+      });
+
       // Save bot message
       saveMessage('bot', fullReply);
       

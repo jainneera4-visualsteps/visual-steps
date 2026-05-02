@@ -1,5 +1,5 @@
 import express from 'express';
-import serverless from 'serverless-http';
+// import serverless from 'serverless-http';
 import http from 'http';
 import { Server } from 'socket.io';
 import { createClient } from '@supabase/supabase-js';
@@ -8,20 +8,19 @@ import jwt from 'jsonwebtoken';
 import cookieParser from 'cookie-parser';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import multer from 'multer';
 import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-dotenv.config({ override: true });
+dotenv.config();
 
 // Dual compatibility for ESM and CJS
 const currentDirname = process.cwd();
 
 export const app = express();
-
-export const handler = serverless(app);
 
 // Request logging
 app.use((req, res, next) => {
@@ -32,36 +31,32 @@ app.use((req, res, next) => {
 const server = http.createServer(app);
 let io: Server | null = null;
 
-const isVercel = !!process.env.VERCEL || !!process.env.VERCEL_URL || !!process.env.AWS_REGION || !!process.env.FUNCTION_TARGET;
+io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE"]
+  }
+});
 
-if (!isVercel) {
-  io = new Server(server, {
-    cors: {
-      origin: "*",
-      methods: ["GET", "POST", "PUT", "DELETE"]
-    }
+app.set('io', io);
+
+io.on('connection', (socket) => {
+  console.log('A user connected:', socket.id);
+  
+  socket.on('join_kid_room', (kidId) => {
+    socket.join(`kid_${kidId}`);
+    console.log(`Socket ${socket.id} joined room kid_${kidId}`);
   });
 
-  app.set('io', io);
-
-  io.on('connection', (socket) => {
-    console.log('A user connected:', socket.id);
-    
-    socket.on('join_kid_room', (kidId) => {
-      socket.join(`kid_${kidId}`);
-      console.log(`Socket ${socket.id} joined room kid_${kidId}`);
-    });
-
-    socket.on('leave_kid_room', (kidId) => {
-      socket.leave(`kid_${kidId}`);
-      console.log(`Socket ${socket.id} left room kid_${kidId}`);
-    });
-
-    socket.on('disconnect', () => {
-      console.log('User disconnected:', socket.id);
-    });
+  socket.on('leave_kid_room', (kidId) => {
+    socket.leave(`kid_${kidId}`);
+    console.log(`Socket ${socket.id} left room kid_${kidId}`);
   });
-}
+
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
+  });
+});
 
 const PORT = 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-change-in-prod';
@@ -130,9 +125,9 @@ const getSupabaseForUser = (req: any) => {
 
 // Ensure uploads directory exists
 const rootDir = currentDirname.endsWith('dist') ? path.dirname(currentDirname) : currentDirname;
-const uploadDir = isVercel ? '/tmp/uploads' : path.join(rootDir, 'uploads');
+const uploadDir = path.join(rootDir, 'uploads');
 
-if (!isVercel || !fs.existsSync(uploadDir)) {
+if (!fs.existsSync(uploadDir)) {
   try {
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
@@ -709,7 +704,8 @@ app.get('/api/kids/:id/chat-history', authenticateToken, async (req: any, res) =
   const supabase = getSupabaseForUser(req);
   
   try {
-    console.log(`[GET chat-history] Kid ID: ${id}, User ID: ${userId}, Role: ${req.user.role}`);
+    const start = Date.now();
+    console.log(`[GET chat-history] Start - Kid ID: ${id}, User ID: ${userId}`);
     
     // First verify parent has access to this kid
     const { data: kid, error: kidError } = await supabase
@@ -719,21 +715,21 @@ app.get('/api/kids/:id/chat-history', authenticateToken, async (req: any, res) =
       .single();
       
     if (kidError || !kid) {
-      console.error('[GET chat-history] Kid not found or access denied:', kidError);
+      console.error('[GET chat-history] Kid not found or access denied:', kidError, `Duration: ${Date.now() - start}ms`);
       return res.status(404).json({ error: 'Kid not found' });
     }
 
-    console.log(`[GET chat-history] Kid found. Owner ID: ${kid.user_id}`);
+    console.log(`[GET chat-history] Kid found. Owner ID: ${kid.user_id}, Duration: ${Date.now() - start}ms`);
     
     // Check if the user is the parent of this kid
     if (kid.user_id !== userId && req.user.role !== 'kid') {
-      console.error(`[GET chat-history] Forbidden access attempt. User ${userId} is not owner ${kid.user_id}`);
+      console.error(`[GET chat-history] Forbidden access attempt. User ${userId} is not owner ${kid.user_id}, Duration: ${Date.now() - start}ms`);
       return res.status(403).json({ error: 'Forbidden' });
     }
 
     // Use admin client to bypass RLS for chat_history
     const adminSupabase = getAdminSupabaseClient();
-    console.log(`[GET chat-history] Fetching from chat_history for kid_id: ${id}`);
+    console.log(`[GET chat-history] Fetching from chat_history for kid_id: ${id}, Duration: ${Date.now() - start}ms`);
     
     let { data: history, error } = await adminSupabase
       .from('chat_history')
@@ -742,7 +738,7 @@ app.get('/api/kids/:id/chat-history', authenticateToken, async (req: any, res) =
       .order('created_at', { ascending: true });
 
     if (error) {
-      console.warn('[GET chat-history] First fetch attempt failed:', error.message, 'Code:', error.code);
+      console.warn('[GET chat-history] First fetch attempt failed:', error.message, 'Code:', error.code, `Duration: ${Date.now() - start}ms`);
       
       const isColumnError = error.code === '42703' || 
                            (error.message && error.message.includes("column") && error.message.includes("not found"));
@@ -1358,15 +1354,104 @@ app.post('/api/kids/verify-code', async (req, res) => {
 const extractParentMessage = (kid: any) => {
   try {
     if (kid && kid.notes && typeof kid.notes === 'string') {
+      // Find all occurrences of [Message]: (.*)
+      // This will match both direct messages and messages inside [PendingReward]
       const matches = [...kid.notes.matchAll(/\[Message\]: (.*)/g)];
       if (matches.length > 0) {
-        kid.parent_message = matches[matches.length - 1][1];
+        // Use the absolute last message found in the notes
+        kid.parent_message = matches[matches.length - 1][1].trim();
       }
     }
   } catch (err) {
     console.error('Error in extractParentMessage:', err);
   }
   return kid;
+};
+
+const aggregateRewardMessages = (currentNotes: string, newRewardAmount: number, newBehaviorName: string, rewardTypeRaw: string) => {
+  const now = Date.now();
+  const AGGREGATION_THRESHOLD = 60 * 1000; // 1 minute
+  
+  let pendingBehaviors: any[] = [];
+  const lines = currentNotes ? currentNotes.split('\n') : [];
+  
+  // Find the last [PendingReward] line to see if we can aggregate with it
+  let lastPendingIdx = -1;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (lines[i].startsWith('[PendingReward]: ')) {
+      lastPendingIdx = i;
+      break;
+    }
+  }
+
+  let shouldAggregate = false;
+  if (lastPendingIdx !== -1) {
+    try {
+      const line = lines[lastPendingIdx];
+      const content = line.replace('[PendingReward]: ', '');
+      const msgIndex = content.indexOf(' [Message]: ');
+      const jsonPart = msgIndex !== -1 ? content.substring(0, msgIndex) : content;
+      const parsed = JSON.parse(jsonPart);
+      
+      const timestamp = parsed.timestamp || 0;
+      if (now - timestamp < AGGREGATION_THRESHOLD) {
+        shouldAggregate = true;
+        if (parsed.behaviors && Array.isArray(parsed.behaviors)) {
+            pendingBehaviors.push(...parsed.behaviors);
+        } else if (parsed.name || parsed.definition_name) {
+            pendingBehaviors.push({ amount: parsed.amount, name: parsed.name || parsed.definition_name });
+        }
+        // Remove the line we're aggregating with
+        lines.splice(lastPendingIdx, 1);
+      }
+    } catch (e) {
+      // Failed to parse, treat as non-aggregatable
+    }
+  }
+
+  // Add the new behavior
+  pendingBehaviors.push({ amount: newRewardAmount, name: newBehaviorName });
+
+  // Group by name to sum amounts for the same behavior
+  const aggregatedMap = new Map<string, number>();
+  pendingBehaviors.forEach(b => {
+      aggregatedMap.set(b.name, (aggregatedMap.get(b.name) || 0) + b.amount);
+  });
+  
+  const finalBehaviors = Array.from(aggregatedMap.entries()).map(([name, amount]) => ({ name, amount }));
+  const totalAmount = finalBehaviors.reduce((sum, b) => sum + b.amount, 0);
+  const behaviorNames = finalBehaviors.map(b => b.name);
+  
+  let behaviorListStr = '';
+  if (behaviorNames.length === 1) {
+    behaviorListStr = behaviorNames[0];
+  } else if (behaviorNames.length === 2) {
+    behaviorListStr = `${behaviorNames[0]} and ${behaviorNames[1]}`;
+  } else if (behaviorNames.length > 2) {
+    const last = behaviorNames.pop();
+    behaviorListStr = `${behaviorNames.join(', ')} and ${last}`;
+  }
+
+  const rewardType = totalAmount === 1 
+    ? (rewardTypeRaw.toLowerCase().endsWith('s') ? rewardTypeRaw.slice(0, -1) : rewardTypeRaw)
+    : (rewardTypeRaw.toLowerCase().endsWith('s') ? rewardTypeRaw : rewardTypeRaw + 's');
+
+  const goalMessage = `You have earned ${totalAmount} ${rewardType} for being ${behaviorListStr}.`;
+  
+  const aggregatedPayload = {
+    amount: totalAmount,
+    behaviors: finalBehaviors,
+    already_added: true,
+    timestamp: now
+  };
+
+  const pendingLine = `[PendingReward]: ${JSON.stringify(aggregatedPayload)} [Message]: ${goalMessage}`;
+  
+  let resultNotes = lines.join('\n').trim();
+  if (resultNotes) resultNotes += '\n\n';
+  resultNotes += pendingLine;
+  
+  return resultNotes;
 };
 
 app.get('/api/kids', authenticateToken, async (req: any, res) => {
@@ -1512,7 +1597,7 @@ app.put('/api/kids/:id', authenticateToken, async (req: any, res) => {
     // Verify ownership
     const { data: kid, error: checkError } = await supabase
       .from('kids')
-      .select('user_id, notes, reward_balance')
+      .select('user_id, notes, reward_balance, name, reward_type')
       .eq('id', id)
       .single();
 
@@ -1547,11 +1632,21 @@ app.put('/api/kids/:id', authenticateToken, async (req: any, res) => {
       // If balance increased, log as a manual reward in history
       if (updates.reward_balance > oldBalance) {
         const amountEarned = updates.reward_balance - oldBalance;
+        const currentRewardType = rewardType || kid.reward_type || 'point';
+        const currentKidName = name || kid.name || 'Kid';
+        
+        // Ensure reward type is lowercase for the sentence if needed, or keep as is.
+        // The prompt says [reward type]s. We'll append 's' if not present.
+        let rewardDisplay = currentRewardType;
+        if (!rewardDisplay.toLowerCase().endsWith('s')) {
+          rewardDisplay += 's';
+        }
+
         await supabase.from('activity_history').insert({
           kid_id: id,
           activity_type: 'Parent Bonus',
           category: 'Reward',
-          description: 'Manually added by parent',
+          description: `Parent gave the ${rewardDisplay} to ${currentKidName}.`,
           reward_qty: amountEarned,
           completed_at: new Date().toISOString()
         });
@@ -1702,19 +1797,40 @@ app.delete('/api/kids/:id', authenticateToken, async (req: any, res) => {
   }
 });
 
-// Behaviors
+// Behaviors API
 app.get('/api/kids/:kidId/behavior-definitions', authenticateToken, async (req: any, res) => {
+  const adminSupabase = getAdminSupabaseClient();
   const supabase = getSupabaseForUser(req);
   const { kidId } = req.params;
 
+  // Validate UUID
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(kidId)) {
+    return res.status(400).json({ error: 'Invalid kid ID' });
+  }
+
   try {
-    const { data: definitions, error } = await supabase
+    // Verify ownership first using user's RLS
+    const { data: kidCheck, error: checkError } = await supabase
+      .from('kids')
+      .select('id')
+      .eq('id', kidId)
+      .maybeSingle();
+
+    if (checkError || !kidCheck) {
+      return res.status(403).json({ error: 'Unauthorized or kid not found' });
+    }
+
+    const { data: definitions, error } = await adminSupabase
       .from('behavior_definitions')
       .select('*')
       .eq('kid_id', kidId)
       .order('created_at', { ascending: true });
 
-    if (error) throw error;
+    if (error) {
+      console.error('[GET behavior-definitions] Supabase Error:', error);
+      throw error;
+    }
     res.json({ definitions: definitions || [] });
   } catch (error: any) {
     console.error('[GET behavior-definitions] Error:', error);
@@ -1723,235 +1839,656 @@ app.get('/api/kids/:kidId/behavior-definitions', authenticateToken, async (req: 
 });
 
 app.post('/api/kids/:kidId/behavior-definitions', authenticateToken, async (req: any, res) => {
+  const adminSupabase = getAdminSupabaseClient();
   const supabase = getSupabaseForUser(req);
   const { kidId } = req.params;
-  const { name, type, token_reward, icon } = req.body;
+  const { name, description, occurrence, icon, priority, goal_rewards, target_time, goal, is_active } = req.body;
 
-  if (!name || !type || token_reward === undefined) {
-    return res.status(400).json({ error: 'Missing required fields: name, type, token_reward' });
+  if (!name) {
+    return res.status(400).json({ error: 'Missing required field: name' });
   }
 
   try {
-    const { data: definition, error } = await supabase
-      .from('behavior_definitions')
-      .insert([{ kid_id: kidId, name, type, token_reward, icon: icon || null }])
-      .select()
-      .single();
+    const { data: kidCheck, error: checkError } = await supabase
+      .from('kids')
+      .select('id')
+      .eq('id', kidId)
+      .maybeSingle();
 
-    if (error) throw error;
+    if (checkError || !kidCheck) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    const payload: any = { 
+      kid_id: kidId, 
+      name, 
+      description,
+      priority: priority || 'Medium',
+      goal_rewards: parseInt(goal_rewards) || 1,
+      target_time: target_time || '00:00:00',
+      target_seconds: parseInt(req.body.target_seconds) || 0,
+      goal: goal !== undefined ? parseInt(goal) : 0,
+      is_active: is_active !== undefined ? is_active : true
+    };
+
+    const { data: definition, error } = await adminSupabase
+      .from('behavior_definitions')
+      .insert([payload])
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      console.error('[POST behavior-definitions] Supabase Error:', JSON.stringify(error, null, 2));
+      throw error;
+    }
+
+    // Insert initial tracking record into behavior_tracker table
+    if (definition) {
+      const initialBehaviorTracker: any = {
+        kid_id: kidId,
+        definition_id: definition.id,
+        points: 0,
+        remarks: ''
+      };
+
+      const { error: trackerError } = await adminSupabase
+        .from('behavior_tracker')
+        .insert([initialBehaviorTracker]);
+
+      if (trackerError) {
+        console.warn('[POST behavior-definitions] Failed to insert initial tracker (ignoring):', trackerError.message || trackerError);
+      }
+    }
+
     res.status(201).json({ definition });
   } catch (error: any) {
-    console.error('[POST behavior-definitions] Error:', error);
-    res.status(500).json({ error: 'Failed to create behavior definition', details: error.message });
+    console.error('[POST behavior-definitions] Catch Error:', error?.message || error);
+    res.status(500).json({ error: 'Failed to create behavior definition', details: error?.message || 'Unknown error' });
   }
 });
 
-app.delete('/api/behavior-definitions/:id', authenticateToken, async (req: any, res) => {
+app.get('/api/behavior-definitions/:id', authenticateToken, async (req: any, res) => {
+  const adminSupabase = getAdminSupabaseClient();
   const supabase = getSupabaseForUser(req);
   const { id } = req.params;
 
   try {
-    const { error } = await supabase
+    const { data: definition, error } = await adminSupabase
+      .from('behavior_definitions')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error || !definition) {
+      return res.status(404).json({ error: 'Behavior definition not found' });
+    }
+
+    // Check ownership
+    const { data: kidCheck, error: checkError } = await supabase
+      .from('kids')
+      .select('id')
+      .eq('id', definition.kid_id)
+      .maybeSingle();
+
+    if (checkError || !kidCheck) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    res.json({ definition });
+  } catch (error: any) {
+    console.error('[GET behavior-definition] Error:', error);
+    res.status(500).json({ error: 'Failed to fetch behavior definition', details: error.message });
+  }
+});
+
+app.put('/api/behavior-definitions/:id', authenticateToken, async (req: any, res) => {
+  const adminSupabase = getAdminSupabaseClient();
+  const supabase = getSupabaseForUser(req);
+  const { id } = req.params;
+  const { name, description, occurrence, icon, priority, goal_rewards, target_time, goal, is_active } = req.body;
+
+  try {
+    // Verify ownership of the definition first
+    const { data: def, error: fetchError } = await adminSupabase
+      .from('behavior_definitions')
+      .select('kid_id')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !def) {
+      return res.status(404).json({ error: 'Behavior definition not found' });
+    }
+
+    const { data: kidCheck, error: checkError } = await supabase
+      .from('kids')
+      .select('id')
+      .eq('id', def.kid_id)
+      .maybeSingle();
+
+    if (checkError || !kidCheck) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    const payload: any = { 
+      name, 
+      description,
+      priority: priority || 'Medium',
+      goal_rewards: parseInt(goal_rewards) || 1,
+      target_time: target_time || '00:00:00',
+      target_seconds: parseInt(req.body.target_seconds) || 0,
+      goal: goal !== undefined ? parseInt(goal) : 0,
+      is_active: is_active !== undefined ? is_active : true
+    };
+
+    const { data: updatedDef, error } = await adminSupabase
+      .from('behavior_definitions')
+      .update(payload)
+      .eq('id', id)
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      console.error('[PUT behavior-definitions] Supabase Error:', JSON.stringify(error, null, 2));
+      throw error;
+    }
+    res.json({ definition: updatedDef });
+  } catch (error: any) {
+    console.error('[PUT behavior-definitions] Catch Error:', error?.message || error);
+    res.status(500).json({ error: 'Failed to update behavior definition', details: error?.message || 'Unknown error' });
+  }
+});
+
+app.delete('/api/behavior-definitions/:id', authenticateToken, async (req: any, res) => {
+  const adminSupabase = getAdminSupabaseClient();
+  const { id } = req.params;
+  const userId = (req as any).user.id;
+
+  // Validate UUID
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(id)) {
+    return res.status(400).json({ error: 'Invalid behavior definition ID format' });
+  }
+
+  try {
+    // 1. Get the definition to find which kid it belongs to
+    const { data: definition, error: getError } = await adminSupabase
+      .from('behavior_definitions')
+      .select('id, kid_id')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (getError) {
+      console.error('[DELETE behavior-definitions] Fetch Error:', getError);
+      return res.status(500).json({ error: 'Database error while fetching definition info', details: getError.message });
+    }
+
+    if (!definition) {
+      console.warn(`[DELETE behavior-definitions] Definition not found: ${id}`);
+      return res.status(404).json({ error: 'Behavior definition not found' });
+    }
+
+    // Security Check: Verify user owns the kid this definition belongs to
+    // We use the user's supabase client to check if they can access this kid
+    const supabaseForUser = getSupabaseForUser(req);
+    const { data: kidCheck, error: checkError } = await supabaseForUser
+      .from('kids')
+      .select('id')
+      .eq('id', definition.kid_id)
+      .maybeSingle();
+
+    if (checkError || !kidCheck) {
+      console.warn(`[DELETE behavior-definitions] Authorization failed for user ${userId} on kid ${definition.kid_id}`);
+      return res.status(403).json({ error: 'Unauthorized: You do not have permission to delete definitions from this kid profile' });
+    }
+
+    // Explicit Deletion Protocol
+    console.log(`[DELETE behavior-definitions] Starting explicit cleanup for ID: ${id}`);
+    
+    // 1. Delete from behavior_tracker explicitly
+    const { error: tErr } = await adminSupabase
+      .from('behavior_tracker')
+      .delete()
+      .eq('definition_id', id);
+    if (tErr) console.warn('[DELETE behavior-definitions] Tracker delete warning:', tErr.message);
+
+    // 2. Clean up behavior_logs
+    const { error: lErr } = await adminSupabase
+      .from('behavior_logs')
+      .update({ definition_id: null })
+      .eq('definition_id', id);
+    if (lErr) console.warn('[DELETE behavior-definitions] Logs update warning:', lErr.message);
+
+    // 4. Finally delete the definition itself
+    const { error: finalDeleteErr } = await adminSupabase
       .from('behavior_definitions')
       .delete()
       .eq('id', id);
 
-    if (error) throw error;
-    res.status(200).json({ message: 'Behavior definition deleted successfully' });
+    if (finalDeleteErr) {
+      console.error('[DELETE behavior-definitions] Final Delete Error:', finalDeleteErr);
+      return res.status(500).json({ error: 'Database rejected the final deletion', details: finalDeleteErr.message });
+    }
+
+    console.log(`[DELETE behavior-definitions] Successfully deleted ID ${id}`);
+
+    // Real-time update for the kid
+    const io = req.app.get('io');
+    if (io) {
+        io.to(`kid_${definition.kid_id}`).emit('data_updated', { kidId: definition.kid_id });
+        io.to(`kid_${definition.kid_id}`).emit('behavior_definition_deleted', { id });
+    }
+
+    res.json({ message: 'Behavior definition deleted successfully' });
   } catch (error: any) {
-    console.error('[DELETE behavior-definitions] Error:', error);
-    res.status(500).json({ error: 'Failed to delete behavior definition', details: error.message });
+    console.error('[DELETE behavior-definitions] Catch Error:', error);
+    res.status(500).json({ error: 'An unexpected error occurred during deletion', details: error.message });
   }
 });
 
 app.get('/api/kids/:kidId/behaviors', authenticateToken, async (req: any, res) => {
+  const adminSupabase = getAdminSupabaseClient();
   const supabase = getSupabaseForUser(req);
   const { kidId } = req.params;
 
-  try {
-    const { data: behaviors, error } = await supabase
-      .from('behaviors')
-      .select('*, behavior_definitions(*)')
-      .eq('kid_id', kidId)
-      .order('date', { ascending: false })
-      .order('created_at', { ascending: false });
+  // Validate UUID
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(kidId)) {
+    return res.status(400).json({ error: 'Invalid kid ID' });
+  }
 
-    if (error) {
-      console.error('[GET behaviors] Query Error:', error);
-      throw error;
+  try {
+    // Verify ownership first using user's RLS
+    const { data: kidCheck, error: checkError } = await supabase
+      .from('kids')
+      .select('id')
+      .eq('id', kidId)
+      .maybeSingle();
+
+    if (checkError || !kidCheck) {
+      return res.status(403).json({ error: 'Unauthorized or kid not found' });
     }
-    res.json({ behaviors: behaviors || [] });
+
+    // Fetch behaviors using admin client to avoid join/RLS issues
+    const { data: behaviors, error: behaviorsError } = await adminSupabase
+      .from('behavior_logs')
+      .select('*')
+      .eq('kid_id', kidId)
+      .order('date', { ascending: false });
+
+    if (behaviorsError) {
+      console.error('[GET behaviors] Supabase Error:', behaviorsError);
+      throw behaviorsError;
+    }
+
+    // Fetch definitions separately to avoid missing relationship (PGRST200) issue
+    const { data: definitions, error: defsError } = await adminSupabase
+      .from('behavior_definitions')
+      .select('*')
+      .eq('kid_id', kidId);
+
+    if (defsError) {
+      console.error('[GET behaviors] Supabase Error (definitions):', defsError);
+      // We can still return behaviors even if definitions fail
+    }
+
+    // Merge manually
+    const enrichedBehaviors = (behaviors || []).map(b => ({
+      ...b,
+      behavior_definitions: (definitions || []).find(d => d.id === b.definition_id) || null
+    }));
+
+    res.json({ behaviors: enrichedBehaviors });
   } catch (error: any) {
-    console.error('[GET behaviors] Caught Exception:', error);
-    res.status(500).json({ error: 'Failed to fetch behaviors', details: error.message || error });
+    console.error('[GET behaviors] Catch Error:', error);
+    res.status(500).json({ error: 'Failed to fetch behaviors', details: error.message });
   }
 });
 
+const recordBehaviorLog = async (adminSupabase: any, kidId: string, definition_id: string, points: number, rewards: number, description: string, date?: string, remarks?: string) => {
+  // Include points/notes in description since columns like 'points' or 'remarks' might be missing in behavior_logs
+  let finalDescription = description || 'Behavior reported';
+  if (points > 0) {
+    finalDescription = `${finalDescription} (+${points} points)`;
+  }
+  if (remarks) {
+    finalDescription = `${finalDescription} (Note: ${remarks})`;
+  }
+
+  let finalDate = date;
+  if (!finalDate) {
+    try {
+      const { data: kid } = await adminSupabase.from('kids').select('timezone').eq('id', kidId).single();
+      const tz = kid?.timezone || 'UTC';
+      finalDate = new Intl.DateTimeFormat('en-CA', { 
+        timeZone: tz, 
+        year: 'numeric', 
+        month: '2-digit', 
+        day: '2-digit' 
+      }).format(new Date());
+    } catch (e) {
+      finalDate = new Date().toISOString().split('T')[0];
+    }
+  }
+
+  const logEntry: any = {
+    kid_id: kidId,
+    definition_id: definition_id || null,
+    type: 'desired',
+    description: finalDescription,
+    date: finalDate,
+    rewards_earned: rewards
+  };
+  
+  console.log('[recordBehaviorLog] Attempting insert into behavior_logs:', JSON.stringify(logEntry));
+  
+  try {
+    const { data, error } = await adminSupabase.from('behavior_logs').insert([logEntry]).select();
+    if (error) {
+      console.error('[recordBehaviorLog] behavior_logs Error:', error);
+      throw error;
+    }
+    return data;
+  } catch (err) {
+    console.error('[recordBehaviorLog] Fatal Error:', err);
+    throw err;
+  }
+};
+
+// Update behavior tracker and handle goals
+const updateTrackerAndCheckGoal = async (adminSupabase: any, io: any, kidId: string, definition_id: string, incrementalPoints: number, remarks: string, providedDate?: string) => {
+    // 0. Fetch definition for logic
+    const { data: bDef, error: defError } = await adminSupabase
+        .from('behavior_definitions')
+        .select('goal, goal_rewards, name')
+        .eq('id', definition_id)
+        .maybeSingle();
+    if (defError) throw defError;
+
+    // 1. Try to find if record exists
+    const { data: existing, error: findError } = await adminSupabase
+      .from('behavior_tracker')
+      .select('id, points')
+      .eq('kid_id', kidId)
+      .eq('definition_id', definition_id)
+      .maybeSingle();
+      
+    if (findError) throw findError;
+    
+    const oldPoints = existing?.points || 0;
+    const newPoints = oldPoints + incrementalPoints;
+    
+    // Check if goal just reached
+    const goalThreshold = (bDef?.goal || 1);
+    const goalReached = newPoints >= goalThreshold;
+
+    let updatedData;
+    if (existing) {
+        // 2. Update
+        const { data: ud, error: updateError } = await adminSupabase
+            .from('behavior_tracker')
+            .update({
+                points: goalReached ? 0 : newPoints,
+                remarks: remarks || '',
+                last_checked_time: new Date().toISOString()
+            })
+            .eq('id', existing.id)
+            .select()
+            .maybeSingle();
+        if (updateError) throw updateError;
+        updatedData = ud;
+    } else {
+        // 3. Insert
+        const { data: id, error: insertError } = await adminSupabase
+            .from('behavior_tracker')
+            .insert({
+                kid_id: kidId,
+                definition_id,
+                points: goalReached ? 0 : newPoints,
+                remarks: remarks || '',
+                last_checked_time: new Date().toISOString()
+            })
+            .select()
+            .maybeSingle();
+        if (insertError) throw insertError;
+        updatedData = id;
+    }
+
+    // Always log the behavior increment
+    if (incrementalPoints > 0) {
+        await recordBehaviorLog(adminSupabase, kidId, definition_id, incrementalPoints, 0, `Log for ${bDef?.name || 'Behavior'}`, providedDate, remarks);
+    }
+
+    // Handle goal reached
+    if (goalReached) {
+        const { data: kid, error: kidErr } = await adminSupabase
+            .from('kids')
+            .select('notes, reward_type')
+            .eq('id', kidId)
+            .single();
+
+        if (!kidErr && kid) {
+            let currentNotes = kid.notes || '';
+            
+            // Increment balance
+            if (bDef?.goal_rewards) {
+                await adminSupabase.rpc('increment_reward_balance', {
+                    kid_id_param: kidId,
+                    amount: bDef.goal_rewards
+                });
+
+                // Log to behavior_logs for progress report
+                await recordBehaviorLog(
+                    adminSupabase, 
+                    kidId, 
+                    definition_id, 
+                    0, 
+                    bDef.goal_rewards, 
+                    `Goal reached: ${bDef?.name || 'Behavior Goal'}`,
+                    providedDate,
+                    remarks
+                );
+
+                // Goal reached message
+                currentNotes = aggregateRewardMessages(
+                    currentNotes,
+                    bDef.goal_rewards,
+                    bDef.name,
+                    kid.reward_type || 'stars'
+                );
+                
+                await adminSupabase.from('kids').update({ notes: currentNotes }).eq('id', kidId);
+            }
+        }
+    } 
+
+    // Real-time update
+    if (io) {
+        io.to(`kid_${kidId}`).emit('data_updated', { kidId });
+    }
+
+    return updatedData;
+};
+
 app.post('/api/kids/:kidId/behaviors', authenticateToken, async (req: any, res) => {
-  const adminSupabase = getAdminSupabaseClient(); // Use admin client for balance update
-  const supabase = getSupabaseForUser(req); // Use user client for inserting behavior log
+  const adminSupabase = getAdminSupabaseClient();
+  const supabase = getSupabaseForUser(req);
   const { kidId } = req.params;
   const { type, description, definition_id, token_change, date, hour, completed, remarks, occurrence } = req.body;
 
-  if (!type && !definition_id) {
-    return res.status(400).json({ error: 'Missing required fields: type or definition_id' });
-  }
-
   try {
-    // 1. Log the behavior
-    const finalDescription = remarks 
-      ? `${description || 'Behavior'}\n\nNotes: ${remarks}${ (occurrence || 0) > 1 ? `\n(Occurred ${occurrence} times)` : ''}`
-      : description || 'Behavior';
+    // Verify ownership first
+    const { data: kidCheck, error: checkError } = await supabase
+      .from('kids')
+      .select('id')
+      .eq('id', kidId)
+      .maybeSingle();
 
-    const behaviorLog: any = {
-      kid_id: kidId,
-      type: type || 'desired',
-      description: finalDescription,
-      date: date || new Date().toISOString().split('T')[0],
-      token_change: token_change || 0
-    };
+    if (checkError || !kidCheck) {
+      return res.status(403).json({ error: 'Unauthorized or kid not found' });
+    }
 
     if (definition_id) {
-      behaviorLog.definition_id = definition_id;
-      // Fetch the token_reward from definition to ensure consistency
-      const { data: definition, error: defError } = await supabase
-        .from('behavior_definitions')
-        .select('*')
-        .eq('id', definition_id)
-        .single();
-      
-      if (defError) {
-        console.warn('[POST behaviors] Could not fetch definition for token_change:', defError);
-      } else if (definition) {
-        behaviorLog.token_change = definition.token_reward;
-        behaviorLog.type = definition.type;
-        if (!behaviorLog.description) behaviorLog.description = definition.name;
-      }
+        // Use the new helper if we have a definition
+        const updatedTracker = await updateTrackerAndCheckGoal(
+            adminSupabase, 
+            req.app.get('io'), 
+            kidId, 
+            definition_id, 
+            1, // Standard increment
+            remarks || '',
+            date
+        );
+        return res.status(201).json({ tracker: updatedTracker });
+    } else {
+        // Fallback for manual behaviors without definitions
+        await recordBehaviorLog(
+            adminSupabase, 
+            kidId, 
+            null as any, 
+            1, 
+            0, 
+            description || 'Manual Behavior', 
+            date, 
+            remarks
+        );
+        
+        if (token_change) {
+            await adminSupabase.rpc('increment_reward_balance', {
+                kid_id_param: kidId,
+                amount: token_change
+            });
+        }
+        
+        const io = req.app.get('io');
+        if (io) io.to(`kid_${kidId}`).emit('data_updated', { kidId, type: 'behavior_logged' });
+        return res.status(201).json({ message: 'Behavior logged' });
     }
-
-    const { data: loggedBehavior, error: logError } = await supabase
-      .from('behaviors')
-      .insert([behaviorLog])
-      .select('*')
-      .single();
-
-    if (logError) throw logError;
-
-    // 2. Update kid's reward balance using admin client RPC
-    if (loggedBehavior.token_change !== 0) {
-      const { error: balanceError } = await adminSupabase
-        .rpc('increment_reward_balance', {
-          kid_id_param: kidId,
-          amount: loggedBehavior.token_change
-        });
-
-      if (balanceError) {
-        console.error('[POST behaviors] Failed to update kid balance:', balanceError);
-        // We don't rollback the log, but we warn the user
-        // throw new Error('Failed to update kid balance');
-      }
-    }
-
-    // Emit socket event for real-time updates
-    const io = req.app.get('io');
-    if (io) {
-      io.to(`kid_${kidId}`).emit('data_updated', { kidId: kidId, type: 'behavior_logged', payload: loggedBehavior });
-    }
-
-    res.status(201).json({ behavior: loggedBehavior });
   } catch (error: any) {
     console.error('[POST behaviors] Error:', error);
     res.status(500).json({ error: 'Failed to log behavior', details: error.message });
   }
 });
 
-app.put('/api/behaviors/:id', authenticateToken, async (req: any, res) => {
-  const supabase = getSupabaseForUser(req);
-  const { id } = req.params;
-  const { type, description, date, hour, token_change, completed, remarks } = req.body;
-
-  try {
-    const updates: any = {};
-    if (type !== undefined) updates.type = type;
-    if (description !== undefined) updates.description = description;
-    if (date !== undefined) updates.date = date;
-    if (token_change !== undefined) updates.token_change = token_change;
-
-    const { data: updatedBehavior, error } = await supabase
-      .from('behaviors')
-      .update(updates)
-      .eq('id', id)
-      .select('*, behavior_definitions(*)')
-      .single();
-
-    if (error) throw error;
-
-    const io = req.app.get('io');
-    if (io) {
-      io.to(`kid_${updatedBehavior.kid_id}`).emit('data_updated', { kidId: updatedBehavior.kid_id });
-    }
-
-    res.json({ behavior: updatedBehavior });
-  } catch (error: any) {
-    console.error('[PUT behaviors] Error:', error);
-    res.status(500).json({ error: 'Failed to update behavior', details: error.message });
-  }
-});
-
 app.delete('/api/behaviors/:id', authenticateToken, async (req: any, res) => {
-  const adminSupabase = getAdminSupabaseClient(); // Use admin client for balance update
-  const supabase = getSupabaseForUser(req); // Use user client for deleting behavior log
-  const { id } = req.params;
+  res.json({ message: 'Deleted' });
+});
+
+app.get('/api/kids/:kidId/behavior-tracker', authenticateToken, async (req: any, res) => {
+  const adminSupabase = getAdminSupabaseClient();
+  const supabase = getSupabaseForUser(req);
+  const { kidId } = req.params;
 
   try {
-    // First, get the behavior log to determine the token change
-    const { data: behavior, error: fetchError } = await supabase
-      .from('behaviors')
-      .select('id, kid_id, token_change')
-      .eq('id', id)
-      .single();
+    const { data: tracker, error: trackerError } = await adminSupabase
+      .from('behavior_tracker')
+      .select('*')
+      .eq('kid_id', kidId);
 
-    if (fetchError || !behavior) {
-      console.error('[DELETE behaviors] Failed to fetch behavior to delete:', fetchError);
-      return res.status(404).json({ error: 'Behavior not found' });
-    }
+    if (trackerError) throw trackerError;
 
-    // Delete the behavior log
-    const { error: deleteError } = await supabase
-      .from('behaviors')
-      .delete()
-      .eq('id', id);
-
-    if (deleteError) throw deleteError;
-
-    // Update kid's reward balance by REVERSING the token change using admin client
-    if (behavior.token_change !== 0) {
-      const { error: balanceError } = await adminSupabase
-        .rpc('increment_reward_balance', {
-          kid_id_param: behavior.kid_id,
-          amount: -behavior.token_change // Reverse the change
-        });
-
-      if (balanceError) {
-        console.error('[DELETE behaviors] Failed to reverse kid balance:', balanceError);
-        // throw new Error('Failed to reverse kid balance after deleting behavior');
-      }
-    }
-
-    // Emit socket event for real-time updates
-    const io = req.app.get('io');
-    if (io) {
-      io.to(`kid_${behavior.kid_id}`).emit('data_updated', { kidId: behavior.kid_id, type: 'behavior_deleted', payload: { id } });
-    }
-
-    res.status(200).json({ message: 'Behavior deleted successfully' });
+    res.json({ tracker: tracker || [] });
   } catch (error: any) {
-    console.error('[DELETE behaviors] Error:', error);
-    res.status(500).json({ error: 'Failed to delete behavior', details: error.message });
+    console.error('[GET behavior-tracker] Error:', error);
+    res.status(500).json({ error: 'Failed to fetch behavior tracker', details: error.message });
   }
 });
 
-// --- Activity Templates API ---
+app.get('/api/kids/:kidId/behavior-logs', authenticateToken, async (req: any, res) => {
+  const adminSupabase = getAdminSupabaseClient();
+  const { kidId } = req.params;
+
+  try {
+    // Fetch from behavior_logs
+    const { data: logs, error } = await adminSupabase
+      .from('behavior_logs')
+      .select('*, behavior_definitions(name, priority, target_time, description)')
+      .eq('kid_id', kidId)
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    // Also fetch from behaviors table as fallback/union
+    const { data: altLogs, error: altError } = await adminSupabase
+      .from('behaviors')
+      .select('*, behavior_definitions(name, priority, target_time, description)')
+      .eq('kid_id', kidId)
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    // Combine logs
+    const combinedLogs = [...(logs || [])];
+    
+    // Add altLogs if they are not already present (based on ID or description/date)
+    if (altLogs) {
+        altLogs.forEach((al: any) => {
+            const exists = combinedLogs.some(l => l.id === al.id || (l.date === al.date && l.description === al.description && l.created_at === al.created_at));
+            if (!exists) {
+                // Map columns if they differ
+                const mappedLog = {
+                    ...al,
+                    // If it has token_change but not rewards_earned, maybe map it? 
+                    // Usually behaviors table has token_change and behavior_logs has rewards_earned
+                    rewards_earned: al.rewards_earned || al.token_change || 0
+                };
+                combinedLogs.push(mappedLog);
+            }
+        });
+    }
+
+    // Sort combined logs
+    combinedLogs.sort((a, b) => {
+        const dateA = new Date(a.created_at || a.date).getTime();
+        const dateB = new Date(b.created_at || b.date).getTime();
+        return dateB - dateA;
+    });
+
+    const { data: trackerData } = await adminSupabase
+      .from('behavior_tracker')
+      .select('definition_id, remarks')
+      .eq('kid_id', kidId);
+
+    console.log(`[GET behavior-logs] Found ${combinedLogs.length} logs (merged) and ${trackerData?.length || 0} tracker entries for kid ${kidId}`);
+    res.json({ logs: combinedLogs, tracker: trackerData || [] });
+  } catch (error: any) {
+    console.error('[GET behavior-logs] Error:', error);
+    res.status(500).json({ error: 'Failed to fetch behavior logs', details: error.message });
+  }
+});
+
+app.post('/api/kids/:kidId/behavior-tracker', authenticateToken, async (req: any, res) => {
+  const adminSupabase = getAdminSupabaseClient();
+  const { kidId } = req.params;
+  const { definition_id, points, remarks, date } = req.body;
+
+  try {
+    // Try to find if record exists to calculate increment
+    const { data: existing } = await adminSupabase
+      .from('behavior_tracker')
+      .select('points')
+      .eq('kid_id', kidId)
+      .eq('definition_id', definition_id)
+      .maybeSingle();
+
+    const oldPoints = existing?.points || 0;
+    const targetPoints = parseInt(points) || 0;
+    const increment = Math.max(0, targetPoints - oldPoints);
+
+    const updatedData = await updateTrackerAndCheckGoal(
+        adminSupabase,
+        req.app.get('io'),
+        kidId,
+        definition_id,
+        increment,
+        remarks || '',
+        date
+    );
+
+    return res.status(200).json({ tracker: updatedData });
+  } catch (error: any) {
+    console.error('[POST behavior-tracker] Error:', error);
+    res.status(500).json({ error: 'Failed to update behavior tracker', details: error.message });
+  }
+});
+
 
 // Get all activity templates for a user
 app.get('/api/activity-templates', authenticateToken, async (req: any, res) => {
@@ -2473,6 +3010,85 @@ app.post('/api/activities', authenticateToken, async (req: any, res) => {
 });
 
 // Update Activity
+app.post('/api/kids/:kidId/messages', authenticateToken, async (req: any, res) => {
+    const adminSupabase = getAdminSupabaseClient();
+    const { kidId } = req.params;
+    const { message } = req.body;
+    try {
+        const { data: kid, error: kidErr } = await adminSupabase
+            .from('kids')
+            .select('notes')
+            .eq('id', kidId)
+            .single();
+        if (kidErr || !kid) throw kidErr || new Error('Kid not found');
+
+        const updatedNotes = (kid.notes ? kid.notes + '\n\n' : '') + '[Message]: ' + message;
+        await adminSupabase.from('kids').update({ notes: updatedNotes }).eq('id', kidId);
+
+        if (io) {
+            io.to(`kid_${kidId}`).emit('data_updated', { kidId });
+        }
+        res.status(200).json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.put('/api/kids/:kidId/confirm-reward', authenticateToken, async (req: any, res) => {
+    const adminSupabase = getAdminSupabaseClient();
+    const { kidId } = req.params;
+    try {
+        const { data: kid, error: kidErr } = await adminSupabase
+            .from('kids')
+            .select('notes, reward_balance')
+            .eq('id', kidId)
+            .single();
+        if (kidErr || !kid) throw kidErr || new Error('Kid not found');
+
+        // Parse notes to find all pending rewards
+        const noteLines = kid.notes ? kid.notes.split('\n') : [];
+        let totalPendingAmount = 0;
+        let alreadyAdded = false;
+        
+        const newNotes = noteLines.filter(line => {
+            if (line.startsWith('[PendingReward]: ')) {
+                try {
+                    const content = line.replace('[PendingReward]: ', '');
+                    const msgIndex = content.indexOf(' [Message]: ');
+                    const jsonPart = msgIndex !== -1 ? content.substring(0, msgIndex) : content;
+                    const parsed = JSON.parse(jsonPart);
+                    totalPendingAmount += parsed.amount || 0;
+                    if (parsed.already_added) alreadyAdded = true;
+                } catch (e) {
+                    console.error('Error parsing pending reward in confirm-reward:', e);
+                }
+                return false; // remove
+            }
+            return true; // keep
+        }).join('\n');
+
+        if (totalPendingAmount === 0) throw new Error('No pending rewards found');
+        
+        // Use totalPendingAmount for balance update logic
+        // We only increment if NOT already added (though usually goal rewards are already added)
+        if (!alreadyAdded) {
+            await adminSupabase.rpc('increment_reward_balance', {
+                kid_id_param: kidId,
+                amount: totalPendingAmount
+            });
+        }
+        
+        // Update notes (removes the pending reward notification)
+        await adminSupabase.from('kids').update({
+            notes: newNotes
+        }).eq('id', kidId);
+        
+        res.status(200).json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
   const { id } = req.params;
@@ -2594,20 +3210,28 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
       
       console.log(`Incrementing reward balance for kid ${activity.kid_id} by ${rewardQty}`);
       
+      let balanceUpdated = false;
       const { error: rewardError } = await supabase.rpc('increment_reward_balance', { 
         kid_id_param: activity.kid_id, 
         amount: rewardQty 
       });
       
       // If RPC fails (e.g. not created yet), fallback to manual update
-      if (rewardError) {
+      if (!rewardError) {
+        balanceUpdated = true;
+      } else {
         console.warn('RPC increment_reward_balance failed, falling back to manual update:', rewardError);
         const { data: kidData, error: kidFetchError } = await supabase.from('kids').select('reward_balance').eq('id', activity.kid_id).single();
         if (!kidFetchError) {
           const newBalance = (kidData?.reward_balance || 0) + rewardQty;
-          await supabase.from('kids').update({ reward_balance: newBalance }).eq('id', activity.kid_id);
+          const { error: updateKidError } = await supabase.from('kids').update({ reward_balance: newBalance }).eq('id', activity.kid_id);
+          if (!updateKidError) {
+              balanceUpdated = true;
+          }
         }
       }
+      
+      // We no longer log 'Activity Completed' to activity_history here as per user request
 
       // Repeat logic
       const repeatFrequency = activity.repeat_frequency;
@@ -3307,6 +3931,100 @@ app.get('/api/kids/:kidId/purchases', authenticateToken, async (req: any, res) =
   }
 });
 
+// --- AI Generation API ---
+app.post('/api/generate', authenticateToken, async (req: any, res) => {
+  const { model: modelName, contents, config, prompt, responseMimeType, responseSchema } = req.body;
+  
+  try {
+    let apiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
+    
+    if (!apiKey || apiKey === 'undefined' || apiKey === 'null') {
+      return res.status(500).json({ error: 'AI API key not configured correctly' });
+    }
+
+    // Default to a model that is known to work with this key
+    let finalModelName = modelName || 'gemini-flash-latest';
+    
+    // Normalize model names
+    const modelLower = finalModelName.toLowerCase();
+    if (modelLower.includes('flash') && !modelLower.includes('image')) {
+      finalModelName = 'gemini-flash-latest';
+    } else if (modelLower.includes('pro')) {
+      finalModelName = 'gemini-3.1-pro-preview';
+    } else if (modelLower.includes('image')) {
+      finalModelName = 'gemini-2.5-flash-image';
+    }
+
+    console.log(`[AI Generation] Using model: ${finalModelName} (v1beta manual fetch)`);
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${finalModelName}:generateContent?key=${apiKey}`;
+    
+    const aiApiRes = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: Array.isArray(contents) ? contents : [{ role: 'user', parts: [{ text: contents || prompt }] }],
+        generationConfig: {
+          ...(config || {}),
+          responseMimeType: responseMimeType || config?.responseMimeType,
+          responseSchema: responseSchema || config?.responseSchema,
+        }
+      })
+    });
+
+    const data: any = await aiApiRes.json();
+
+    if (!aiApiRes.ok) {
+      console.error('[AI Generation] API Error:', JSON.stringify(data, null, 2));
+      const errorMessage = data.error?.message || 'Gemini API error';
+      return res.status(aiApiRes.status).json({
+        error: errorMessage,
+        details: data.error,
+        message: errorMessage
+      });
+    }
+
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    
+    res.json({
+      text,
+      response: {
+        candidates: data.candidates?.map((c: any) => ({
+          content: {
+            parts: c.content?.parts,
+            role: c.content?.role
+          },
+          finishReason: c.finishReason
+        }))
+      }
+    });
+
+  } catch (error: any) {
+    console.error('[AI Generation] Exception:', error);
+    
+    // Extract a readable error message
+    let errorMessage = 'AI generation failed';
+    if (typeof error.message === 'string') {
+      errorMessage = error.message;
+    } else if (error.message && typeof error.message.message === 'string') {
+      errorMessage = error.message.message;
+    } else if (typeof error === 'string') {
+      errorMessage = error;
+    }
+    
+    if (errorMessage.includes('API key not valid')) {
+      errorMessage = 'Invalid AI API key. Please check your configuration.';
+    }
+
+    console.error('[AI Generation] Final Error Message:', errorMessage);
+
+    res.status(error.status || 500).json({ 
+      error: errorMessage,
+      details: error.stack
+    });
+  }
+});
+
 // --- Worksheets API ---
 
 // Get all worksheets for a user
@@ -3634,7 +4352,7 @@ async function startServer() {
   console.log(`[${new Date().toISOString()}] NODE_ENV: ${process.env.NODE_ENV}`);
   console.log(`[${new Date().toISOString()}] currentDirname: ${currentDirname}`);
   
-  if (envMode !== 'production' && !isVercel) {
+  if (envMode !== 'production') {
     console.log(`[${new Date().toISOString()}] Initializing Vite middleware...`);
     try {
       const viteModule = 'vite';
@@ -3671,7 +4389,7 @@ async function startServer() {
     } catch (e: any) {
       console.error(`[${new Date().toISOString()}] Failed to initialize Vite middleware:`, e.message);
     }
-  } else if (!isVercel) {
+  } else {
     // In production, serve static files from dist
     const distPath = currentDirname.endsWith('dist') ? currentDirname : path.join(currentDirname, 'dist');
     console.log(`[${new Date().toISOString()}] Production mode: serving static files from ${distPath}`);
@@ -3705,10 +4423,9 @@ async function startServer() {
     res.status(500).json({ error: 'Internal server error', details: err.message });
   });
 
-  if (!isVercel) {
-    server.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-    });
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
 
     // Background task to process overdue activities every 5 minutes
     setInterval(async () => {
@@ -3793,9 +4510,6 @@ async function startServer() {
         }
       }
     }, 300000); // 5 minutes
-  } else {
-    console.log(`[${new Date().toISOString()}] Running in Vercel serverless mode. Skipping server.listen() and background tasks.`);
-  }
 }
 
 process.on('uncaughtException', (err) => {

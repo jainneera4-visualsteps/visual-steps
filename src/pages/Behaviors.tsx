@@ -3,12 +3,11 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { apiFetch, safeJson } from '../utils/api';
 import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import { Input } from '../components/Input';
-import { Select } from '../components/Select';
 import { 
   ArrowLeft, 
   Plus, 
   Trash2, 
+  Edit2,
   AlertCircle, 
   CheckCircle2, 
   Loader2, 
@@ -22,7 +21,8 @@ import {
   TrendingUp, 
   PieChart as PieChartIcon, 
   Calendar,
-  Circle
+  Circle,
+  Clock
 } from 'lucide-react';
 import { 
   PieChart, 
@@ -36,9 +36,13 @@ import {
 interface BehaviorDefinition {
   id: string;
   name: string;
-  type: 'desired' | 'undesired';
-  token_reward: number;
+  description?: string;
   icon?: string;
+  priority?: string;
+  goal_rewards?: number;
+  target_time?: string;
+  target_seconds?: number;
+  is_active: boolean;
 }
 
 interface Behavior {
@@ -68,25 +72,7 @@ export default function Behaviors() {
   const [definitions, setDefinitions] = useState<BehaviorDefinition[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState<'log' | 'rules' | 'progress'>('log');
-  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [isLogModalOpen, setIsLogModalOpen] = useState(false);
-
-  const [newBehavior, setNewBehavior] = useState({
-    definition_id: '',
-    type: 'desired' as 'desired' | 'undesired',
-    description: '',
-    date: new Date().toISOString().split('T')[0]
-  });
-
-  const [newDefinition, setNewDefinition] = useState({
-    name: '',
-    type: 'desired' as 'desired' | 'undesired',
-    token_reward: 10,
-    icon: '⭐'
-  });
+  const [activeTab, setActiveTab] = useState<'log' | 'rules' | 'progress'>('rules');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -159,40 +145,11 @@ export default function Behaviors() {
           definition_id: '',
           type: 'desired',
           description: '',
-          date: new Date().toISOString().split('T')[0]
+          date: new Date().toLocaleDateString('sv-SE')
         });
       }
     } catch (err) {
       console.error('Error adding behavior:', err);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleDefinitionSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newDefinition.name.trim()) return;
-
-    setIsSubmitting(true);
-    try {
-      const res = await apiFetch(`/api/kids/${kidId}/behavior-definitions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newDefinition)
-      });
-
-      if (res.ok) {
-        const data = await safeJson(res);
-        setDefinitions(prev => [...prev, data.definition]);
-        setNewDefinition({
-          name: '',
-          type: 'desired',
-          token_reward: 1,
-          icon: '⭐'
-        });
-      }
-    } catch (err) {
-      console.error('Error adding definition:', err);
     } finally {
       setIsSubmitting(false);
     }
@@ -208,14 +165,18 @@ export default function Behaviors() {
 
       if (res.ok) {
         setBehaviors(prev => prev.filter(b => b.id !== id));
+      } else {
+        const data = await safeJson(res);
+        alert(data.error || 'Failed to delete behavior entry');
       }
     } catch (err) {
       console.error('Error deleting behavior:', err);
+      alert('An error occurred while deleting the behavior entry.');
     }
   };
 
   const handleDeleteDefinition = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this rule?')) return;
+    if (!confirm('Are you sure you want to delete this rule? This will dissociate existing behavior entries from this rule.')) return;
 
     try {
       const res = await apiFetch(`/api/behavior-definitions/${id}`, {
@@ -224,11 +185,27 @@ export default function Behaviors() {
 
       if (res.ok) {
         setDefinitions(prev => prev.filter(d => d.id !== id));
+      } else {
+        const data = await safeJson(res);
+        alert(data.error || 'Failed to delete definition');
       }
     } catch (err) {
       console.error('Error deleting definition:', err);
+      alert('An error occurred while deleting the definition.');
     }
   };
+
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [isLogModalOpen, setIsLogModalOpen] = useState(false);
+
+  const [newBehavior, setNewBehavior] = useState({
+    definition_id: '',
+    type: 'desired' as 'desired' | 'undesired',
+    description: '',
+    date: new Date().toLocaleDateString('sv-SE')
+  });
 
   const renderCalendar = () => {
     const now = new Date();
@@ -310,6 +287,15 @@ export default function Behaviors() {
               <div className="flex gap-2">
                 <div className="flex rounded-lg border border-slate-200 bg-white p-0.5 overflow-x-auto scrollbar-hide">
                   <button
+                    onClick={() => setActiveTab('rules')}
+                    className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
+                      activeTab === 'rules' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+                    }`}
+                  >
+                    <Settings2 className="h-3 w-3" />
+                    Behaviors
+                  </button>
+                  <button
                     onClick={() => setActiveTab('log')}
                     className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
                       activeTab === 'log' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
@@ -317,15 +303,6 @@ export default function Behaviors() {
                   >
                     <LayoutList className="h-3 w-3" />
                     Activity Log
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('rules')}
-                    className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
-                      activeTab === 'rules' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
-                    }`}
-                  >
-                    <Settings2 className="h-3 w-3" />
-                    Manage Rules
                   </button>
                   <button
                     onClick={() => setActiveTab('progress')}
@@ -337,12 +314,17 @@ export default function Behaviors() {
                     Analytics
                   </button>
                 </div>
-                {activeTab === 'log' && (
+                {activeTab === 'log' ? (
                   <Button size="sm" onClick={() => setIsLogModalOpen(true)} className="h-8">
                     <Plus className="mr-1 h-3.5 w-3.5" />
                     New Entry
                   </Button>
-                )}
+                ) : activeTab === 'rules' ? (
+                  <Button size="sm" onClick={() => navigate(`/behaviors/add/${kidId}`)} className="h-8">
+                    <Plus className="mr-1 h-3.5 w-3.5" />
+                    Add Behaviors
+                  </Button>
+                ) : null}
               </div>
               <div className="flex items-center gap-4 bg-white px-6 py-4 rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/50">
                 <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-brand-50 text-brand-600">
@@ -419,50 +401,50 @@ export default function Behaviors() {
                 </Button>
               </Card>
             ) : (
-              <Card className="shadow-2xl shadow-slate-200 border-none overflow-hidden">
+              <Card className="shadow-sm border-none ring-1 ring-slate-200 overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-slate-100">
-                        <th className="py-6 px-8 bg-slate-50/50">
-                          <Select
-                            className="bg-white h-9 min-w-[80px]"
+                  <table className="w-full text-sm text-left">
+                    <thead className="text-xs text-slate-500 bg-slate-50 uppercase border-y border-slate-200">
+                      <tr>
+                        <th className="py-2 px-4">
+                          <select
+                            className="text-xs border border-slate-300 rounded p-1"
                             value={itemsPerPage}
                             onChange={(e) => setItemsPerPage(Number(e.target.value))}
                           >
-                            <option value={5}>Show 5</option>
-                            <option value={10}>Show 10</option>
-                            <option value={20}>Show 20</option>
-                            <option value={50}>Show 50</option>
-                          </Select>
+                            <option value={5}>5</option>
+                            <option value={10}>10</option>
+                            <option value={20}>20</option>
+                            <option value={50}>50</option>
+                          </select>
                         </th>
-                        <th colSpan={3} className="py-6 bg-slate-50/50"></th>
-                        <th className="px-8 py-6 text-right bg-slate-50/50">
+                        <th colSpan={4} className="py-2"></th>
+                        <th className="px-4 py-2 text-right">
                           {(() => {
                             const totalPages = Math.ceil(behaviors.length / itemsPerPage);
                             return (
                               behaviors.length > 0 && totalPages > 1 && (
-                                <div className="flex items-center justify-end gap-3">
+                                <div className="flex items-center justify-end gap-1">
                                   <Button
-                                    variant="outline"
+                                    variant="ghost"
                                     size="xs"
                                     disabled={currentPage === 1}
                                     onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                                    className="h-8 shadow-none"
+                                    className="h-7 w-7 p-0"
                                   >
-                                    <ChevronLeft className="h-4 w-4 mr-1" /> Prev
+                                    <ChevronLeft className="h-4 w-4" />
                                   </Button>
-                                  <span className="text-xs font-bold text-slate-500 tabular-nums">
-                                    {currentPage} <span className="text-slate-300 mx-1">/</span> {totalPages}
+                                  <span className="text-xs font-bold text-slate-600">
+                                    {currentPage} / {totalPages}
                                   </span>
                                   <Button
-                                    variant="outline"
+                                    variant="ghost"
                                     size="xs"
                                     disabled={currentPage === totalPages}
                                     onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                                    className="h-8 shadow-none"
+                                    className="h-7 w-7 p-0"
                                   >
-                                    Next <ChevronRight className="h-4 w-4 ml-1" />
+                                    <ChevronRight className="h-4 w-4" />
                                   </Button>
                                 </div>
                               )
@@ -470,61 +452,63 @@ export default function Behaviors() {
                           })()}
                         </th>
                       </tr>
-                      <tr className="bg-white">
-                        <th className="px-8 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Evaluation</th>
-                        <th className="px-8 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Behavior Detail</th>
-                        <th className="px-8 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Category</th>
-                        <th className="px-8 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Timestamp</th>
-                        <th className="px-8 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px] text-right">Impact</th>
-                        <th className="px-8 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px] text-right">Actions</th>
+                      <tr>
+                        <th className="px-4 py-3 font-bold">Status</th>
+                        <th className="px-4 py-3 font-bold">Behavior Name</th>
+                        <th className="px-4 py-3 font-bold">Type</th>
+                        <th className="px-4 py-3 font-bold">Date</th>
+                        <th className="px-4 py-3 font-bold text-right">Tokens</th>
+                        <th className="px-4 py-3 font-bold text-right">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-50 bg-white">
+                    <tbody className="divide-y divide-slate-100">
                       {behaviors
                         .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
                         .map((behavior) => (
-                          <tr key={behavior.id} className="hover:bg-brand-50/30 transition-colors group">
-                            <td className="px-8 py-5">
-                              <div className={`h-11 w-11 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 shadow-sm ${
-                                behavior.type === 'desired' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'
+                          <tr key={behavior.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="px-4 py-3">
+                              <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
+                                behavior.type === 'desired' ? 'text-emerald-500' : 'text-rose-500'
                               }`}>
-                                {behavior.type === 'desired' ? <CheckCircle2 className="h-6 w-6" /> : <AlertCircle className="h-6 w-6" />}
+                                {behavior.type === 'desired' ? <CheckCircle2 className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
                               </div>
                             </td>
-                            <td className="px-8 py-5">
-                              <div className="font-bold text-slate-900 group-hover:text-brand-600 transition-colors">
+                            <td className="px-4 py-3">
+                              <div className="font-bold text-slate-900 flex items-center gap-2 uppercase tracking-tight">
                                 {behavior.behavior_definitions?.name || 'Custom Observation'}
                               </div>
                               {behavior.description && (
-                                <div className="text-xs text-slate-500 line-clamp-1 mt-1 font-medium italic">
-                                  "{behavior.description}"
+                                <div className="text-xs text-slate-500 line-clamp-1 mt-0.5">
+                                  {behavior.description}
                                 </div>
                               )}
                             </td>
-                            <td className="px-8 py-5">
-                              <span className={`inline-flex items-center rounded-lg px-2.5 py-1 text-[10px] font-black uppercase tracking-wider shadow-sm ${
-                                behavior.type === 'desired' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'
+                            <td className="px-4 py-3">
+                              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                                behavior.type === 'desired' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
                               }`}>
                                 {behavior.type}
                               </span>
                             </td>
-                            <td className="px-8 py-5 text-slate-500 font-medium whitespace-nowrap tabular-nums">
+                            <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
                               {new Date(behavior.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                             </td>
-                            <td className="px-8 py-5 text-right font-black text-lg tabular-nums">
+                            <td className="px-4 py-3 text-right font-bold tabular-nums">
                               <span className={behavior.token_change > 0 ? 'text-emerald-500' : 'text-rose-500'}>
                                 {behavior.token_change > 0 ? '+' : ''}{behavior.token_change}
                               </span>
                             </td>
-                            <td className="px-8 py-5 text-right">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-9 w-9 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
-                                onClick={() => handleDeleteBehavior(behavior.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                            <td className="px-4 py-3 text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <button
+                                  type="button"
+                                  className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-red-50 group transition-all active:scale-95"
+                                  onClick={() => handleDeleteBehavior(behavior.id)}
+                                  title="Delete Log"
+                                >
+                                  <Trash2 className="h-4 w-4 text-slate-400 group-hover:text-red-500" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -536,73 +520,6 @@ export default function Behaviors() {
           </div>
         ) : activeTab === 'rules' ? (
           <div className="space-y-10 animate-in fade-in duration-500">
-            <Card className="shadow-2xl shadow-slate-200 border-none overflow-visible">
-              <CardHeader className="p-10 lg:p-12 pb-6">
-                <CardTitle className="text-2xl font-display font-black">Strategic Behavior Rules</CardTitle>
-                <p className="text-lg text-slate-500">Construct positive reinforcements and clear boundaries through token assignment.</p>
-              </CardHeader>
-              <CardContent className="p-10 lg:p-12 pt-0">
-                <form onSubmit={handleDefinitionSubmit} className="space-y-8">
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-                    <div className="md:col-span-2">
-                      <Select
-                        label="Icon"
-                        value={newDefinition.icon}
-                        onChange={(e) => setNewDefinition(prev => ({ ...prev, icon: e.target.value }))}
-                        className="text-2xl h-14"
-                      >
-                        {['⭐', '🌟', '❤️', '👍', '🙌', '😊', '📚', '🧹', '🦷', '🥦', '👂', '🤝', '🤫', '⚠️', '🚫', '📢', '👊', '🏃', '😤', '😢'].map(emoji => (
-                          <option key={emoji} value={emoji}>{emoji}</option>
-                        ))}
-                      </Select>
-                    </div>
-                    <div className="md:col-span-4">
-                      <Input
-                        label="Behavior Name"
-                        placeholder="e.g., Independent Bedtime"
-                        value={newDefinition.name}
-                        onChange={(e) => setNewDefinition(prev => ({ ...prev, name: e.target.value }))}
-                        className="h-14"
-                      />
-                    </div>
-                    <div className="md:col-span-3">
-                      <Select
-                        label="Evaluation Type"
-                        value={newDefinition.type}
-                        onChange={(e) => {
-                          const type = e.target.value as 'desired' | 'undesired';
-                          setNewDefinition(prev => ({
-                            ...prev,
-                            type,
-                            token_reward: type === 'desired' ? 10 : 5,
-                            icon: type === 'desired' ? '⭐' : '⚠️'
-                          }));
-                        }}
-                        className="h-14"
-                      >
-                        <option value="desired">Positive (+ Tokens)</option>
-                        <option value="undesired">Corrective (- Tokens)</option>
-                      </Select>
-                    </div>
-                    <div className="md:col-span-3">
-                      <Input
-                        label="Token Value"
-                        type="number"
-                        value={newDefinition.token_reward}
-                        onChange={(e) => setNewDefinition(prev => ({ ...prev, token_reward: parseInt(e.target.value) || 0 }))}
-                        className="h-14 font-black text-brand-600"
-                        rightElement={<Coins size={18} className="text-brand-300" />}
-                      />
-                    </div>
-                  </div>
-                  <Button type="submit" disabled={isSubmitting} className="w-full h-14 text-lg font-black shadow-brand-200">
-                    {isSubmitting ? <Loader2 className="h-6 w-6 animate-spin mr-3" /> : <Plus className="h-6 w-6 mr-3" />}
-                    Deploy Behavioral Rule
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-6">
                 <h3 className="text-xl font-display font-black text-emerald-700 flex items-center gap-3 px-2">
@@ -610,53 +527,97 @@ export default function Behaviors() {
                   Positive Goals
                 </h3>
                 <div className="space-y-4">
-                  {definitions.filter(d => d.type === 'desired').length === 0 ? (
+                  {definitions.length === 0 ? (
                     <Card className="py-12 border-2 border-dashed border-slate-200 bg-slate-50/50 flex flex-col items-center justify-center text-center">
-                      <p className="font-bold text-slate-400">No positive rules defined</p>
+                      <p className="font-bold text-slate-400 mb-3">No positive rules defined</p>
+                      <Button variant="outline" size="sm" onClick={() => navigate(`/behaviors/add/${kidId}`)}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Rule
+                      </Button>
                     </Card>
                   ) : (
-                    definitions.filter(d => d.type === 'desired').map(def => (
-                      <Card key={def.id} className="group hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-500/5 transition-all duration-300">
-                        <CardContent className="p-6 flex items-center justify-between">
-                          <div className="flex items-center gap-5">
-                            <div className="h-14 w-14 rounded-2xl bg-emerald-50 flex items-center justify-center text-2xl shadow-sm group-hover:scale-110 transition-transform">
-                              {def.icon || '⭐'}
-                            </div>
-                            <div>
-                              <p className="font-black text-slate-900 text-lg group-hover:text-emerald-700 transition-colors uppercase tracking-tight">{def.name}</p>
-                              <div className="flex items-center gap-2 mt-1">
-                                <Coins size={14} className="text-emerald-500" />
-                                <p className="text-sm font-black text-emerald-600">+{def.token_reward} <span className="text-[10px] uppercase">{kid?.reward_type || 'Tokens'}</span></p>
+                    definitions.map(def => {
+                      // Prefer columns, fallback to parsing description (migration)
+                      let targetTime = def.target_time;
+                      const timeMatch = (def.description || '').match(/^\[Time: (\d{2}):(\d{2}):(\d{2})\]/);
+                      if (timeMatch && (!def.target_time || def.target_time === '00:00:00')) {
+                        targetTime = `${timeMatch[1]}:${timeMatch[2]}:${timeMatch[3]}`;
+                      }
+                      
+                      return (
+                        <Card key={def.id} className="group hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-500/5 transition-all duration-300">
+                          <CardContent className="p-6 flex items-center justify-between">
+                            <div className="flex items-center gap-5">
+                              <div className="h-14 w-14 rounded-2xl bg-emerald-50 flex items-center justify-center text-2xl shadow-sm group-hover:scale-110 transition-transform">
+                                {def.icon || '⭐'}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <p className="font-black text-slate-900 text-lg group-hover:text-emerald-700 transition-colors uppercase tracking-tight">{def.name}</p>
+                                  {targetTime && (
+                                    <span className="flex items-center gap-1 text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-bold">
+                                      <Clock className="h-3 w-3" /> {targetTime}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <Coins size={14} className="text-emerald-500" />
+                                  <p className="text-sm font-black text-emerald-600">
+                                    <span className="text-[10px] uppercase">Goal Reached</span>
+                                  </p>
+                                </div>
                               </div>
                             </div>
+                          <div className="flex items-center gap-1">
+                             <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-9 w-9 text-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded-xl"
+                              onClick={() => navigate(`/behaviors/edit-definition/${def.id}`)}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-9 w-9 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl"
+                              onClick={() => handleDeleteDefinition(def.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-10 w-10 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl"
-                            onClick={() => handleDeleteDefinition(def.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
                         </CardContent>
                       </Card>
-                    ))
-                  )}
-                </div>
+                    );
+                  })
+                )}
               </div>
+            </div>
 
-              <div className="space-y-6">
-                <h3 className="text-xl font-display font-black text-rose-700 flex items-center gap-3 px-2">
-                  <AlertCircle className="h-6 w-6" />
-                  Corrective Rules
-                </h3>
-                <div className="space-y-4">
-                  {definitions.filter(d => d.type === 'undesired').length === 0 ? (
-                    <Card className="py-12 border-2 border-dashed border-slate-200 bg-slate-50/50 flex flex-col items-center justify-center text-center">
-                      <p className="font-bold text-slate-400">No corrective rules defined</p>
-                    </Card>
-                  ) : (
-                    definitions.filter(d => d.type === 'undesired').map(def => (
+            <div className="space-y-6">
+              <h3 className="text-xl font-display font-black text-rose-700 flex items-center gap-3 px-2">
+                <AlertCircle className="h-6 w-6" />
+                Corrective Rules
+              </h3>
+              <div className="space-y-4">
+                {false ? (
+                  <Card className="py-12 border-2 border-dashed border-slate-200 bg-slate-50/50 flex flex-col items-center justify-center text-center">
+                    <p className="font-bold text-slate-400 mb-3">No corrective rules defined</p>
+                    <Button variant="outline" size="sm" onClick={() => navigate(`/behaviors/add/${kidId}`)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Rule
+                    </Button>
+                  </Card>
+                ) : (
+                  definitions.map(def => {
+                    // Prefer columns, fallback to parsing description (migration)
+                    let targetTime = def.target_time;
+                    const timeMatch = (def.description || '').match(/^\[Time: (\d{2}):(\d{2}):(\d{2})\]/);
+                    if (timeMatch && (!def.target_time || def.target_time === '00:00:00')) {
+                      targetTime = `${timeMatch[1]}:${timeMatch[2]}:${timeMatch[3]}`;
+                    }
+
+                    return (
                       <Card key={def.id} className="group hover:border-rose-200 hover:shadow-xl hover:shadow-rose-500/5 transition-all duration-300">
                         <CardContent className="p-6 flex items-center justify-between">
                           <div className="flex items-center gap-5">
@@ -664,32 +625,52 @@ export default function Behaviors() {
                               {def.icon || '⚠️'}
                             </div>
                             <div>
-                              <p className="font-black text-slate-900 text-lg group-hover:text-rose-700 transition-colors uppercase tracking-tight">{def.name}</p>
+                              <div className="flex items-center gap-2">
+                                <p className="font-black text-slate-900 text-lg group-hover:text-rose-700 transition-colors uppercase tracking-tight">{def.name}</p>
+                                {targetTime && (
+                                  <span className="flex items-center gap-1 text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-bold">
+                                    <Clock className="h-3 w-3" /> {targetTime}
+                                  </span>
+                                )}
+                              </div>
                               <div className="flex items-center gap-2 mt-1">
                                 <Coins size={14} className="text-rose-500" />
-                                <p className="text-sm font-black text-rose-600">-{def.token_reward} <span className="text-[10px] uppercase">{kid?.reward_type || 'Tokens'}</span></p>
+                                <p className="text-sm font-black text-rose-600">
+                                  <span className="text-[10px] uppercase">Goal Not Reached</span>
+                                </p>
                               </div>
                             </div>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-10 w-10 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl"
-                            onClick={() => handleDeleteDefinition(def.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-9 w-9 text-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded-xl"
+                              onClick={() => navigate(`/behaviors/edit-definition/${def.id}`)}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-10 w-10 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl"
+                              onClick={() => handleDeleteDefinition(def.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </CardContent>
                       </Card>
-                    ))
-                  )}
-                </div>
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>
-        ) : (
+        </div>
+      ) : (
           <div className="grid lg:grid-cols-3 gap-8 animate-in fade-in duration-500">
-            <Card className="lg:col-span-2 shadow-2xl shadow-slate-200 border-none overflow-hidden">
+            <Card className="lg:col-span-2 shadow-sm ring-1 ring-slate-200 border-none overflow-hidden">
               <CardHeader className="p-8 lg:p-10 border-b border-slate-50">
                 <CardTitle className="text-2xl font-display font-black flex items-center gap-3">
                   <PieChartIcon className="text-brand-600" />
@@ -701,8 +682,8 @@ export default function Behaviors() {
                   <PieChart>
                     <Pie
                       data={[
-                        { name: 'Strengths', value: behaviors.filter(b => b.type === 'desired').length },
-                        { name: 'Opportunities', value: behaviors.filter(b => b.type === 'undesired').length }
+                        { name: 'Strengths', value: behaviors.filter(b => b.type === 'desired' && !(b.description || '').startsWith('[TRACKING]')).length },
+                        { name: 'Opportunities', value: behaviors.filter(b => b.type === 'undesired' && !(b.description || '').startsWith('[TRACKING]')).length }
                       ]}
                       cx="50%"
                       cy="50%"
@@ -740,7 +721,7 @@ export default function Behaviors() {
                   <div className="p-6 bg-emerald-50 rounded-3xl border border-emerald-100 flex items-center justify-between">
                     <div>
                       <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest mb-1">Total Wins</p>
-                      <p className="text-3xl font-black text-emerald-600">{behaviors.filter(b => b.type === 'desired').length}</p>
+                      <p className="text-3xl font-black text-emerald-600">{behaviors.filter(b => b.type === 'desired' && !(b.description || '').startsWith('[TRACKING]')).length}</p>
                     </div>
                     <div className="h-12 w-12 rounded-2xl bg-white flex items-center justify-center text-emerald-500 shadow-sm">
                       <TrendingUp size={24} />
@@ -750,7 +731,7 @@ export default function Behaviors() {
                   <div className="p-6 bg-rose-50 rounded-3xl border border-rose-100 flex items-center justify-between">
                     <div>
                       <p className="text-[10px] font-black text-rose-800 uppercase tracking-widest mb-1">Challenges</p>
-                      <p className="text-3xl font-black text-rose-600">{behaviors.filter(b => b.type === 'undesired').length}</p>
+                      <p className="text-3xl font-black text-rose-600">{behaviors.filter(b => b.type === 'undesired' && !(b.description || '').startsWith('[TRACKING]')).length}</p>
                     </div>
                     <div className="h-12 w-12 rounded-2xl bg-white flex items-center justify-center text-rose-500 shadow-sm">
                       <AlertCircle size={24} />
@@ -775,75 +756,80 @@ export default function Behaviors() {
 
       {/* Log Behavior Modal */}
       {isLogModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
-          <Card className="w-full max-w-lg shadow-2xl border-none overflow-visible">
-            <CardHeader className="p-10 lg:p-12 pb-6">
-              <CardTitle className="text-3xl font-display font-black text-slate-900 italic">Record Progress</CardTitle>
-              <p className="text-lg text-slate-500">Log a recent event to provide feedback and tokens.</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <Card className="w-full max-w-lg shadow-2xl border-blue-200 bg-blue-50/50">
+            <CardHeader className="py-2 px-4 border-b border-blue-100 bg-white/50">
+              <CardTitle className="text-base font-bold text-slate-900">Record Progress</CardTitle>
             </CardHeader>
-            <CardContent className="p-10 lg:p-12 pt-0">
+            <CardContent className="p-4">
               <form onSubmit={async (e) => {
                 await handleLogSubmit(e);
                 setIsLogModalOpen(false);
-              }} className="space-y-8">
-                <div className="space-y-6">
-                  <Select
-                    label="Select Existing Rule"
+              }} className="space-y-4">
+                <div className="space-y-0.5">
+                  <label className="text-[12px] font-bold text-slate-500 uppercase px-1">Select Rule</label>
+                  <select
                     value={newBehavior.definition_id}
                     onChange={(e) => {
                       const def = definitions.find(d => d.id === e.target.value);
                       setNewBehavior(prev => ({
                         ...prev,
                         definition_id: e.target.value,
-                        type: def ? def.type : prev.type
+                        type: prev.type
                       }));
                     }}
-                    className="h-14"
+                    className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
                   >
                     <option value="">Create Custom Entry...</option>
-                    {definitions.map(def => (
+                    {definitions.filter(d => d.is_active).map(def => (
                       <option key={def.id} value={def.id}>
-                        {def.icon} {def.name} ({def.token_reward > 0 ? '+' : ''}{def.token_reward})
+                        {def.icon} {def.name}
                       </option>
                     ))}
-                  </Select>
-                  
-                  <Input
-                    label="Observation Date"
+                  </select>
+                </div>
+
+                <div className="space-y-0.5">
+                  <label className="text-[12px] font-bold text-slate-500 uppercase px-1">Observation Date</label>
+                  <input
                     type="date"
-                    className="h-14"
+                    className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
                     value={newBehavior.date}
                     onChange={(e) => setNewBehavior(prev => ({ ...prev, date: e.target.value }))}
                   />
+                </div>
 
-                  {!newBehavior.definition_id && (
-                    <div className="space-y-6 animate-in slide-in-from-top-4 duration-300">
-                      <Select
-                        label="Impact Type"
+                {!newBehavior.definition_id && (
+                  <div className="space-y-4 animate-in slide-in-from-top-4 duration-300">
+                    <div className="space-y-0.5">
+                      <label className="text-[12px] font-bold text-slate-500 uppercase px-1">Impact Type</label>
+                      <select
                         value={newBehavior.type}
                         onChange={(e) => setNewBehavior(prev => ({ ...prev, type: e.target.value as 'desired' | 'undesired' }))}
-                        className="h-14"
+                        className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
                       >
                         <option value="desired">Positive Achievement</option>
                         <option value="undesired">Learning Opportunity</option>
-                      </Select>
-                      <Input
-                        label="Observation Notes"
+                      </select>
+                    </div>
+                    <div className="space-y-0.5">
+                      <label className="text-[12px] font-bold text-slate-500 uppercase px-1">Observation Notes</label>
+                      <input
                         placeholder="Add specific details about what happened..."
-                        className="h-14"
+                        className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
                         value={newBehavior.description}
                         onChange={(e) => setNewBehavior(prev => ({ ...prev, description: e.target.value }))}
                       />
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
 
-                <div className="flex gap-4 pt-4">
-                  <Button type="button" variant="ghost" onClick={() => setIsLogModalOpen(false)} className="flex-1 h-14 text-lg font-bold">
+                <div className="flex gap-2 pt-2 border-t border-slate-200/60">
+                  <Button type="button" variant="ghost" size="xs" onClick={() => setIsLogModalOpen(false)} className="flex-1 h-7 text-[12px] font-bold uppercase">
                     Discard
                   </Button>
-                  <Button type="submit" disabled={isSubmitting} className="flex-1 h-14 text-lg font-black shadow-brand-200">
-                    {isSubmitting ? <Loader2 className="h-6 w-6 animate-spin mr-3" /> : <Plus className="h-6 w-6 mr-3" />}
+                  <Button type="submit" size="xs" disabled={isSubmitting} className="flex-1 h-7 text-[12px] font-bold uppercase">
+                    {isSubmitting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
                     Confirm Log
                   </Button>
                 </div>
