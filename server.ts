@@ -4457,30 +4457,12 @@ async function startServer() {
     }
   }
 
-  // Catch-all for unhandled requests
-  app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] Unhandled request: ${req.method} ${req.url}`);
-    next();
-  });
-
-  app.use((err: any, req: any, res: any, next: any) => {
-    console.error('Global error handler:', err);
-    if (res.headersSent) {
-      return next(err);
-    }
-    res.status(500).json({ error: 'Internal server error', details: err.message });
-  });
-
+  // Background task to process overdue activities every 5 minutes
   if (!process.env.VERCEL) {
     server.listen(PORT, '0.0.0.0', () => {
       console.log(`Server running on http://localhost:${PORT}`);
     });
-  } else {
-    console.log('[STARTUP] Detected Vercel environment, skipping server.listen()');
-  }
 
-  // Background task to process overdue activities every 5 minutes
-  if (!process.env.VERCEL) {
     setInterval(async () => {
       console.log('Background Task: Checking for overdue activities...');
       if (!supabaseUrl || !supabaseKey || supabaseUrl.includes('placeholder')) return;
@@ -4577,10 +4559,5 @@ process.on('unhandledRejection', (reason, promise) => {
   if (!process.env.VERCEL) {
     startServer().catch(err => {
       console.error('Failed to start server:', err);
-    });
-  } else {
-    // In Vercel, we still need to run the setup but not the listener
-    startServer().catch(err => {
-      console.error('Vercel setup error:', err);
     });
   }
