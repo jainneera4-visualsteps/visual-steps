@@ -12,9 +12,11 @@
     "@supabase/supabase-js": "latest",
     "react": "latest",
     "react-dom": "latest",
+    "react-router-dom": "latest",
     "lucide-react": "latest",
     "clsx": "latest",
-    "tailwind-merge": "latest"
+    "tailwind-merge": "latest",
+    "framer-motion": "latest"
   },
   "devDependencies": {
     "vite": "latest",
