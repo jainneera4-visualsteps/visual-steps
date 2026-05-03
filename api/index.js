@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import serverless from 'serverless-http'; // This is the key
+import serverless from 'serverless-http';
 import { createClient } from '@supabase/supabase-js';
 
 const app = express();
@@ -12,16 +12,20 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY
 );
 
+// Health check to verify the server is alive
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'Server is awake!' });
+});
+
 app.get('/api/kids', async (req, res) => {
   try {
     const { data, error } = await supabase.from('kids').select('*');
     if (error) throw error;
-    res.status(200).json(data);
+    res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Wrap the express app with serverless-http
-export const handler = serverless(app); 
-export default app;
+// This is the bridge Vercel needs
+export default serverless(app);
