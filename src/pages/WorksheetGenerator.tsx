@@ -8,6 +8,28 @@ import { Input } from '../components/Input';
 import { ArrowLeft, Printer, Sparkles, Loader2, FileText, CheckCircle2, Save, Edit2, Lightbulb } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+const AutoResizeTextarea = ({ value, onChange, className, placeholder }: any) => {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = textareaRef.current.scrollHeight + "px";
+    }
+  }, [value]);
+
+  return (
+    <textarea
+      ref={textareaRef}
+      value={value}
+      onChange={onChange}
+      className={`${className} overflow-hidden`}
+      placeholder={placeholder}
+      rows={1}
+    />
+  );
+};
+
 interface WorksheetContent {
   title: string;
   instructions: string;
@@ -791,10 +813,10 @@ export default function WorksheetGenerator() {
                 {isViewingSaved ? (
                   worksheet.instructions
                 ) : (
-                  <textarea 
+                  <AutoResizeTextarea 
                     value={worksheet.instructions}
-                    onChange={(e) => updateWorksheet({ instructions: e.target.value })}
-                    className="w-full bg-transparent border-none focus:ring-0 p-0 resize-none min-h-[60px]"
+                    onChange={(e: any) => updateWorksheet({ instructions: e.target.value })}
+                    className="w-full bg-transparent border-none focus:ring-0 p-0 resize-none block"
                   />
                 )}
               </div>
@@ -840,10 +862,10 @@ export default function WorksheetGenerator() {
                         {isViewingSaved ? (
                           section.puzzleContent
                         ) : (
-                          <textarea 
+                          <AutoResizeTextarea 
                             value={section.puzzleContent}
-                            onChange={(e) => updateSection(sIdx, { puzzleContent: e.target.value })}
-                            className="w-full bg-transparent border-none focus:ring-0 p-0 resize-none min-h-[100px]"
+                            onChange={(e: any) => updateSection(sIdx, { puzzleContent: e.target.value })}
+                            className="w-full bg-transparent border-none focus:ring-0 p-0 resize-none block"
                           />
                         )}
                       </div>
@@ -879,10 +901,10 @@ export default function WorksheetGenerator() {
                             {section.readingPassage}
                           </div>
                         ) : (
-                          <textarea 
+                          <AutoResizeTextarea 
                             value={section.readingPassage}
-                            onChange={(e) => updateSection(sIdx, { readingPassage: e.target.value })}
-                            className="w-full bg-transparent border-none focus:ring-0 p-0 resize-none min-h-[200px] leading-relaxed"
+                            onChange={(e: any) => updateSection(sIdx, { readingPassage: e.target.value })}
+                            className="w-full bg-transparent border-none focus:ring-0 p-0 resize-none leading-relaxed block"
                           />
                         )}
                       </div>
@@ -977,10 +999,10 @@ export default function WorksheetGenerator() {
                                 {q.question}
                               </p>
                             ) : (
-                              <textarea 
+                              <AutoResizeTextarea 
                                 value={q.question}
-                                onChange={(e) => updateQuestion(sIdx, qIdx, { question: e.target.value })}
-                                className="w-full bg-transparent border-none focus:ring-0 p-0 font-medium text-slate-900 resize-none min-h-[40px]"
+                                onChange={(e: any) => updateQuestion(sIdx, qIdx, { question: e.target.value })}
+                                className="w-full bg-transparent border-none focus:ring-0 p-0 font-medium text-slate-900 resize-none block"
                               />
                             )}
                           </div>

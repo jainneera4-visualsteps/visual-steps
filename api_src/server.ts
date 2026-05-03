@@ -102,6 +102,7 @@ console.log('[STARTUP] Backend Supabase URL:', supabaseUrl);
 console.log('[STARTUP] Backend Supabase Key:', supabaseKey ? '***' : 'undefined');
 console.log('[STARTUP] Backend Service Key:', supabaseServiceKey ? '***' : 'undefined');
 console.log('[STARTUP] JWT_SECRET:', JWT_SECRET ? '***' : 'undefined');
+console.log('[STARTUP] GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? '***' : (process.env.GOOGLE_API_KEY ? '*** (from GOOGLE_API_KEY)' : 'undefined'));
 
 if (!supabaseUrl || !supabaseKey) {
   console.error('[STARTUP] Missing Supabase environment variables. Please set SUPABASE_URL and SUPABASE_ANON_KEY.');
@@ -4031,28 +4032,28 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
   } = req.body;
   
   const modelName = model_body || model_name_body || 'gemini-flash-latest';
+  const apiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
   
   try {
-    let apiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
-    
     if (!apiKey || apiKey === 'undefined' || apiKey === 'null') {
       return res.status(500).json({ error: 'AI API key not configured correctly' });
     }
 
-    // Default to a model that is known to work with this key
-    let finalModelName = modelName || 'gemini-flash-latest';
-    
-    // Normalize model names
-    const modelLower = finalModelName.toLowerCase();
-    if (modelLower.includes('flash') && !modelLower.includes('image')) {
-      finalModelName = 'gemini-flash-latest';
-    } else if (modelLower.includes('pro')) {
+    // Normalize model names according to gemini-api skill
+    const modelLower = (modelName || '').toLowerCase();
+    let finalModelName = 'gemini-3-flash-preview'; // Default robust model
+
+    if (modelLower.includes('pro')) {
       finalModelName = 'gemini-3.1-pro-preview';
     } else if (modelLower.includes('image')) {
       finalModelName = 'gemini-2.5-flash-image';
+    } else if (modelLower.includes('flash') || modelLower === '') {
+      finalModelName = 'gemini-3-flash-preview';
+    } else if (modelName) {
+      finalModelName = modelName;
     }
 
-    console.log(`[AI Generation] Using model: ${finalModelName} (v1beta manual fetch)`);
+    console.log(`[AI Generation] Using model: ${finalModelName} (v1beta)`);
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${finalModelName}:generateContent?key=${apiKey}`;
     
@@ -4118,7 +4119,8 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
     }
     
     if (errorMessage.includes('API key not valid')) {
-      errorMessage = 'Invalid AI API key. Please check your configuration.';
+      const maskedKey = apiKey ? `${apiKey.substring(0, 3)}...${apiKey.substring(apiKey.length - 3)}` : 'empty';
+      errorMessage = `Invalid AI API key (${maskedKey}). Please check your configuration in the AI Studio Secrets panel.`;
     }
 
     console.error('[AI Generation] Final Error Message:', errorMessage);
