@@ -87,7 +87,7 @@ let supabaseUrl = (process.env.SUPABASE_URL || '').trim();
 if (supabaseUrl && !supabaseUrl.startsWith('http')) {
   supabaseUrl = 'https://' + supabaseUrl;
 }
-const supabaseKey = (process.env.SUPABASE_ANON_KEY || '').trim();
+const supabaseKey = (process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY || '').trim();
 
 console.log('[STARTUP] Backend Supabase URL:', supabaseUrl);
 console.log('[STARTUP] Backend Supabase Key:', supabaseKey ? '***' : 'undefined');

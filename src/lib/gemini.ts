@@ -1,4 +1,3 @@
-import { Type } from "@google/genai";
 import { apiFetch } from "../utils/api";
 
 // This file is now a proxy to our server-side AI endpoints to keep keys secure
@@ -83,6 +82,5 @@ const ai = {
     }
 };
 
-export { Type };
 export default ai;
 
