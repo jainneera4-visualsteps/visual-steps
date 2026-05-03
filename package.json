@@ -8,13 +8,13 @@
   },
   "scripts": {
     "dev": "tsx api_src/server.ts",
-    "build": "vite build && npx esbuild api_src/index.ts --bundle --platform=node --format=esm --outfile=api/index.js --target=node20 --external:express --external:cors --external:cookie-parser --external:dotenv --external:jsonwebtoken --external:bcryptjs --external:uuid --external:multer --external:nodemailer --external:@supabase/supabase-js --external:@google/generative-ai --external:socket.io",
+    "build": "vite build && npx esbuild api_src/index.ts --bundle --platform=node --format=esm --outfile=api/index.js --target=node20 --external:express --external:cors --external:cookie-parser --external:dotenv --external:jsonwebtoken --external:bcryptjs --external:uuid --external:multer --external:nodemailer --external:@supabase/supabase-js --external:@google/genai --external:socket.io",
     "start": "tsx api_src/server.ts",
     "preview": "vite preview",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.21.0",
+    "@google/genai": "^1.48.0",
     "@radix-ui/react-tooltip": "^1.1.2",
     "@supabase/supabase-js": "^2.45.4",
     "bcryptjs": "^2.4.3",

@@ -9,7 +9,6 @@ import jwt from 'jsonwebtoken';
 import cookieParser from 'cookie-parser';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import multer from 'multer';
 import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
