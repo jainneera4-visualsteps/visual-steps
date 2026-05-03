@@ -55,7 +55,7 @@ interface Behavior {
   description: string;
   date: string;
   hour: number | null;
-  token_change: number;
+  rewards_earned: number;
   definition_id: string | null;
   completed?: boolean;
   remarks?: string;
@@ -464,8 +464,8 @@ export default function BehaviorsList() {
                   </div>
                   <p className="text-[10px] font-bold text-blue-100 uppercase tracking-widest mb-1">Lifetime Impact</p>
                   <p className="text-3xl font-black text-white tracking-tight">
-                    {behaviors.reduce((acc, b) => acc + (b.token_change || 0), 0) > 0 ? '+' : ''}
-                    {behaviors.reduce((acc, b) => acc + (b.token_change || 0), 0)}
+                    {behaviors.reduce((acc, b) => acc + (b.rewards_earned || 0), 0) > 0 ? '+' : ''}
+                    {behaviors.reduce((acc, b) => acc + (b.rewards_earned || 0), 0)}
                   </p>
                 </div>
               </CardContent>

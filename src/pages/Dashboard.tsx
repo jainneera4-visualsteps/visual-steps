@@ -316,7 +316,7 @@ export default function Dashboard() {
           hour: new Date().getHours(),
           completed: true,
           remarks: behaviorRemarks || 'Manual entry',
-          token_change: 0
+          rewards_earned: 0
         }),
       });
 
@@ -354,7 +354,7 @@ export default function Dashboard() {
           hour: new Date().getHours(),
           completed: true,
           remarks: 'Incremented from dashboard',
-          token_change: 0
+          rewards_earned: 0
         }),
       });
 

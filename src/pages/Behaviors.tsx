@@ -52,6 +52,7 @@ interface Behavior {
   description: string;
   date: string;
   token_change: number;
+  rewards_earned: number;
   definition_id: string | null;
   created_at: string;
   behavior_definitions?: BehaviorDefinition;
@@ -494,8 +495,8 @@ export default function Behaviors() {
                               {new Date(behavior.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                             </td>
                             <td className="px-4 py-3 text-right font-bold tabular-nums">
-                              <span className={behavior.token_change > 0 ? 'text-emerald-500' : 'text-rose-500'}>
-                                {behavior.token_change > 0 ? '+' : ''}{behavior.token_change}
+                              <span className={behavior.rewards_earned > 0 ? 'text-emerald-500' : 'text-rose-500'}>
+                                {behavior.rewards_earned > 0 ? '+' : ''}{behavior.rewards_earned}
                               </span>
                             </td>
                             <td className="px-4 py-3 text-right">
@@ -744,8 +745,8 @@ export default function Behaviors() {
                     </div>
                     <p className="text-[11px] font-black text-brand-100 uppercase tracking-widest mb-1">Lifetime Token Impact</p>
                     <p className="text-4xl font-black text-white italic tracking-tighter">
-                      {behaviors.reduce((acc, b) => acc + b.token_change, 0) > 0 ? '+' : ''}
-                      {behaviors.reduce((acc, b) => acc + b.token_change, 0)}
+                      {behaviors.reduce((acc, b) => acc + (b.rewards_earned || 0), 0) > 0 ? '+' : ''}
+                      {behaviors.reduce((acc, b) => acc + (b.rewards_earned || 0), 0)}
                     </p>
                   </div>
                 </CardContent>

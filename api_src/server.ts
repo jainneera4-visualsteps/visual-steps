@@ -83,14 +83,24 @@ const PORT = 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-change-in-prod';
 
 // Supabase setup
-let supabaseUrl = (process.env.SUPABASE_URL || '').trim();
-if (supabaseUrl && !supabaseUrl.startsWith('http')) {
-  supabaseUrl = 'https://' + supabaseUrl;
+let supabaseUrl = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').trim();
+if (supabaseUrl) {
+  if (!supabaseUrl.startsWith('http')) {
+    // If it's just a project ID, expand it. Otherwise, assume it needs https://
+    if (supabaseUrl.match(/^[a-z0-9]{20}$/)) { 
+        supabaseUrl = `https://${supabaseUrl}.supabase.co`;
+    } else {
+        supabaseUrl = 'https://' + supabaseUrl;
+    }
+  }
 }
-const supabaseKey = (process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY || '').trim();
+
+const supabaseKey = (process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_KEY || '').trim();
+const supabaseServiceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || '').trim();
 
 console.log('[STARTUP] Backend Supabase URL:', supabaseUrl);
 console.log('[STARTUP] Backend Supabase Key:', supabaseKey ? '***' : 'undefined');
+console.log('[STARTUP] Backend Service Key:', supabaseServiceKey ? '***' : 'undefined');
 console.log('[STARTUP] JWT_SECRET:', JWT_SECRET ? '***' : 'undefined');
 
 if (!supabaseUrl || !supabaseKey) {
@@ -126,7 +136,7 @@ const getPublicSupabaseClient = () => {
 
 // Helper to get admin Supabase client (bypasses RLS)
 const getAdminSupabaseClient = () => {
-  const adminKey = process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseKey;
+  const adminKey = supabaseServiceKey || supabaseKey;
   return createClient(supabaseUrl || 'https://placeholder.supabase.co', adminKey || 'placeholder', {
     auth: {
       persistSession: false,
@@ -1311,7 +1321,12 @@ app.post('/api/kids/by-parent-email', async (req, res) => {
 
     if (userError || !user) {
       console.log('Parent user not found for email:', email, 'Error:', userError);
-      return res.status(404).json({ error: 'Parent not found' });
+      const backendProjectId = supabaseUrl?.split('//')[1]?.split('.')[0] || 'unknown';
+      return res.status(404).json({ 
+        error: 'Parent not found', 
+        details: `The parent account '${email}' was not found in the current backend database (${backendProjectId}). Please verify that your backend SUPABASE_URL matches the project where you created the parent account.`,
+        backendProject: backendProjectId
+      });
     }
 
     console.log('Found parent user:', user.id);
