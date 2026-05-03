@@ -210,15 +210,15 @@ export default function WorksheetGenerator() {
 
       if (worksheetType === 'One-choice') {
         typeInstruction = 'The worksheet should consist ONLY of Multiple Choice questions with exactly one correct answer.';
-        includeInstruction = 'Include: 1. A catchy title. 2. Clear instructions. 3. 15-20 high-quality questions to ensure the worksheet is substantial (2 pages). 4. An answer key.';
+        includeInstruction = 'Include: 1. A catchy title. 2. Clear instructions. 3. 6-8 high-quality questions for a substantial worksheet. 4. An answer key.';
       } else if (worksheetType === 'Multiple-choice') {
         typeInstruction = 'The worksheet should consist ONLY of Multiple Choice questions (some may have more than one correct answer).';
-        includeInstruction = 'Include: 1. A catchy title. 2. Clear instructions. 3. 15-20 high-quality questions to ensure the worksheet is substantial (2 pages). 4. An answer key.';
+        includeInstruction = 'Include: 1. A catchy title. 2. Clear instructions. 3. 6-8 high-quality questions for a substantial worksheet. 4. An answer key.';
       } else if (worksheetType === 'Fill in the blanks') {
         typeInstruction = 'The worksheet should consist ONLY of Fill in the Blanks questions.';
-        includeInstruction = 'Include: 1. A catchy title. 2. Clear instructions. 3. 15-20 high-quality questions to ensure the worksheet is substantial (2 pages). 4. An answer key.';
+        includeInstruction = 'Include: 1. A catchy title. 2. Clear instructions. 3. 6-8 high-quality questions for a substantial worksheet. 4. An answer key.';
       } else if (worksheetType === 'Word Search') {
-        typeInstruction = 'The worksheet should consist ONLY of a Word Search puzzle. Provide a 15x15 grid of characters and a list of 15-20 thematic words to find.';
+        typeInstruction = 'The worksheet should consist ONLY of a Word Search puzzle. Provide a 15x15 grid of characters and a list of 10-12 thematic words to find.';
         includeInstruction = 'Include: 1. A catchy title. 2. Clear instructions. 3. The word search puzzle data (grid and words). 4. An answer key.';
       } else if (worksheetType === 'Coloring Page') {
         typeInstruction = 'The worksheet should be a Coloring Page. Provide a title, instructions, and a highly descriptive prompt for an AI image generator to create a black and white line art coloring page for kids. CRITICAL: DO NOT include any questions, multiple choice, or text-based exercises. The "sections" array should contain exactly one section of type "coloring".';
@@ -231,7 +231,7 @@ export default function WorksheetGenerator() {
         includeInstruction = 'Include: 1. A catchy title. 2. Clear instructions. 3. The puzzle content (make it substantial). 4. An answer key.';
       } else if (worksheetType === 'Matching Puzzle') {
         typeInstruction = 'The worksheet should consist ONLY of a Matching Puzzle. Provide a list of pairs (left item and its matching right item).';
-        includeInstruction = 'Include: 1. A catchy title. 2. Clear instructions. 3. 12-15 pairs of items to match. 4. A shuffled list of the right-side items for the student to match against. 5. An answer key.';
+        includeInstruction = 'Include: 1. A catchy title. 2. Clear instructions. 3. 8-10 pairs of items to match. 4. A shuffled list of the right-side items for the student to match against. 5. An answer key.';
       } else if (worksheetType === 'Reading Comprehension') {
         // Calculate dynamic word count based on age and difficulty
         let baseWords = 400;
@@ -252,17 +252,18 @@ export default function WorksheetGenerator() {
         const minWords = Math.round(targetWords * 0.8);
         const maxWords = Math.round(targetWords * 1.2);
 
-        typeInstruction = `The worksheet should consist of a Reading Comprehension passage followed by 10-12 questions (mix of multiple choice and short answer) based on the passage.`;
-        includeInstruction = `Include: 1. A catchy title. 2. Clear instructions. 3. An engaging reading passage (${minWords}-${maxWords} words). 4. 10-12 comprehension questions. 5. An answer key.`;
+        typeInstruction = `The worksheet should consist of a Reading Comprehension passage followed by 6-8 questions (mix of multiple choice and short answer) based on the passage.`;
+        includeInstruction = `Include: 1. A catchy title. 2. Clear instructions. 3. An engaging reading passage (${minWords}-${maxWords} words). 4. 6-8 comprehension questions. 5. An answer key.`;
       } else if (worksheetType === 'Drawing') {
         typeInstruction = 'The worksheet should be a Drawing activity. Provide a creative drawing prompt or a scene for the student to draw.';
         includeInstruction = 'Include: 1. A catchy title. 2. Clear instructions. 3. A creative "drawingPrompt" that describes what the student should draw.';
       } else {
         typeInstruction = 'The worksheet should be a mix of Multiple Choice, Fill in the Blanks, and Short Answer questions.';
-        includeInstruction = 'Include: 1. A catchy title. 2. Clear instructions. 3. 15-20 high-quality questions across different formats to ensure the worksheet is substantial (2 pages). 4. An answer key.';
+        includeInstruction = 'Include: 1. A catchy title. 2. Clear instructions. 3. 6-8 high-quality questions across different formats for a substantial worksheet. 4. An answer key.';
       }
 
       const newWorksheets: WorksheetContent[] = [];
+      let lastError: string | null = null;
       let hasError = false;
 
       let skipImages = false;
@@ -392,11 +393,12 @@ export default function WorksheetGenerator() {
           
           // Increased delay between worksheets to avoid rate limits/RPC errors
           if (i < numWorksheets - 1) {
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            await new Promise(resolve => setTimeout(resolve, 3000));
           }
         } catch (error: any) {
           console.error(`Failed to generate worksheet ${i + 1}:`, error);
           const errString = error instanceof Error ? error.message : (typeof error === 'string' ? error : JSON.stringify(error));
+          lastError = errString;
           if (errString.toLowerCase().includes('quota') || errString.includes('429')) {
             throw error; // Rethrow quota errors immediately
           }
@@ -410,10 +412,10 @@ export default function WorksheetGenerator() {
         setShowGenerator(false);
         
         if (hasError) {
-          alert(`Generated ${newWorksheets.length} worksheet(s), but some could not be created due to network errors.`);
+          alert(`Generated ${newWorksheets.length} worksheet(s), but some could not be created.`);
         }
       } else {
-        throw new Error('Could not generate any worksheets. Please check your connection and try again.');
+        throw new Error(lastError || 'Could not generate any worksheets. Please check your connection and try again.');
       }
 
     } catch (error: any) {

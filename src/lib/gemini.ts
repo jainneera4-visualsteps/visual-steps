@@ -7,7 +7,7 @@ const isKeyPlaceholder = !apiKey || apiKey === 'undefined' || apiKey === 'null' 
 const ai = new GoogleGenAI({ apiKey: isKeyPlaceholder ? 'unused-key' : apiKey });
 
 export const modelNames = {
-  flash: 'gemini-flash-latest',
+  flash: 'gemini-3-flash-preview',
   pro: 'gemini-3.1-pro-preview',
   image: 'gemini-2.5-flash-image',
 };
@@ -38,16 +38,15 @@ export async function generateContent(options: {
       },
     });
 
-    // Return in a way that matches what existing code expects
-    // Existing code seems to expect a structure similar to the proxy return
     return {
       text: response.text,
       response: response
     };
   } catch (error: any) {
     console.error("Gemini SDK Error:", error);
-    // Fallback to proxy if SDK fails (e.g. if API key is not available in frontend but is in backend)
-    // Though the skill says never call from backend, sometimes environment setup varies
+    
+    // Only try fallback if it was a configuration/key issue or similar, 
+    // or if the error seems like something the proxy might handle better
     try {
         console.log("Attempting proxy fallback...");
         const { apiFetch } = await import("../utils/api");
@@ -57,14 +56,18 @@ export async function generateContent(options: {
           body: JSON.stringify(options),
         });
 
+        const data = await proxyResponse.json();
         if (!proxyResponse.ok) {
-          const errorData = await proxyResponse.json();
-          throw new Error(errorData.error || 'AI generation failed');
+          throw new Error(data.error || 'AI generation failed');
         }
 
-        return await proxyResponse.json();
+        return data;
     } catch (proxyError: any) {
-        throw new Error(error.message || proxyError.message || 'AI generation failed');
+        // Report the proxy error if it seems more descriptive, otherwise the original SDK error
+        // If it's the "No valid API key in frontend" error, we definitely want the proxy error message
+        const isFrontendKeyError = error.message === "No valid API key in frontend";
+        const finalMessage = isFrontendKeyError ? (proxyError.message || error.message) : (error.message || proxyError.message);
+        throw new Error(finalMessage || 'AI generation failed');
     }
   }
 }
