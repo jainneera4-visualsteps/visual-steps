@@ -20,7 +20,8 @@ dotenv.config();
 // Dual compatibility for ESM and CJS
 const currentDirname = process.cwd();
 
-export const app = express();
+const app = express();
+export default app;
 
 // Request logging
 app.use((req, res, next) => {
