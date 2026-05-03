@@ -4032,23 +4032,26 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
   } = req.body;
   
   const modelName = model_body || model_name_body || 'gemini-flash-latest';
-  const apiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
+  const apiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
   
   try {
-    if (!apiKey || apiKey === 'undefined' || apiKey === 'null') {
-      return res.status(500).json({ error: 'AI API key not configured correctly' });
+    if (!apiKey || apiKey === 'undefined' || apiKey === 'null' || apiKey.length < 10) {
+      const checkedEnvs = ['GEMINI_API_KEY', 'GOOGLE_API_KEY', 'VITE_GEMINI_API_KEY'];
+      return res.status(500).json({ 
+        error: `AI API key not configured correctly. Checked envs: ${checkedEnvs.join(', ')}. Please set GEMINI_API_KEY in your Vercel/Environment settings.` 
+      });
     }
 
-    // Normalize model names according to gemini-api skill
+    // Normalize model names to standard stable versions
     const modelLower = (modelName || '').toLowerCase();
-    let finalModelName = 'gemini-3-flash-preview'; // Default robust model
+    let finalModelName = 'gemini-1.5-flash'; // Safer stable default
 
     if (modelLower.includes('pro')) {
-      finalModelName = 'gemini-3.1-pro-preview';
+      finalModelName = 'gemini-1.5-pro';
     } else if (modelLower.includes('image')) {
-      finalModelName = 'gemini-2.5-flash-image';
+      finalModelName = 'gemini-2.0-flash-exp';
     } else if (modelLower.includes('flash') || modelLower === '') {
-      finalModelName = 'gemini-3-flash-preview';
+      finalModelName = 'gemini-1.5-flash';
     } else if (modelName) {
       finalModelName = modelName;
     }
@@ -4118,9 +4121,9 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
       errorMessage = error;
     }
     
-    if (errorMessage.includes('API key not valid')) {
+    if (errorMessage.includes('API key not valid') || errorMessage.includes('not configured correctly')) {
       const maskedKey = apiKey ? `${apiKey.substring(0, 3)}...${apiKey.substring(apiKey.length - 3)}` : 'empty';
-      errorMessage = `Invalid AI API key (${maskedKey}). Please check your configuration in the AI Studio Secrets panel.`;
+      errorMessage = `Invalid AI API key (${maskedKey}). Please check your GEMINI_API_KEY in the Environment panel.`;
     }
 
     console.error('[AI Generation] Final Error Message:', errorMessage);
