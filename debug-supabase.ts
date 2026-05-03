@@ -17,13 +17,13 @@ async function debugErrors() {
   if (defError) console.error('Behavior Definitions Error:', defError);
   else console.log('Behavior Definitions OK');
 
-  console.log('\n--- Debugging Behaviors ---');
+  console.log('\n--- Debugging Behavior Logs ---');
   const { data: behaviors, error: behaviorError } = await supabase
-    .from('behaviors')
+    .from('behavior_logs')
     .select('*, behavior_definitions(*)')
     .limit(1);
-  if (behaviorError) console.error('Behaviors Error:', behaviorError);
-  else console.log('Behaviors OK');
+  if (behaviorError) console.error('Behavior Logs Error:', behaviorError);
+  else console.log('Behavior Logs OK');
 }
 
 debugErrors();

@@ -289,8 +289,8 @@ const authenticateToken = async (req: any, res: any, next: any) => {
     req.token = token;
     next();
   } catch (err: any) {
-    console.error('authenticateToken: Unexpected error:', err.message);
-    res.status(500).json({ error: 'Authentication processing error' });
+    console.error('authenticateToken: Unexpected error:', err.message, err.stack);
+    res.status(500).json({ error: 'Authentication processing error', details: err.message });
   }
 };
 
@@ -2162,7 +2162,7 @@ app.get('/api/kids/:kidId/behaviors', authenticateToken, async (req: any, res) =
       .order('date', { ascending: false });
 
     if (behaviorsError) {
-      console.error('[GET behaviors] Supabase Error:', behaviorsError);
+      console.error('[GET behaviors] Supabase Error:', JSON.stringify(behaviorsError, null, 2));
       throw behaviorsError;
     }
 
@@ -2180,6 +2180,7 @@ app.get('/api/kids/:kidId/behaviors', authenticateToken, async (req: any, res) =
     // Merge manually
     const enrichedBehaviors = (behaviors || []).map(b => ({
       ...b,
+      token_change: b.rewards_earned || 0, // Alias for frontend
       behavior_definitions: (definitions || []).find(d => d.id === b.definition_id) || null
     }));
 
@@ -2191,7 +2192,7 @@ app.get('/api/kids/:kidId/behaviors', authenticateToken, async (req: any, res) =
 });
 
 const recordBehaviorLog = async (adminSupabase: any, kidId: string, definition_id: string, points: number, rewards: number, description: string, date?: string, remarks?: string) => {
-  // Include points/notes in description since columns like 'points' or 'remarks' might be missing in behavior_logs
+  // Include points/notes in description since columns like 'points' or 'remarks' might be missing in behaviors
   let finalDescription = description || 'Behavior reported';
   if (points > 0) {
     finalDescription = `${finalDescription} (+${points} points)`;
@@ -2222,7 +2223,8 @@ const recordBehaviorLog = async (adminSupabase: any, kidId: string, definition_i
     type: 'desired',
     description: finalDescription,
     date: finalDate,
-    rewards_earned: rewards
+    rewards_earned: rewards,
+    points: points
   };
   
   console.log('[recordBehaviorLog] Attempting insert into behavior_logs:', JSON.stringify(logEntry));
@@ -2230,7 +2232,7 @@ const recordBehaviorLog = async (adminSupabase: any, kidId: string, definition_i
   try {
     const { data, error } = await adminSupabase.from('behavior_logs').insert([logEntry]).select();
     if (error) {
-      console.error('[recordBehaviorLog] behavior_logs Error:', error);
+      console.error('[recordBehaviorLog] behavior_logs Error:', JSON.stringify(error, null, 2));
       throw error;
     }
     return data;
@@ -2322,7 +2324,7 @@ const updateTrackerAndCheckGoal = async (adminSupabase: any, io: any, kidId: str
                     amount: bDef.goal_rewards
                 });
 
-                // Log to behavior_logs for progress report
+                // Log to behaviors for progress report
                 await recordBehaviorLog(
                     adminSupabase, 
                     kidId, 
@@ -2359,7 +2361,8 @@ app.post('/api/kids/:kidId/behaviors', authenticateToken, async (req: any, res) 
   const adminSupabase = getAdminSupabaseClient();
   const supabase = getSupabaseForUser(req);
   const { kidId } = req.params;
-  const { type, description, definition_id, token_change, date, hour, completed, remarks, occurrence } = req.body;
+  const { type, description, definition_id, token_change, rewards_earned, date, hour, completed, remarks, occurrence } = req.body;
+  const finalRewards = rewards_earned || token_change || 0;
 
   try {
     // Verify ownership first
@@ -2392,16 +2395,16 @@ app.post('/api/kids/:kidId/behaviors', authenticateToken, async (req: any, res) 
             kidId, 
             null as any, 
             1, 
-            0, 
+            finalRewards, 
             description || 'Manual Behavior', 
             date, 
             remarks
         );
         
-        if (token_change) {
+        if (finalRewards) {
             await adminSupabase.rpc('increment_reward_balance', {
                 kid_id_param: kidId,
-                amount: token_change
+                amount: finalRewards
             });
         }
         
@@ -2416,7 +2419,40 @@ app.post('/api/kids/:kidId/behaviors', authenticateToken, async (req: any, res) 
 });
 
 app.delete('/api/behaviors/:id', authenticateToken, async (req: any, res) => {
-  res.json({ message: 'Deleted' });
+  const adminSupabase = getAdminSupabaseClient();
+  const { id } = req.params;
+
+  try {
+    const { data: log, error: fetchError } = await adminSupabase
+      .from('behavior_logs')
+      .select('kid_id, rewards_earned')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (fetchError || !log) {
+      return res.status(404).json({ error: 'Log not found' });
+    }
+
+    const { error: delError } = await adminSupabase
+      .from('behavior_logs')
+      .delete()
+      .eq('id', id);
+
+    if (delError) throw delError;
+
+    // Revert balance if needed
+    if (log.rewards_earned) {
+        await adminSupabase.rpc('increment_reward_balance', {
+            kid_id_param: log.kid_id,
+            amount: -log.rewards_earned
+        });
+    }
+
+    res.json({ message: 'Deleted' });
+  } catch (error: any) {
+    console.error('[DELETE behavior] Error:', error);
+    res.status(500).json({ error: 'Failed to delete behavior', details: error.message });
+  }
 });
 
 app.get('/api/kids/:kidId/behavior-tracker', authenticateToken, async (req: any, res) => {
@@ -2430,12 +2466,15 @@ app.get('/api/kids/:kidId/behavior-tracker', authenticateToken, async (req: any,
       .select('*')
       .eq('kid_id', kidId);
 
-    if (trackerError) throw trackerError;
+    if (trackerError) {
+        console.warn('[GET behavior-tracker] Supabase Error:', trackerError.message);
+        return res.json({ tracker: [] }); // Graceful fallback
+    }
 
     res.json({ tracker: tracker || [] });
   } catch (error: any) {
-    console.error('[GET behavior-tracker] Error:', error);
-    res.status(500).json({ error: 'Failed to fetch behavior tracker', details: error.message });
+    console.warn('[GET behavior-tracker] Fallback used for missing table');
+    res.json({ tracker: [] });
   }
 });
 
@@ -2444,58 +2483,44 @@ app.get('/api/kids/:kidId/behavior-logs', authenticateToken, async (req: any, re
   const { kidId } = req.params;
 
   try {
-    // Fetch from behavior_logs
-    const { data: logs, error } = await adminSupabase
+    // Fetch from behavior_logs table (primary)
+    const { data: logs, error: logsError } = await adminSupabase
       .from('behavior_logs')
       .select('*, behavior_definitions(name, priority, target_time, description)')
       .eq('kid_id', kidId)
       .order('date', { ascending: false })
       .order('created_at', { ascending: false });
 
-    // Also fetch from behaviors table as fallback/union
-    const { data: altLogs, error: altError } = await adminSupabase
-      .from('behaviors')
-      .select('*, behavior_definitions(name, priority, target_time, description)')
-      .eq('kid_id', kidId)
-      .order('date', { ascending: false })
-      .order('created_at', { ascending: false });
-
-    // Combine logs
-    const combinedLogs = [...(logs || [])];
-    
-    // Add altLogs if they are not already present (based on ID or description/date)
-    if (altLogs) {
-        altLogs.forEach((al: any) => {
-            const exists = combinedLogs.some(l => l.id === al.id || (l.date === al.date && l.description === al.description && l.created_at === al.created_at));
-            if (!exists) {
-                // Map columns if they differ
-                const mappedLog = {
-                    ...al,
-                    // If it has token_change but not rewards_earned, maybe map it? 
-                    // Usually behaviors table has token_change and behavior_logs has rewards_earned
-                    rewards_earned: al.rewards_earned || al.token_change || 0
-                };
-                combinedLogs.push(mappedLog);
-            }
-        });
+    if (logsError) {
+        console.error('[GET behavior-logs] Supabase Error:', JSON.stringify(logsError, null, 2));
     }
 
-    // Sort combined logs
-    combinedLogs.sort((a, b) => {
-        const dateA = new Date(a.created_at || a.date).getTime();
-        const dateB = new Date(b.created_at || b.date).getTime();
-        return dateB - dateA;
-    });
+    const combinedLogs = (logs || []).map(l => ({
+        ...l,
+        token_change: l.rewards_earned || 0, // Alias for frontend
+        rewards_earned: l.rewards_earned || 0
+    }));
 
-    const { data: trackerData } = await adminSupabase
-      .from('behavior_tracker')
-      .select('definition_id, remarks')
-      .eq('kid_id', kidId);
+    let trackerData = [];
+    try {
+        const { data: td, error: trackerError } = await adminSupabase
+          .from('behavior_tracker')
+          .select('definition_id, remarks, points')
+          .eq('kid_id', kidId);
+        
+        if (trackerError) {
+             console.warn('[GET behavior-logs] Tracker fetch warning (might not exist):', trackerError.message);
+        } else {
+            trackerData = td || [];
+        }
+    } catch (e) {
+        console.warn('[GET behavior-logs] behavior_tracker table missing or inaccessible');
+    }
 
-    console.log(`[GET behavior-logs] Found ${combinedLogs.length} logs (merged) and ${trackerData?.length || 0} tracker entries for kid ${kidId}`);
-    res.json({ logs: combinedLogs, tracker: trackerData || [] });
+    console.log(`[GET behavior-logs] Found ${combinedLogs.length} logs and ${trackerData.length} tracker entries for kid ${kidId}`);
+    res.json({ logs: combinedLogs, tracker: trackerData });
   } catch (error: any) {
-    console.error('[GET behavior-logs] Error:', error);
+    console.error('[GET behavior-logs] Catch Error:', error);
     res.status(500).json({ error: 'Failed to fetch behavior logs', details: error.message });
   }
 });

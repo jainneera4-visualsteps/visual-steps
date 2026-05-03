@@ -26,11 +26,11 @@ async function debugInsert() {
     type: 'desired',
     description: 'Test Behavior ' + new Date().toISOString(),
     date: new Date().toISOString().split('T')[0],
-    token_change: 10
+    rewards_earned: 10
   };
 
   console.log('Attempting insert of:', testLog);
-  const { data, error } = await supabase.from('behaviors').insert([testLog]).select();
+  const { data, error } = await supabase.from('behavior_logs').insert([testLog]).select();
 
   if (error) {
     console.error('Insert failed with error detail:', JSON.stringify(error, null, 2));
