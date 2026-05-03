@@ -15,9 +15,9 @@ function getGenAI() {
 }
 
 export const modelNames = {
-  flash: 'gemini-1.5-flash',
-  pro: 'gemini-1.5-pro',
-  image: 'gemini-2.0-flash-exp',
+  flash: 'gemini-3-flash-preview',
+  pro: 'gemini-3.1-pro-preview',
+  image: 'gemini-2.5-flash-image',
 };
 
 export async function generateContent(options: {
@@ -35,23 +35,20 @@ export async function generateContent(options: {
 
     const modelName = options.model || modelNames.flash;
     const ai = getGenAI();
-    const model = ai.getGenerativeModel({ 
-      model: modelName,
-      systemInstruction: options.systemInstruction as any,
-    });
     
-    const response = await model.generateContent({
+    const response = await ai.models.generateContent({
+      model: modelName,
       contents: Array.isArray(options.prompt) ? options.prompt : [{ role: 'user', parts: [{ text: options.prompt }] }],
-      generationConfig: {
+      config: {
+        systemInstruction: options.systemInstruction as any,
         responseMimeType: options.responseMimeType,
         responseSchema: options.responseSchema,
       },
     });
 
-    const result = response.response;
     return {
-      text: result.text(),
-      response: result
+      text: response.text,
+      response: response
     };
   } catch (error: any) {
     console.warn("Gemini Frontend SDK failed or bypassed:", error.message);
@@ -86,19 +83,18 @@ export async function generateImage(prompt: string) {
     }
 
     const ai = getGenAI();
-    const model = ai.getGenerativeModel({ model: modelNames.image });
-    const response = await model.generateContent({
+    const response = await ai.models.generateContent({
+      model: modelNames.image,
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
     });
 
-    const result = response.response;
-    for (const part of result.candidates?.[0]?.content?.parts || []) {
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
       if (part.inlineData) {
         return `data:image/png;base64,${part.inlineData.data}`;
       }
     }
     
-    const text = result.text();
+    const text = response.text;
     if (text && text.length > 100 && !text.includes(' ')) {
         return `data:image/png;base64,${text}`;
     }

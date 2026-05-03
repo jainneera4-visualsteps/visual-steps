@@ -4042,16 +4042,16 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
       });
     }
 
-    // Normalize model names to standard stable versions
+    // Normalize model names according to gemini-api skill recommended versions
     const modelLower = (modelName || '').toLowerCase();
-    let finalModelName = 'gemini-1.5-flash'; // Safer stable default
+    let finalModelName = 'gemini-3-flash-preview'; // Default robust model
 
     if (modelLower.includes('pro')) {
-      finalModelName = 'gemini-1.5-pro';
+      finalModelName = 'gemini-3.1-pro-preview';
     } else if (modelLower.includes('image')) {
-      finalModelName = 'gemini-2.0-flash-exp';
+      finalModelName = 'gemini-2.5-flash-image';
     } else if (modelLower.includes('flash') || modelLower === '') {
-      finalModelName = 'gemini-1.5-flash';
+      finalModelName = 'gemini-3-flash-preview';
     } else if (modelName) {
       finalModelName = modelName;
     }
