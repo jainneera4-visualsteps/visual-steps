@@ -16,7 +16,10 @@
     "lucide-react": "latest",
     "clsx": "latest",
     "tailwind-merge": "latest",
-    "framer-motion": "latest"
+    "framer-motion": "latest",
+    "socket.io-client": "latest",
+    "recharts": "latest",
+    "date-fns": "latest"
   },
   "devDependencies": {
     "vite": "latest",
