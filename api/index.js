@@ -1,31 +1,23 @@
 import express from 'express';
 import cors from 'cors';
 import serverless from 'serverless-http';
-import { createClient } from '@supabase/supabase-js';
 
 const app = express();
+
 app.use(cors());
 app.use(express.json());
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
-
-// Health check to verify the server is alive
+// Minimal route with NO Supabase dependency for testing
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'Server is awake!' });
+  res.status(200).json({ 
+    status: 'Success', 
+    message: 'The server is officially awake and running on Vercel!' 
+  });
 });
 
-app.get('/api/kids', async (req, res) => {
-  try {
-    const { data, error } = await supabase.from('kids').select('*');
-    if (error) throw error;
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+// Add your kids route back ONLY after the health check works
+app.get('/api/kids', (req, res) => {
+  res.json({ message: "Ready to connect to Supabase" });
 });
 
-// This is the bridge Vercel needs
 export default serverless(app);
