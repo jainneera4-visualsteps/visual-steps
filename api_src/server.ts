@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 // import serverless from 'serverless-http';
 import http from 'http';
 import { Server } from 'socket.io';
@@ -22,6 +23,8 @@ const currentDirname = process.cwd();
 
 const app = express();
 export default app;
+
+app.use(cors());
 
 // Request logging
 app.use((req, res, next) => {
@@ -92,7 +95,7 @@ console.log('[STARTUP] Backend Supabase Key:', supabaseKey ? '***' : 'undefined'
 console.log('[STARTUP] JWT_SECRET:', JWT_SECRET ? '***' : 'undefined');
 
 if (!supabaseUrl || !supabaseKey) {
-  console.error('[STARTUP] Missing Supabase environment variables. Please set SUPABASE_URL and SUPABASE_KEY.');
+  console.error('[STARTUP] Missing Supabase environment variables. Please set SUPABASE_URL and SUPABASE_ANON_KEY.');
 }
 
 // Helper to get authenticated Supabase client
@@ -188,7 +191,7 @@ app.use('/uploads', express.static(uploadDir));
 
 app.get('/api/backend-health', async (req, res) => {
   const url = process.env.SUPABASE_URL || '';
-  const key = process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  const key = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
   const geminiKey = process.env.GEMINI_API_KEY || '';
   
   const health = {
@@ -1492,15 +1495,17 @@ const aggregateRewardMessages = (currentNotes: string, newRewardAmount: number, 
   return resultNotes;
 };
 
+// Get Kids
 app.get('/api/kids', authenticateToken, async (req: any, res) => {
   const userId = req.user?.id;
   console.log(`[API_REQ] GET /api/kids - User: ${userId}`);
+  
   if (!userId) {
-    console.error('No userId found in req.user');
     return res.status(401).json({ error: 'Unauthorized' });
   }
-  const supabase = getSupabaseForUser(req);
+
   try {
+    const supabase = getSupabaseForUser(req);
     const { data: kids, error } = await supabase
       .from('kids')
       .select('*')
@@ -1509,7 +1514,11 @@ app.get('/api/kids', authenticateToken, async (req: any, res) => {
 
     if (error) {
       console.error('Supabase error fetching kids:', error);
-      return res.status(500).json({ error: 'Internal server error', details: error.message });
+      return res.status(500).json({ 
+        error: 'Supabase Query Error', 
+        message: error.message,
+        details: error
+      });
     }
     
     console.log(`Fetched ${kids?.length || 0} kids for user ${userId}`);
