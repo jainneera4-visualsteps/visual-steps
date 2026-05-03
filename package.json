@@ -2,7 +2,18 @@
   "name": "visual-steps",
   "version": "1.0.0",
   "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
   "dependencies": {
-    "@supabase/supabase-js": "^2.98.0"
+    "@supabase/supabase-js": "^2.98.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "vite": "^6.2.0",
+    "@vitejs/plugin-react": "^5.0.4"
   }
 }
