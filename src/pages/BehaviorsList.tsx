@@ -279,15 +279,15 @@ export default function BehaviorsList() {
                     <th className="px-4 py-3 font-bold">Behavior Description</th>
                     <th className="px-4 py-3 font-bold">Priority</th>
                     <th className="px-4 py-3 font-bold">Target Time</th>
-                    <th className="px-4 py-3 font-bold">Target Seconds</th>
-                    <th className="px-4 py-3 font-bold">Goal</th>
+                    <th className="px-4 py-3 font-bold">Goals To Reach</th>
+                    <th className="px-4 py-3 font-bold">Rewards [{kid?.reward_type || 'Rewards'}]</th>
                     <th className="px-4 py-3 font-bold text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {definitions.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-20 text-center">
+                      <td colSpan={7} className="py-20 text-center">
                         <div className="flex flex-col items-center gap-3 text-slate-400">
                           <div className="h-16 w-16 rounded-3xl bg-slate-50 flex items-center justify-center mb-1">
                             <History className="h-10 w-10 opacity-20" />
@@ -349,23 +349,23 @@ export default function BehaviorsList() {
                             </span>
                           </td>
                           <td className="px-4 py-3">
-                            <div className="flex items-center gap-1 text-slate-600 font-mono text-xs">
-                               <Clock size={12} className="text-slate-400" /> {targetTime || <span className="text-slate-300 italic">None</span>}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-1 text-slate-600 font-mono text-xs">
-                               <Clock size={12} className="text-slate-400" /> {def.target_seconds !== undefined ? `${def.target_seconds}s` : <span className="text-slate-300 italic">None</span>}
+                            <div className="text-slate-600 font-mono text-xs">
+                               {targetTime || <span className="text-slate-300 italic">None</span>}
                             </div>
                           </td>
                           <td className="px-4 py-3">
                             {goalVal !== '1' ? (
-                              <span className="text-amber-600 font-bold text-[10px] uppercase flex items-center gap-1">
-                                 <History size={10} /> {goalVal}
+                              <span className="text-amber-600 font-bold text-[10px] uppercase">
+                                 {goalVal}
                               </span>
                             ) : (
                               <span className="text-slate-300 italic text-[10px]">None</span>
                             )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="font-bold text-slate-900">
+                               {def.goal_rewards || 0}
+                            </div>
                           </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-1">

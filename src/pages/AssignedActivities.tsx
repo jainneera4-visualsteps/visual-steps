@@ -161,6 +161,8 @@ export default function AssignedActivities() {
     }
   }, [viewingQuizResult]);
   const [activitiesSortConfig, setActivitiesSortConfig] = useState<{ key: keyof Activity | null, direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
+  const [completedSortConfig, setCompletedSortConfig] = useState<{ key: string | null, direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
+  const [historySortConfig, setHistorySortConfig] = useState<{ key: string | null, direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
   const [predefinedType, setPredefinedType] = useState<string>('');
   const [predefinedId, setPredefinedId] = useState<string>('');
 
@@ -1161,6 +1163,22 @@ export default function AssignedActivities() {
     setActivitiesPage(1);
   };
 
+  const handleSortCompleted = (key: string) => {
+    setCompletedSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+    setCompletedPage(1);
+  };
+
+  const handleSortHistory = (key: string) => {
+    setHistorySortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+    setHistoryPage(1);
+  };
+
   const confirmDelete = async () => {
     if (!activityToDelete) return;
     
@@ -1398,9 +1416,31 @@ export default function AssignedActivities() {
       .filter(a => completedCategoryFilter === 'All' || (a.category || 'Uncategorized') === completedCategoryFilter)
       .filter(a => !completedDateFilter || a.due_date === completedDateFilter)
       .filter(a => a.activity_type.toLowerCase().includes(completedSearchQuery.toLowerCase()) || (a.description || '').toLowerCase().includes(completedSearchQuery.toLowerCase()));
+      
+    const sortedCompleted = [...filteredCompleted].sort((a, b) => {
+      if (!completedSortConfig.key) return 0;
+      
+      let aValue: any;
+      let bValue: any;
+      
+      if (completedSortConfig.key === 'status') { aValue = a.status; bValue = b.status; }
+      else if (completedSortConfig.key === 'activity_type') { aValue = a.activity_type; bValue = b.activity_type; }
+      else if (completedSortConfig.key === 'description') { aValue = a.description; bValue = b.description; }
+      else if (completedSortConfig.key === 'repeat_frequency') { aValue = a.repeat_frequency; bValue = b.repeat_frequency; }
+      else if (completedSortConfig.key === 'completed_at') { aValue = a.completed_at || a.due_date; bValue = b.completed_at || b.due_date; }
+      else if (completedSortConfig.key === 'time_of_day') { aValue = a.time_of_day; bValue = b.time_of_day; }
+      else { return 0; }
+      
+      // Handle null/undefined (treat as empty string)
+      aValue = aValue || '';
+      bValue = bValue || '';
+      
+      const comparison = aValue < bValue ? -1 : 1;
+      return completedSortConfig.direction === 'asc' ? comparison : -comparison;
+    });
 
-    const totalCompletedPages = Math.ceil(filteredCompleted.length / completedItemsPerPage);
-    const paginatedCompleted = filteredCompleted.slice((completedPage - 1) * completedItemsPerPage, completedPage * completedItemsPerPage);
+    const totalCompletedPages = Math.ceil(sortedCompleted.length / completedItemsPerPage);
+    const paginatedCompleted = sortedCompleted.slice((completedPage - 1) * completedItemsPerPage, completedPage * completedItemsPerPage);
 
     return (
       <Card className="border-none ring-1 ring-slate-200 shadow-sm">
@@ -1512,12 +1552,12 @@ export default function AssignedActivities() {
               <table className="w-full text-sm text-left">
                 <thead className="text-xs text-slate-500 bg-slate-50 uppercase border-y border-slate-200">
                   <tr>
-                    <th className="px-4 py-3 font-bold">Status</th>
-                    <th className="px-4 py-3 font-bold">Activity</th>
-                    <th className="px-4 py-3 font-bold">Description</th>
-                    <th className="px-4 py-3 font-bold">Repeat</th>
-                    <th className="px-4 py-3 font-bold">Completion Date</th>
-                    <th className="px-4 py-3 font-bold">Time of day</th>
+                    <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortCompleted('status')}>Status</th>
+                    <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortCompleted('activity_type')}>Activity</th>
+                    <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortCompleted('description')}>Description</th>
+                    <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortCompleted('repeat_frequency')}>Repeat</th>
+                    <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortCompleted('completed_at')}>Completion Date</th>
+                    <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortCompleted('time_of_day')}>Time of day</th>
                     <th className="px-4 py-3 font-bold text-right">Actions</th>
                   </tr>
                 </thead>
@@ -2074,9 +2114,31 @@ export default function AssignedActivities() {
                 }
               });
 
-              const filteredHistory = [...groupedHistory, ...Object.values(bonusGroups)];
-              // Sort by completion date descending
-              filteredHistory.sort((a, b) => new Date(b.completed_at || b.due_date).getTime() - new Date(a.completed_at || a.due_date).getTime());
+              const filteredHistoryRaw = [...groupedHistory, ...Object.values(bonusGroups)];
+              
+              const filteredHistory = [...filteredHistoryRaw].sort((a, b) => {
+                if (!historySortConfig.key) {
+                  return new Date(b.completed_at || b.due_date).getTime() - new Date(a.completed_at || a.due_date).getTime();
+                }
+                
+                let aValue: any;
+                let bValue: any;
+                
+                if (historySortConfig.key === 'activity_type') { aValue = a.activity_type; bValue = b.activity_type; }
+                else if (historySortConfig.key === 'description') { aValue = a.description; bValue = b.description; }
+                else if (historySortConfig.key === 'completed_at') { aValue = a.completed_at || a.due_date; bValue = b.completed_at || b.due_date; }
+                else if (historySortConfig.key === 'reward_qty') { aValue = Number(a.reward_qty) || 0; bValue = Number(b.reward_qty) || 0; }
+                else { return 0; }
+                
+                if (aValue === bValue) return 0;
+
+                // Handle null/undefined (treat as empty string)
+                if (typeof aValue === 'string') aValue = aValue || '';
+                if (typeof bValue === 'string') bValue = bValue || '';
+                
+                const comparison = aValue < bValue ? -1 : 1;
+                return historySortConfig.direction === 'asc' ? comparison : -comparison;
+              });
 
               const totalHistoryPages = Math.ceil(filteredHistory.length / historyItemsPerPage);
               const paginatedHistory = filteredHistory.slice((historyPage - 1) * historyItemsPerPage, historyPage * historyItemsPerPage);
@@ -2172,10 +2234,10 @@ export default function AssignedActivities() {
                               </button>
                             </div>
                           </th>
-                          <th className="px-4 py-3 font-bold">Activity</th>
-                          <th className="px-4 py-3 font-bold">Description</th>
-                          <th className="px-4 py-3 font-bold">Completion Date</th>
-                          <th className="px-4 py-3 font-bold">Rewards</th>
+                          <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortHistory('activity_type')}>Activity</th>
+                          <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortHistory('description')}>Description</th>
+                          <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortHistory('completed_at')}>Completion Date</th>
+                          <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortHistory('reward_qty')}>Rewards</th>
                           <th className="px-4 py-3 font-bold text-right">Actions</th>
                         </tr>
                       </thead>

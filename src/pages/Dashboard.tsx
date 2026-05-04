@@ -646,7 +646,7 @@ export default function Dashboard() {
                             </Button>
                           </Tooltip>
                         </div>
-                        <div className="max-h-[300px] overflow-y-auto">
+                        <div className="max-h-[600px] overflow-y-auto">
                           <table className="w-full text-left text-sm border-collapse">
                             <thead className="sticky top-0 bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase">
                               <tr>
