@@ -49,7 +49,6 @@ interface BehaviorDefinition {
 interface Behavior {
   id: string;
   kid_id: string;
-  type: 'desired' | 'undesired';
   description: string;
   date: string;
   token_change: number;
@@ -147,7 +146,6 @@ export default function Behaviors() {
 
         setNewBehavior({
           definition_id: '',
-          type: 'desired',
           description: '',
           date: new Date().toLocaleDateString('sv-SE')
         });
@@ -206,7 +204,6 @@ export default function Behaviors() {
 
   const [newBehavior, setNewBehavior] = useState({
     definition_id: '',
-    type: 'desired' as 'desired' | 'undesired',
     description: '',
     date: new Date().toLocaleDateString('sv-SE')
   });
@@ -242,9 +239,7 @@ export default function Behaviors() {
                 {dayBehaviors.map(b => (
                   <div 
                     key={b.id} 
-                    className={`text-[9px] p-1 rounded truncate font-medium ${
-                      b.type === 'desired' ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-red-50 text-red-700 border border-red-100'
-                    }`}
+                    className="text-[9px] p-1 rounded truncate font-medium bg-blue-50 text-blue-700 border border-blue-100"
                   >
                     {b.behavior_definitions?.name || b.description || 'Behavior'}
                   </div>
@@ -422,7 +417,7 @@ export default function Behaviors() {
                             <option value={50}>50</option>
                           </select>
                         </th>
-                        <th colSpan={4} className="py-2"></th>
+                        <th colSpan={3} className="py-2"></th>
                         <th className="px-4 py-2 text-right">
                           {(() => {
                             const totalPages = Math.ceil(behaviors.length / itemsPerPage);
@@ -459,7 +454,6 @@ export default function Behaviors() {
                       <tr>
                         <th className="px-4 py-3 font-bold">Status</th>
                         <th className="px-4 py-3 font-bold">Behavior Name</th>
-                        <th className="px-4 py-3 font-bold">Type</th>
                         <th className="px-4 py-3 font-bold">Date</th>
                         <th className="px-4 py-3 font-bold text-right">Tokens</th>
                         <th className="px-4 py-3 font-bold text-right">Actions</th>
@@ -471,10 +465,8 @@ export default function Behaviors() {
                         .map((behavior) => (
                           <tr key={behavior.id} className="hover:bg-slate-50 transition-colors">
                             <td className="px-4 py-3">
-                              <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
-                                behavior.type === 'desired' ? 'text-emerald-500' : 'text-rose-500'
-                              }`}>
-                                {behavior.type === 'desired' ? <CheckCircle2 className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
+                              <div className="h-8 w-8 rounded-full flex items-center justify-center text-emerald-500">
+                                <CheckCircle2 className="h-5 w-5" />
                               </div>
                             </td>
                             <td className="px-4 py-3">
@@ -486,13 +478,6 @@ export default function Behaviors() {
                                   {behavior.description}
                                 </div>
                               )}
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                                behavior.type === 'desired' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
-                              }`}>
-                                {behavior.type}
-                              </span>
                             </td>
                             <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
                               {new Date(behavior.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -686,8 +671,7 @@ export default function Behaviors() {
                   <PieChart>
                     <Pie
                       data={[
-                        { name: 'Strengths', value: behaviors.filter(b => b.type === 'desired' && !(b.description || '').startsWith('[TRACKING]')).length },
-                        { name: 'Opportunities', value: behaviors.filter(b => b.type === 'undesired' && !(b.description || '').startsWith('[TRACKING]')).length }
+                        { name: 'Completed Goals', value: behaviors.filter(b => !(b.description || '').startsWith('[TRACKING]')).length }
                       ]}
                       cx="50%"
                       cy="50%"
@@ -724,21 +708,11 @@ export default function Behaviors() {
                 <CardContent className="p-8 space-y-6">
                   <div className="p-6 bg-emerald-50 rounded-3xl border border-emerald-100 flex items-center justify-between">
                     <div>
-                      <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest mb-1">Total Wins</p>
-                      <p className="text-3xl font-black text-emerald-600">{behaviors.filter(b => b.type === 'desired' && !(b.description || '').startsWith('[TRACKING]')).length}</p>
+                      <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest mb-1">Total Entries</p>
+                      <p className="text-3xl font-black text-emerald-600">{behaviors.filter(b => !(b.description || '').startsWith('[TRACKING]')).length}</p>
                     </div>
                     <div className="h-12 w-12 rounded-2xl bg-white flex items-center justify-center text-emerald-500 shadow-sm">
                       <TrendingUp size={24} />
-                    </div>
-                  </div>
-                  
-                  <div className="p-6 bg-rose-50 rounded-3xl border border-rose-100 flex items-center justify-between">
-                    <div>
-                      <p className="text-[10px] font-black text-rose-800 uppercase tracking-widest mb-1">Challenges</p>
-                      <p className="text-3xl font-black text-rose-600">{behaviors.filter(b => b.type === 'undesired' && !(b.description || '').startsWith('[TRACKING]')).length}</p>
-                    </div>
-                    <div className="h-12 w-12 rounded-2xl bg-white flex items-center justify-center text-rose-500 shadow-sm">
-                      <AlertCircle size={24} />
                     </div>
                   </div>
 
@@ -778,8 +752,7 @@ export default function Behaviors() {
                       const def = definitions.find(d => d.id === e.target.value);
                       setNewBehavior(prev => ({
                         ...prev,
-                        definition_id: e.target.value,
-                        type: prev.type
+                        definition_id: e.target.value
                       }));
                     }}
                     className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
@@ -805,26 +778,15 @@ export default function Behaviors() {
 
                 {!newBehavior.definition_id && (
                   <div className="space-y-4 animate-in slide-in-from-top-4 duration-300">
-                    <div className="space-y-0.5">
-                      <label className="text-[12px] font-bold text-slate-500 uppercase px-1">Impact Type</label>
-                      <select
-                        value={newBehavior.type}
-                        onChange={(e) => setNewBehavior(prev => ({ ...prev, type: e.target.value as 'desired' | 'undesired' }))}
-                        className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
-                      >
-                        <option value="desired">Positive Achievement</option>
-                        <option value="undesired">Learning Opportunity</option>
-                      </select>
-                    </div>
-                    <div className="space-y-0.5">
-                      <label className="text-[12px] font-bold text-slate-500 uppercase px-1">Observation Notes</label>
-                      <input
-                        placeholder="Add specific details about what happened..."
-                        className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
-                        value={newBehavior.description}
-                        onChange={(e) => setNewBehavior(prev => ({ ...prev, description: e.target.value }))}
-                      />
-                    </div>
+                <div className="space-y-0.5">
+                  <label className="text-[12px] font-bold text-slate-500 uppercase px-1">Observation Notes</label>
+                  <input
+                    placeholder="Add specific details about what happened..."
+                    className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
+                    value={newBehavior.description}
+                    onChange={(e) => setNewBehavior(prev => ({ ...prev, description: e.target.value }))}
+                  />
+                </div>
                   </div>
                 )}
 

@@ -9,25 +9,17 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function inspectSchema() {
-  console.log('Inspecting behaviors schema...');
+  console.log('Inspecting public schema tables...');
   
   const { data, error } = await supabase
-    .from('behaviors')
-    .select('*')
-    .limit(1);
+    .from('information_schema.tables')
+    .select('table_name')
+    .eq('table_schema', 'public');
 
   if (error) {
-    console.error('Error fetching from behaviors:', error);
+    console.error('Error fetching tables:', JSON.stringify(error, null, 2));
   } else {
-    console.log('Sample data:', data);
-    
-    console.log('Attempting to fetch column list via RPC if available...');
-    const { data: cols, error: colError } = await supabase.rpc('get_table_columns', { table_name: 'behaviors' });
-    if (colError) {
-        console.log('get_table_columns RPC failed, trying to guess via empty insert...');
-    } else {
-        console.log('Columns:', cols);
-    }
+    console.log('Tables in public schema:', data);
   }
 }
 

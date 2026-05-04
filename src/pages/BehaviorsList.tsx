@@ -37,7 +37,6 @@ import {
 interface BehaviorDefinition {
   id: string;
   name: string;
-  type: 'desired' | 'undesired';
   icon?: string;
   description?: string;
   priority?: string;
@@ -51,7 +50,6 @@ interface BehaviorDefinition {
 interface Behavior {
   id: string;
   kid_id: string;
-  type: 'desired' | 'undesired';
   description: string;
   date: string;
   hour: number | null;
@@ -356,7 +354,7 @@ export default function BehaviorsList() {
                           <td className="px-4 py-3">
                             {goalVal !== '1' ? (
                               <span className="text-amber-600 font-bold text-[10px] uppercase">
-                                 {goalVal}
+                                 {Number(goalVal)}
                               </span>
                             ) : (
                               <span className="text-slate-300 italic text-[10px]">None</span>
@@ -364,7 +362,7 @@ export default function BehaviorsList() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="font-bold text-slate-900">
-                               {def.goal_rewards || 0}
+                               {Number(def.goal_rewards || 0)}
                             </div>
                           </td>
                         <td className="px-4 py-3 text-right">
@@ -402,8 +400,7 @@ export default function BehaviorsList() {
                 <PieChart>
                   <Pie
                     data={[
-                      { name: 'Desired', value: behaviors.filter(b => b.type === 'desired').length },
-                      { name: 'Undesired', value: behaviors.filter(b => b.type === 'undesired').length }
+                      { name: 'Completed Goals', value: behaviors.length }
                     ]}
                     cx="50%"
                     cy="50%"
@@ -413,8 +410,7 @@ export default function BehaviorsList() {
                     dataKey="value"
                     stroke="none"
                   >
-                    <Cell fill="#10b981" />
-                    <Cell fill="#f43f5e" />
+                    <Cell fill="#3b82f6" />
                   </Pie>
                   <Tooltip 
                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
@@ -440,21 +436,11 @@ export default function BehaviorsList() {
               <CardContent className="p-6 space-y-4">
                 <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center justify-between">
                   <div>
-                    <p className="text-[10px] font-bold text-emerald-800 uppercase tracking-widest mb-1">Total Desired</p>
-                    <p className="text-2xl font-black text-emerald-600">{behaviors.filter(b => b.type === 'desired').length}</p>
+                    <p className="text-[10px] font-bold text-emerald-800 uppercase tracking-widest mb-1">Total Entries</p>
+                    <p className="text-2xl font-black text-emerald-600">{behaviors.length}</p>
                   </div>
                   <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center text-emerald-500 shadow-sm font-bold">
                     <TrendingUp size={20} />
-                  </div>
-                </div>
-                
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-800 uppercase tracking-widest mb-1">Total Undesired</p>
-                    <p className="text-2xl font-black text-slate-600">{behaviors.filter(b => b.type === 'undesired').length}</p>
-                  </div>
-                  <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center text-slate-500 shadow-sm">
-                    <AlertCircle size={20} />
                   </div>
                 </div>
 

@@ -1885,7 +1885,7 @@ app.get('/api/kids/:kidId/behavior-definitions', authenticateToken, async (req: 
 
     const { data: definitions, error } = await adminSupabase
       .from('behavior_definitions')
-      .select('*')
+      .select('id, kid_id, name, description, priority, goal_rewards, target_time, target_seconds, goal, is_active, created_at')
       .eq('kid_id', kidId)
       .order('created_at', { ascending: true });
 
@@ -1977,7 +1977,7 @@ app.get('/api/behavior-definitions/:id', authenticateToken, async (req: any, res
   try {
     const { data: definition, error } = await adminSupabase
       .from('behavior_definitions')
-      .select('*')
+      .select('id, kid_id, name, description, priority, goal_rewards, target_time, target_seconds, goal, is_active, created_at')
       .eq('id', id)
       .maybeSingle();
 
@@ -2185,7 +2185,7 @@ app.get('/api/kids/:kidId/behaviors', authenticateToken, async (req: any, res) =
     // Fetch definitions separately to avoid missing relationship (PGRST200) issue
     const { data: definitions, error: defsError } = await adminSupabase
       .from('behavior_definitions')
-      .select('*')
+      .select('id, kid_id, name, description, priority, goal_rewards, target_time, target_seconds, goal, is_active, created_at')
       .eq('kid_id', kidId);
 
     if (defsError) {
@@ -2236,19 +2236,25 @@ const recordBehaviorLog = async (adminSupabase: any, kidId: string, definition_i
   const logEntry: any = {
     kid_id: kidId,
     definition_id: definition_id || null,
-    type: 'desired',
     description: finalDescription,
     date: finalDate,
-    rewards_earned: rewards,
-    points: points
+    rewards_earned: rewards
   };
   
   console.log('[recordBehaviorLog] Attempting insert into behavior_logs:', JSON.stringify(logEntry));
   
+  if (typeof logEntry.rewards_earned === 'undefined') {
+      console.warn('[recordBehaviorLog] WRONG: rewards_earned is undefined!', logEntry);
+  } else {
+      console.log('[recordBehaviorLog] rewards_earned is:', logEntry.rewards_earned);
+  }
+  
   try {
     const { data, error } = await adminSupabase.from('behavior_logs').insert([logEntry]).select();
     if (error) {
-      console.error('[recordBehaviorLog] behavior_logs Error:', JSON.stringify(error, null, 2));
+      console.error('[recordBehaviorLog] behavior_logs Error Object:', error);
+      console.error('[recordBehaviorLog] behavior_logs Error message string:', String(error));
+      console.error('[recordBehaviorLog] behavior_logs Error details:', JSON.stringify(error, null, 2));
       throw error;
     }
     return data;
@@ -2377,7 +2383,7 @@ app.post('/api/kids/:kidId/behaviors', authenticateToken, async (req: any, res) 
   const adminSupabase = getAdminSupabaseClient();
   const supabase = getSupabaseForUser(req);
   const { kidId } = req.params;
-  const { type, description, definition_id, token_change, rewards_earned, date, hour, completed, remarks, occurrence } = req.body;
+  const { description, definition_id, token_change, rewards_earned, date, hour, completed, remarks, occurrence } = req.body;
   const finalRewards = rewards_earned || token_change || 0;
 
   try {
@@ -2547,13 +2553,21 @@ app.post('/api/kids/:kidId/behavior-tracker', authenticateToken, async (req: any
   const { definition_id, points, remarks, date } = req.body;
 
   try {
+    console.log('[POST behavior-tracker] Received request:', { kidId, definition_id, points, remarks, date });
     // Try to find if record exists to calculate increment
-    const { data: existing } = await adminSupabase
+    const { data: existing, error: existingError } = await adminSupabase
       .from('behavior_tracker')
       .select('points')
       .eq('kid_id', kidId)
       .eq('definition_id', definition_id)
       .maybeSingle();
+
+    if (existingError) {
+        console.error('[POST behavior-tracker] Error finding existing tracker:', existingError);
+        throw existingError;
+    }
+    
+    console.log('[POST behavior-tracker] Existing tracker:', existing);
 
     const oldPoints = existing?.points || 0;
     const targetPoints = parseInt(points) || 0;
@@ -2571,8 +2585,15 @@ app.post('/api/kids/:kidId/behavior-tracker', authenticateToken, async (req: any
 
     return res.status(200).json({ tracker: updatedData });
   } catch (error: any) {
-    console.error('[POST behavior-tracker] Error:', error);
-    res.status(500).json({ error: 'Failed to update behavior tracker', details: error.message });
+    console.error('[POST behavior-tracker] Error:', error.message || error);
+    if (error.details) console.error('[POST behavior-tracker] Details:', error.details);
+    if (error.hint) console.error('[POST behavior-tracker] Hint:', error.hint);
+    
+    res.status(500).json({ 
+      error: 'Failed to update behavior tracker', 
+      details: error.message || String(error),
+      code: error.code
+    });
   }
 });
 

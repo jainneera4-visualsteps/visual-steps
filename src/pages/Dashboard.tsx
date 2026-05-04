@@ -29,7 +29,6 @@ interface Kid {
 interface BehaviorDefinition {
   id: string;
   name: string;
-  type: 'desired' | 'undesired';
   description?: string;
   icon?: string;
   priority?: string;
@@ -198,8 +197,7 @@ export default function Dashboard() {
     return `${age} years old`;
   };
 
-  const handleGiveReward = async (kid: Kid) => {
-    const amount = 1;
+  const handleGiveReward = async (kid: Kid, amount: number = 1) => {
     
     try {
       const newBalance = (kid.reward_balance || 0) + amount;
@@ -213,9 +211,11 @@ export default function Dashboard() {
 
       // Update local state
       setKids(prev => prev.map(k => k.id === kid.id ? { ...k, reward_balance: newBalance } : k));
+      return true;
     } catch (err) {
       console.error(err);
       alert('Failed to give reward. Please try again.');
+      return false;
     }
   };
 
@@ -311,7 +311,6 @@ export default function Dashboard() {
         body: JSON.stringify({
           definition_id: behaviorDef.id,
           description: behaviorDef.name,
-          type: behaviorDef.type,
           date: new Date().toLocaleDateString('sv-SE'), // Local date YYYY-MM-DD
           hour: new Date().getHours(),
           completed: true,
@@ -349,7 +348,6 @@ export default function Dashboard() {
         body: JSON.stringify({
           definition_id: behaviorDef.id,
           description: behaviorDef.name,
-          type: behaviorDef.type,
           date: new Date().toLocaleDateString('sv-SE'), // Local date YYYY-MM-DD
           hour: new Date().getHours(),
           completed: true,
@@ -393,10 +391,12 @@ export default function Dashboard() {
         throw new Error('Failed to update tracker');
       }
       await fetchLogs(); // Fetch fresh data
+      return true;
     } catch (err) {
       console.error('Update tracker error:', err);
       // Rollback is implicitly handled by fetchLogs
       await fetchLogs();
+      return false;
     }
   };
 
@@ -636,7 +636,14 @@ export default function Dashboard() {
                                   const pointsIncrement = 1;
                                   const newPoints = (tracker?.points || 0) + pointsIncrement;
                                   
-                                  await handleUpdateTracker(dashboardSelectedKidId, defId, newPoints, remarks);
+                                  const trackerSuccess = await handleUpdateTracker(dashboardSelectedKidId, defId, newPoints, remarks);
+                                  
+                                  // Check if goal earned
+                                  console.log('Checking goal:', { newPoints, goal: behaviorDef.goal, trackerSuccess });
+                                  if (trackerSuccess && newPoints >= (behaviorDef.goal || 1)) {
+                                    // The backend updateTrackerAndCheckGoal handles rewarding and logging on its own.
+                                    console.log('Goal reached, backend handles rewards.');
+                                  }
                                 }
                                 setSelectedBehaviors(new Set());
                                 fetchTrackerData();
