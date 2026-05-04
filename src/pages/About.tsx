@@ -23,52 +23,58 @@ export default function About() {
         <CardContent className="p-8 md:p-12 space-y-10">
           <div className="prose prose-slate max-w-none space-y-8">
             <section className="space-y-3">
-              <h2 className="text-2xl font-bold text-blue-900">A Supportive Companion for Growth</h2>
-              <p className="text-slate-600 leading-relaxed text-justify">
-                Visual Steps is born from a deep understanding of the unique journey families navigate during childhood development, particularly for those with autism. 
-                Our platform is dedicated to being a supportive companion, offering a structured digital environment where children can thrive. 
-                Every effort is made to help parents and children bridge the gap between clinical support and daily home life. 
-                By providing a clear roadmap for learning, we aim to empower every child to discover their potential at their own pace.
+              <h2 className="text-2xl font-bold text-black font-['Arial']">Parental Planning Tools</h2>
+              <p className="text-black leading-relaxed text-justify font-['Arial']">
+                Empower parents with intuitive tools to plan daily activities and manage schedules effectively. 
+                Take total control over organizing every detail of your child's day with ease and precision. Our platform provides a comprehensive calendar and task management suite designed specifically for busy families. Parents can quickly map out routines, track commitments, and ensure every day is structured for success. This clarity reduces stress for both parents and children, creating a harmonious environment in the home.
               </p>
             </section>
 
             <section className="space-y-3">
-              <h2 className="text-2xl font-bold text-blue-900">Purposeful Engagement Made Simple</h2>
-              <p className="text-slate-600 leading-relaxed text-justify">
-                We know that parents spend countless hours searching for meaningful ways to keep their children engaged throughout the entire day. 
-                Visual Steps alleviates the burden of manual preparation by streamlining the creation and management of educational content. 
-                Our centralized hub allows you to quickly generate personalized tasks, from customizable quizzes to visual stories, ensuring your child stays productive and motivated. 
-                This efficiency means less time on administration and more quality time spent interacting and celebrating milestones together.
+              <h2 className="text-2xl font-bold text-black font-['Arial']">Visual Step-by-Step Learning</h2>
+              <p className="text-black leading-relaxed text-justify font-['Arial']">
+                Make it easy for kids to follow activities visually with clear links, images, and broken-down tasks. 
+                Every activity is divided into the smallest, most manageable steps for absolute clarity. This approach simplifies complex instructions, allowing children to understand what is expected in each phase. By breaking down goals into achievable parts, we foster confidence and reduce frustration during learning. It turns potentially overwhelming tasks into engaging, structured movements, helping kids navigate their day with confidence.
               </p>
             </section>
 
             <section className="space-y-3">
-              <h2 className="text-2xl font-bold text-blue-900">The Power of Visual Learning</h2>
-              <p className="text-slate-600 leading-relaxed text-justify">
-                At the heart of Visual Steps is the belief that visual communication is a powerful key to unlocking understanding. 
-                For many children, verbal directions can be overwhelming; by translating complex tasks into clear, visual steps, we reduce anxiety and foster independence. 
-                Our visual-first approach provides a predictable and safe environment where children can navigate their day with clarity and confidence. 
-                We prioritize high-contrast imagery and intuitive layouts to ensure that every interaction is constructive and accessible.
+              <h2 className="text-2xl font-bold text-black font-['Arial']">Flexible Scheduling & History</h2>
+              <p className="text-black leading-relaxed text-justify font-['Arial']">
+                Set up recurring activities that adapt to your routine and can be updated at any moment. 
+                Completed tasks move to history, giving parents a clear view of long-term development over time. This dynamic scheduling system understands that routines fluctuate; therefore, it allows for easy adjustments without disrupting progress. Parents can easily review past activities to identify patterns and refine the structure of future days. Seeing this historical data helps families celebrate growth and maintain a record of significant achievements.
               </p>
             </section>
 
             <section className="space-y-3">
-              <h2 className="text-2xl font-bold text-blue-900">A Comprehensive Digital Toolset</h2>
-              <p className="text-slate-600 leading-relaxed text-justify">
-                Our platform offers a diverse array of tools tailored to various learning styles, focusing on making learning fun and motivating. 
-                Whether it's interactive quizzes, educational worksheets, or personalized social stories, Visual Steps provides a holistic approach to home-based learning. 
-                Parents have the flexibility to create and manage customizable content that fits their child's unique needs while keeping them excited about their progress. 
-                With direct messaging, progress reports, and location-based rewards, every resource is designed to be fresh, relevant, and perfectly tailored to each child's specific journey.
+              <h2 className="text-2xl font-bold text-black font-['Arial']">Engagement & Progress Tracking</h2>
+              <p className="text-black leading-relaxed text-justify font-['Arial']">
+                Keep your children motivated through an interactive environment crafted specifically for high engagement levels. 
+                Real-time tracking ensures you always have a window into their daily achievements and effort. When kids see their immediate progress, it builds a sense of accomplishment that carries them forward to the next task. Parents get immediate feedback, enabling them to provide timely praise for every step of success. This continuous feedback loop is essential for maintaining momentum and keeping the learning journey vibrant and active.
               </p>
             </section>
 
             <section className="space-y-3">
-              <h2 className="text-2xl font-bold text-blue-900">Our Commitment to Privacy and Safety</h2>
-              <p className="text-slate-600 leading-relaxed text-justify">
-                We believe that a safe learning environment is non-negotiable. 
-                Visual Steps is built with industry-standard security to ensure that your family's data and privacy are always protected. 
-                We provide a secure digital space where children can explore and learn without external distractions or risks. 
-                Your trust is our most valuable asset, and we are committed to maintaining the highest standards of safety as we grow together.
+              <h2 className="text-2xl font-bold text-black font-['Arial']">Positive Behavioral Support & Rewards</h2>
+              <p className="text-black leading-relaxed text-justify font-['Arial']">
+                Boost development by rewarding positive behaviors while purposefully ignoring negative ones, 
+                turning tracked behaviors into earned rewards. Kids can "buy" reward items available there as choices by trading their earned stickers / tokens. This system focuses heavily on encouraging good choices, teaching kids that hard work and perseverance lead to tangible results. By celebrating achievements, we create a positive reinforcement cycle that consistently encourages more desirable interactions. This method shifts the focus away from friction and places it firmly on shared success and enjoyment.
+              </p>
+            </section>
+
+            <section className="space-y-3">
+              <h2 className="text-2xl font-bold text-black font-['Arial']">Clarity, Certainty & Motivation</h2>
+              <p className="text-black leading-relaxed text-justify font-['Arial']">
+                Provide the structure and certainty kids need to feel confident and ready to tackle completely new concepts. 
+                Foster a genuine drive for learning through clear-cut goals and consistent, motivating reinforcement. When children know exactly what to anticipate, their anxiety decreases, allowing their minds to open up to new opportunities. Certainty in their daily path is a foundational element that supports their ability to absorb new information efficiently. This environment of clarity naturally leads to increased motivation and a stronger desire to explore the world around them.
+              </p>
+            </section>
+
+            <section className="space-y-3">
+              <h2 className="text-2xl font-bold text-black font-['Arial']">AI-Powered Personalization</h2>
+              <p className="text-black leading-relaxed text-justify font-['Arial']">
+                Instantly generate custom quizzes, social stories, and worksheets using advanced, smart AI technology. 
+                Parents can easily edit and customize every single resource to perfectly match their child's specific, personalized needs. Because no two learners are exactly the same, this flexibility allows for learning materials that truly resonate with individual interests. AI takes the heavy lifting out of creating content, ensuring that it is tailored to fit the precise skill level of the child. This ensures every educational tool provided is effective, relevant, and directly supportive of their unique development path.
               </p>
             </section>
           </div>
