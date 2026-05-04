@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { clearAuthSession, isAuthError } from './auth';
 
 export const safeJson = async (response: Response) => {
   const text = await response.text();
@@ -51,15 +52,8 @@ export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit, ret
   let isKidSession = false;
   try {
     const { data: { session }, error } = await supabase.auth.getSession();
-    if (error && (error.message.includes('Refresh Token Not Found') || error.message.includes('Invalid Refresh Token'))) {
-      console.warn('apiFetch: Invalid refresh token detected, clearing session...');
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && (key.startsWith('sb-') || key.includes('auth-token'))) {
-          localStorage.removeItem(key);
-        }
-      }
-      await supabase.auth.signOut().catch(() => {});
+    if (error && isAuthError(error)) {
+      await clearAuthSession();
     }
     token = session?.access_token;
   } catch (err) {
@@ -146,8 +140,10 @@ export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit, ret
         try {
           const data = await clone.json();
           
-          // Only alert for critical configuration errors, not transient ones
-          if (data.error === 'Supabase Project Mismatch' || data.error === 'Supabase Connection Error' || (data.error && data.error.includes('API key is not configured'))) {
+          // Only alert for critical configuration errors, not transient ones or known auth errors
+          const isKnownAuthError = isAuthError(data.error) || isAuthError(data.details) || isAuthError(data.message);
+          
+          if (!isKnownAuthError && (data.error === 'Supabase Project Mismatch' || data.error === 'Supabase Connection Error' || (data.error && data.error.includes('API key is not configured')))) {
             const msg = `DEBUG INFO (Status ${response.status}):\n\nError: ${data.error}\n\nDetails: ${data.details || JSON.stringify(data)}\n\nURL: ${url}`;
             console.error('API_FETCH_DEBUG_JSON:', msg);
             alert(msg);
@@ -185,9 +181,11 @@ export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit, ret
       } else if (response.status === 500) {
         try {
           const text = await response.clone().text();
-          const msg = `DEBUG INFO (Status 500, Non-JSON):\n\nURL: ${url}\n\nResponse: ${text.substring(0, 500)}`;
-          console.error('API_FETCH_DEBUG_TEXT:', msg);
-          alert(msg);
+          if (!isAuthError(text)) {
+            const msg = `DEBUG INFO (Status 500, Non-JSON):\n\nURL: ${url}\n\nResponse: ${text.substring(0, 500)}`;
+            console.error('API_FETCH_DEBUG_TEXT:', msg);
+            alert(msg);
+          }
         } catch (e) {
           console.error('Failed to read status 500 response body');
         }

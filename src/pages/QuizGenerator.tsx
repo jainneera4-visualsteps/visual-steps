@@ -1,5 +1,6 @@
 import { apiFetch } from '../utils/api';
 import { generateContent, modelNames } from '../lib/gemini';
+import { isAuthError } from '../utils/auth';
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Button } from '../components/Button';
@@ -118,6 +119,8 @@ export default function QuizGenerator() {
 
     } catch (error: any) {
       console.error('Failed to generate quiz:', error);
+      if (isAuthError(error)) return; // Auth utility handles this
+      
       const errorMessage = error.message || "Unknown error";
       if (errorMessage.includes("503") || errorMessage.includes("UNAVAILABLE") || errorMessage.includes("high demand")) {
         alert("The AI service is currently experiencing high demand. Please wait a moment and try again.");

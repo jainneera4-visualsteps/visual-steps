@@ -876,26 +876,9 @@ export default function KidsDashboard() {
                 OFFLINE MODE
               </div>
             )}
-            
-            <div className="hidden sm:flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1 text-xs font-bold text-white shadow-sm">
-              <button 
-                onClick={() => setActiveTab('rewards')}
-                className="rounded bg-white/30 px-2 py-1 hover:bg-white/40 transition-colors text-[10px] uppercase"
-                title="View available rewards"
-              >
-                Available Rewards
-              </button>
-            </div>
 
             <div className="flex items-center gap-2">
-              <button 
-                onClick={() => setShowChatbot(!showChatbot)}
-                className={`flex items-center gap-1 rounded px-2 py-1 text-[10px] font-bold uppercase text-white transition-colors ${showChatbot ? 'bg-white/40' : 'bg-white/20 hover:bg-white/30'}`}
-                title="Chat with Buddy"
-              >
-                <MessageSquare className="h-3 w-3" />
-                <span className="hidden sm:inline">Buddy Chat</span>
-              </button>
+
               <button 
                 onClick={handleSignOut}
                 className="flex items-center gap-1 rounded bg-white/20 px-2 py-1 text-[10px] font-bold uppercase text-white hover:bg-white/30 transition-colors"
@@ -910,15 +893,7 @@ export default function KidsDashboard() {
       </header>
 
       <main className="w-full px-4 py-3">
-        {!isAccessAllowed ? (
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <div className={`mb-3 rounded-full ${currentTheme.rulesHeader} p-4 shadow-md`}>
-              <Clock className={`h-8 w-8 ${currentTheme.accent}`} />
-            </div>
-            <h2 className={`text-xl font-bold ${currentTheme.cardTitle} mb-1`}>{accessMessage}</h2>
-            <p className="text-sm text-slate-500">Ask your parent if you need to see your activities.</p>
-          </div>
-        ) : selectedActivity ? (
+        {selectedActivity && isAccessAllowed ? (
           <ActivityDetailModal 
             activity={selectedActivity}
             onClose={() => setSelectedActivity(null)}
@@ -927,7 +902,7 @@ export default function KidsDashboard() {
             canPrint={kid?.can_print}
             showToggleOnly={true}
           />
-        ) : viewingStoryId ? (
+        ) : viewingStoryId && isAccessAllowed ? (
           <SocialStoryModal 
             storyId={viewingStoryId} 
             onClose={() => setViewingStoryId(null)} 
@@ -1012,46 +987,48 @@ export default function KidsDashboard() {
 
             <div className="flex flex-col gap-4">
               {/* Tabs and View Toggle Area */}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div className={`flex rounded-lg border p-0.5 ${kid?.theme === 'space' ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'}`}>
-                  <button
-                    onClick={() => setActiveTab('todo')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                      activeTab === 'todo' 
-                        ? 'bg-blue-600 text-white shadow-sm' 
-                        : `${kid?.theme === 'space' ? 'text-slate-400 hover:bg-slate-800' : 'text-slate-500 hover:bg-slate-50'}`
-                    }`}
-                    title="View activities to be done"
-                  >
-                    <Clock className="h-3.5 w-3.5" />
-                    📝 To Be Done
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('completed')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                      activeTab === 'completed' 
-                        ? 'bg-emerald-600 text-white shadow-sm' 
-                        : `${kid?.theme === 'space' ? 'text-slate-400 hover:bg-slate-800' : 'text-slate-500 hover:bg-slate-50'}`
-                    }`}
-                    title="View completed activities"
-                  >
-                    <CheckCircle className="h-3.5 w-3.5" />
-                    ✅ Completed
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('rewards')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                      activeTab === 'rewards' 
-                        ? 'bg-amber-500 text-white shadow-sm' 
-                        : `${kid?.theme === 'space' ? 'text-slate-400 hover:bg-slate-800' : 'text-slate-500 hover:bg-slate-50'}`
-                    }`}
-                    title="View available rewards"
-                  >
-                    <Sparkles className="h-3.5 w-3.5" />
-                    🎁 Rewards
-                  </button>
+              {isAccessAllowed && (
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div className={`flex rounded-lg border p-0.5 ${kid?.theme === 'space' ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'}`}>
+                    <button
+                      onClick={() => setActiveTab('todo')}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                        activeTab === 'todo' 
+                          ? 'bg-blue-600 text-white shadow-sm' 
+                          : `${kid?.theme === 'space' ? 'text-slate-400 hover:bg-slate-800' : 'text-slate-500 hover:bg-slate-50'}`
+                      }`}
+                      title="View activities to be done"
+                    >
+                      <Clock className="h-3.5 w-3.5" />
+                      📝 To Be Done
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('completed')}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                        activeTab === 'completed' 
+                          ? 'bg-emerald-600 text-white shadow-sm' 
+                          : `${kid?.theme === 'space' ? 'text-slate-400 hover:bg-slate-800' : 'text-slate-500 hover:bg-slate-50'}`
+                      }`}
+                      title="View completed activities"
+                    >
+                      <CheckCircle className="h-3.5 w-3.5" />
+                      ✅ Completed
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('rewards')}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                        activeTab === 'rewards' 
+                          ? 'bg-amber-500 text-white shadow-sm' 
+                          : `${kid?.theme === 'space' ? 'text-slate-400 hover:bg-slate-800' : 'text-slate-500 hover:bg-slate-50'}`
+                      }`}
+                      title="View available rewards"
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                      🎁 Rewards
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Dashboard Content Grid */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
@@ -1059,7 +1036,15 @@ export default function KidsDashboard() {
                 {/* Left Column: Activities / Main Content (2/3 width on desktop) */}
                 <div className="lg:col-span-2 w-full min-w-0">
                   <div className="flex flex-col gap-6">
-                    {activeTab === 'rewards' ? (
+                    {!isAccessAllowed ? (
+                      <div className={`p-8 rounded-2xl border-2 border-dashed ${kid?.theme === 'space' ? 'border-slate-800 bg-slate-900/50' : 'border-slate-200 bg-white/50'} text-center flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-500`}>
+                        <div className={`mb-4 rounded-full ${currentTheme.rulesHeader} p-6 shadow-md animate-bounce`}>
+                          <Clock className={`h-12 w-12 ${currentTheme.accent}`} />
+                        </div>
+                        <h2 className={`text-2xl font-black ${currentTheme.cardTitle} mb-2 tracking-tight`}>{accessMessage}</h2>
+                        <p className="text-slate-500 font-medium max-w-xs">Ask your parent if you need to see your activities or want to keep playing!</p>
+                      </div>
+                    ) : activeTab === 'rewards' ? (
                       <div className="space-y-6">
                         <div className={`rounded-xl p-6 shadow-sm ring-1 ${currentTheme.banner} flex flex-col items-center text-center`}>
                           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 shadow-inner">
@@ -1309,18 +1294,41 @@ export default function KidsDashboard() {
                                     {remarks}
                                   </p>
                                 )}
-                                <div className="flex justify-between items-center">
-                                  <div className="h-2 flex-1 bg-slate-200 rounded-full overflow-hidden">
-                                    <div 
-                                      className={`h-full transition-all duration-1000 ease-out-back ${
-                                        def.type === 'desired' ? 'bg-emerald-500' : 'bg-rose-500'
-                                      }`}
-                                      style={{ width: `${progress}%` }}
-                                    />
+                                <div className="flex items-center">
+                                  <div className="flex-1 flex items-center">
+                                    <div className="relative flex-1 group">
+                                      {/* Battery Body */}
+                                      <div className={`h-8 w-full rounded-lg border-2 p-1 flex gap-1 ${kid?.theme === 'space' ? 'border-slate-700 bg-slate-800' : 'border-slate-300 bg-slate-50 shadow-inner'}`}>
+                                        {/* Segments (using 5 segments like typical phone battery levels) */}
+                                        {[20, 40, 60, 80, 100].map((threshold, i) => (
+                                          <div 
+                                            key={threshold}
+                                            style={{ transitionDelay: `${i * 100}ms` }}
+                                            className={`h-full flex-1 rounded-sm transition-all duration-700 ${
+                                              progress >= threshold 
+                                                ? (def.type === 'desired' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]' : 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.4)]')
+                                                : progress > (threshold - 20)
+                                                  ? (def.type === 'desired' ? 'bg-emerald-500/40' : 'bg-rose-500/40')
+                                                  : 'bg-transparent'
+                                            }`}
+                                          />
+                                        ))}
+                                      </div>
+                                      
+                                      {/* Battery Tip */}
+                                      <div className={`absolute -right-2 top-1/2 -translate-y-1/2 w-2 h-4 rounded-r-md border-y-2 border-r-2 ${kid?.theme === 'space' ? 'border-slate-700 bg-slate-800' : 'border-slate-300 bg-slate-200'}`} />
+                                      
+                                      {/* Energy "Zzap" effect for high progress */}
+                                      {progress >= 100 && (
+                                        <div className="absolute -top-3 -right-3 animate-bounce">
+                                          <Sparkles className="h-5 w-5 text-yellow-400" />
+                                        </div>
+                                      )}
+                                    </div>
+                                    <span className={`text-sm font-black ml-5 shrink-0 ${def.type === 'desired' ? 'text-emerald-600' : 'text-rose-600'} flex items-center gap-1`}>
+                                      {Math.round(progress)}
+                                    </span>
                                   </div>
-                                  <span className="text-sm font-black text-emerald-600 ml-3 shrink-0">
-                                    {Math.round(progress)}%
-                                  </span>
                                 </div>
                                 <div className="space-y-1">
                                   <p className="text-[16px] font-black text-slate-700 uppercase tracking-tight">

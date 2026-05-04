@@ -1,5 +1,6 @@
 import { apiFetch } from '../utils/api';
 import { generateContent, generateImage, modelNames } from '../lib/gemini';
+import { isAuthError } from '../utils/auth';
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '../components/Button';
@@ -420,6 +421,8 @@ export default function WorksheetGenerator() {
 
     } catch (error: any) {
       console.error('Failed to generate worksheets:', error);
+      if (isAuthError(error)) return; // Auth utility handles this
+      
       const errorMessage = typeof error === 'string' ? error : (error.message || "Unknown error");
       if (errorMessage.includes("503") || errorMessage.includes("UNAVAILABLE") || errorMessage.includes("high demand")) {
         alert("The AI service is currently experiencing high demand. Please wait a moment and try again.");

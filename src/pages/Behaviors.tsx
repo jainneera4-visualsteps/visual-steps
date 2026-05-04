@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { apiFetch, safeJson } from '../utils/api';
+import { isAuthError } from '../utils/auth';
 import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { 
@@ -101,6 +102,8 @@ export default function Behaviors() {
         }
       } catch (err: any) {
         console.error('Error fetching data:', err);
+        if (isAuthError(err)) return;
+        
         // If the error message is just the stringified JSON from apiFetch, parse it.
         // Or if it's just a message, display it.
         const errorMessage = typeof err === 'string' ? err : err.message || 'Failed to load data. Please refresh the page.';

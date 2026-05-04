@@ -141,27 +141,27 @@ export default function Home() {
       {/* Hero Section with Login */}
       <section className="relative w-full overflow-hidden rounded-2xl bg-gradient-to-br from-blue-50 via-white to-sky-50 py-12 px-8 shadow-md ring-1 ring-slate-200/50">
         <div className="w-full">
-          <div className="flex flex-col items-center gap-8 lg:flex-row">
+          <div className="flex flex-col items-start gap-8 lg:flex-row">
             {/* Left: Hero Text */}
             <div className="flex-1 text-center lg:text-left space-y-4">
-              <h1 className="text-4xl md:text-6xl font-black text-blue-950 leading-[0.9] tracking-tighter">
+              <h1 className="text-3xl md:text-5xl font-black text-blue-950 leading-[0.9] tracking-tighter">
                 Personalized <span className="text-blue-600">Growth</span> for Every Child
               </h1>
               <p className="text-lg text-slate-600 max-w-2xl">
-                The all-in-one platform dedicated to helping parents and children with autism stay engaged with meaningful activities all day long. We help you motivate your kids for learning while having fun at the same time.
+                The all-in-one platform dedicated to helping parents and children with autism stay engaged throughout the day, while we help you motivate your kids for learning and fun at the same time.
               </p>
               <div className="space-y-3 pt-4">
                 <p className="text-[10px] font-black text-blue-900 uppercase tracking-[0.2em] opacity-60">
                   Why Parents Love Visual Steps:
                 </p>
-                <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 text-slate-600 text-sm">
+                <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 text-black text-base font-['Arial']">
                   <li className="flex items-start gap-3">
                     <div className="mt-1 bg-blue-100 p-1 rounded-md">
-                      <Sparkles className="h-3.5 w-3.5 text-blue-600" />
+                      <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
                     </div>
                     <div className="flex flex-col">
-                      <strong className="text-slate-900 font-bold">Daily Connection & Motivation</strong>
-                      <p className="text-xs text-slate-500 leading-relaxed">Send encouraging messages and fun emojis to your child throughout the day. This simple support builds their confidence and makes learning a joyful experience.</p>
+                      <strong className="text-black font-bold text-lg">Parental Planning Tools</strong>
+                      <p className="text-sm text-black leading-relaxed text-justify">Empower parents with intuitive tools to plan daily activities and manage schedules effectively. Take total control over organizing every detail of your child's day with ease.</p>
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
@@ -169,8 +169,8 @@ export default function Home() {
                       <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
                     </div>
                     <div className="flex flex-col">
-                      <strong className="text-slate-900 font-bold">Engaging Learning Quizzes</strong>
-                      <p className="text-xs text-slate-500 leading-relaxed">Create fun quizzes that match your child's interests and learning pace. These activities turn lessons into exciting challenges that keep them motivated.</p>
+                      <strong className="text-black font-bold text-lg">Visual Step-by-Step Learning</strong>
+                      <p className="text-sm text-black leading-relaxed text-justify">Make it easy for kids to follow activities visually with clear links, images, and broken-down tasks. Every activity is divided into the smallest, most manageable steps for clarity.</p>
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
@@ -178,8 +178,8 @@ export default function Home() {
                       <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
                     </div>
                     <div className="flex flex-col">
-                      <strong className="text-slate-900 font-bold">Daily Routine Social Stories</strong>
-                      <p className="text-xs text-slate-500 leading-relaxed">Use simple picture stories to help your child understand daily routines and transitions. These visual guides reduce anxiety and help them feel more independent.</p>
+                      <strong className="text-black font-bold text-lg">Flexible Scheduling & History</strong>
+                      <p className="text-sm text-black leading-relaxed text-justify">Set up recurring activities that adapt to your routine and can be updated at any moment. Completed tasks move to history, giving parents a clear view of long-term development.</p>
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
@@ -187,8 +187,8 @@ export default function Home() {
                       <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
                     </div>
                     <div className="flex flex-col">
-                      <strong className="text-slate-900 font-bold">Meaningful Offline Activities</strong>
-                      <p className="text-xs text-slate-500 leading-relaxed">Print custom worksheets to keep your child learning even when they are away from the screen. These hands-on activities are a great way to practice skills at home.</p>
+                      <strong className="text-black font-bold text-lg">Engagement & Progress Tracking</strong>
+                      <p className="text-sm text-black leading-relaxed text-justify">Keep your children motivated through an interactive environment designed for high engagement. Real-time tracking ensures you always have a window into their daily achievements.</p>
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
@@ -196,8 +196,8 @@ export default function Home() {
                       <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
                     </div>
                     <div className="flex flex-col">
-                      <strong className="text-slate-900 font-bold">Motivating Reward Systems</strong>
-                      <p className="text-xs text-slate-500 leading-relaxed">Give your child fun rewards for completing their daily tasks and learning goals. This exciting system makes every success feel special and keeps them moving forward.</p>
+                      <strong className="text-black font-bold text-lg">Positive Behavioral Support</strong>
+                      <p className="text-sm text-black leading-relaxed text-justify">Boost development by rewarding positive behaviors while purposefully ignoring negative ones. Focus on celebrating good choices to build lasting habits through encouragement.</p>
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
@@ -205,8 +205,8 @@ export default function Home() {
                       <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
                     </div>
                     <div className="flex flex-col">
-                      <strong className="text-slate-900 font-bold">Daily Progress Insights</strong>
-                      <p className="text-xs text-slate-500 leading-relaxed">See how much your child is learning with simple daily progress reports. These insights help you celebrate their wins and plan for future growth.</p>
+                      <strong className="text-black font-bold text-lg">Rewarding Achievements</strong>
+                      <p className="text-sm text-black leading-relaxed text-justify">Automatically transform tracked positive behaviors and finished tasks into exciting earned rewards. Kids can "buy" special items like stickers and tokens using their hard-earned progress.</p>
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
@@ -214,8 +214,8 @@ export default function Home() {
                       <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
                     </div>
                     <div className="flex flex-col">
-                      <strong className="text-slate-900 font-bold">Independent Daily Engagement</strong>
-                      <p className="text-xs text-slate-500 leading-relaxed">Give your child a simple dashboard they can use all by themselves. This easy interface helps them feel proud of their own progress and accomplishments.</p>
+                      <strong className="text-black font-bold text-lg">Clarity & Learning Motivation</strong>
+                      <p className="text-sm text-black leading-relaxed text-justify">Provide the structure and certainty kids need to feel confident and ready to tackle new concepts. Foster a genuine drive for learning through clear-cut goals and consistent motivation.</p>
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
@@ -223,8 +223,8 @@ export default function Home() {
                       <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
                     </div>
                     <div className="flex flex-col">
-                      <strong className="text-slate-900 font-bold">Safe & Secure Engagement</strong>
-                      <p className="text-xs text-slate-500 leading-relaxed">We use strong security to keep your child's learning environment safe and private. You can focus on their growth knowing their digital journey is protected.</p>
+                      <strong className="text-black font-bold text-lg">AI-Powered Personalization</strong>
+                      <p className="text-sm text-black leading-relaxed text-justify">Instantly generate custom quizzes, social stories, and worksheets using advanced AI technology. Parents can easily edit and customize every resource to match their child's specific needs.</p>
                     </div>
                   </li>
                 </ul>

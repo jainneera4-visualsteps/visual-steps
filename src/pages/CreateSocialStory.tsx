@@ -1,5 +1,6 @@
 import { apiFetch } from '../utils/api';
 import { generateContent, modelNames } from '../lib/gemini';
+import { isAuthError } from '../utils/auth';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '../components/Button';
@@ -304,6 +305,8 @@ export default function CreateSocialStory() {
       }
     } catch (error: any) {
       console.error('Failed to generate story', error);
+      if (isAuthError(error)) return; // Auth utility handles this
+      
       const errorMessage = error.message || "Unknown error";
       if (errorMessage.includes("500") || errorMessage.includes("Rpc failed")) {
         alert("The AI service is currently busy or experiencing a temporary issue. We tried retrying, but it failed. Please wait a moment and try again.");

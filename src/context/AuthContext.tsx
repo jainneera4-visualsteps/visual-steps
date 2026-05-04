@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { User as SupabaseUser } from '@supabase/supabase-js';
+import { clearAuthSession, isAuthError } from '../utils/auth';
 
 interface User {
   id: string;
@@ -52,16 +53,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (error) {
           console.error('Session error:', error);
-          if (error.message.includes('Refresh Token Not Found') || error.message.includes('Invalid Refresh Token')) {
-            console.warn('Invalid refresh token detected, clearing session...');
-            // Manually clear local storage as a fallback
-            for (let i = 0; i < localStorage.length; i++) {
-              const key = localStorage.key(i);
-              if (key && (key.startsWith('sb-') || key.includes('auth-token'))) {
-                localStorage.removeItem(key);
-              }
-            }
-            await supabase.auth.signOut().catch(() => {});
+          if (isAuthError(error)) {
+            await clearAuthSession();
             setUser(null);
             setIsLoading(false);
             return;
@@ -76,15 +69,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (error: any) {
         console.error('Error getting session:', error);
-        if (error?.message?.includes('Refresh Token Not Found') || error?.message?.includes('Invalid Refresh Token')) {
-          console.warn('Invalid refresh token caught, clearing session...');
-          for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && (key.startsWith('sb-') || key.includes('auth-token'))) {
-              localStorage.removeItem(key);
-            }
-          }
-          await supabase.auth.signOut().catch(() => {});
+        if (isAuthError(error)) {
+          await clearAuthSession();
         }
         setUser(null);
         setIsLoading(false);
