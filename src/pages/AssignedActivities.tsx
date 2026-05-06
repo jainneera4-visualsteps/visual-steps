@@ -8,8 +8,9 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import { ArrowLeft, Plus, Trash2, Edit2, CheckCircle, Circle, Calendar, Clock, Repeat, Image as ImageIcon, Eye, Sparkles, Loader2, LayoutList, ChevronLeft, ChevronRight, Activity, TrendingUp, PieChart as PieChartIcon, Award, BarChart as BarChartIcon, History, Lock, Lightbulb } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Edit2, CheckCircle, Circle, Calendar, Clock, Repeat, Image as ImageIcon, Eye, Sparkles, Loader2, LayoutList, ChevronLeft, ChevronRight, Activity, TrendingUp, PieChart as PieChartIcon, Award, BarChart as BarChartIcon, History, Lock, Lightbulb, HelpCircle, X } from 'lucide-react';
 import { ActivityDetailModal } from '../components/ActivityDetailModal';
+import { formatInTimezone, getZonedTime } from '../utils/dateUtils';
 
 // Global Chart Tooltip helper
 const CustomChartTooltip = (props: any) => <ChartRechartsTooltip {...props} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />;
@@ -75,6 +76,7 @@ interface RewardItem {
   cost: number;
   image_url?: string;
   location?: string;
+  is_active?: boolean;
 }
 
 interface Purchase {
@@ -122,7 +124,10 @@ export default function AssignedActivities() {
   useEffect(() => {
     console.log('Activity types:', activityTypes);
   }, [activityTypes]);
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const zoned = getZonedTime();
+    return new Date(zoned.year, zoned.month - 1, 1);
+  });
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'activities' | 'completed' | 'history' | 'rewards' | 'progress'>((searchParams.get('tab') as any) || 'activities');
 
@@ -139,9 +144,11 @@ export default function AssignedActivities() {
   const [activityToDelete, setActivityToDelete] = useState<string | null>(null);
   const [locationFilter, setLocationFilter] = useState('');
   const [rewardToDelete, setRewardToDelete] = useState<string | null>(null);
-  const [newReward, setNewReward] = useState({ name: '', cost: 1, imageUrl: '', location: '' });
+  const [newReward, setNewReward] = useState({ name: '', cost: 1, imageUrl: '', location: '', is_active: true });
   const [editingReward, setEditingReward] = useState<RewardItem | null>(null);
   const [isSavingReward, setIsSavingReward] = useState(false);
+  const [isAddingCustomLocation, setIsAddingCustomLocation] = useState(false);
+  const [customLocation, setCustomLocation] = useState('');
   const [reportDuration, setReportDuration] = useState<'24h' | '7d' | '30d' | 'all'>('7d');
   const [historyPage, setHistoryPage] = useState(1);
   const [historyItemsPerPage, setHistoryItemsPerPage] = useState(10);
@@ -204,23 +211,15 @@ export default function AssignedActivities() {
 
   const formatKidDate = (date: Date | string | null | undefined, options?: Intl.DateTimeFormatOptions) => {
     if (!date) return '';
-    const d = typeof date === 'string' ? new Date(date) : date;
-    if (isNaN(d.getTime())) return '';
-    try {
-      return new Intl.DateTimeFormat('en-US', {
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-        ...options
-      }).format(d);
-    } catch (e) {
-      console.error('formatKidDate error:', e, 'date:', date);
-      return String(date);
-    }
+    const defaultOptions: Intl.DateTimeFormatOptions = {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    };
+    return formatInTimezone(date, kid?.timezone, options || defaultOptions);
   };
 
   const formatSimpleDate = (dateStr: string | null | undefined) => {
@@ -647,26 +646,10 @@ export default function AssignedActivities() {
       }
 
       // Fetch activities
-      const now = new Date();
-      const kidTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const formatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: kidTimezone,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      });
-      const parts = formatter.formatToParts(now);
-      const year = parts.find(p => p.type === 'year')?.value;
-      const month = parts.find(p => p.type === 'month')?.value;
-      const day = parts.find(p => p.type === 'day')?.value;
-      const hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
-      const minute = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
-      
-      const localDate = `${year}-${month}-${day}`;
-      const localTime = hour * 60 + minute;
+      const zoned = getZonedTime(currentKid?.timezone);
+      const localDate = zoned.isoDate;
+      const localTime = zoned.totalMinutes;
+
       const actRes = await apiFetch(`/api/kids/${encodeURIComponent(kidId)}/activities?mode=parent&localDate=${localDate}&localTime=${localTime}&_t=${Date.now()}`, {
         headers: {
           'Cache-Control': 'no-cache',
@@ -765,11 +748,8 @@ export default function AssignedActivities() {
     // Refresh data every 10 seconds to keep dates/times current
     const intervalId = setInterval(() => {
       // Check if date has changed since last fetch
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      const currentLocalDate = `${year}-${month}-${day}`;
+      const zoned = getZonedTime(kid?.timezone);
+      const currentLocalDate = zoned.isoDate;
       
       // If date changed, force a non-silent refresh (or silent depending on UX preference)
       // We'll use silent for now to avoid flickering, but the data will update
@@ -1073,8 +1053,9 @@ export default function AssignedActivities() {
 
     // Check if assigning for past dates or today past end time
     if (formData.dueDate) {
-      const now = new Date();
-      now.setHours(0, 0, 0, 0); // Midnight today local time
+      const zoned = getZonedTime(kid?.timezone);
+      const now = new Date(zoned.year, zoned.month - 1, zoned.day);
+      now.setHours(0, 0, 0, 0); // Midnight today in kid's local time (represented in system local)
       
       // Parse selected date as local time
       // formData.dueDate is "YYYY-MM-DD"
@@ -1089,8 +1070,7 @@ export default function AssignedActivities() {
 
       // Check end time if selected date is today
       if (selectedDate.getTime() === now.getTime() && kid?.end_time) {
-        const nowTime = new Date();
-        const currentTime = nowTime.getHours() * 60 + nowTime.getMinutes();
+        const currentTime = zoned.totalMinutes;
         
         const [endHour, endMinute] = kid.end_time.split(':').map(Number);
         const endTime = endHour * 60 + endMinute;
@@ -1247,6 +1227,8 @@ export default function AssignedActivities() {
         setIsRewardModalOpen(false);
         setNewReward({ name: '', cost: 1, imageUrl: '', location: '' });
         setEditingReward(null);
+        setIsAddingCustomLocation(false);
+        setCustomLocation('');
       }
     } catch (error) {
       console.error('Failed to save reward', error);
@@ -1261,8 +1243,11 @@ export default function AssignedActivities() {
       name: item.name,
       cost: item.cost,
       imageUrl: item.image_url || '',
-      location: item.location || ''
+      location: item.location || '',
+      is_active: item.is_active !== false // Default to true if undefined
     });
+    setIsAddingCustomLocation(false);
+    setCustomLocation('');
     setIsRewardModalOpen(true);
   };
 
@@ -1344,10 +1329,7 @@ export default function AssignedActivities() {
           }}
         >
           <span className={`absolute top-1 left-1 text-[10px] font-bold ${
-            dateStr === (() => {
-              const d = new Date();
-              return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-            })()
+            dateStr === getZonedTime(kid?.timezone).isoDate
               ? 'bg-blue-600 text-white px-1.5 py-0.5 rounded-full z-10' 
               : 'text-slate-400 z-10'
           }`}>
@@ -1382,7 +1364,10 @@ export default function AssignedActivities() {
             <Button 
               variant="ghost" 
               size="xs" 
-              onClick={() => setCurrentMonth(new Date())}
+              onClick={() => {
+                const zoned = getZonedTime(kid?.timezone);
+                setCurrentMonth(new Date(zoned.year, zoned.month - 1));
+              }}
               className="px-2 h-7 text-[10px]"
             >
               Today
@@ -1552,13 +1537,139 @@ export default function AssignedActivities() {
               <table className="w-full text-sm text-left">
                 <thead className="text-xs text-slate-500 bg-slate-50 uppercase border-y border-slate-200">
                   <tr>
-                    <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortCompleted('status')}>Status</th>
-                    <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortCompleted('activity_type')}>Activity</th>
-                    <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortCompleted('description')}>Description</th>
-                    <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortCompleted('repeat_frequency')}>Repeat</th>
-                    <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortCompleted('completed_at')}>Completion Date</th>
-                    <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortCompleted('time_of_day')}>Time of day</th>
-                    <th className="px-4 py-3 font-bold text-right">Actions</th>
+                    <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortCompleted('status')}>
+                      <div className="flex items-center gap-1.5">
+                        <span>Status</span>
+                        <div className="group relative">
+                          <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                          <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
+                            <div className="flex items-start gap-3">
+                              <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                                <HelpCircle className="h-4 w-4 text-yellow-700" />
+                              </div>
+                              <span className="font-bold text-[15px] leading-tight text-slate-900 text-left">
+                                Current status of the activity. Marked as completed.
+                              </span>
+                            </div>
+                            <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </th>
+                    <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortCompleted('activity_type')}>
+                      <div className="flex items-center gap-1.5">
+                        <span>Activity</span>
+                        <div className="group relative">
+                          <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                          <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
+                            <div className="flex items-start gap-3">
+                              <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                                <HelpCircle className="h-4 w-4 text-yellow-700" />
+                              </div>
+                              <span className="font-bold text-[15px] leading-tight text-slate-900 text-left">
+                                The title or type of the completed activity.
+                              </span>
+                            </div>
+                            <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </th>
+                    <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortCompleted('description')}>
+                      <div className="flex items-center gap-1.5">
+                        <span>Description</span>
+                        <div className="group relative">
+                          <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                          <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
+                            <div className="flex items-start gap-3">
+                              <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                                <HelpCircle className="h-4 w-4 text-yellow-700" />
+                              </div>
+                              <span className="font-bold text-[15px] leading-tight text-slate-900 text-left">
+                                Brief description of what the activity involved.
+                              </span>
+                            </div>
+                            <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </th>
+                    <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortCompleted('repeat_frequency')}>
+                      <div className="flex items-center gap-1.5">
+                        <span>Repeat</span>
+                        <div className="group relative">
+                          <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                          <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
+                            <div className="flex items-start gap-3">
+                              <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                                <HelpCircle className="h-4 w-4 text-yellow-700" />
+                              </div>
+                              <span className="font-bold text-[15px] leading-tight text-slate-900 text-left">
+                                How frequently this activity recurred.
+                              </span>
+                            </div>
+                            <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </th>
+                    <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortCompleted('completed_at')}>
+                      <div className="flex items-center gap-1.5">
+                        <span>Completion Date</span>
+                        <div className="group relative">
+                          <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                          <div className="absolute right-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
+                            <div className="flex items-start gap-3">
+                              <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                                <HelpCircle className="h-4 w-4 text-yellow-700" />
+                              </div>
+                              <span className="font-bold text-[15px] leading-tight text-slate-900 text-left">
+                                The date and time when this activity was marked finished.
+                              </span>
+                            </div>
+                            <div className="absolute right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </th>
+                    <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortCompleted('time_of_day')}>
+                      <div className="flex items-center gap-1.5">
+                        <span>Time of day</span>
+                        <div className="group relative">
+                          <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                          <div className="absolute right-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
+                            <div className="flex items-start gap-3">
+                              <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                                <HelpCircle className="h-4 w-4 text-yellow-700" />
+                              </div>
+                              <span className="font-bold text-[15px] leading-tight text-slate-900 text-left">
+                                The preferred time slot for this activity.
+                              </span>
+                            </div>
+                            <div className="absolute right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </th>
+                    <th className="px-4 py-3 font-bold text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <span>Actions</span>
+                        <div className="group relative">
+                          <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                          <div className="absolute right-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
+                            <div className="flex items-start gap-3">
+                              <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                                <HelpCircle className="h-4 w-4 text-yellow-700" />
+                              </div>
+                              <span className="font-bold text-[15px] leading-tight text-slate-900 text-left">
+                                Manage this activity: View details, edit, or delete as needed.
+                              </span>
+                            </div>
+                            <div className="absolute right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -1650,7 +1761,7 @@ export default function AssignedActivities() {
 
   return (
     <div className="space-y-3 w-full">
-      {!isModalOpen && !previewActivity && !viewingQuizResult ? (
+      {!isModalOpen && !previewActivity && !viewingQuizResult && !isRewardModalOpen ? (
         <>
           <div className="mb-6">
             <button onClick={() => navigate('/dashboard')} className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1 mb-2 transition-colors">
@@ -1749,10 +1860,12 @@ export default function AssignedActivities() {
                       </Button>
                     </CustomTooltip>
                   ) : activeTab === 'rewards' ? (
-                    <Button size="xs" onClick={() => setIsRewardModalOpen(true)} className="h-7 text-[12px] shrink-0">
-                      <Plus className="mr-1 h-3 w-3" />
-                      Add Item
-                    </Button>
+                    <CustomTooltip content="Adds reward item">
+                      <Button size="xs" onClick={() => setIsRewardModalOpen(true)} className="h-7 text-[12px] shrink-0">
+                        <Plus className="mr-1 h-3 w-3" />
+                        Add Item
+                      </Button>
+                    </CustomTooltip>
                   ) : null}
                 </div>
               </div>
@@ -1891,12 +2004,120 @@ export default function AssignedActivities() {
                   <table className="w-full text-sm text-left">
                     <thead className="text-xs text-slate-500 bg-slate-50 uppercase border-y border-slate-200">
                     <tr>
-                      <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSort('status')}>Status</th>
-                      <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSort('activity_type')}>Activity</th>
-                      <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSort('repeat_frequency')}>Repeat</th>
-                      <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSort('due_date')}>Due Date</th>
-                      <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSort('time_of_day')}>Time of day</th>
-                      <th className="px-4 py-3 font-bold text-right">Actions</th>
+                      <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSort('status')}>
+                        <div className="flex items-center gap-1.5">
+                          <span>Status</span>
+                          <div className="group relative">
+                            <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                            <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
+                              <div className="flex items-start gap-3">
+                                <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                                  <HelpCircle className="h-4 w-4 text-yellow-700" />
+                                </div>
+                                <span className="font-bold text-[15px] leading-tight text-slate-900 text-left">
+                                  Current status of the activity. Click the circle icon to mark as completed.
+                                </span>
+                              </div>
+                              <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                            </div>
+                          </div>
+                        </div>
+                      </th>
+                      <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSort('activity_type')}>
+                        <div className="flex items-center gap-1.5">
+                          <span>Activity</span>
+                          <div className="group relative">
+                            <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                            <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
+                              <div className="flex items-start gap-3">
+                                <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                                  <HelpCircle className="h-4 w-4 text-yellow-700" />
+                                </div>
+                                <span className="font-bold text-[15px] leading-tight text-slate-900 text-left">
+                                  The title or type of the activity assigned to your child.
+                                </span>
+                              </div>
+                              <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                            </div>
+                          </div>
+                        </div>
+                      </th>
+                      <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSort('repeat_frequency')}>
+                        <div className="flex items-center gap-1.5">
+                          <span>Repeat</span>
+                          <div className="group relative">
+                            <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                            <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
+                              <div className="flex items-start gap-3">
+                                <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                                  <HelpCircle className="h-4 w-4 text-yellow-700" />
+                                </div>
+                                <span className="font-bold text-[15px] leading-tight text-slate-900 text-left">
+                                  How frequently this activity is scheduled to recur (e.g., Daily, Weekly).
+                                </span>
+                              </div>
+                              <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                            </div>
+                          </div>
+                        </div>
+                      </th>
+                      <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSort('due_date')}>
+                        <div className="flex items-center gap-1.5">
+                          <span>Due Date</span>
+                          <div className="group relative">
+                            <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                            <div className="absolute right-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
+                              <div className="flex items-start gap-3">
+                                <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                                  <HelpCircle className="h-4 w-4 text-yellow-700" />
+                                </div>
+                                <span className="font-bold text-[15px] leading-tight text-slate-900 text-left">
+                                  The date for which this activity is assigned.
+                                </span>
+                              </div>
+                              <div className="absolute right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                            </div>
+                          </div>
+                        </div>
+                      </th>
+                      <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSort('time_of_day')}>
+                        <div className="flex items-center gap-1.5">
+                          <span>Time of day</span>
+                          <div className="group relative">
+                            <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                            <div className="absolute right-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
+                              <div className="flex items-start gap-3">
+                                <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                                  <HelpCircle className="h-4 w-4 text-yellow-700" />
+                                </div>
+                                <span className="font-bold text-[15px] leading-tight text-slate-900 text-left">
+                                  The specific time slot preferred for this activity.
+                                </span>
+                              </div>
+                              <div className="absolute right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                            </div>
+                          </div>
+                        </div>
+                      </th>
+                      <th className="px-4 py-3 font-bold text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <span>Actions</span>
+                          <div className="group relative">
+                            <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                            <div className="absolute right-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
+                              <div className="flex items-start gap-3">
+                                <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                                  <HelpCircle className="h-4 w-4 text-yellow-700" />
+                                </div>
+                                <span className="font-bold text-[15px] leading-tight text-slate-900 text-left">
+                                  Manage this activity: View details, edit, or delete as needed.
+                                </span>
+                              </div>
+                              <div className="absolute right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                            </div>
+                          </div>
+                        </div>
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -2234,11 +2455,101 @@ export default function AssignedActivities() {
                               </button>
                             </div>
                           </th>
-                          <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortHistory('activity_type')}>Activity</th>
-                          <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortHistory('description')}>Description</th>
-                          <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortHistory('completed_at')}>Completion Date</th>
-                          <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortHistory('reward_qty')}>Rewards</th>
-                          <th className="px-4 py-3 font-bold text-right">Actions</th>
+                          <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortHistory('activity_type')}>
+                            <div className="flex items-center gap-1.5">
+                              <span>Activity</span>
+                              <div className="group relative">
+                                <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                                <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
+                                  <div className="flex items-start gap-3">
+                                    <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                                      <HelpCircle className="h-4 w-4 text-yellow-700" />
+                                    </div>
+                                    <span className="font-bold text-[15px] leading-tight text-slate-900 text-left">
+                                      The title or type of the activity from history.
+                                    </span>
+                                  </div>
+                                  <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                                </div>
+                              </div>
+                            </div>
+                          </th>
+                          <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortHistory('description')}>
+                            <div className="flex items-center gap-1.5">
+                              <span>Description</span>
+                              <div className="group relative">
+                                <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                                <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
+                                  <div className="flex items-start gap-3">
+                                    <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                                      <HelpCircle className="h-4 w-4 text-yellow-700" />
+                                    </div>
+                                    <span className="font-bold text-[15px] leading-tight text-slate-900 text-left">
+                                      Brief description of the activity performance.
+                                    </span>
+                                  </div>
+                                  <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                                </div>
+                              </div>
+                            </div>
+                          </th>
+                          <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortHistory('completed_at')}>
+                            <div className="flex items-center gap-1.5">
+                              <span>Completion Date</span>
+                              <div className="group relative">
+                                <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                                <div className="absolute right-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
+                                  <div className="flex items-start gap-3">
+                                    <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                                      <HelpCircle className="h-4 w-4 text-yellow-700" />
+                                    </div>
+                                    <span className="font-bold text-[15px] leading-tight text-slate-900 text-left">
+                                      The historical record of when this activity was completed.
+                                    </span>
+                                  </div>
+                                  <div className="absolute right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                                </div>
+                              </div>
+                            </div>
+                          </th>
+                          <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortHistory('reward_qty')}>
+                            <div className="flex items-center gap-1.5">
+                              <span>Rewards</span>
+                              <div className="group relative">
+                                <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                                <div className="absolute right-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
+                                  <div className="flex items-start gap-3">
+                                    <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                                      <HelpCircle className="h-4 w-4 text-yellow-700" />
+                                    </div>
+                                    <span className="font-bold text-[15px] leading-tight text-slate-900 text-left">
+                                      The rewards granted for this specific activity completion.
+                                    </span>
+                                  </div>
+                                  <div className="absolute right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                                </div>
+                              </div>
+                            </div>
+                          </th>
+                          <th className="px-4 py-3 font-bold text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <span>Actions</span>
+                              <div className="group relative">
+                                <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                                <div className="absolute right-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
+                                  <div className="flex items-start gap-3">
+                                    <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                                      <HelpCircle className="h-4 w-4 text-yellow-700" />
+                                    </div>
+                                    <span className="font-bold text-[15px] leading-tight text-slate-900 text-left">
+                                      Manage historical record: View details or remove from history as needed.
+                                    </span>
+                                  </div>
+                                  <div className="absolute right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                                </div>
+                              </div>
+                            </div>
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -3298,10 +3609,10 @@ export default function AssignedActivities() {
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {rewardItems.filter(item => !locationFilter || item.location === locationFilter).map((item) => (
-              <Card key={item.id} className="overflow-hidden border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+              <Card key={item.id} className="overflow-hidden border-slate-200 shadow-sm hover:shadow-md transition-shadow bg-green-50">
                 <CardContent className="p-0">
-                  <div className="flex h-24">
-                    <div className="h-24 w-24 flex-shrink-0 bg-slate-100 border-r border-slate-100">
+                  <div className="flex h-28">
+                    <div className="h-28 w-28 flex-shrink-0 bg-slate-100 border-r border-slate-100">
                       {item.image_url ? (
                         <img src={item.image_url} alt={item.name} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                       ) : (
@@ -3312,14 +3623,19 @@ export default function AssignedActivities() {
                     </div>
                     <div className="flex flex-1 flex-col justify-between p-3 min-w-0">
                       <div>
-                        <h3 className="font-bold text-sm text-slate-900 truncate">{item.name}</h3>
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-bold text-sm text-slate-900 truncate">{item.name}</h3>
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${item.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            {item.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                        </div>
                         <div className="mt-1 flex items-center gap-1 text-xs font-black text-blue-600 uppercase tracking-wider">
                           <img src={rewardIcon} alt={kid?.reward_type} className="h-3 w-3 object-contain" referrerPolicy="no-referrer" />
                           {item.cost} {formatReward(kid?.reward_type, item.cost)}
                         </div>
                         {item.location && (
-                          <div className="mt-1 text-xs font-bold text-slate-600 flex items-center gap-1">
-                            <span className="inline-block w-1 h-1 rounded-full bg-slate-300"></span>
+                          <div className="mt-1 text-sm font-semibold text-slate-700 flex items-center gap-1">
+                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-slate-400"></span>
                             {item.location}
                           </div>
                         )}
@@ -3443,6 +3759,311 @@ export default function AssignedActivities() {
         </CardContent>
       </Card>
     </div>
+  ) : isRewardModalOpen ? (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <Button 
+          variant="ghost" 
+          size="xs" 
+          onClick={() => {
+            setIsRewardModalOpen(false);
+            setEditingReward(null);
+            setNewReward({ name: '', cost: 1, imageUrl: '', location: '' });
+            setIsAddingCustomLocation(false);
+            setCustomLocation('');
+          }} 
+          className="pl-0 h-7 hover:bg-transparent hover:text-blue-600 text-[12px] font-bold uppercase transition-colors"
+        >
+          <ArrowLeft className="mr-1 h-3 w-3" />
+          Back to List
+        </Button>
+        <h1 className="text-xl font-bold tracking-tight text-slate-900 leading-none">
+          {editingReward ? 'Edit Reward Item' : 'New Reward Item'}
+        </h1>
+      </div>
+      <Card className="border-blue-200 bg-blue-50/50 shadow-sm overflow-hidden">
+        <CardHeader className="flex flex-row items-center justify-between py-2 px-4 space-y-0 border-b border-blue-100 bg-white/50">
+          <CardTitle className="text-base font-bold">{editingReward ? 'Edit Reward Details' : 'Reward Details'}</CardTitle>
+        </CardHeader>
+        <CardContent className="px-4 pb-3 pt-4">
+          <form onSubmit={handleSaveReward} className="space-y-3">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <label className="text-[12px] font-bold text-slate-500 uppercase">Item Name</label>
+                  <div className="group relative">
+                    <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                    <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-sans">
+                      <div className="flex items-start gap-3">
+                        <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                          <HelpCircle className="h-4 w-4 text-yellow-700" />
+                        </div>
+                        <span className="font-bold text-[15px] leading-tight text-slate-900 normal-case">
+                          The name of the reward item that can be purchased (e.g., 15 mins Screen Time).
+                        </span>
+                      </div>
+                      <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                    </div>
+                  </div>
+                </div>
+                <Input
+                  className="h-9 text-sm focus:ring-1 focus:ring-blue-600"
+                  placeholder="e.g., 15 mins Screen Time"
+                  value={newReward.name}
+                  onChange={(e) => setNewReward({ ...newReward, name: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <label className="text-[12px] font-bold text-slate-500 uppercase">Cost ({formatReward(kid?.reward_type || 'Points', 2)})</label>
+                  <div className="group relative">
+                    <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                    <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-sans">
+                      <div className="flex items-start gap-3">
+                        <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                          <HelpCircle className="h-4 w-4 text-yellow-700" />
+                        </div>
+                        <span className="font-bold text-[15px] leading-tight text-slate-900 normal-case">
+                          How many {kid?.reward_type || 'Tokens'} this item costs.
+                        </span>
+                      </div>
+                      <div className="absolute left-3 sm:left-auto sm:right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                    </div>
+                  </div>
+                </div>
+                <Input
+                  className="h-9 text-sm focus:ring-1 focus:ring-blue-600"
+                  type="number"
+                  min="1"
+                  value={newReward.cost}
+                  onChange={(e) => setNewReward({ ...newReward, cost: parseInt(e.target.value) || 1 })}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <label className="text-[12px] font-bold text-slate-500 uppercase">Image URL (Optional)</label>
+                  <div className="group relative">
+                    <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                    <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-sans">
+                      <div className="flex items-start gap-3">
+                        <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                          <HelpCircle className="h-4 w-4 text-yellow-700" />
+                        </div>
+                        <span className="font-bold text-[15px] leading-tight text-slate-900 normal-case">
+                          Add a picture for this reward to make it look special!
+                        </span>
+                      </div>
+                      <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    className="h-9 text-sm flex-1 focus:ring-1 focus:ring-blue-600"
+                    placeholder="https://example.com/image.jpg"
+                    value={newReward.imageUrl}
+                    onChange={(e) => setNewReward({ ...newReward, imageUrl: e.target.value })}
+                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      id="reward-image-upload"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const url = await handleImageUpload(file);
+                          if (url) setNewReward({ ...newReward, imageUrl: url });
+                          e.target.value = '';
+                        }
+                      }}
+                    />
+                    <label
+                      htmlFor="reward-image-upload"
+                      className={`flex h-9 cursor-pointer items-center justify-center rounded border border-slate-300 bg-white px-3 py-1 text-[12px] font-bold text-slate-600 hover:bg-slate-50 transition-colors shrink-0`}
+                    >
+                      <ImageIcon className="mr-1.5 h-3.5 w-3.5" />
+                      {newReward.imageUrl ? 'Change' : 'Upload'}
+                    </label>
+                  </div>
+                </div>
+                {newReward.imageUrl && (
+                  <div className="mt-2 relative h-20 w-20 rounded-lg overflow-hidden border border-blue-100 shadow-sm">
+                    <img src={newReward.imageUrl} alt="Reward Preview" className="h-full w-full object-cover" />
+                    <button 
+                      type="button" 
+                      onClick={() => setNewReward({...newReward, imageUrl: ''})}
+                      className="absolute top-0.5 right-0.5 bg-white/80 p-1 rounded-full text-red-500 hover:bg-white transition-colors"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <label className="text-[12px] font-bold text-slate-500 uppercase">Available At (Optional)</label>
+                  <div className="group relative">
+                    <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                    <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-sans">
+                      <div className="flex items-start gap-3">
+                        <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                          <HelpCircle className="h-4 w-4 text-yellow-700" />
+                        </div>
+                        <span className="font-bold text-[15px] leading-tight text-slate-900 normal-case">
+                          Where this reward can be redeemed.
+                        </span>
+                      </div>
+                      <div className="absolute left-3 sm:left-auto sm:right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                    </div>
+                  </div>
+                </div>
+                {isAddingCustomLocation ? (
+                  <div className="flex gap-2">
+                    <Input
+                      autoFocus
+                      className="h-9 text-sm focus:ring-1 focus:ring-blue-600 flex-1"
+                      placeholder="Enter custom location..."
+                      value={customLocation}
+                      onChange={(e) => setCustomLocation(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (customLocation.trim()) {
+                            setNewReward({ ...newReward, location: customLocation.trim() });
+                            setIsAddingCustomLocation(false);
+                          }
+                        }
+                        if (e.key === 'Escape') {
+                          setIsAddingCustomLocation(false);
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="xs"
+                      onClick={() => {
+                        if (customLocation.trim()) {
+                          setNewReward({ ...newReward, location: customLocation.trim() });
+                        }
+                        setIsAddingCustomLocation(false);
+                      }}
+                      className="h-9 px-3 text-blue-600 font-bold"
+                    >
+                      Add
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="xs"
+                      onClick={() => setIsAddingCustomLocation(false)}
+                      className="h-9 px-2 text-slate-400"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <select
+                    className="flex h-9 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
+                    value={newReward.location}
+                    onChange={(e) => {
+                      if (e.target.value === 'ADD_NEW') {
+                        setIsAddingCustomLocation(true);
+                        setCustomLocation('');
+                      } else {
+                        setNewReward({ ...newReward, location: e.target.value });
+                      }
+                    }}
+                  >
+                    <option value="">Select a place...</option>
+                    {[
+                      'House', 'Restaurant', 'Park', 'Car', 'Party', 
+                      'Friend’s / relative’s house', 'Store / Mall', 'Any place'
+                    ].map(loc => (
+                      <option key={loc} value={loc}>{loc}</option>
+                    ))}
+                    {/* Unique custom locations from existing items */}
+                    {[...new Set(rewardItems.map(item => item.location))].filter(loc => 
+                      loc && ![
+                        'House', 'Restaurant', 'Park', 'Car', 'Party', 
+                        'Friend’s / relative’s house', 'Store / Mall', 'Any place'
+                      ].includes(loc)
+                    ).map(loc => (
+                      <option key={loc} value={loc!}>{loc}</option>
+                    ))}
+                    <option value="ADD_NEW" className="text-blue-600 font-bold">+ Add new location...</option>
+                  </select>
+                )}
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <label className="text-[12px] font-bold text-slate-500 uppercase">Status</label>
+                  <div className="group relative">
+                    <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                    <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-sans">
+                      <div className="flex items-start gap-3">
+                        <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                          <HelpCircle className="h-4 w-4 text-yellow-700" />
+                        </div>
+                        <span className="font-bold text-[15px] leading-tight text-slate-900 normal-case">
+                          Active items appear in the rewards list. Inactive items are hidden.
+                        </span>
+                      </div>
+                      <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 h-9">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border border-slate-300 text-blue-600 focus:ring-blue-600"
+                    checked={newReward.is_active}
+                    onChange={(e) => setNewReward({ ...newReward, is_active: e.target.checked })}
+                  />
+                  <span className="text-sm font-medium text-slate-700">Active</span>
+                </div>
+              </div>
+
+            </div>
+
+            <div className="flex justify-end items-center pt-4 border-t border-blue-100 mt-2">
+              <div className="flex gap-2">
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  size="xs" 
+                  onClick={() => {
+                    setIsRewardModalOpen(false);
+                    setEditingReward(null);
+                    setNewReward({ name: '', cost: 1, imageUrl: '', location: '' });
+                    setIsAddingCustomLocation(false);
+                    setCustomLocation('');
+                  }} 
+                  className="h-8 text-[12px] font-bold"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  size="xs" 
+                  disabled={isSavingReward} 
+                  className="h-8 text-[12px] font-bold bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+                >
+                  {isSavingReward ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : (editingReward ? 'Save Changes' : 'Add Item')}
+                </Button>
+              </div>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   ) : isModalOpen ? (
     <div className="space-y-4">
           <div className="flex items-center gap-3">
@@ -3484,7 +4105,23 @@ export default function AssignedActivities() {
                 {!editingActivity && (
                   <div className="grid gap-2.5 md:grid-cols-2">
                     <div className="space-y-0.5 p-2 bg-blue-50 rounded border border-blue-100">
-                      <label className="text-[12px] font-bold text-blue-600 uppercase">Select Activity Type (Optional)</label>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <label className="text-[12px] font-bold text-blue-600 uppercase">Select Activity Type (Optional)</label>
+                        <div className="group relative">
+                          <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                          <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                            <div className="flex items-start gap-3">
+                              <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                                <HelpCircle className="h-4 w-4 text-yellow-700" />
+                              </div>
+                              <span className="font-bold text-[15px] leading-tight text-slate-900 normal-case">
+                                Select the category of the pre-defined activity you want to assign, such as Quizzes, Social Stories, or Worksheets.
+                              </span>
+                            </div>
+                            <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                          </div>
+                        </div>
+                      </div>
                       <select
                         className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
                         value={predefinedType}
@@ -3501,7 +4138,23 @@ export default function AssignedActivities() {
                     </div>
 
                     <div className="space-y-0.5 p-2 bg-blue-50 rounded border border-blue-100">
-                      <label className="text-[12px] font-bold text-blue-600 uppercase">Select Pre-defined Activity</label>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <label className="text-[12px] font-bold text-blue-600 uppercase">Select Pre-defined Activity</label>
+                        <div className="group relative">
+                          <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                          <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                            <div className="flex items-start gap-3">
+                              <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                                <HelpCircle className="h-4 w-4 text-yellow-700" />
+                              </div>
+                              <span className="font-bold text-[15px] leading-tight text-slate-900 normal-case">
+                                Choose from your saved library of activities to quickly assign them to your child.
+                              </span>
+                            </div>
+                            <div className="absolute left-3 sm:left-auto sm:right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                          </div>
+                        </div>
+                      </div>
                       <select
                         className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 disabled:bg-slate-50 disabled:cursor-not-allowed"
                         disabled={!predefinedType}
@@ -3568,7 +4221,23 @@ export default function AssignedActivities() {
                 <div className="flex flex-col gap-2.5">
                   <div className="grid gap-2.5 md:grid-cols-2">
                     <div className="space-y-0.5">
-                      <label className="text-[12px] font-bold text-slate-500 uppercase">Activity Category</label>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <label className="text-[12px] font-bold text-slate-500 uppercase">Activity Category</label>
+                        <div className="group relative">
+                          <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                          <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                            <div className="flex items-start gap-3">
+                              <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                                <HelpCircle className="h-4 w-4 text-yellow-700" />
+                              </div>
+                              <span className="font-bold text-[15px] leading-tight text-slate-900 normal-case">
+                                Categorize the activity to help organize your child's dashboard (e.g., Morning Routine, Math, Self-Care).
+                              </span>
+                            </div>
+                            <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                          </div>
+                        </div>
+                      </div>
                       <input
                         list="activity-categories"
                         className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-transparent"
@@ -3585,7 +4254,23 @@ export default function AssignedActivities() {
                     </div>
 
                     <div className="space-y-0.5">
-                      <label className="text-[12px] font-bold text-slate-500 uppercase">Activity Name</label>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <label className="text-[12px] font-bold text-slate-500 uppercase">Activity Name</label>
+                        <div className="group relative">
+                          <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                          <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                            <div className="flex items-start gap-3">
+                              <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                                <HelpCircle className="h-4 w-4 text-yellow-700" />
+                              </div>
+                              <span className="font-bold text-[15px] leading-tight text-slate-900 normal-case">
+                                The title of the activity that your child will see on their dashboard.
+                              </span>
+                            </div>
+                            <div className="absolute left-3 sm:left-auto sm:right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                          </div>
+                        </div>
+                      </div>
                       <input
                         list="activity-types"
                         className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-transparent"
@@ -3610,7 +4295,23 @@ export default function AssignedActivities() {
                 </div>
 
                 <div className="space-y-0.5">
-                  <label className="text-[12px] font-bold text-slate-500 uppercase">Description</label>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <label className="text-[12px] font-bold text-slate-500 uppercase">Description</label>
+                    <div className="group relative">
+                      <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                      <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                        <div className="flex items-start gap-3">
+                          <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                            <HelpCircle className="h-4 w-4 text-yellow-700" />
+                          </div>
+                          <span className="font-bold text-[15px] leading-tight text-slate-900 normal-case">
+                            Add a detailed explanation of what the activity involves.
+                          </span>
+                        </div>
+                        <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                      </div>
+                    </div>
+                  </div>
                   <textarea
                     className="flex min-h-[40px] w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
                     value={formData.description}
@@ -3621,7 +4322,23 @@ export default function AssignedActivities() {
 
                 <div className="grid gap-2.5 md:grid-cols-2">
                   <div className="space-y-0.5">
-                    <label className="text-[12px] font-bold text-slate-500 uppercase">Link</label>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label className="text-[12px] font-bold text-slate-500 uppercase">Link</label>
+                      <div className="group relative">
+                        <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                        <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                          <div className="flex items-start gap-3">
+                            <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                              <HelpCircle className="h-4 w-4 text-yellow-700" />
+                            </div>
+                            <span className="font-bold text-[15px] leading-tight text-slate-900 normal-case">
+                              Include a URL for external resources, videos, or references.
+                            </span>
+                          </div>
+                          <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                        </div>
+                      </div>
+                    </div>
                     <Input
                       className="h-8 text-sm"
                       value={formData.link}
@@ -3630,7 +4347,23 @@ export default function AssignedActivities() {
                     />
                   </div>
                   <div className="space-y-0.5">
-                    <label className="text-[12px] font-bold text-slate-500 uppercase">Image</label>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label className="text-[12px] font-bold text-slate-500 uppercase">Image</label>
+                      <div className="group relative">
+                        <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                        <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                          <div className="flex items-start gap-3">
+                            <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                              <HelpCircle className="h-4 w-4 text-yellow-700" />
+                            </div>
+                            <span className="font-bold text-[15px] leading-tight text-slate-900 normal-case">
+                              Upload an image to represent the activity visually.
+                            </span>
+                          </div>
+                          <div className="absolute left-3 sm:left-auto sm:right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                        </div>
+                      </div>
+                    </div>
                     <div className="flex items-center gap-2">
                       <input
                         type="file"
@@ -3676,7 +4409,23 @@ export default function AssignedActivities() {
                 {/* Steps Section */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <label className="text-[12px] font-bold text-slate-500 uppercase">Steps</label>
+                    <div className="flex items-center gap-1.5">
+                      <label className="text-[12px] font-bold text-slate-500 uppercase">Steps</label>
+                      <div className="group relative">
+                        <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                        <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                          <div className="flex items-start gap-3">
+                            <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                              <HelpCircle className="h-4 w-4 text-yellow-700" />
+                            </div>
+                            <span className="font-bold text-[15px] leading-tight text-slate-900 normal-case">
+                              Break down the activity into manageable steps with optional images.
+                            </span>
+                          </div>
+                          <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                        </div>
+                      </div>
+                    </div>
                     <Button type="button" variant="ghost" size="xs" onClick={handleAddStep} className="h-6 text-[11px] px-1.5">
                       <Plus className="mr-1 h-2.5 w-2.5" /> Add Step
                     </Button>
@@ -3740,9 +4489,82 @@ export default function AssignedActivities() {
                   </div>
                 </div>
                 
-                <div className="grid gap-2.5 md:grid-cols-3">
+                <div className="grid gap-2.5 md:grid-cols-2">
                   <div className="space-y-0.5">
-                    <label className="text-[12px] font-bold text-slate-500 uppercase">Repeat</label>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label className="text-[12px] font-bold text-slate-500 uppercase">Due Date</label>
+                      <div className="group relative">
+                        <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                        <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                          <div className="flex items-start gap-3">
+                            <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                              <HelpCircle className="h-4 w-4 text-yellow-700" />
+                            </div>
+                            <span className="font-bold text-[15px] leading-tight text-slate-900 normal-case">
+                              Activities start appearing on your child's dashboard from this date. If not finished, the activity will automatically roll over to the next day.
+                            </span>
+                          </div>
+                          <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                        </div>
+                      </div>
+                    </div>
+                    <Input
+                      className="h-8 text-sm"
+                      type="date"
+                      value={formData.dueDate}
+                      onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label className="text-[12px] font-bold text-slate-500 uppercase">Time</label>
+                      <div className="group relative">
+                        <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                        <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                          <div className="flex items-start gap-3">
+                            <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                              <HelpCircle className="h-4 w-4 text-yellow-700" />
+                            </div>
+                            <span className="font-bold text-[15px] leading-tight text-slate-900 normal-case">
+                              The general time of day for this activity.
+                            </span>
+                          </div>
+                          <div className="absolute left-3 sm:left-auto sm:right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                        </div>
+                      </div>
+                    </div>
+                    <select
+                      className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
+                      value={formData.timeOfDay}
+                      onChange={(e) => setFormData({ ...formData, timeOfDay: e.target.value })}
+                    >
+                      <option value="Any time">Any time</option>
+                      <option value="Morning">Morning</option>
+                      <option value="Afternoon">Afternoon</option>
+                      <option value="Evening">Evening</option>
+                      <option value="Night">Night</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label className="text-[12px] font-bold text-slate-500 uppercase">Repeat</label>
+                      <div className="group relative">
+                        <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                        <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                          <div className="flex items-start gap-3">
+                            <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                              <HelpCircle className="h-4 w-4 text-yellow-700" />
+                            </div>
+                            <span className="font-bold text-[15px] leading-tight text-slate-900 normal-case">
+                              Set how often this activity should recur.
+                            </span>
+                          </div>
+                          <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                        </div>
+                      </div>
+                    </div>
                     <select
                       className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
                       value={formData.repeatFrequency}
@@ -3765,10 +4587,53 @@ export default function AssignedActivities() {
                     </select>
                   </div>
 
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label className="text-[12px] font-bold text-slate-500 uppercase">Repeats till</label>
+                      <div className="group relative">
+                        <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                        <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                          <div className="flex items-start gap-3">
+                            <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                              <HelpCircle className="h-4 w-4 text-yellow-700" />
+                            </div>
+                            <span className="font-bold text-[15px] leading-tight text-slate-900 normal-case">
+                              The final date for the recurring schedule.
+                            </span>
+                          </div>
+                          <div className="absolute left-3 sm:left-auto sm:right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                        </div>
+                      </div>
+                    </div>
+                    <Input
+                      type="date"
+                      className="h-8 text-sm"
+                      value={formData.repeatsTill}
+                      onChange={(e) => setFormData({ ...formData, repeatsTill: e.target.value })}
+                      disabled={formData.repeatFrequency === 'Never'}
+                    />
+                  </div>
+
                   {formData.repeatFrequency === 'Custom' && (
-                    <>
+                    <div className="col-span-full grid gap-2.5 md:grid-cols-2 mt-1 p-2 bg-slate-50 rounded-lg border border-slate-200">
                       <div className="space-y-0.5">
-                        <label className="text-[12px] font-bold text-slate-500 uppercase">Every</label>
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <label className="text-[12px] font-bold text-slate-500 uppercase">Every</label>
+                          <div className="group relative">
+                            <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                            <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                              <div className="flex items-start gap-3">
+                                <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                                  <HelpCircle className="h-4 w-4 text-yellow-700" />
+                                </div>
+                                <span className="font-bold text-[15px] leading-tight text-slate-900 normal-case">
+                                  Set the interval for the custom recurring frequency (e.g., every 2 units).
+                                </span>
+                              </div>
+                              <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                            </div>
+                          </div>
+                        </div>
                         <input
                           type="number"
                           min="1"
@@ -3778,7 +4643,23 @@ export default function AssignedActivities() {
                         />
                       </div>
                       <div className="space-y-0.5">
-                        <label className="text-[12px] font-bold text-slate-500 uppercase">Unit</label>
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <label className="text-[12px] font-bold text-slate-500 uppercase">Unit</label>
+                          <div className="group relative">
+                            <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                            <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                              <div className="flex items-start gap-3">
+                                <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                                  <HelpCircle className="h-4 w-4 text-yellow-700" />
+                                </div>
+                                <span className="font-bold text-[15px] leading-tight text-slate-900 normal-case">
+                                  Select the unit of time for your custom recurring frequency (Days, Weeks, Months, or Years).
+                                </span>
+                              </div>
+                              <div className="absolute left-3 sm:left-auto sm:right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                            </div>
+                          </div>
+                        </div>
                         <select
                           className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
                           value={formData.repeatUnit}
@@ -3790,43 +4671,8 @@ export default function AssignedActivities() {
                           <option value="year">Year(s)</option>
                         </select>
                       </div>
-                    </>
+                    </div>
                   )}
-                  <div className="space-y-0.5">
-                    <label className="text-[12px] font-bold text-slate-500 uppercase">Repeats till</label>
-                    <Input
-                      type="date"
-                      className="h-8 text-sm"
-                      value={formData.repeatsTill}
-                      onChange={(e) => setFormData({ ...formData, repeatsTill: e.target.value })}
-                      disabled={formData.repeatFrequency === 'Never'}
-                    />
-                  </div>
-
-                  <div className="space-y-0.5">
-                    <label className="text-[12px] font-bold text-slate-500 uppercase">Time</label>
-                    <select
-                      className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
-                      value={formData.timeOfDay}
-                      onChange={(e) => setFormData({ ...formData, timeOfDay: e.target.value })}
-                    >
-                      <option value="Any time">Any time</option>
-                      <option value="Morning">Morning</option>
-                      <option value="Afternoon">Afternoon</option>
-                      <option value="Evening">Evening</option>
-                      <option value="Night">Night</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-0.5">
-                    <label className="text-[12px] font-bold text-slate-500 uppercase">Due Date</label>
-                    <Input
-                      className="h-8 text-sm"
-                      type="date"
-                      value={formData.dueDate}
-                      onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                    />
-                  </div>
                 </div>
 
                 <div className="flex justify-end items-center pt-1">
@@ -3860,105 +4706,6 @@ export default function AssignedActivities() {
         />
       )}
 
-      {/* Reward Item Modal */}
-      {isRewardModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <CardTitle>{editingReward ? 'Edit Reward Item' : 'Add Reward Item'}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSaveReward} className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Item Name</label>
-                  <Input
-                    placeholder="e.g., 15 mins Screen Time, Extra Dessert"
-                    value={newReward.name}
-                    onChange={(e) => setNewReward({ ...newReward, name: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Cost ({formatReward(kid?.reward_type, 2)})</label>
-                  <Input
-                    type="number"
-                    min="1"
-                    value={newReward.cost}
-                    onChange={(e) => setNewReward({ ...newReward, cost: parseInt(e.target.value) || 1 })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Image URL (Optional)</label>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="https://example.com/image.jpg"
-                      value={newReward.imageUrl}
-                      onChange={(e) => setNewReward({ ...newReward, imageUrl: e.target.value })}
-                    />
-                    <label className="cursor-pointer bg-slate-100 px-3 py-2 rounded-md text-sm font-medium hover:bg-slate-200">
-                      Upload
-                      <input
-                        type="file"
-                        className="hidden"
-                        accept="image/*"
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          const formData = new FormData();
-                          formData.append('image', file);
-                          try {
-                            const response = await fetch('/api/upload', {
-                              method: 'POST',
-                              body: formData,
-                            });
-                            const data = await response.json();
-                            if (data.imageUrl) {
-                              setNewReward({ ...newReward, imageUrl: data.imageUrl });
-                            }
-                          } catch (error) {
-                            console.error('Upload failed', error);
-                          }
-                        }}
-                      />
-                    </label>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Available At (Optional)</label>
-                  <select
-                    className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={newReward.location}
-                    onChange={(e) => setNewReward({ ...newReward, location: e.target.value })}
-                  >
-                    <option value="">Select a place...</option>
-                    <option value="House">House</option>
-                    <option value="Restaurant">Restaurant</option>
-                    <option value="Park">Park</option>
-                    <option value="Car">Car</option>
-                    <option value="Party">Party</option>
-                    <option value="Friend’s / relative’s house">Friend’s / relative’s house</option>
-                    <option value="Store / Mall">Store / Mall</option>
-                    <option value="Any place">Any place</option>
-                  </select>
-                </div>
-                <div className="flex justify-end gap-3 pt-4">
-                  <Button type="button" variant="outline" onClick={() => {
-                    setIsRewardModalOpen(false);
-                    setEditingReward(null);
-                    setNewReward({ name: '', cost: 1, imageUrl: '', location: '' });
-                  }}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={isSavingReward}>
-                    {isSavingReward ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (editingReward ? 'Save Changes' : 'Save Reward')}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
-      )}
       {/* History Delete Confirmation Modal */}
       {isHistoryDeleteConfirmOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">

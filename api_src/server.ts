@@ -17,8 +17,41 @@ import { fileURLToPath } from 'url';
 
 dotenv.config();
 
+// Utility for zoned time
+function getZonedTime(timezone?: string, date: Date = new Date()) {
+  const tz = timezone || 'UTC';
+  try {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+
+    const parts = formatter.formatToParts(date);
+    const getPart = (type: string) => parts.find(p => p.type === type)?.value || '0';
+
+    return {
+      isoDate: `${getPart('year')}-${getPart('month')}-${getPart('day')}`,
+      isoDateTime: `${getPart('year')}-${getPart('month')}-${getPart('day')}T${getPart('hour')}:${getPart('minute')}:${getPart('second')}`,
+    };
+  } catch (e) {
+    console.error('Error in getZonedTime:', e);
+    // Fallback
+    return {
+      isoDate: date.toISOString().split('T')[0],
+      isoDateTime: date.toISOString().split('.')[0],
+    };
+  }
+}
+
 // Dual compatibility for ESM and CJS
-const currentDirname = process.cwd();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const currentDirname = __dirname;
 
 const app = express();
 export default app;
@@ -156,7 +189,7 @@ const getSupabaseForUser = (req: any) => {
 };
 
 // Ensure uploads directory exists
-const rootDir = currentDirname.endsWith('dist') ? path.dirname(currentDirname) : currentDirname;
+const rootDir = __dirname.endsWith('dist') ? path.dirname(__dirname) : __dirname;
 const uploadDir = path.join(rootDir, 'uploads');
 
 if (!fs.existsSync(uploadDir)) {
@@ -853,12 +886,17 @@ app.post('/api/kids/:id/chat-history', authenticateToken, async (req: any, res) 
   try {
     console.log(`[POST chat-history] Kid ID: ${id}, Role: ${role}, Message length: ${message?.length}`);
     
+    // Fetch kid's timezone
+    const { data: kid } = await adminSupabase.from('kids').select('timezone').eq('id', id).single();
+    const tz = kid?.timezone || 'UTC';
+    const zoned = getZonedTime(tz);
+
     const messageData: any = {
       id: uuidv4(),
       kid_id: id,
       role,
       message,
-      created_at: new Date().toISOString()
+      created_at: zoned.isoDateTime
     };
     
     const adminSupabase = getAdminSupabaseClient();
@@ -944,6 +982,11 @@ app.post('/api/quiz-results', authenticateToken, async (req: any, res) => {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
+  // Fetch kid's timezone
+  const { data: kid } = await supabase.from('kids').select('timezone').eq('id', kidId).single();
+  const tz = kid?.timezone || 'UTC';
+  const zoned = getZonedTime(tz);
+
   const { data, error } = await supabase
     .from('quiz_results')
     .insert([{ 
@@ -953,7 +996,7 @@ app.post('/api/quiz-results', authenticateToken, async (req: any, res) => {
         score, 
         total_questions: totalQuestions,
         questions: req.body.questions,
-        completed_at: new Date().toISOString()
+        completed_at: zoned.isoDateTime
     }]);
 
   if (error) {
@@ -1688,11 +1731,17 @@ app.put('/api/kids/:id', authenticateToken, async (req: any, res) => {
     }
     if (rewardBalance !== undefined) {
       const parsedBal = parseInt(rewardBalance, 10);
-      const oldBalance = kid.reward_balance || 0;
+      const oldBalance = parseInt(kid.reward_balance, 10) || 0;
       updates.reward_balance = !isNaN(parsedBal) ? parsedBal : 0;
       
       // If balance increased, log as a manual reward in history
+      console.log('[DEBUG] Checking reward balance:', {
+        newBalance: updates.reward_balance,
+        oldBalance,
+        shouldLog: updates.reward_balance > oldBalance
+      });
       if (updates.reward_balance > oldBalance) {
+        console.log('[DEBUG] Reward balance increase detected, logging to history...');
         const amountEarned = updates.reward_balance - oldBalance;
         const currentRewardType = rewardType || kid.reward_type || 'point';
         const currentKidName = name || kid.name || 'Kid';
@@ -1704,14 +1753,25 @@ app.put('/api/kids/:id', authenticateToken, async (req: any, res) => {
           rewardDisplay += 's';
         }
 
-        await supabase.from('activity_history').insert({
+        // Get kid's timezone
+        const { data: kidData } = await supabase.from('kids').select('timezone').eq('id', id).single();
+        const tz = kidData?.timezone || 'UTC';
+        const zoned = getZonedTime(tz);
+        
+        const adminSupabase = getAdminSupabaseClient();
+        const { error: insertError } = await adminSupabase.from('activity_history').insert({
           kid_id: id,
           activity_type: 'Parent Bonus',
           category: 'Reward',
           description: `Parent gave the ${rewardDisplay} to ${currentKidName}.`,
           reward_qty: amountEarned,
-          completed_at: new Date().toISOString()
+          completed_at: zoned.isoDateTime
         });
+        if (insertError) {
+            console.error('Failed to insert into activity_history: error:', JSON.stringify(insertError, null, 2));
+        } else {
+            console.log('Successfully inserted into activity_history');
+        }
       }
     }
     if (maxIncompleteLimit !== undefined) {
@@ -1913,13 +1973,16 @@ app.post('/api/kids/:kidId/behavior-definitions', authenticateToken, async (req:
   try {
     const { data: kidCheck, error: checkError } = await supabase
       .from('kids')
-      .select('id')
+      .select('id, timezone')
       .eq('id', kidId)
       .maybeSingle();
 
     if (checkError || !kidCheck) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
+
+    const tz = kidCheck.timezone || 'UTC';
+    const zoned = getZonedTime(tz);
 
     const payload: any = { 
       kid_id: kidId, 
@@ -1930,7 +1993,8 @@ app.post('/api/kids/:kidId/behavior-definitions', authenticateToken, async (req:
       target_time: target_time || '00:00:00',
       target_seconds: parseInt(req.body.target_seconds) || 0,
       goal: goal !== undefined ? parseInt(goal) : 0,
-      is_active: is_active !== undefined ? is_active : true
+      is_active: is_active !== undefined ? is_active : true,
+      created_at: zoned.isoDateTime
     };
 
     const { data: definition, error } = await adminSupabase
@@ -2218,19 +2282,23 @@ const recordBehaviorLog = async (adminSupabase: any, kidId: string, definition_i
   }
 
   let finalDate = date;
-  if (!finalDate) {
-    try {
-      const { data: kid } = await adminSupabase.from('kids').select('timezone').eq('id', kidId).single();
-      const tz = kid?.timezone || 'UTC';
-      finalDate = new Intl.DateTimeFormat('en-CA', { 
-        timeZone: tz, 
-        year: 'numeric', 
-        month: '2-digit', 
-        day: '2-digit' 
-      }).format(new Date());
-    } catch (e) {
+  let finalCreatedAt = null;
+
+  try {
+    const { data: kid } = await adminSupabase.from('kids').select('timezone').eq('id', kidId).single();
+    const tz = kid?.timezone || 'UTC';
+    const zoned = getZonedTime(tz);
+    
+    if (!finalDate) {
+      finalDate = zoned.isoDate;
+    }
+    finalCreatedAt = zoned.isoDateTime;
+  } catch (e) {
+    console.error('[recordBehaviorLog] Error in timezone lookup:', e);
+    if (!finalDate) {
       finalDate = new Date().toISOString().split('T')[0];
     }
+    finalCreatedAt = new Date().toISOString().split('.')[0];
   }
 
   const logEntry: any = {
@@ -2240,6 +2308,9 @@ const recordBehaviorLog = async (adminSupabase: any, kidId: string, definition_i
     date: finalDate,
     rewards_earned: rewards
   };
+  if (finalCreatedAt) {
+    logEntry.created_at = finalCreatedAt;
+  }
   
   console.log('[recordBehaviorLog] Attempting insert into behavior_logs:', JSON.stringify(logEntry));
   
@@ -2266,13 +2337,17 @@ const recordBehaviorLog = async (adminSupabase: any, kidId: string, definition_i
 
 // Update behavior tracker and handle goals
 const updateTrackerAndCheckGoal = async (adminSupabase: any, io: any, kidId: string, definition_id: string, incrementalPoints: number, remarks: string, providedDate?: string) => {
-    // 0. Fetch definition for logic
+    // 0. Fetch definition and kid timezone
     const { data: bDef, error: defError } = await adminSupabase
         .from('behavior_definitions')
         .select('goal, goal_rewards, name')
         .eq('id', definition_id)
         .maybeSingle();
     if (defError) throw defError;
+
+    const { data: kidInfo } = await adminSupabase.from('kids').select('timezone').eq('id', kidId).single();
+    const tz = kidInfo?.timezone || 'UTC';
+    const zoned = getZonedTime(tz);
 
     // 1. Try to find if record exists
     const { data: existing, error: findError } = await adminSupabase
@@ -2299,7 +2374,7 @@ const updateTrackerAndCheckGoal = async (adminSupabase: any, io: any, kidId: str
             .update({
                 points: goalReached ? 0 : newPoints,
                 remarks: remarks || '',
-                last_checked_time: new Date().toISOString()
+                last_checked_time: zoned.isoDateTime
             })
             .eq('id', existing.id)
             .select()
@@ -2315,7 +2390,7 @@ const updateTrackerAndCheckGoal = async (adminSupabase: any, io: any, kidId: str
                 definition_id,
                 points: goalReached ? 0 : newPoints,
                 remarks: remarks || '',
-                last_checked_time: new Date().toISOString()
+                last_checked_time: zoned.isoDateTime
             })
             .select()
             .maybeSingle();
@@ -3148,7 +3223,7 @@ app.put('/api/kids/:kidId/confirm-reward', authenticateToken, async (req: any, r
     try {
         const { data: kid, error: kidErr } = await adminSupabase
             .from('kids')
-            .select('notes, reward_balance')
+            .select('notes, reward_balance, name, timezone')
             .eq('id', kidId)
             .single();
         if (kidErr || !kid) throw kidErr || new Error('Kid not found');
@@ -3183,6 +3258,19 @@ app.put('/api/kids/:kidId/confirm-reward', authenticateToken, async (req: any, r
             await adminSupabase.rpc('increment_reward_balance', {
                 kid_id_param: kidId,
                 amount: totalPendingAmount
+            });
+            
+            // Log history
+            const tz = kid.timezone || 'UTC';
+            const zoned = getZonedTime(tz);
+            
+            await adminSupabase.from('activity_history').insert({
+              kid_id: kidId,
+              activity_type: 'Parent Bonus',
+              category: 'Reward',
+              description: `Parent gave the rewards to ${kid.name || 'Kid'}.`,
+              reward_qty: totalPendingAmount,
+              completed_at: zoned.isoDateTime
             });
         }
         
@@ -3461,6 +3549,11 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
         .select('description, image_url')
         .eq('activity_id', id);
 
+      // Fetch kid's timezone to get wall-clock time
+      const { data: kid } = await supabase.from('kids').select('timezone').eq('id', activity.kid_id).single();
+      const tz = kid?.timezone || 'UTC';
+      const zoned = getZonedTime(tz);
+      
       const { data: historyRecord, error: historyError } = await supabase
         .from('activity_history')
         .insert({
@@ -3472,7 +3565,7 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
           link: link,
           image_url: imageUrl,
           due_date: dueDate,
-          completed_at: new Date().toISOString(),
+          completed_at: zoned.isoDateTime,
           reward_qty: rewardQty
         })
         .select('*')
@@ -3741,13 +3834,22 @@ app.put('/api/social-stories/:id', authenticateToken, async (req: any, res) => {
 
     if (checkError || !story || story.user_id !== userId) return res.status(403).json({ error: 'Forbidden' });
 
+    // Fetch kid timezone if kidId is present
+    let zonedTime = new Date().toISOString();
+    if (kidId) {
+      const { data: kid } = await supabase.from('kids').select('timezone').eq('id', kidId).single();
+      if (kid) {
+        zonedTime = getZonedTime(kid.timezone).isoDateTime;
+      }
+    }
+
     const { error } = await supabase
       .from('social_stories')
       .update({
         title,
         content: typeof content === 'string' ? content : JSON.stringify(content),
         kid_id: kidId || null,
-        updated_at: new Date().toISOString()
+        updated_at: zonedTime
       })
       .eq('id', id);
 
@@ -3823,7 +3925,7 @@ app.get('/api/kids/:kidId/reward-items', authenticateToken, async (req: any, res
 app.post('/api/kids/:kidId/reward-items', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
   const { kidId } = req.params;
-  const { name, cost, imageUrl, location } = req.body;
+  const { name, cost, imageUrl, location, is_active } = req.body;
   const userId = req.user.id;
 
   if (!name || !cost) return res.status(400).json({ error: 'Name and cost are required' });
@@ -3848,7 +3950,8 @@ app.post('/api/kids/:kidId/reward-items', authenticateToken, async (req: any, re
           name,
           cost,
           image_url: imageUrl || null,
-          location: location || null
+          location: location || null,
+          is_active: typeof is_active === 'boolean' ? is_active : true
         }
       ]);
 
@@ -3868,7 +3971,7 @@ app.post('/api/kids/:kidId/reward-items', authenticateToken, async (req: any, re
 app.put('/api/reward-items/:id', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
   const { id } = req.params;
-  const { name, cost, imageUrl, location } = req.body;
+  const { name, cost, imageUrl, location, is_active } = req.body;
   const userId = req.user.id;
 
   if (!name || !cost) return res.status(400).json({ error: 'Name and cost are required' });
@@ -3890,7 +3993,8 @@ app.put('/api/reward-items/:id', authenticateToken, async (req: any, res) => {
         name,
         cost,
         image_url: imageUrl || null,
-        location: location || null
+        location: location || null,
+        is_active: typeof is_active === 'boolean' ? is_active : true
       })
       .eq('id', id);
 
@@ -3951,7 +4055,7 @@ app.post('/api/kids/:id/buy', authenticateToken, async (req: any, res) => {
   try {
     const { data: kid, error: kidError } = await supabase
       .from('kids')
-      .select('reward_balance')
+      .select('reward_balance, timezone')
       .eq('id', id)
       .single();
 
@@ -3970,13 +4074,15 @@ app.post('/api/kids/:id/buy', authenticateToken, async (req: any, res) => {
 
     // Log purchase
     if (itemName) {
+      const tz = kid.timezone || 'UTC';
+      const zoned = getZonedTime(tz);
       const { error: purchaseError } = await supabase
         .from('reward_purchases')
         .insert({
           kid_id: id,
           item_name: itemName,
           cost: quantity,
-          purchased_at: new Date().toISOString()
+          purchased_at: zoned.isoDateTime
         });
       
       if (purchaseError) {

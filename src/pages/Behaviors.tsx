@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { apiFetch, safeJson } from '../utils/api';
+import { getZonedTime, formatInTimezone } from '../utils/dateUtils';
 import { isAuthError } from '../utils/auth';
 import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
@@ -63,6 +64,7 @@ interface Kid {
   name: string;
   reward_balance: number;
   reward_type: string;
+  timezone?: string;
 }
 
 export default function Behaviors() {
@@ -144,11 +146,12 @@ export default function Behaviors() {
           setKid(kData.kid);
         }
 
-        setNewBehavior({
-          definition_id: '',
-          description: '',
-          date: new Date().toLocaleDateString('sv-SE')
-        });
+      const zoned = getZonedTime(kid?.timezone);
+      setNewBehavior({
+        definition_id: '',
+        description: '',
+        date: zoned.isoDate
+      });
       }
     } catch (err) {
       console.error('Error adding behavior:', err);
@@ -202,16 +205,19 @@ export default function Behaviors() {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
 
-  const [newBehavior, setNewBehavior] = useState({
-    definition_id: '',
-    description: '',
-    date: new Date().toLocaleDateString('sv-SE')
+  const [newBehavior, setNewBehavior] = useState(() => {
+    const zoned = getZonedTime();
+    return {
+      definition_id: '',
+      description: '',
+      date: zoned.isoDate
+    };
   });
 
   const renderCalendar = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth();
+    const zoned = getZonedTime(kid?.timezone);
+    const year = zoned.year;
+    const month = zoned.month - 1;
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     

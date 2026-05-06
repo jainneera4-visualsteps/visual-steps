@@ -58,6 +58,9 @@ export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit, ret
     token = session?.access_token;
   } catch (err) {
     console.error('Error getting session in apiFetch:', err);
+    if (isAuthError(err)) {
+      await clearAuthSession();
+    }
   }
   
   if (!token) {

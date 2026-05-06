@@ -34,12 +34,18 @@ export const clearAuthSession = async () => {
   try {
     sessionStorage.clear();
   } catch (e) {}
+
+  // 4. Force a reload if we are not on the login/landing page
+  if (window.location.pathname !== '/' && window.location.pathname !== '/signup') {
+    window.location.href = '/';
+  }
 };
 
 export const isAuthError = (error: any): boolean => {
   if (!error) return false;
-  const message = typeof error === 'string' ? error : (error.message || '');
-  return (
+  const message = typeof error === 'string' ? error : (error.message || error.error_description || error.error || '');
+  
+  const isAuthErr = (
     message.includes('Refresh Token Not Found') || 
     message.includes('Invalid Refresh Token') ||
     message.includes('JWT expired') ||
@@ -47,6 +53,15 @@ export const isAuthError = (error: any): boolean => {
     message.includes('Invalid Session') ||
     message.includes('Supabase Project Mismatch') ||
     message.includes('Unauthorized') ||
-    message.includes('Forbidden')
+    message.includes('Forbidden') ||
+    message.includes('User not found') ||
+    message.includes('session_not_found') ||
+    message.includes('refresh_token_not_found')
   );
+
+  if (isAuthErr) {
+    console.error('Detected Auth Error:', message);
+  }
+  
+  return isAuthErr;
 };

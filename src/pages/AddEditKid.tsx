@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import { AlertCircle, ArrowLeft, History } from 'lucide-react';
+import { AlertCircle, ArrowLeft, HelpCircle } from 'lucide-react';
 
 export default function AddEditKid() {
   const { id } = useParams();
@@ -30,7 +30,6 @@ export default function AddEditKid() {
     maxIncompleteLimit: '',
     rewardType: 'Penny',
     rewardQuantity: '1',
-    rules: '',
     theme: 'sky',
     canPrint: false,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -64,7 +63,6 @@ export default function AddEditKid() {
             maxIncompleteLimit: kid.max_incomplete_limit || '',
             rewardType: kid.reward_type || 'Penny',
             rewardQuantity: kid.reward_quantity?.toString() || '1',
-            rules: kid.rules || '',
             theme: kid.theme || 'sky',
             canPrint: kid.can_print || false,
             timezone: kid.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -111,7 +109,6 @@ export default function AddEditKid() {
         max_incomplete_limit: formData.maxIncompleteLimit,
         reward_type: formData.rewardType,
         reward_quantity: parseInt(formData.rewardQuantity),
-        rules: formData.rules,
         theme: formData.theme,
         can_print: formData.canPrint,
         timezone: formData.timezone,
@@ -161,11 +158,11 @@ export default function AddEditKid() {
         </h1>
       </div>
 
-      <Card className="border-blue-200 bg-blue-50/50 shadow-sm">
+      <Card className="border-blue-200 bg-blue-50/50 shadow-sm !overflow-visible">
         <CardHeader className="flex flex-row items-center justify-between py-2 px-4 space-y-0">
           <CardTitle className="text-base font-bold">{isEditing ? 'Edit Profile Details' : 'Profile Details'}</CardTitle>
         </CardHeader>
-        <CardContent className="px-4 pb-3">
+        <CardContent className="px-4 pb-3 !overflow-visible">
           <form onSubmit={handleSubmit} className="space-y-2.5">
             {error && (
               <div className="flex items-center gap-2 rounded bg-red-50 p-1.5 text-[12px] text-red-600">
@@ -174,8 +171,27 @@ export default function AddEditKid() {
               </div>
             )}
 
-            <div className="space-y-0.5">
-              <label className="text-[12px] font-bold text-slate-500 uppercase">Avatar</label>
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5">
+                <label className="text-[12px] font-bold text-slate-500 uppercase">Avatar</label>
+                <div className="group relative">
+                  <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                  <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                    <div className="flex items-start gap-3">
+                      <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                        <HelpCircle className="h-4 w-4 text-bold text-yellow-700" />
+                      </div>
+                      <span className="font-bold text-[15px] leading-tight text-slate-900">
+                        Personalize your child's profile by choosing an avatar they love or uploading a custom photo.
+                      </span>
+                    </div>
+                    <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                  </div>
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-500 font-medium leading-tight mb-1">
+                Personalize your child's profile by choosing an avatar they love or uploading a custom photo.
+              </p>
               <div className="flex items-center gap-2">
                 {formData.avatar && (
                   <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-full border border-blue-100">
@@ -241,7 +257,23 @@ export default function AddEditKid() {
                 />
               </div>
               <div className="space-y-0.5">
-                <label className="text-[12px] font-bold text-slate-500 uppercase">Grade Level</label>
+                <div className="flex items-center gap-1.5">
+                  <label className="text-[12px] font-bold text-slate-500 uppercase">Grade Level</label>
+                  <div className="group relative">
+                    <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                    <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                      <div className="flex items-start gap-3">
+                        <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                          <HelpCircle className="h-4 w-4 text-yellow-700" />
+                        </div>
+                        <span className="font-bold text-[15px] leading-tight text-slate-900">
+                          Grade Level: Enter the academic level that matches your child's current learning progress, which might be different from their chronological age.
+                        </span>
+                      </div>
+                      <div className="absolute left-3 sm:left-auto sm:right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                    </div>
+                  </div>
+                </div>
                 <Input
                   name="gradeLevel"
                   placeholder="e.g., Grade 3"
@@ -252,7 +284,23 @@ export default function AddEditKid() {
                 />
               </div>
               <div className="space-y-0.5">
-                <label className="text-[12px] font-bold text-slate-500 uppercase">Kid Code</label>
+                <div className="flex items-center gap-1.5">
+                  <label className="text-[12px] font-bold text-slate-500 uppercase">Kid Code</label>
+                  <div className="group relative">
+                    <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                    <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                      <div className="flex items-start gap-3">
+                        <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                          <HelpCircle className="h-4 w-4 text-yellow-700" />
+                        </div>
+                        <span className="font-bold text-[15px] leading-tight text-slate-900">
+                          Kid Code: A secure code for your child to log in to their personal dashboard.
+                        </span>
+                      </div>
+                      <div className="absolute left-3 sm:left-auto sm:right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                    </div>
+                  </div>
+                </div>
                 <Input
                   name="kidCode"
                   placeholder="e.g., 123456"
@@ -266,7 +314,23 @@ export default function AddEditKid() {
 
             <div className="grid gap-2.5 grid-cols-1 sm:grid-cols-2 md:grid-cols-4">
               <div className="space-y-0.5">
-                <label className="text-[12px] font-bold text-slate-500 uppercase">Start Time</label>
+                <div className="flex items-center gap-1.5">
+                  <label className="text-[12px] font-bold text-slate-500 uppercase">Start Time</label>
+                  <div className="group relative">
+                    <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                    <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                      <div className="flex items-start gap-3">
+                        <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                          <HelpCircle className="h-4 w-4 text-yellow-700" />
+                        </div>
+                        <span className="font-bold text-[15px] leading-tight text-slate-900">
+                          Start Time: Define when your child's daily schedule and activity availability begins.
+                        </span>
+                      </div>
+                      <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                    </div>
+                  </div>
+                </div>
                 <Input
                   name="startTime"
                   type="time"
@@ -277,7 +341,23 @@ export default function AddEditKid() {
                 />
               </div>
               <div className="space-y-0.5">
-                <label className="text-[12px] font-bold text-slate-500 uppercase">End Time</label>
+                <div className="flex items-center gap-1.5">
+                  <label className="text-[12px] font-bold text-slate-500 uppercase">End Time</label>
+                  <div className="group relative">
+                    <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                    <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                      <div className="flex items-start gap-3">
+                        <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                          <HelpCircle className="h-4 w-4 text-yellow-700" />
+                        </div>
+                        <span className="font-bold text-[15px] leading-tight text-slate-900">
+                          End Time: Define when your child's daily schedule concludes and activities are deactivated.
+                        </span>
+                      </div>
+                      <div className="absolute left-3 sm:left-auto sm:right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                    </div>
+                  </div>
+                </div>
                 <Input
                   name="endTime"
                   type="time"
@@ -288,7 +368,23 @@ export default function AddEditKid() {
                 />
               </div>
               <div className="space-y-0.5">
-                <label className="text-[12px] font-bold text-slate-500 uppercase">Max Activities</label>
+                <div className="flex items-center gap-1.5">
+                  <label className="text-[12px] font-bold text-slate-500 uppercase">Max Activities</label>
+                  <div className="group relative">
+                    <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                    <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                      <div className="flex items-start gap-3">
+                        <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                          <HelpCircle className="h-4 w-4 text-yellow-700" />
+                        </div>
+                        <span className="font-bold text-[15px] leading-tight text-slate-900">
+                          Max Activities: Limit how many activities your child sees at once to prevent them from feeling overwhelmed. As they complete these, more assigned activities will automatically appear.
+                        </span>
+                      </div>
+                      <div className="absolute left-3 sm:left-auto sm:right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                    </div>
+                  </div>
+                </div>
                 <Input
                   name="maxIncompleteLimit"
                   type="number"
@@ -300,7 +396,23 @@ export default function AddEditKid() {
                 />
               </div>
               <div className="space-y-0.5">
-                <label className="text-[12px] font-bold text-slate-500 uppercase">Reward Qty</label>
+                <div className="flex items-center gap-1.5">
+                  <label className="text-[12px] font-bold text-slate-500 uppercase">Reward Qty</label>
+                  <div className="group relative">
+                    <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                    <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                      <div className="flex items-start gap-3">
+                        <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                          <HelpCircle className="h-4 w-4 text-yellow-700" />
+                        </div>
+                        <span className="font-bold text-[15px] leading-tight text-slate-900">
+                          Reward Quantity: Specify the number of rewards (e.g., points, stars) earned for each successfully completed activity.
+                        </span>
+                      </div>
+                      <div className="absolute left-3 sm:left-auto sm:right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                    </div>
+                  </div>
+                </div>
                 <Input
                   name="rewardQuantity"
                   type="number"
@@ -313,19 +425,24 @@ export default function AddEditKid() {
               </div>
             </div>
 
-            <div className="space-y-0.5 pt-1 border-t border-slate-200/60">
-              <label className="text-[12px] font-bold text-slate-500 uppercase">Rules / General Reminders</label>
-              <textarea
-                name="rules"
-                className="flex min-h-[50px] w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
-                placeholder="e.g., Be kind, Clean up after yourself..."
-                value={formData.rules}
-                onChange={handleChange}
-              />
-            </div>
-
             <div className="space-y-1 pt-1 border-t border-slate-200/60">
-              <label className="text-[12px] font-bold text-slate-500 uppercase">Reward Type</label>
+              <div className="flex items-center gap-1.5">
+                <label className="text-[12px] font-bold text-slate-500 uppercase">Reward Type</label>
+                <div className="group relative">
+                  <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                    <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                      <div className="flex items-start gap-3">
+                        <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                          <HelpCircle className="h-4 w-4 text-yellow-700" />
+                        </div>
+                        <span className="font-bold text-[15px] leading-tight text-slate-900">
+                          Reward Type: Choose the type of reward your child earns (e.g., Stars, Penny) for completing activities. This helps motivate them in a way they understand.
+                        </span>
+                      </div>
+                      <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                    </div>
+                </div>
+              </div>
               <div className="flex flex-wrap gap-1.5">
                 {[
                   { name: 'Penny', icon: 'https://cdn-icons-png.flaticon.com/512/2489/2489756.png' },
@@ -360,7 +477,23 @@ export default function AddEditKid() {
             </div>
 
             <div className="space-y-1.5 pt-1 border-t border-slate-200/60">
-              <h3 className="text-[12px] font-bold text-slate-500 uppercase">Dashboard Theme</h3>
+              <div className="flex items-center gap-1.5">
+                <h3 className="text-[12px] font-bold text-slate-500 uppercase">Dashboard Theme</h3>
+                <div className="group relative">
+                  <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                    <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                      <div className="flex items-start gap-3">
+                        <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                          <HelpCircle className="h-4 w-4 text-yellow-700" />
+                        </div>
+                        <span className="font-bold text-[15px] leading-tight text-slate-900">
+                          Dashboard Theme: Select a visual style that matches your child's interests to make their personal space engaging and fun.
+                        </span>
+                      </div>
+                      <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                    </div>
+                </div>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {[
                   { id: 'sky', name: 'Sky', color: 'bg-sky-400' },
@@ -401,7 +534,23 @@ export default function AddEditKid() {
               
               <div className="grid gap-2.5 md:grid-cols-2">
                 <div className="space-y-0.5">
-                  <label className="text-[12px] font-bold text-slate-500 uppercase">Therapies Needed</label>
+                  <div className="flex items-center gap-1.5">
+                    <label className="text-[12px] font-bold text-slate-500 uppercase">Therapies Needed</label>
+                    <div className="group relative">
+                      <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                    <div className="absolute left-0 sm:right-auto sm:left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                      <div className="flex items-start gap-3">
+                        <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                          <HelpCircle className="h-4 w-4 text-yellow-700" />
+                        </div>
+                        <span className="font-bold text-[15px] leading-tight text-slate-900">
+                          Therapies: Mention any formal therapies your child is receiving. This helps the AI recommend more relevant life-skills activities.
+                        </span>
+                      </div>
+                      <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                    </div>
+                    </div>
+                  </div>
                   <textarea
                     name="therapies"
                     className="flex min-h-[32px] w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
@@ -411,7 +560,23 @@ export default function AddEditKid() {
                   />
                 </div>
                 <div className="space-y-0.5">
-                  <label className="text-[12px] font-bold text-slate-500 uppercase">Hobbies</label>
+                  <div className="flex items-center gap-1.5">
+                    <label className="text-[12px] font-bold text-slate-500 uppercase">Hobbies</label>
+                    <div className="group relative">
+                      <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                    <div className="absolute right-0 sm:left-auto sm:right-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                      <div className="flex items-start gap-3">
+                        <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                          <HelpCircle className="h-4 w-4 text-yellow-700" />
+                        </div>
+                        <span className="font-bold text-[15px] leading-tight text-slate-900">
+                          Hobbies: Share what your child likes to do for fun. We use this to make learning activities more engaging and relatable.
+                        </span>
+                      </div>
+                      <div className="absolute right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                    </div>
+                    </div>
+                  </div>
                   <textarea
                     name="hobbies"
                     className="flex min-h-[32px] w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
@@ -421,7 +586,23 @@ export default function AddEditKid() {
                   />
                 </div>
                 <div className="space-y-0.5">
-                  <label className="text-[12px] font-bold text-slate-500 uppercase">Interests</label>
+                  <div className="flex items-center gap-1.5">
+                    <label className="text-[12px] font-bold text-slate-500 uppercase">Interests</label>
+                    <div className="group relative">
+                      <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                    <div className="absolute left-0 sm:right-auto sm:left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                      <div className="flex items-start gap-3">
+                        <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                          <HelpCircle className="h-4 w-4 text-yellow-700" />
+                        </div>
+                        <span className="font-bold text-[15px] leading-tight text-slate-900">
+                          Interests: What is your child passionate about? (e.g., Space, Animals) We use these themes for their educational content.
+                        </span>
+                      </div>
+                      <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                    </div>
+                    </div>
+                  </div>
                   <textarea
                     name="interests"
                     className="flex min-h-[32px] w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
@@ -431,7 +612,23 @@ export default function AddEditKid() {
                   />
                 </div>
                 <div className="space-y-0.5">
-                  <label className="text-[12px] font-bold text-slate-500 uppercase">Strengths</label>
+                  <div className="flex items-center gap-1.5">
+                    <label className="text-[12px] font-bold text-slate-500 uppercase">Strengths</label>
+                    <div className="group relative">
+                      <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                    <div className="absolute right-0 sm:left-auto sm:right-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                      <div className="flex items-start gap-3">
+                        <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                          <HelpCircle className="h-4 w-4 text-yellow-700" />
+                        </div>
+                        <span className="font-bold text-[15px] leading-tight text-slate-900">
+                          Strengths: What does your child do well? Highlighting strengths helps the system build confidence through positive reinforcement.
+                        </span>
+                      </div>
+                      <div className="absolute right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                    </div>
+                    </div>
+                  </div>
                   <textarea
                     name="strengths"
                     className="flex min-h-[32px] w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
@@ -441,7 +638,23 @@ export default function AddEditKid() {
                   />
                 </div>
                 <div className="space-y-0.5">
-                  <label className="text-[12px] font-bold text-slate-500 uppercase">Weaknesses</label>
+                  <div className="flex items-center gap-1.5">
+                    <label className="text-[12px] font-bold text-slate-500 uppercase">Weaknesses</label>
+                    <div className="group relative">
+                      <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                    <div className="absolute left-0 sm:right-auto sm:left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                      <div className="flex items-start gap-3">
+                        <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                          <HelpCircle className="h-4 w-4 text-yellow-700" />
+                        </div>
+                        <span className="font-bold text-[15px] leading-tight text-slate-900">
+                          Weaknesses: Identify areas where your child needs extra support. This helps the AI focus on specific skill-building exercises.
+                        </span>
+                      </div>
+                      <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                    </div>
+                    </div>
+                  </div>
                   <textarea
                     name="weaknesses"
                     className="flex min-h-[32px] w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
@@ -451,7 +664,23 @@ export default function AddEditKid() {
                   />
                 </div>
                 <div className="space-y-0.5">
-                  <label className="text-[12px] font-bold text-slate-500 uppercase">Sensory Issues</label>
+                  <div className="flex items-center gap-1.5">
+                    <label className="text-[12px] font-bold text-slate-500 uppercase">Sensory Issues</label>
+                    <div className="group relative">
+                      <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                    <div className="absolute right-0 sm:left-auto sm:right-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                      <div className="flex items-start gap-3">
+                        <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                          <HelpCircle className="h-4 w-4 text-yellow-700" />
+                        </div>
+                        <span className="font-bold text-[15px] leading-tight text-slate-900">
+                          Sensory Issues: Note any sensitivities (e.g., noise, light, textures) so we can suggest comfortable environments for learning.
+                        </span>
+                      </div>
+                      <div className="absolute right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                    </div>
+                    </div>
+                  </div>
                   <textarea
                     name="sensoryIssues"
                     className="flex min-h-[32px] w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
@@ -461,7 +690,23 @@ export default function AddEditKid() {
                   />
                 </div>
                 <div className="space-y-0.5">
-                  <label className="text-[12px] font-bold text-slate-500 uppercase">Behavioral Issues</label>
+                  <div className="flex items-center gap-1.5">
+                    <label className="text-[12px] font-bold text-slate-500 uppercase">Behavioral Issues</label>
+                    <div className="group relative">
+                      <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                    <div className="absolute left-0 sm:right-auto sm:left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                      <div className="flex items-start gap-3">
+                        <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                          <HelpCircle className="h-4 w-4 text-yellow-700" />
+                        </div>
+                        <span className="font-bold text-[15px] leading-tight text-slate-900">
+                          Behavioral Issues: Describe any challenges. This allows the AI to generate targeted behavioral management strategies.
+                        </span>
+                      </div>
+                      <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                    </div>
+                    </div>
+                  </div>
                   <textarea
                     name="behavioralIssues"
                     className="flex min-h-[32px] w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
@@ -474,7 +719,23 @@ export default function AddEditKid() {
             </div>
 
             <div className="space-y-0.5">
-              <label className="text-[12px] font-bold text-slate-500 uppercase">Timezone</label>
+              <div className="flex items-center gap-1.5">
+                <label className="text-[12px] font-bold text-slate-500 uppercase">Timezone</label>
+                <div className="group relative">
+                  <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                    <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                      <div className="flex items-start gap-3">
+                        <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                          <HelpCircle className="h-4 w-4 text-yellow-700" />
+                        </div>
+                        <span className="font-bold text-[15px] leading-tight text-slate-900">
+                          Timezone: Set the child's local timezone to ensure their daily schedule and reminders are perfectly synced with their routine.
+                        </span>
+                      </div>
+                      <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                    </div>
+                </div>
+              </div>
               <select
                 name="timezone"
                 value={formData.timezone}
@@ -488,7 +749,23 @@ export default function AddEditKid() {
             </div>
 
             <div className="space-y-2 pt-1 border-t border-slate-200/60">
-              <h3 className="text-[12px] font-bold text-slate-500 uppercase">Permissions</h3>
+              <div className="flex items-center gap-1.5">
+                <h3 className="text-[12px] font-bold text-slate-500 uppercase">Permissions</h3>
+                <div className="group relative">
+                  <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                  <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                    <div className="flex items-start gap-3">
+                      <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                        <HelpCircle className="h-4 w-4 text-yellow-700" />
+                      </div>
+                      <span className="font-bold text-[15px] leading-tight text-slate-900">
+                        Enable this to allow your child to print activity steps and worksheets for offline tasks and hands-on learning.
+                      </span>
+                    </div>
+                    <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                  </div>
+                </div>
+              </div>
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"

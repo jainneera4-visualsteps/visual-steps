@@ -34,11 +34,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!userRef.current || userRef.current.id !== sessionUser.id) {
           setIsLoading(true);
         }
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('users')
           .select('*')
           .eq('id', sessionUser.id)
           .single();
+        if (error && isAuthError(error)) {
+          await clearAuthSession();
+          return;
+        }
         if (data) setUser(data);
       } else {
         setUser(null);
@@ -81,7 +85,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (_event === 'SIGNED_IN') {
+      console.log('Auth event:', _event);
+      if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED') {
         // If we already have the user, don't show loading spinner
         if (!userRef.current || userRef.current.id !== session?.user?.id) {
           setIsLoading(true);

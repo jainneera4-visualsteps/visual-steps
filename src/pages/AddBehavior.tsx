@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiFetch, safeJson } from '../utils/api';
+import { getZonedTime } from '../utils/dateUtils';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
@@ -10,6 +11,7 @@ interface Kid {
   id: string;
   name: string;
   reward_type?: string;
+  timezone?: string;
 }
 
 export default function AddBehavior() {
@@ -20,17 +22,20 @@ export default function AddBehavior() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const [formData, setFormData] = useState({
-    name: '',
-    remarks: '',
-    date: new Date().toLocaleDateString('sv-SE'),
-    hour: new Date().getHours(),
-    occurrence: 1,
-    target_value: 0,
-    target_unit: 'minutes',
-    priority: 'Medium',
-    goal: 0,
-    is_active: true,
+  const [formData, setFormData] = useState(() => {
+    const zoned = getZonedTime();
+    return {
+      name: '',
+      remarks: '',
+      date: zoned.isoDate,
+      hour: zoned.hour,
+      occurrence: 1,
+      target_value: 0,
+      target_unit: 'minutes',
+      priority: 'Medium',
+      goal: 0,
+      is_active: true,
+    };
   });
 
   useEffect(() => {
@@ -86,8 +91,8 @@ export default function AddBehavior() {
             setFormData({
               name: def.name,
               remarks: displayDescription,
-              date: new Date().toLocaleDateString('sv-SE'),
-              hour: new Date().getHours(),
+              date: getZonedTime(currentKid?.timezone).isoDate,
+              hour: getZonedTime(currentKid?.timezone).hour,
               occurrence: goalVal,
               target_value: targetValue,
               target_unit: targetUnit as any,

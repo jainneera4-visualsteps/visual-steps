@@ -8,6 +8,7 @@ import { ArrowLeft, Calendar, Star, Lock, Lightbulb, LayoutGrid, CheckCircle, Ci
 import { Button } from '../components/Button';
 import { Card, CardContent } from '../components/Card';
 import { ActivityDetailModal } from '../components/ActivityDetailModal';
+import { getZonedTime, formatInTimezone } from '../utils/dateUtils';
 import { SocialStoryModal } from '../components/SocialStoryModal';
 import { ChatbotComponent } from '../components/ChatbotComponent';
 
@@ -152,10 +153,11 @@ export default function KidsDashboard() {
   const [behaviorLogs, setBehaviorLogs] = useState<any[]>([]);
   const [behaviorTracker, setBehaviorTracker] = useState<any[]>([]);
 
-  const calculateAge = (dob: string) => {
+  const calculateAge = (dob: string, timezone?: string) => {
     if (!dob) return '';
     const birthDate = new Date(dob);
-    const now = new Date();
+    const zoned = getZonedTime(timezone);
+    const now = new Date(zoned.year, zoned.month - 1, zoned.day);
     let age = now.getFullYear() - birthDate.getFullYear();
     const m = now.getMonth() - birthDate.getMonth();
     if (m < 0 || (m === 0 && now.getDate() < birthDate.getDate())) {
@@ -532,8 +534,8 @@ export default function KidsDashboard() {
       return;
     }
 
-    const now = new Date();
-    const currentTime = now.getHours() * 60 + now.getMinutes();
+    const zoned = getZonedTime(kid?.timezone);
+    const currentTime = zoned.totalMinutes;
     
     const [startHour, startMinute] = kid.start_time.split(':').map(Number);
     const startTime = startHour * 60 + startMinute;
@@ -543,8 +545,7 @@ export default function KidsDashboard() {
 
     if (currentTime < startTime) {
       setIsAccessAllowed(false);
-      const startTimeDate = new Date(`2000-01-01T${kid.start_time}`);
-      const startTimeStr = isNaN(startTimeDate.getTime()) ? kid.start_time : startTimeDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+      const startTimeStr = formatInTimezone(new Date(zoned.year, zoned.month - 1, zoned.day, startHour, startMinute), kid.timezone, { hour: 'numeric', minute: '2-digit' });
       setAccessMessage(`Activities start at ${startTimeStr}`);
     } else if (currentTime > endTime) {
       setIsAccessAllowed(false);
@@ -567,22 +568,10 @@ export default function KidsDashboard() {
 
     if (navigator.onLine) {
       try {
-        const now = new Date();
-        const kidTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        const formatter = new Intl.DateTimeFormat('en-US', {
-          timeZone: kidTimezone,
-          year: 'numeric', month: '2-digit', day: '2-digit',
-          hour: '2-digit', minute: '2-digit', hour12: false
-        });
-        const parts = formatter.formatToParts(now);
-        const year = parts.find(p => p.type === 'year')?.value;
-        const month = parts.find(p => p.type === 'month')?.value;
-        const day = parts.find(p => p.type === 'day')?.value;
-        const hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
-        const minute = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
-        const localDate = `${year}-${month}-${day}`;
+        const zoned = getZonedTime(kid?.timezone);
+        const localDate = zoned.isoDate;
         setToday(localDate);
-        const localTime = hour * 60 + minute;
+        const localTime = zoned.totalMinutes;
 
         // Fetch everything in parallel
         const [kidRes, actRes, rewardRes, quizRes, defsRes, logsRes, trackerRes] = await Promise.all([
@@ -601,15 +590,6 @@ export default function KidsDashboard() {
           if (kidData && kidData.kid) {
             setKid(kidData.kid);
             localStorage.setItem(`kid_${kidId}`, JSON.stringify(kidData.kid));
-            
-            const currentTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-            if (kidData.kid.timezone !== currentTz) {
-              apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ timezone: currentTz })
-              });
-            }
           }
         }
 
@@ -960,7 +940,7 @@ export default function KidsDashboard() {
                     <div className="flex items-center gap-1.5">
                       <Clock className={`h-3.5 w-3.5 ${currentTheme.bannerSubtext}`} />
                       <p className={`text-[10px] font-bold uppercase tracking-wider ${currentTheme.bannerSubtext}`}>
-                        {currentTime.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })} • {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {formatInTimezone(currentTime, kid?.timezone, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
                       </p>
                     </div>
                   </div>
@@ -1438,7 +1418,7 @@ export default function KidsDashboard() {
               rewardItems={rewardItems}
               theme={kid.theme}
               location={location}
-              timezone={timezone}
+              timezone={kid.timezone || timezone}
               kidProfile={{
                 dob: kid.dob,
                 gradeLevel: kid.grade_level,

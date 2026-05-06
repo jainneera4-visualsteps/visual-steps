@@ -2,12 +2,13 @@ import { Tooltip } from '../components/ui/Tooltip';
 import { apiFetch, safeJson } from '../utils/api';
 import { io } from 'socket.io-client';
 import { formatReward, rewardImages } from '../utils/rewardUtils';
+import { getZonedTime, formatInTimezone } from '../utils/dateUtils';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Select } from '../components/Select';
-import { Plus, User, Calendar, BookOpen, Gamepad2, Clock, Trophy, Sparkles, Loader2, ArrowLeft, Edit2, Activity, Brain, Save, Send } from 'lucide-react';
+import { Plus, User, Calendar, BookOpen, Gamepad2, Clock, Trophy, Sparkles, Loader2, ArrowLeft, Edit2, Activity, Brain, Save, Send, HelpCircle } from 'lucide-react';
 
 interface Kid {
   id: string;
@@ -24,6 +25,7 @@ interface Kid {
   reward_type: string;
   chatbot_name?: string;
   parent_message?: string;
+  timezone?: string;
 }
 
 interface BehaviorDefinition {
@@ -44,12 +46,23 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showBuyGrid, setShowBuyGrid] = useState(false);
+
   const [selectedKid, setSelectedKid] = useState<Kid | null>(null);
   const [rewardItems, setRewardItems] = useState<any[]>([]);
   const [isBuying, setIsBuying] = useState<string | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<string>('');
   const [dashboardSelectedKidId, setDashboardSelectedKidId] = useState<string>(() => localStorage.getItem('dashboard_selected_kid_id') || '');
   const [parentMessage, setParentMessage] = useState<string>('');
   const [isSendingMessage, setIsSendingMessage] = useState(false);
+  
+  useEffect(() => {
+    if (rewardItems.length > 0) {
+      const locations = [...new Set(rewardItems.map(item => item.location || 'General'))];
+      if (!selectedLocation || !locations.includes(selectedLocation)) {
+        setSelectedLocation(locations[0]);
+      }
+    }
+  }, [rewardItems]);
   
   // Quick Behavior Log State
   const [behaviorDefinitions, setBehaviorDefinitions] = useState<BehaviorDefinition[]>([]);
@@ -99,7 +112,22 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchTrackerData();
+    fetchRewardItemsForSelectedKid();
   }, [dashboardSelectedKidId]);
+
+  const fetchRewardItemsForSelectedKid = async () => {
+    if (!dashboardSelectedKidId) return;
+    try {
+      const res = await apiFetch(`/api/kids/${dashboardSelectedKidId}/reward-items`);
+      if (res.ok) {
+        const data = await safeJson(res);
+        setRewardItems(data.items || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch reward items:', err);
+      setRewardItems([]);
+    }
+  };
 
   const fetchLogs = async () => {
     if (!dashboardSelectedKidId) return;
@@ -185,10 +213,11 @@ export default function Dashboard() {
     };
   }, [kids.map(k => k.id).join(',')]);
 
-  const calculateAge = (dob: string) => {
+  const calculateAge = (dob: string, timezone?: string) => {
     if (!dob) return 'No Age';
     const birthDate = new Date(dob);
-    const today = new Date();
+    const zoned = getZonedTime(timezone);
+    const today = new Date(zoned.year, zoned.month - 1, zoned.day);
     let age = today.getFullYear() - birthDate.getFullYear();
     const m = today.getMonth() - birthDate.getMonth();
     if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
@@ -303,6 +332,9 @@ export default function Dashboard() {
     const behaviorDef = behaviorDefinitions.find(d => d.id === selectedBehaviorDefId);
     if (!behaviorDef) return;
 
+    const targetKid = kids.find(k => k.id === kidId);
+    const zoned = getZonedTime(targetKid?.timezone);
+
     setIsLoggingBehavior(true);
     try {
       const res = await apiFetch(`/api/kids/${kidId}/behaviors`, {
@@ -311,8 +343,8 @@ export default function Dashboard() {
         body: JSON.stringify({
           definition_id: behaviorDef.id,
           description: behaviorDef.name,
-          date: new Date().toLocaleDateString('sv-SE'), // Local date YYYY-MM-DD
-          hour: new Date().getHours(),
+          date: zoned.isoDate, 
+          hour: zoned.hour,
           completed: true,
           remarks: behaviorRemarks || 'Manual entry',
           rewards_earned: 0
@@ -337,6 +369,9 @@ export default function Dashboard() {
     const behaviorDef = behaviorDefinitions.find(d => d.id === defId);
     if (!behaviorDef) return;
 
+    const targetKid = kids.find(k => k.id === kidId);
+    const zoned = getZonedTime(targetKid?.timezone);
+
     // Optimistic UI update
     const tempLog = { definition_id: defId, description: 'Added entry' };
     setBehaviorLogs(prev => [...prev, tempLog]);
@@ -348,8 +383,8 @@ export default function Dashboard() {
         body: JSON.stringify({
           definition_id: behaviorDef.id,
           description: behaviorDef.name,
-          date: new Date().toLocaleDateString('sv-SE'), // Local date YYYY-MM-DD
-          hour: new Date().getHours(),
+          date: zoned.isoDate,
+          hour: zoned.hour,
           completed: true,
           remarks: 'Incremented from dashboard',
           rewards_earned: 0
@@ -372,6 +407,9 @@ export default function Dashboard() {
   };
 
   const handleUpdateTracker = async (kidId: string, definition_id: string, points: number, remarks: string) => {
+    const targetKid = kids.find(k => k.id === kidId);
+    const zoned = getZonedTime(targetKid?.timezone);
+
     // Optimistic UI update
     handleLocalTrackerUpdate(kidId, definition_id, points, remarks);
 
@@ -383,7 +421,7 @@ export default function Dashboard() {
           definition_id,
           points,
           remarks,
-          date: new Date().toLocaleDateString('sv-SE') // Local date in YYYY-MM-DD format
+          date: zoned.isoDate
         }),
       });
 
@@ -424,6 +462,9 @@ export default function Dashboard() {
     }
 
     if (showBuyGrid && selectedKid) {
+      const locations = [...new Set(rewardItems.map(item => item.location || 'General'))];
+      const filteredItems = rewardItems.filter(item => (item.location || 'General') === selectedLocation);
+      
       return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="flex items-center justify-between">
@@ -431,47 +472,55 @@ export default function Dashboard() {
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Dashboard
             </Button>
-            <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-full border border-blue-100">
-              <span className="text-sm font-medium text-blue-900">
-                {selectedKid.name}'s Balance:
-              </span>
-              <span className="text-lg font-bold text-blue-600">
-                {selectedKid.reward_balance} {formatReward(selectedKid.reward_type, selectedKid.reward_balance)}
-              </span>
+
+            <div className="flex items-center gap-4">
+              {locations.length > 0 && (
+                <select
+                  value={selectedLocation}
+                  onChange={(e) => setSelectedLocation(e.target.value)}
+                  className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                >
+                  {locations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
+                </select>
+              )}
+
+              <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-full border border-blue-100">
+                <span className="text-sm font-medium text-blue-900">
+                  {selectedKid.name}'s Balance:
+                </span>
+                <span className="text-lg font-bold text-blue-600">
+                  {selectedKid.reward_balance} {formatReward(selectedKid.reward_type, selectedKid.reward_balance)}
+                </span>
+              </div>
             </div>
           </div>
 
-          {rewardItems.length === 0 ? (
+          {filteredItems.length === 0 ? (
             <div className="text-center py-12 bg-white rounded-2xl border border-slate-200">
               <span className="block text-5xl mb-4">🛍️</span>
               <h3 className="text-lg font-medium text-slate-900">No rewards available</h3>
               <p className="text-slate-500 mt-1">Add some rewards in the child's settings.</p>
             </div>
           ) : (
-            <div className="grid gap-6 md:grid-cols-3 lg:grid-cols-4">
-              {rewardItems.map((item) => (
+            <div className="grid gap-4 md:grid-cols-4 lg:grid-cols-5">
+              {filteredItems.map((item) => (
                 <Card key={item.id} className="flex flex-col overflow-hidden hover:shadow-md transition-shadow">
-                  <div className="aspect-square bg-slate-50 flex items-center justify-center p-6 border-b border-slate-100">
+                  <div className="h-28 bg-slate-50 flex items-center justify-center p-4 border-b border-slate-100">
                     {item.icon ? (
-                      <span className="text-6xl">{item.icon}</span>
+                      <span className="text-4xl">{item.icon}</span>
                     ) : (
-                      <span className="text-6xl">🛍️</span>
+                      <span className="text-4xl">🛍️</span>
                     )}
                   </div>
-                  <CardContent className="flex-1 flex flex-col p-4">
-                    <h3 className="font-bold text-slate-900 mb-1 text-lg">{item.name}</h3>
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="text-blue-600 font-bold">
+                  <CardContent className="flex-1 flex flex-col p-3">
+                    <h3 className="font-bold text-slate-900 mb-1 text-base">{item.name}</h3>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="text-blue-600 font-bold text-sm">
                         {item.cost} {formatReward(selectedKid.reward_type, item.cost)}
                       </div>
-                      {item.location && (
-                        <div className="text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
-                          {item.location}
-                        </div>
-                      )}
                     </div>
                     <Button
-                      className="mt-auto w-full"
+                      className="mt-auto w-full h-8 text-sm"
                       disabled={selectedKid.reward_balance < item.cost || isBuying === item.id}
                       onClick={() => handleBuyReward(item)}
                     >
@@ -525,23 +574,52 @@ export default function Dashboard() {
                     <CardTitle className="text-2xl font-bold text-white leading-tight">{kid.name}</CardTitle>
                   </div>
                   <div className="flex items-center gap-3 text-xl">
-                    <Tooltip content="Buy rewards">
+                    <div className="flex items-center gap-1">
                       <Button size="sm" variant="ghost" onClick={() => handleShowBuyGrid(kid)} className="text-white hover:bg-white/20 p-2 text-2xl" aria-label="Buy">🛍️</Button>
-                    </Tooltip>
+                      <div className="group relative">
+                        <HelpCircle className="h-4 w-4 text-white/70 cursor-help transition-colors hover:text-white" />
+                        <div className="absolute right-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                          <div className="flex items-start gap-3">
+                            <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                              <HelpCircle className="h-4 w-4 text-yellow-700" />
+                            </div>
+                            <span className="font-bold text-[14px] leading-tight text-slate-900 normal-case">
+                              Click the shop icon to view and buy reward items your child has earned.
+                            </span>
+                          </div>
+                          <div className="absolute right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                        </div>
+                      </div>
+                    </div>
                     {rewardImages[kid.reward_type] ? (
                       <img src={rewardImages[kid.reward_type]} alt={kid.reward_type} className="h-8 w-8" referrerPolicy="no-referrer" />
                     ) : (
                       <span className="text-3xl">🛍️</span>
                     )}
                     <span className="font-bold text-2xl text-white">{kid.reward_balance || 0}</span>
-                    <Tooltip content="Add reward">
+                    <div className="flex items-center gap-1">
                       <button 
                         onClick={() => handleGiveReward(kid)}
                         className="p-1.5 rounded-full hover:bg-blue-500 transition-colors"
+                        aria-label="Add reward"
                       >
                         <Plus className="h-6 w-6" />
                       </button>
-                    </Tooltip>
+                      <div className="group relative">
+                        <HelpCircle className="h-4 w-4 text-white/70 cursor-help transition-colors hover:text-white" />
+                        <div className="absolute right-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                          <div className="flex items-start gap-3">
+                            <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                              <HelpCircle className="h-4 w-4 text-yellow-700" />
+                            </div>
+                            <span className="font-bold text-[14px] leading-tight text-slate-900 normal-case">
+                              Click the + icon to increase your child's reward balance by 1.
+                            </span>
+                          </div>
+                          <div className="absolute right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 <div className="absolute -bottom-8 left-6 h-16 w-16 rounded-full bg-white flex items-center justify-center text-2xl overflow-hidden border-4 border-white shadow-md z-10">
@@ -624,7 +702,7 @@ export default function Dashboard() {
                       <div className="mt-1 border border-slate-100 rounded-xl overflow-hidden shadow-sm">
                         <div className="bg-slate-50 px-4 py-2 border-b border-slate-100 flex justify-between items-center">
                           <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Daily Behavior Tracker</h4>
-                          <Tooltip content={`Update ${kid.name}'s Achievements`}>
+                          <Tooltip content={`Track ${kid.name}'s Behaviors`}>
                             <Button 
                               size="sm" 
                               onClick={async () => {
@@ -657,14 +735,155 @@ export default function Dashboard() {
                           <table className="w-full text-left text-sm border-collapse">
                             <thead className="sticky top-0 bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase">
                               <tr>
-                                <th className="px-4 py-3"></th>
-                                <th className="px-4 py-3">Desired Behavior</th>
-                                <th className="px-4 py-3">Behavior Description</th>
-                                <th className="px-4 py-3">Target Time</th>
-                                <th className="px-4 py-3 text-center w-24">Goal to reach</th>
-                                <th className="px-4 py-3 text-center w-24">Points earned</th>
-                                <th className="px-4 py-3 text-center w-24">Points (%)</th>
-                                <th className="px-4 py-3 border-b border-slate-100 text-center w-48">Parent's remarks</th>
+                                <th className="px-4 py-3">
+                                  <div className="group relative">
+                                    <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                                    <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
+                                      <div className="flex items-start gap-3">
+                                        <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                                          <HelpCircle className="h-4 w-4 text-yellow-700" />
+                                        </div>
+                                        <span className="font-bold text-[15px] leading-tight text-slate-900">
+                                          Parents need to tick the checkbox and click on the 'Update' button to track progress. This will increase the points towards the goals and data will be updated accordingly.
+                                        </span>
+                                      </div>
+                                      <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                                    </div>
+                                  </div>
+                                </th>
+                                <th className="px-4 py-3">
+                                  <div className="flex items-center gap-1.5">
+                                    <span>Desired Behavior</span>
+                                    <div className="group relative">
+                                      <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                                      <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
+                                        <div className="flex items-start gap-3">
+                                          <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                                            <HelpCircle className="h-4 w-4 text-yellow-700" />
+                                          </div>
+                                          <span className="font-bold text-[15px] leading-tight text-slate-900">
+                                            The positive activity or behavior you want to encourage in your child.
+                                          </span>
+                                        </div>
+                                        <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </th>
+                                <th className="px-4 py-3">
+                                  <div className="flex items-center gap-1.5">
+                                    <span>Behavior Description</span>
+                                    <div className="group relative">
+                                      <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                                      <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
+                                        <div className="flex items-start gap-3">
+                                          <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                                            <HelpCircle className="h-4 w-4 text-yellow-700" />
+                                          </div>
+                                          <span className="font-bold text-[15px] leading-tight text-slate-900">
+                                            Specific details or criteria describing how this behavior should be performed.
+                                          </span>
+                                        </div>
+                                        <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </th>
+                                <th className="px-4 py-3">
+                                  <div className="flex items-center gap-1.5">
+                                    <span>Check-in time</span>
+                                    <div className="group relative">
+                                      <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                                      <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
+                                        <div className="flex items-start gap-3">
+                                          <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                                            <HelpCircle className="h-4 w-4 text-yellow-700" />
+                                          </div>
+                                          <span className="font-bold text-[15px] leading-tight text-slate-900">
+                                            The specific time set to review and record your child's progress for this behavior.
+                                          </span>
+                                        </div>
+                                        <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </th>
+                                <th className="px-4 py-3 text-center w-24">
+                                  <div className="flex flex-col items-center gap-1">
+                                    <span>Goal to reach</span>
+                                    <div className="group relative">
+                                      <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                                      <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
+                                        <div className="flex items-start gap-3">
+                                          <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                                            <HelpCircle className="h-4 w-4 text-yellow-700" />
+                                          </div>
+                                          <span className="font-bold text-[15px] leading-tight text-slate-900 text-left">
+                                            The total successes needed to earn a reward. This goal is continuous; once reached, your child earns the rewards specified for this behavior.
+                                          </span>
+                                        </div>
+                                        <div className="absolute left-1/2 -translate-x-1/2 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </th>
+                                <th className="px-4 py-3 text-center w-24">
+                                  <div className="flex flex-col items-center gap-1">
+                                    <span>Points earned</span>
+                                    <div className="group relative">
+                                      <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                                      <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
+                                        <div className="flex items-start gap-3">
+                                          <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                                            <HelpCircle className="h-4 w-4 text-yellow-700" />
+                                          </div>
+                                          <span className="font-bold text-[15px] leading-tight text-slate-900 text-left">
+                                            The total number of successes your child has achieved toward this goal.
+                                          </span>
+                                        </div>
+                                        <div className="absolute left-1/2 -translate-x-1/2 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </th>
+                                <th className="px-4 py-3 text-center w-24">
+                                  <div className="flex flex-col items-center gap-1">
+                                    <span>Points (%)</span>
+                                    <div className="group relative">
+                                      <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                                      <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
+                                        <div className="flex items-start gap-3">
+                                          <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                                            <HelpCircle className="h-4 w-4 text-yellow-700" />
+                                          </div>
+                                          <span className="font-bold text-[15px] leading-tight text-slate-900 text-left">
+                                            Your child's current progress toward reaching the behavior goal.
+                                          </span>
+                                        </div>
+                                        <div className="absolute left-1/2 -translate-x-1/2 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </th>
+                                <th className="px-4 py-3 border-b border-slate-100 text-center w-48">
+                                  <div className="flex flex-col items-center gap-1">
+                                    <span>Parent's remarks</span>
+                                    <div className="group relative">
+                                      <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                                      <div className="absolute right-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
+                                        <div className="flex items-start gap-3">
+                                          <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                                            <HelpCircle className="h-4 w-4 text-yellow-700" />
+                                          </div>
+                                          <span className="font-bold text-[15px] leading-tight text-slate-900 text-left">
+                                            Your feedback or observations about your child's progress on this behavior today.
+                                          </span>
+                                        </div>
+                                        <div className="absolute right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-50">

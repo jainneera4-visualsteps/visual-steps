@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { apiFetch, safeJson } from '../utils/api';
 import { generateContent, modelNames } from '../lib/gemini';
+import { getZonedTime, formatInTimezone } from '../utils/dateUtils';
 import { Send, Loader2, MessageSquare, Mic, MicOff, Volume2, VolumeX, Maximize2, Minimize2, X, ExternalLink } from 'lucide-react';
 import Markdown from 'react-markdown';
 import confetti from 'canvas-confetti';
@@ -210,7 +211,7 @@ export function ChatbotComponent({ kidId, kidName, chatbotName, activities, rewa
         if (lastWelcomeDate !== today && !greetingSpokenRef.current) {
           console.log('First load of the day, greeting');
           const name = chatbotData?.name || chatbotName || 'Buddy';
-          const localTime = new Date().toLocaleTimeString('en-US', { timeZone: timezone || undefined, hour: 'numeric', minute: '2-digit' });
+          const localTime = formatInTimezone(new Date(), timezone, { hour: 'numeric', minute: '2-digit' });
           const greeting = `Hi! I'm ${name}. It's ${localTime} here! I'm so happy to see you! How are you doing today? ✨`;
           
           // Show history + greeting (greeting is not saved to DB to avoid clutter)
@@ -303,14 +304,13 @@ export function ChatbotComponent({ kidId, kidName, chatbotName, activities, rewa
 
       let localDateTime = '';
       try {
-        localDateTime = new Date().toLocaleString('en-US', { 
-          timeZone: timezone || undefined, 
+        localDateTime = formatInTimezone(new Date(), timezone, { 
           dateStyle: 'full', 
           timeStyle: 'short' 
         });
       } catch (e) {
         console.error('Error formatting localDateTime:', e);
-        localDateTime = new Date().toISOString();
+        localDateTime = getZonedTime(timezone).isoDateTime;
       }
 
       const systemInstruction = `You are ${name}, a close friend who is the SAME AGE as the child you are talking to.
