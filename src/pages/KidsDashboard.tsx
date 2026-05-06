@@ -577,7 +577,7 @@ export default function KidsDashboard() {
         const [kidRes, actRes, rewardRes, quizRes, defsRes, logsRes, trackerRes] = await Promise.all([
           apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}`),
           apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/activities?mode=kid&localDate=${localDate}&localTime=${localTime}&_t=${Date.now()}`),
-          apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/reward-items`),
+          apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/reward-items?onlyActive=true`),
           apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/quizzes`),
           apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/behavior-definitions`),
           apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/behaviors`),

@@ -118,7 +118,7 @@ export default function Dashboard() {
   const fetchRewardItemsForSelectedKid = async () => {
     if (!dashboardSelectedKidId) return;
     try {
-      const res = await apiFetch(`/api/kids/${dashboardSelectedKidId}/reward-items`);
+      const res = await apiFetch(`/api/kids/${dashboardSelectedKidId}/reward-items?onlyActive=true`);
       if (res.ok) {
         const data = await safeJson(res);
         setRewardItems(data.items || []);
@@ -254,7 +254,7 @@ export default function Dashboard() {
     setRewardItems([]);
     
     try {
-      const res = await apiFetch(`/api/kids/${kid.id}/reward-items`);
+      const res = await apiFetch(`/api/kids/${kid.id}/reward-items?onlyActive=true`);
       if (res.ok) {
         const data = await safeJson(res);
         setRewardItems(data.items || []);

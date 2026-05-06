@@ -1225,7 +1225,7 @@ export default function AssignedActivities() {
       if (res.ok) {
         fetchRewardItems();
         setIsRewardModalOpen(false);
-        setNewReward({ name: '', cost: 1, imageUrl: '', location: '' });
+        setNewReward({ name: '', cost: 1, imageUrl: '', location: '', is_active: true });
         setEditingReward(null);
         setIsAddingCustomLocation(false);
         setCustomLocation('');
@@ -3768,7 +3768,7 @@ export default function AssignedActivities() {
           onClick={() => {
             setIsRewardModalOpen(false);
             setEditingReward(null);
-            setNewReward({ name: '', cost: 1, imageUrl: '', location: '' });
+            setNewReward({ name: '', cost: 1, imageUrl: '', location: '', is_active: true });
             setIsAddingCustomLocation(false);
             setCustomLocation('');
           }} 
@@ -4042,7 +4042,7 @@ export default function AssignedActivities() {
                   onClick={() => {
                     setIsRewardModalOpen(false);
                     setEditingReward(null);
-                    setNewReward({ name: '', cost: 1, imageUrl: '', location: '' });
+                    setNewReward({ name: '', cost: 1, imageUrl: '', location: '', is_active: true });
                     setIsAddingCustomLocation(false);
                     setCustomLocation('');
                   }} 

@@ -91,8 +91,8 @@ export default function AddBehavior() {
             setFormData({
               name: def.name,
               remarks: displayDescription,
-              date: getZonedTime(currentKid?.timezone).isoDate,
-              hour: getZonedTime(currentKid?.timezone).hour,
+              date: getZonedTime(kid?.timezone).isoDate,
+              hour: getZonedTime(kid?.timezone).hour,
               occurrence: goalVal,
               target_value: targetValue,
               target_unit: targetUnit as any,

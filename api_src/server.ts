@@ -79,11 +79,21 @@ if (!process.env.VERCEL) {
   });
 }
 
+const cleanEnvVar = (name: string): string => {
+  const val = process.env[name];
+  if (!val) return '';
+  let cleaned = val.trim();
+  if ((cleaned.startsWith('"') && cleaned.endsWith('"')) || (cleaned.startsWith("'") && cleaned.endsWith("'"))) {
+    cleaned = cleaned.substring(1, cleaned.length - 1);
+  }
+  return cleaned.trim();
+};
+
 const PORT = 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-change-in-prod';
+const JWT_SECRET = cleanEnvVar('JWT_SECRET') || 'dev-secret-key-change-in-prod';
 
 // Supabase setup
-let supabaseUrl = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').trim();
+let supabaseUrl = (cleanEnvVar('SUPABASE_URL') || cleanEnvVar('VITE_SUPABASE_URL') || '').trim();
 if (supabaseUrl) {
   if (!supabaseUrl.startsWith('http')) {
     // If it's just a project ID, expand it. Otherwise, assume it needs https://
@@ -95,8 +105,8 @@ if (supabaseUrl) {
   }
 }
 
-const supabaseKey = (process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_KEY || '').trim();
-const supabaseServiceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || '').trim();
+const supabaseKey = (cleanEnvVar('SUPABASE_ANON_KEY') || cleanEnvVar('VITE_SUPABASE_ANON_KEY') || cleanEnvVar('SUPABASE_KEY') || '').trim();
+const supabaseServiceKey = (cleanEnvVar('SUPABASE_SERVICE_ROLE_KEY') || cleanEnvVar('VITE_SUPABASE_SERVICE_ROLE_KEY') || '').trim();
 
 console.log('[STARTUP] Backend Supabase URL:', supabaseUrl);
 console.log('[STARTUP] Backend Supabase Key:', supabaseKey ? '***' : 'undefined');
@@ -200,9 +210,9 @@ app.use((req, res, next) => {
 app.use('/uploads', express.static(uploadDir));
 
 app.get('/api/backend-health', async (req, res) => {
-  const url = process.env.SUPABASE_URL || '';
-  const key = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-  const geminiKey = process.env.GEMINI_API_KEY || '';
+  const url = supabaseUrl;
+  const key = supabaseKey || supabaseServiceKey;
+  const geminiKey = cleanEnvVar('GEMINI_API_KEY') || cleanEnvVar('GOOGLE_API_KEY') || '';
   
   const health = {
     status: 'ok',
@@ -253,10 +263,20 @@ const authenticateToken = async (req: any, res: any, next: any) => {
 
     // Create a fresh client for this request
     const supabase = createClient(supabaseUrl, supabaseKey, {
-      auth: { persistSession: false }
+      auth: { 
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false
+      },
+      global: {
+          headers: {
+              Authorization: `Bearer ${token}`
+          }
+      }
     });
     
     // Verify the token with Supabase
+    // We pass the token explicitly to getUser, and also have it in headers for double resilience
     const { data: { user }, error } = await supabase.auth.getUser(token);
 
     if (error || !user) {
@@ -307,10 +327,10 @@ const authenticateToken = async (req: any, res: any, next: any) => {
 
 // Helper Functions
 const getTransporter = async () => {
-  const smtpUser = process.env.SMTP_USER;
-  const smtpPass = process.env.SMTP_PASS;
-  const smtpHost = process.env.SMTP_HOST || 'smtp.ethereal.email';
-  const smtpPort = parseInt(process.env.SMTP_PORT || '587');
+  const smtpUser = cleanEnvVar('SMTP_USER');
+  const smtpPass = cleanEnvVar('SMTP_PASS');
+  const smtpHost = cleanEnvVar('SMTP_HOST') || 'smtp.ethereal.email';
+  const smtpPort = parseInt(cleanEnvVar('SMTP_PORT') || '587');
 
   const transporter = nodemailer.createTransport({
     host: smtpHost,
@@ -349,8 +369,8 @@ const sendWelcomeEmail = async (email: string, name: string) => {
     const transporter = await getTransporter();
     if (!transporter) return;
 
-    const smtpFrom = process.env.SMTP_FROM || process.env.SMTP_USER || '"Visual Steps" <noreply@visualsteps.com>';
-    const appUrl = process.env.APP_URL || 'http://localhost:3000';
+    const smtpFrom = cleanEnvVar('SMTP_FROM') || cleanEnvVar('SMTP_USER') || '"Visual Steps" <noreply@visualsteps.com>';
+    const appUrl = cleanEnvVar('APP_URL') || 'http://localhost:3000';
     
     const info = await transporter.sendMail({
       from: smtpFrom,
@@ -418,7 +438,7 @@ const sendPasswordChangeEmail = async (email: string, name: string) => {
     const transporter = await getTransporter();
     if (!transporter) return;
 
-    const smtpFrom = process.env.SMTP_FROM || process.env.SMTP_USER || '"Visual Steps" <noreply@visualsteps.com>';
+    const smtpFrom = cleanEnvVar('SMTP_FROM') || cleanEnvVar('SMTP_USER') || '"Visual Steps" <noreply@visualsteps.com>';
     
     const info = await transporter.sendMail({
       from: smtpFrom,
@@ -3804,12 +3824,19 @@ app.delete('/api/social-stories/:id', authenticateToken, async (req: any, res) =
 app.get('/api/kids/:kidId/reward-items', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
   const { kidId } = req.params;
+  const onlyActive = req.query.onlyActive === 'true';
+
   try {
-    const { data: items, error } = await supabase
+    let query = supabase
       .from('reward_items')
       .select('*')
-      .eq('kid_id', kidId)
-      .order('cost', { ascending: true });
+      .eq('kid_id', kidId);
+    
+    if (onlyActive) {
+      query = query.eq('is_active', true);
+    }
+
+    const { data: items, error } = await query.order('cost', { ascending: true });
 
     if (error) throw error;
     res.json({ items });
@@ -4055,7 +4082,7 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
   } = req.body;
   
   const modelName = model_body || model_name_body || 'gemini-flash-latest';
-  const apiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
+  const apiKey = (cleanEnvVar('GEMINI_API_KEY') || cleanEnvVar('GOOGLE_API_KEY') || cleanEnvVar('VITE_GEMINI_API_KEY') || '').trim();
   
   try {
     if (!apiKey || apiKey === 'undefined' || apiKey === 'null' || apiKey.length < 10) {
