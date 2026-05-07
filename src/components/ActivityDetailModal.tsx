@@ -30,6 +30,7 @@ interface Activity {
   repeat_unit?: string;
   steps?: ActivityStep[];
   isHistory?: boolean;
+  completed_at?: string;
 }
 
 export function ActivityDetailModal({ 
@@ -41,7 +42,8 @@ export function ActivityDetailModal({
   rewardType = 'Penny', 
   rewardQuantity = 1,
   canPrint = true,
-  showToggleOnly = false
+  showToggleOnly = false,
+  timezone
 }: {
   activity: Activity | null;
   onClose: () => void;
@@ -52,6 +54,7 @@ export function ActivityDetailModal({
   rewardQuantity?: number;
   canPrint?: boolean;
   showToggleOnly?: boolean;
+  timezone?: string;
 }) {
   if (!activity) return null;
 
@@ -216,6 +219,12 @@ export function ActivityDetailModal({
             <Sparkles className="h-16 w-16 text-yellow-500 mx-auto animate-bounce" />
             <h2 className="text-3xl font-black text-slate-900">🌟 Great Job! 🌟</h2>
             <p className="text-lg text-slate-600 font-bold">You did it! Keep up the amazing work! 🏆</p>
+            {timezone && (
+              <div className="mt-4 p-3 bg-blue-50 rounded-xl border border-blue-100">
+                <p className="text-xs font-bold text-blue-400 uppercase tracking-widest mb-1">Your Timezone</p>
+                <p className="text-sm font-black text-blue-700">{timezone}</p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -350,8 +359,16 @@ export function ActivityDetailModal({
                 )
               )}
               {!showToggleOnly && (
-                <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  Due Date: {activity.due_date}
+                <div className="space-y-1">
+                  <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    Due Date: {activity.due_date}
+                  </div>
+                  {activity.status === 'completed' && activity.completed_at && (
+                    <div className="text-xs font-bold text-emerald-500 uppercase tracking-widest flex items-center gap-1">
+                      <CheckCircle className="h-3 w-3" />
+                      Completed: {new Date(activity.completed_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

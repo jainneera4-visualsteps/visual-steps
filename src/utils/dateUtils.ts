@@ -67,3 +67,29 @@ export function formatInTimezone(date: Date | string | number, timezone?: string
     return d.toLocaleString();
   }
 }
+
+/**
+ * Helper function to convert a UTC date to the kid's timezone date string for saving.
+ */
+export function convertDateToTimeZone(dateString: string | Date, timezone: string): string {
+  const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+  if (isNaN(date.getTime())) return '';
+  
+  // Format the date in the target timezone
+  // This produces a local-like date representation for that timezone
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  }).formatToParts(date);
+  
+  const getPart = (type: string) => parts.find(p => p.type === type)?.value || '0';
+  
+  // Return in a standard format (e.g., YYYY-MM-DD HH:MM:SS)
+  return `${getPart('year')}-${getPart('month')}-${getPart('day')} ${getPart('hour')}:${getPart('minute')}:${getPart('second')}`;
+}

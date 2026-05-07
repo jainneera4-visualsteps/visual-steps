@@ -8,9 +8,9 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import { ArrowLeft, Plus, Trash2, Edit2, CheckCircle, Circle, Calendar, Clock, Repeat, Image as ImageIcon, Eye, Sparkles, Loader2, LayoutList, ChevronLeft, ChevronRight, Activity, TrendingUp, PieChart as PieChartIcon, Award, BarChart as BarChartIcon, History, Lock, Lightbulb, HelpCircle, X } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Edit2, CheckCircle, Circle, Calendar, Clock, Repeat, Image as ImageIcon, Eye, Sparkles, Loader2, LayoutList, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Activity, TrendingUp, PieChart as PieChartIcon, Award, BarChart as BarChartIcon, History, Lock, Lightbulb, HelpCircle, X } from 'lucide-react';
 import { ActivityDetailModal } from '../components/ActivityDetailModal';
-import { formatInTimezone, getZonedTime } from '../utils/dateUtils';
+import { formatInTimezone, getZonedTime, convertDateToTimeZone } from '../utils/dateUtils';
 
 // Global Chart Tooltip helper
 const CustomChartTooltip = (props: any) => <ChartRechartsTooltip {...props} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />;
@@ -97,6 +97,11 @@ interface ActivityTemplate {
   steps: ActivityStep[];
   created_at: string;
 }
+
+const SortIndicator = ({ config, columnKey }: { config: { key: any, direction: 'asc' | 'desc' }, columnKey: any }) => {
+  if (config.key !== columnKey) return null;
+  return config.direction === 'asc' ? <ChevronUp className="h-3.5 w-3.5 text-blue-600" /> : <ChevronDown className="h-3.5 w-3.5 text-blue-600" />;
+};
 
 export default function AssignedActivities() {
   const { kidId } = useParams();
@@ -1289,6 +1294,10 @@ export default function AssignedActivities() {
           imageUrl: activity.image_url,
           dueDate: activity.due_date,
           status: newStatus,
+          ...(newStatus === 'completed' ? { 
+            completedAt: convertDateToTimeZone(new Date(), kid!.timezone),
+            createdAt: convertDateToTimeZone(activity.created_at, kid!.timezone) 
+          } : {}),
         }),
       });
       if (res.ok) {
@@ -1540,6 +1549,7 @@ export default function AssignedActivities() {
                     <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortCompleted('status')}>
                       <div className="flex items-center gap-1.5">
                         <span>Status</span>
+                        <SortIndicator config={completedSortConfig} columnKey="status" />
                         <div className="group relative">
                           <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
                           <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
@@ -1559,6 +1569,7 @@ export default function AssignedActivities() {
                     <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortCompleted('activity_type')}>
                       <div className="flex items-center gap-1.5">
                         <span>Activity</span>
+                        <SortIndicator config={completedSortConfig} columnKey="activity_type" />
                         <div className="group relative">
                           <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
                           <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
@@ -1578,6 +1589,7 @@ export default function AssignedActivities() {
                     <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortCompleted('description')}>
                       <div className="flex items-center gap-1.5">
                         <span>Description</span>
+                        <SortIndicator config={completedSortConfig} columnKey="description" />
                         <div className="group relative">
                           <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
                           <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
@@ -1597,6 +1609,7 @@ export default function AssignedActivities() {
                     <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortCompleted('repeat_frequency')}>
                       <div className="flex items-center gap-1.5">
                         <span>Repeat</span>
+                        <SortIndicator config={completedSortConfig} columnKey="repeat_frequency" />
                         <div className="group relative">
                           <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
                           <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
@@ -1616,6 +1629,7 @@ export default function AssignedActivities() {
                     <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortCompleted('completed_at')}>
                       <div className="flex items-center gap-1.5">
                         <span>Completion Date</span>
+                        <SortIndicator config={completedSortConfig} columnKey="completed_at" />
                         <div className="group relative">
                           <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
                           <div className="absolute right-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
@@ -1635,6 +1649,7 @@ export default function AssignedActivities() {
                     <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortCompleted('time_of_day')}>
                       <div className="flex items-center gap-1.5">
                         <span>Time of day</span>
+                        <SortIndicator config={completedSortConfig} columnKey="time_of_day" />
                         <div className="group relative">
                           <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
                           <div className="absolute right-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
@@ -1775,7 +1790,23 @@ export default function AssignedActivities() {
                     : activeTab === 'completed' 
                         ? <div className="flex items-center gap-4"><CheckCircle className="h-12 w-12 text-emerald-600" /> {kid?.name ? `${kid.name}'s ` : ''}Completed Activities</div>
                         : activeTab === 'history'
-                            ? <div className="flex items-center gap-4"><History className="h-12 w-12 text-purple-600" /> {kid?.name ? `${kid.name}'s ` : ''}Activities History</div>
+                            ? <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-4">
+                                  <History className="h-12 w-12 text-purple-600" /> 
+                                  {kid?.name ? `${kid.name}'s ` : ''}Activities History
+                                </div>
+                                {kid?.timezone && (
+                                  <div className="flex items-center gap-2 ml-16">
+                                    <Clock className="h-4 w-4 text-slate-400" />
+                                    <span className="text-sm font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                                      Timezone: {kid.timezone}
+                                    </span>
+                                    <span className="text-sm font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                                      UTC Date: {new Date().toISOString().split('T')[0]}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
                             : activeTab === 'progress'
                                 ? <div className="flex items-center gap-4"><Activity className="h-12 w-12 text-indigo-600" /> {kid?.name ? `${kid.name}'s ` : ''}Progress Report</div>
                                 : <div className="flex items-center gap-4"><Award className="h-12 w-12 text-amber-500" /> {kid?.name ? `${kid.name}'s ` : ''}Reward Items</div>}
@@ -2007,6 +2038,7 @@ export default function AssignedActivities() {
                       <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSort('status')}>
                         <div className="flex items-center gap-1.5">
                           <span>Status</span>
+                          <SortIndicator config={activitiesSortConfig} columnKey="status" />
                           <div className="group relative">
                             <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
                             <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
@@ -2026,6 +2058,7 @@ export default function AssignedActivities() {
                       <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSort('activity_type')}>
                         <div className="flex items-center gap-1.5">
                           <span>Activity</span>
+                          <SortIndicator config={activitiesSortConfig} columnKey="activity_type" />
                           <div className="group relative">
                             <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
                             <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
@@ -2045,6 +2078,7 @@ export default function AssignedActivities() {
                       <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSort('repeat_frequency')}>
                         <div className="flex items-center gap-1.5">
                           <span>Repeat</span>
+                          <SortIndicator config={activitiesSortConfig} columnKey="repeat_frequency" />
                           <div className="group relative">
                             <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
                             <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
@@ -2064,6 +2098,7 @@ export default function AssignedActivities() {
                       <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSort('due_date')}>
                         <div className="flex items-center gap-1.5">
                           <span>Due Date</span>
+                          <SortIndicator config={activitiesSortConfig} columnKey="due_date" />
                           <div className="group relative">
                             <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
                             <div className="absolute right-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
@@ -2083,6 +2118,7 @@ export default function AssignedActivities() {
                       <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSort('time_of_day')}>
                         <div className="flex items-center gap-1.5">
                           <span>Time of day</span>
+                          <SortIndicator config={activitiesSortConfig} columnKey="time_of_day" />
                           <div className="group relative">
                             <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
                             <div className="absolute right-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
@@ -2458,6 +2494,7 @@ export default function AssignedActivities() {
                           <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortHistory('activity_type')}>
                             <div className="flex items-center gap-1.5">
                               <span>Activity</span>
+                              <SortIndicator config={historySortConfig} columnKey="activity_type" />
                               <div className="group relative">
                                 <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
                                 <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
@@ -2477,6 +2514,7 @@ export default function AssignedActivities() {
                           <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortHistory('description')}>
                             <div className="flex items-center gap-1.5">
                               <span>Description</span>
+                              <SortIndicator config={historySortConfig} columnKey="description" />
                               <div className="group relative">
                                 <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
                                 <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
@@ -2496,6 +2534,7 @@ export default function AssignedActivities() {
                           <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortHistory('completed_at')}>
                             <div className="flex items-center gap-1.5">
                               <span>Completion Date</span>
+                              <SortIndicator config={historySortConfig} columnKey="completed_at" />
                               <div className="group relative">
                                 <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
                                 <div className="absolute right-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
@@ -2515,6 +2554,7 @@ export default function AssignedActivities() {
                           <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortHistory('reward_qty')}>
                             <div className="flex items-center gap-1.5">
                               <span>Rewards</span>
+                              <SortIndicator config={historySortConfig} columnKey="reward_qty" />
                               <div className="group relative">
                                 <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
                                 <div className="absolute right-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
@@ -4703,6 +4743,7 @@ export default function AssignedActivities() {
           rewardType={kid?.reward_type}
           rewardQuantity={kid?.reward_quantity}
           showToggleOnly={true}
+          timezone={kid?.timezone}
         />
       )}
 

@@ -881,6 +881,7 @@ export default function KidsDashboard() {
             rewardType={kid?.reward_type}
             canPrint={kid?.can_print}
             showToggleOnly={true}
+            timezone={kid?.timezone}
           />
         ) : viewingStoryId && isAccessAllowed ? (
           <SocialStoryModal 
