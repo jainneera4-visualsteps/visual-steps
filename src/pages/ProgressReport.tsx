@@ -16,7 +16,8 @@ import {
   Calendar,
   Eye,
   ArrowLeft,
-  Lock
+  Lock,
+  HelpCircle
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -676,12 +677,12 @@ export default function ProgressReport() {
             <table className="w-full text-sm text-left">
               <thead className="text-[10px] text-slate-500 bg-slate-50 uppercase border-b border-slate-200 font-bold tracking-widest">
                 <tr>
-                  <th className="px-6 py-4">BEHAVIOR</th>
-                  <th className="px-6 py-4">BEHAVIOR DESCRIPTION</th>
-                  <th className="px-6 py-4">PARENT'S REMARKS</th>
-                  <th className="px-6 py-4">PRIORITY</th>
-                  <th className="px-6 py-4 text-center">REWARDS</th>
-                  <th className="px-6 py-4 text-right">ACHIEVEMENT DATE</th>
+                  <th className="px-6 py-4"><div className="flex items-center gap-1">BEHAVIOR<CustomTooltip content="The specific positive behavior being tracked."><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></div></th>
+                  <th className="px-6 py-4"><div className="flex items-center gap-1">BEHAVIOR DESCRIPTION<CustomTooltip content="Detailed definition of the behavior."><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></div></th>
+                  <th className="px-6 py-4"><div className="flex items-center gap-1">PARENT'S REMARKS<CustomTooltip content="Optional notes provided by the parent when logging this behavior."><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></div></th>
+                  <th className="px-6 py-4"><div className="flex items-center gap-1">PRIORITY<CustomTooltip content="Indicated importance of this behavior."><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></div></th>
+                  <th className="px-6 py-4 text-center"><div className="flex items-center justify-center gap-1">REWARDS<CustomTooltip content="Total rewards earned for this behavior log."><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></div></th>
+                  <th className="px-6 py-4 text-right"><div className="flex items-center justify-end gap-1">ACHIEVEMENT DATE<CustomTooltip content="The date this behavior was logged or achieved."><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></div></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">

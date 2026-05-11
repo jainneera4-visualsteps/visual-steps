@@ -5,7 +5,8 @@ import { getZonedTime } from '../utils/dateUtils';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import { ArrowLeft, Loader2, History, Info, Target, Settings, Calendar, Clock } from 'lucide-react';
+import { ArrowLeft, Loader2, History, Info, Target, Settings, Calendar, Clock, HelpCircle } from 'lucide-react';
+import { Tooltip as CustomTooltip } from '../components/ui/Tooltip';
 
 interface Kid {
   id: string;
@@ -237,7 +238,7 @@ export default function AddBehavior() {
 
             <div className="grid gap-2.5 md:grid-cols-2">
               <div className="space-y-0.5">
-                <label className="text-[12px] font-bold text-slate-500 uppercase">Behavior Name</label>
+                <label className="text-[12px] font-bold text-slate-500 uppercase flex items-center gap-1">Behavior Name <CustomTooltip variant="help" content={<div className="flex items-start gap-3 max-w-[250px]"><div className="bg-yellow-100 rounded-full p-1 mt-0.5"><HelpCircle className="h-4 w-4 text-yellow-800" /></div><span className="text-slate-900 leading-snug font-medium">Enter the name of the behavior you'd like to track (e.g., 'Quiet Hands', 'Sharing').</span></div>}><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></label>
                 <input
                   className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-transparent"
                   value={formData.name}
@@ -248,7 +249,7 @@ export default function AddBehavior() {
               </div>
 
               <div className="space-y-0.5">
-                <label className="text-[12px] font-bold text-slate-500 uppercase">Priority</label>
+                <label className="text-[12px] font-bold text-slate-500 uppercase flex items-center gap-1">Priority <CustomTooltip variant="help" content={<div className="flex items-start gap-3 max-w-[250px]"><div className="bg-yellow-100 rounded-full p-1 mt-0.5"><HelpCircle className="h-4 w-4 text-yellow-800" /></div><span className="text-slate-900 leading-snug font-medium">Assign a priority level (High, Medium, Low) to help indicate the importance of this behavior.</span></div>}><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></label>
                 <select
                   className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
                   value={formData.priority}
@@ -268,11 +269,11 @@ export default function AddBehavior() {
                 checked={formData.is_active}
                 onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
               />
-              <label className="text-[12px] font-bold text-slate-500 uppercase">Active</label>
+              <label className="text-[12px] font-bold text-slate-500 uppercase flex items-center gap-1">Active <CustomTooltip variant="help" content={<div className="flex items-start gap-3 max-w-[250px]"><div className="bg-yellow-100 rounded-full p-1 mt-0.5"><HelpCircle className="h-4 w-4 text-yellow-800" /></div><span className="text-slate-900 leading-snug font-medium">Toggle this switch to track or pause the behavior.</span></div>}><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></label>
             </div>
 
             <div className="space-y-0.5">
-              <label className="text-[12px] font-bold text-slate-500 uppercase">Behavior Description</label>
+              <label className="text-[12px] font-bold text-slate-500 uppercase flex items-center gap-1">Behavior Description <CustomTooltip variant="help" content={<div className="flex items-start gap-3 max-w-[250px]"><div className="bg-yellow-100 rounded-full p-1 mt-0.5"><HelpCircle className="h-4 w-4 text-yellow-800" /></div><span className="text-slate-900 leading-snug font-medium">Provide a detailed definition or notes about the behavior for clarity.</span></div>}><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></label>
               <textarea
                 className="flex min-h-[40px] w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
                 value={formData.remarks}
@@ -283,7 +284,7 @@ export default function AddBehavior() {
 
             <div className="grid gap-2.5 md:grid-cols-3">
               <div className="space-y-0.5">
-                <label className="text-[12px] font-bold text-slate-500 uppercase">Goal (Points to Reach)</label>
+                <label className="text-[12px] font-bold text-slate-500 uppercase flex items-center gap-1">Goal (Points to Reach) <CustomTooltip variant="help" content={<div className="flex items-start gap-3 max-w-[250px]"><div className="bg-yellow-100 rounded-full p-1 mt-0.5"><HelpCircle className="h-4 w-4 text-yellow-800" /></div><span className="text-slate-900 leading-snug font-medium">Define the target score or count the child needs to achieve to earn rewards for this behavior.</span></div>}><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></label>
                 <input
                   type="number"
                   className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
@@ -295,7 +296,7 @@ export default function AddBehavior() {
               </div>
 
               <div className="space-y-0.5">
-                <label className="text-[12px] font-bold text-slate-500 uppercase">Target Time (Duration)</label>
+                <label className="text-[12px] font-bold text-slate-500 uppercase flex items-center gap-1">Target Time (Duration) <CustomTooltip variant="help" content={<div className="flex items-start gap-3 max-w-[250px]"><div className="bg-yellow-100 rounded-full p-1 mt-0.5"><HelpCircle className="h-4 w-4 text-yellow-800" /></div><span className="text-slate-900 leading-snug font-medium">Set a time threshold. The behavior log entry becomes available only after this duration has elapsed.</span></div>}><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></label>
                 <div className="flex gap-2">
                   <input
                     type="number"
@@ -320,7 +321,7 @@ export default function AddBehavior() {
               </div>
 
               <div className="space-y-0.5">
-                <label className="text-[12px] font-bold text-slate-500 uppercase">Goal Rewards (+)</label>
+                <label className="text-[12px] font-bold text-slate-500 uppercase flex items-center gap-1">Goal Rewards (+) <CustomTooltip variant="help" content={<div className="flex items-start gap-3 max-w-[250px]"><div className="bg-yellow-100 rounded-full p-1 mt-0.5"><HelpCircle className="h-4 w-4 text-yellow-800" /></div><span className="text-slate-900 leading-snug font-medium">Specify the number of rewards (e.g., tokens) the child receives upon achieving the goal.</span></div>}><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></label>
                 <input
                   type="number"
                   className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"

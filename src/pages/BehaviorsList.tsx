@@ -10,8 +10,10 @@ import {
   Edit2, 
   History, 
   Loader2, 
-  Target
+  Target,
+  HelpCircle
 } from 'lucide-react';
+import { Tooltip as CustomTooltip } from '../components/ui/Tooltip';
 
 interface BehaviorDefinition {
   id: string;
@@ -208,15 +210,17 @@ export default function BehaviorsList() {
 
           <div className="flex flex-col items-end gap-2">
             <div className="flex gap-2">
-              <Button 
-                size="sm" 
-                onClick={handleAddBehavior} 
-                className="h-9" 
-                variant="primary"
-              >
-                <Plus className="mr-1 h-4 w-4" />
-                Add Behaviors
-              </Button>
+                <CustomTooltip variant="help" content={<div className="flex items-start gap-3 max-w-[250px]"><div className="bg-yellow-100 rounded-full p-1 mt-0.5"><HelpCircle className="h-4 w-4 text-yellow-800" /></div><span className="text-slate-900 leading-snug font-medium">Click here to create a new behavioral rule to track.</span></div>}>
+                  <Button 
+                    size="sm" 
+                    onClick={handleAddBehavior} 
+                    className="h-9" 
+                    variant="primary"
+                  >
+                    <Plus className="mr-1 h-4 w-4" />
+                    Add Behaviors
+                  </Button>
+                </CustomTooltip>
             </div>
           </div>
         </div>
@@ -229,13 +233,13 @@ export default function BehaviorsList() {
             <table className="w-full text-sm text-left">
               <thead className="text-xs text-slate-500 bg-slate-50 uppercase border-y border-slate-200">
                 <tr>
-                  <th className="px-4 py-3 font-bold">Behavior Name</th>
-                  <th className="px-4 py-3 font-bold">Active</th>
-                  <th className="px-4 py-3 font-bold">Behavior Description</th>
-                  <th className="px-4 py-3 font-bold">Priority</th>
-                  <th className="px-4 py-3 font-bold">Target Time</th>
-                  <th className="px-4 py-3 font-bold">Goals To Reach</th>
-                  <th className="px-4 py-3 font-bold">Rewards ({kid?.reward_type || 'Reward'}s)</th>
+                  <th className="px-4 py-3 font-bold"><div className="flex items-center gap-1">Behavior Name<CustomTooltip variant="help" content={<div className="flex items-start gap-3 max-w-[250px]"><div className="bg-yellow-100 rounded-full p-1 mt-0.5"><HelpCircle className="h-4 w-4 text-yellow-800" /></div><span className="text-slate-900 leading-snug font-medium">This is the desired behavior and to be rewarded when kid achieves the goal.</span></div>}><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></div></th>
+                  <th className="px-4 py-3 font-bold"><div className="flex items-center gap-1">Active<CustomTooltip variant="help" content={<div className="flex items-start gap-3 max-w-[250px]"><div className="bg-yellow-100 rounded-full p-1 mt-0.5"><HelpCircle className="h-4 w-4 text-yellow-800" /></div><span className="text-slate-900 leading-snug font-medium">Toggles whether this behavior rule is currently being tracked.</span></div>}><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></div></th>
+                  <th className="px-4 py-3 font-bold"><div className="flex items-center gap-1">Behavior Description<CustomTooltip variant="help" content={<div className="flex items-start gap-3 max-w-[250px]"><div className="bg-yellow-100 rounded-full p-1 mt-0.5"><HelpCircle className="h-4 w-4 text-yellow-800" /></div><span className="text-slate-900 leading-snug font-medium">A detailed explanation of the behavior.</span></div>}><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></div></th>
+                  <th className="px-4 py-3 font-bold"><div className="flex items-center gap-1">Priority<CustomTooltip variant="help" content={<div className="flex items-start gap-3 max-w-[250px]"><div className="bg-yellow-100 rounded-full p-1 mt-0.5"><HelpCircle className="h-4 w-4 text-yellow-800" /></div><span className="text-slate-900 leading-snug font-medium">The priority level of the behavior (High, Medium, Low).</span></div>}><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></div></th>
+                  <th className="px-4 py-3 font-bold"><div className="flex items-center gap-1">Check-in After<CustomTooltip variant="help" content={<div className="flex items-start gap-3 max-w-[250px]"><div className="bg-yellow-100 rounded-full p-1 mt-0.5"><HelpCircle className="h-4 w-4 text-yellow-800" /></div><span className="text-slate-900 leading-snug font-medium">Behavior log entry becomes available only after this duration has elapsed.</span></div>}><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></div></th>
+                  <th className="px-4 py-3 font-bold"><div className="flex items-center gap-1">Goals To Reach<CustomTooltip variant="help" content={<div className="flex items-start gap-3 max-w-[250px]"><div className="bg-yellow-100 rounded-full p-1 mt-0.5"><HelpCircle className="h-4 w-4 text-yellow-800" /></div><span className="text-slate-900 leading-snug font-medium">The target goal or count to reach.</span></div>}><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></div></th>
+                  <th className="px-4 py-3 font-bold"><div className="flex items-center gap-1">Rewards ({kid?.reward_type || 'Reward'}s)<CustomTooltip variant="help" content={<div className="flex items-start gap-3 max-w-[250px]"><div className="bg-yellow-100 rounded-full p-1 mt-0.5"><HelpCircle className="h-4 w-4 text-yellow-800" /></div><span className="text-slate-900 leading-snug font-medium">When the kid has achieved the goal, rewards balance will be updated by {kid?.reward_type || 'Reward'}s.</span></div>}><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></div></th>
                   <th className="px-4 py-3 font-bold text-right">Actions</th>
                 </tr>
               </thead>
