@@ -8,7 +8,7 @@ import { ArrowLeft, Calendar, Star, Lock, Lightbulb, LayoutGrid, CheckCircle, Ci
 import { Button } from '../components/Button';
 import { Card, CardContent } from '../components/Card';
 import { ActivityDetailModal } from '../components/ActivityDetailModal';
-import { getZonedTime, formatInTimezone } from '../utils/dateUtils';
+import { getZonedTime, formatInTimezone, convertDateToTimeZone } from '../utils/dateUtils';
 import { SocialStoryModal } from '../components/SocialStoryModal';
 import { ChatbotComponent } from '../components/ChatbotComponent';
 
@@ -33,7 +33,7 @@ interface Activity {
   due_date: string;
   repeat_interval?: number;
   repeat_unit?: string;
-  completed_at?: string;
+  completion_date?: string;
   created_at?: string;
   steps?: ActivityStep[];
   isHistory?: boolean;
@@ -200,9 +200,9 @@ export default function KidsDashboard() {
   const [today, setToday] = useState<string | null>(null);
   const completedTodayCount = activities.filter(a => {
     if (a.status !== 'completed') return false;
-    if (!a.completed_at) return a.due_date === today;
-    const completedDate = a.completed_at.split('T')[0];
-    return completedDate === today;
+    const dateToUse = a.completion_date || a.created_at;
+    if (!dateToUse) return a.due_date === today;
+    return getZonedTime(kid?.timezone, new Date(dateToUse)).isoDate === today;
   }).length;
   
   const rewardIcon = kid?.reward_type ? (rewardImages[kid.reward_type] || rewardImages['Penny']) : rewardImages['Penny'];
@@ -573,15 +573,26 @@ export default function KidsDashboard() {
         setToday(localDate);
         const localTime = zoned.totalMinutes;
 
-        // Fetch everything in parallel
+        // Fetch everything in parallel - using a wrapper to prevent one failure from breaking all
+        const fetchWrapper = async (p: Promise<Response>, name: string) => {
+          try {
+            const res = await p;
+            return res;
+          } catch (e) {
+            console.error(`KidsDashboard: Individual fetch failed (${name}):`, e);
+            // Return a mock "failed" response instead of throwing
+            return { ok: false, status: 0, statusText: 'Network Error', json: async () => ({ error: 'Network Error' }) } as any as Response;
+          }
+        };
+
         const [kidRes, actRes, rewardRes, quizRes, defsRes, logsRes, trackerRes] = await Promise.all([
-          apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}`),
-          apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/activities?mode=kid&localDate=${localDate}&localTime=${localTime}&_t=${Date.now()}`),
-          apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/reward-items?onlyActive=true`),
-          apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/quizzes`),
-          apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/behavior-definitions`),
-          apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/behaviors`),
-          apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/behavior-tracker`)
+          fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}`), 'kid'),
+          fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/activities?mode=kid&localDate=${localDate}&localTime=${localTime}&_t=${Date.now()}`), 'activities'),
+          fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/reward-items?onlyActive=true`), 'rewards'),
+          fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/quizzes`), 'quizzes'),
+          fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/behavior-definitions`), 'behavior-defs'),
+          fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/behaviors`), 'behavior-logs'),
+          fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/behavior-tracker`), 'behavior-tracker')
         ]);
 
         // Process Kid Data
@@ -639,8 +650,13 @@ export default function KidsDashboard() {
           setBehaviorTracker(trackerData.tracker || []);
         }
 
-      } catch (error) {
-        console.error('Failed to fetch data', error);
+      } catch (error: any) {
+        console.error('KidsDashboard: Failed to fetch data', {
+          error,
+          message: error?.message,
+          stack: error?.stack,
+          kidId
+        });
       }
     }
     
@@ -746,7 +762,7 @@ export default function KidsDashboard() {
     // Optimistic update for activities
     const now = new Date().toISOString();
     const updatedActivities = activities.map(a => 
-      a.id === activity.id ? { ...a, status: newStatus, completed_at: now } : a
+      a.id === activity.id ? { ...a, status: newStatus, completion_date: now } : a
     );
     setActivities(updatedActivities);
     localStorage.setItem(`activities_${kidId}`, JSON.stringify(updatedActivities));
@@ -760,7 +776,7 @@ export default function KidsDashboard() {
     }
 
     if (selectedActivity && selectedActivity.id === activity.id) {
-      setSelectedActivity({ ...selectedActivity, status: newStatus, completed_at: now });
+      setSelectedActivity({ ...selectedActivity, status: newStatus, completion_date: now });
     }
 
     if (navigator.onLine) {
@@ -776,6 +792,8 @@ export default function KidsDashboard() {
             imageUrl: activity.image_url,
             dueDate: activity.due_date,
             status: newStatus,
+            completedAt: convertDateToTimeZone(new Date(), kid!.timezone),
+            createdAt: convertDateToTimeZone(activity.created_at || new Date(), kid!.timezone),
           }),
         });
         
@@ -1104,9 +1122,9 @@ export default function KidsDashboard() {
                               return a.status !== 'completed' && a.due_date === today;
                             } else {
                               if (a.status !== 'completed') return false;
-                              if (!a.completed_at) return a.due_date === today;
-                              const completedDate = a.completed_at.split('T')[0];
-                              return completedDate === today;
+                              const dateToUse = a.completion_date || a.created_at;
+                              if (!dateToUse) return a.due_date === today;
+                              return getZonedTime(kid?.timezone, new Date(dateToUse)).isoDate === today;
                             }
                           });
                           

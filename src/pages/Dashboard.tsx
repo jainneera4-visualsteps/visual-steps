@@ -45,6 +45,12 @@ export default function Dashboard() {
   const [kids, setKids] = useState<Kid[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
+  
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
   const [showBuyGrid, setShowBuyGrid] = useState(false);
 
   const [selectedKid, setSelectedKid] = useState<Kid | null>(null);
@@ -169,8 +175,8 @@ export default function Dashboard() {
         kidsList.sort((a: Kid, b: Kid) => new Date(a.dob).getTime() - new Date(b.dob).getTime());
         setKids(kidsList);
         localStorage.setItem('kids_list', JSON.stringify(kidsList));
-      } catch (err) {
-        console.error(err);
+      } catch (err: any) {
+        console.error('Dashboard: Failed to fetch kids', { error: err, message: err?.message });
       } finally {
         setIsLoading(false);
       }
@@ -279,7 +285,9 @@ export default function Dashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           quantity: item.cost,
-          itemName: item.name
+          itemName: item.name,
+          location: item.location || 'General',
+          purchasedAt: new Date().toISOString()
         }),
       });
 
@@ -688,11 +696,6 @@ export default function Dashboard() {
                         <Button size="sm" variant="outline">Behaviors</Button>
                       </Link>
                     </Tooltip>
-                    <Tooltip content={`View ${kid.name}'s Progress Report`}>
-                      <Link to={`/assigned-activities/${kid.id}?tab=progress`}>
-                        <Button size="sm" variant="outline">Progress Report</Button>
-                      </Link>
-                    </Tooltip>
                   </div>
 
                   {/* Behavior Logging Tool */}
@@ -701,7 +704,7 @@ export default function Dashboard() {
                     {behaviorDefinitions.length > 0 && (
                       <div className="mt-1 border border-slate-100 rounded-xl overflow-hidden shadow-sm">
                         <div className="bg-slate-50 px-4 py-2 border-b border-slate-100 flex justify-between items-center">
-                          <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Daily Behavior Tracker</h4>
+                          <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Daily Behavior Tracker - {new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}</h4>
                           <Tooltip content={`Track ${kid.name}'s Behaviors`}>
                             <Button 
                               size="sm" 
@@ -789,25 +792,6 @@ export default function Dashboard() {
                                     </div>
                                   </div>
                                 </th>
-                                <th className="px-4 py-3">
-                                  <div className="flex items-center gap-1.5">
-                                    <span>Check-in time</span>
-                                    <div className="group relative">
-                                      <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
-                                      <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
-                                        <div className="flex items-start gap-3">
-                                          <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
-                                            <HelpCircle className="h-4 w-4 text-yellow-700" />
-                                          </div>
-                                          <span className="font-bold text-[15px] leading-tight text-slate-900">
-                                            The specific time set to review and record your child's progress for this behavior.
-                                          </span>
-                                        </div>
-                                        <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </th>
                                 <th className="px-4 py-3 text-center w-24">
                                   <div className="flex flex-col items-center gap-1">
                                     <span>Goal to reach</span>
@@ -888,18 +872,21 @@ export default function Dashboard() {
                             </thead>
                             <tbody className="divide-y divide-slate-50">
                               {behaviorDefinitions
-                                .filter(def => def.is_active !== false)
                                 .filter(def => {
+                                  if (def.is_active === false) return false;
+                                  
                                   const tracker = behaviorTracker.find(t => t.definition_id === def.id);
-                                  // Always show if never tracked
-                                  if (!tracker) return true;
-                                  // If tracked, only show if enough time elapsed since last_checked
-                                  const targetSeconds = def.target_seconds !== undefined ? def.target_seconds : (parseInt(def.target_time || '0') || 0) * 60;
-                                  const lastCheckedTime = tracker.last_checked_time 
-                                    ? new Date(tracker.last_checked_time).getTime() 
-                                    : (tracker.created_at ? new Date(tracker.created_at).getTime() : 0);
-                                  const elapsedSeconds = (new Date().getTime() - lastCheckedTime) / 1000;
-                                  return elapsedSeconds > targetSeconds;
+                                  if (!tracker?.last_tracked_time) return true; // Never tracked is ready
+                                  if (!def.target_seconds || def.target_seconds === 0) return true; // No interval is always ready
+                                  
+                                  const lastTime = tracker.last_tracked_time.includes('T') 
+                                    ? new Date(tracker.last_tracked_time)
+                                    : new Date(`${tracker.tracked_at || new Date().toISOString().split('T')[0]}T${tracker.last_tracked_time}`);
+                                  
+                                  if (isNaN(lastTime.getTime())) return true;
+
+                                  const elapsed = (currentTime.getTime() - lastTime.getTime()) / 1000;
+                                  return elapsed >= def.target_seconds;
                                 })
                                 .map((def) => {
                                   const tracker = behaviorTracker.find(t => t.definition_id === def.id);
@@ -923,9 +910,8 @@ export default function Dashboard() {
                                           className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                                         />
                                       </td>
-                                      <td className="px-4 py-3 font-bold text-slate-900">{def.name}</td>
+                                      <td className="px-4 py-3 text-slate-900 font-bold">{def.name}</td>
                                       <td className="px-4 py-3 text-xs text-slate-600">{def.description || '---'}</td>
-                                      <td className="px-4 py-3 text-slate-600">{def.target_time || '---'}</td>
                                       <td className="px-4 py-3 text-center font-bold text-slate-600">{def.goal || 1}</td>
                                       <td className="px-4 py-3 text-center font-bold text-slate-600">{tracker?.points || 0}</td>
                                       <td className="px-4 py-3 text-center font-bold text-slate-600">
@@ -936,7 +922,13 @@ export default function Dashboard() {
                                            value={tracker?.remarks || ''}
                                            onChange={(e) => {
                                              const newRemarks = e.target.value;
-                                             setBehaviorTracker(prev => prev.map(t => t.definition_id === def.id ? {...t, remarks: newRemarks} : t));
+                                             setBehaviorTracker(prev => {
+                                               const exists = prev.some(t => t.definition_id === def.id);
+                                               if (exists) {
+                                                 return prev.map(t => t.definition_id === def.id ? {...t, remarks: newRemarks} : t);
+                                               }
+                                               return [...prev, { definition_id: def.id, remarks: newRemarks, points: 0 }];
+                                             });
                                            }}
                                            className="w-full border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
                                            placeholder="Add a remark..."

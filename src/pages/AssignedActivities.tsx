@@ -41,10 +41,10 @@ interface Activity {
   repeat_interval?: number;
   repeat_unit?: string;
   created_at?: string;
-  completed_at?: string;
   steps?: ActivityStep[];
   isHistory?: boolean;
   reward_qty?: number;
+  completion_date?: string;
 }
 
 interface Kid {
@@ -134,7 +134,7 @@ export default function AssignedActivities() {
     return new Date(zoned.year, zoned.month - 1, 1);
   });
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'activities' | 'completed' | 'history' | 'rewards' | 'progress'>((searchParams.get('tab') as any) || 'activities');
+  const [activeTab, setActiveTab] = useState<'activities' | 'completed' | 'history' | 'rewards'>((searchParams.get('tab') as any) || 'activities');
 
   const [templates, setTemplates] = useState<ActivityTemplate[]>([]);
   const [socialStories, setSocialStories] = useState<any[]>([]);
@@ -229,8 +229,7 @@ export default function AssignedActivities() {
 
   const formatSimpleDate = (dateStr: string | null | undefined) => {
     if (!dateStr) return '';
-    const datePart = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
-    return formatKidDate(datePart + 'T12:00:00', { month: 'short', day: 'numeric', year: 'numeric', hour: undefined, minute: undefined });
+    return formatKidDate(dateStr, { month: 'short', day: 'numeric', year: 'numeric', hour: undefined, minute: undefined });
   };
 
   const formatTimeOnly = (dateStr: string | null | undefined) => {
@@ -715,8 +714,13 @@ export default function AssignedActivities() {
         const errorData = await safeJson(redRes).catch(() => ({}));
         console.error('Failed to fetch purchases:', redRes.status, errorData);
       }
-    } catch (error) {
-      console.error('Failed to fetch data', error);
+    } catch (error: any) {
+      console.error('AssignedActivities: Failed to fetch data', {
+        error,
+        message: error?.message,
+        stack: error?.stack,
+        kidId
+      });
     } finally {
       if (!silent) setIsLoading(false);
     }
@@ -778,12 +782,6 @@ export default function AssignedActivities() {
       socket.disconnect();
     };
   }, [kidId]);
-
-  useEffect(() => {
-    if (activeTab === 'progress') {
-      fetchBehaviorLogs();
-    }
-  }, [activeTab]);
 
   const fetchBehaviorLogs = async () => {
     try {
@@ -1421,7 +1419,7 @@ export default function AssignedActivities() {
       else if (completedSortConfig.key === 'activity_type') { aValue = a.activity_type; bValue = b.activity_type; }
       else if (completedSortConfig.key === 'description') { aValue = a.description; bValue = b.description; }
       else if (completedSortConfig.key === 'repeat_frequency') { aValue = a.repeat_frequency; bValue = b.repeat_frequency; }
-      else if (completedSortConfig.key === 'completed_at') { aValue = a.completed_at || a.due_date; bValue = b.completed_at || b.due_date; }
+      else if (completedSortConfig.key === 'completion_date') { aValue = a.completion_date || a.created_at || a.due_date; bValue = b.completion_date || b.created_at || b.due_date; }
       else if (completedSortConfig.key === 'time_of_day') { aValue = a.time_of_day; bValue = b.time_of_day; }
       else { return 0; }
       
@@ -1626,10 +1624,10 @@ export default function AssignedActivities() {
                         </div>
                       </div>
                     </th>
-                    <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortCompleted('completed_at')}>
+                    <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortCompleted('completion_date')}>
                       <div className="flex items-center gap-1.5">
                         <span>Completion Date</span>
-                        <SortIndicator config={completedSortConfig} columnKey="completed_at" />
+                        <SortIndicator config={completedSortConfig} columnKey="completion_date" />
                         <div className="group relative">
                           <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
                           <div className="absolute right-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
@@ -1721,7 +1719,7 @@ export default function AssignedActivities() {
                         {activity.repeat_frequency}
                       </td>
                       <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
-                        {formatSimpleDate(activity.completed_at || activity.due_date)}
+                        {formatSimpleDate(activity.completion_date || activity.created_at || activity.due_date)}
                       </td>
                       <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
                         {activity.time_of_day}
@@ -1807,8 +1805,6 @@ export default function AssignedActivities() {
                                   </div>
                                 )}
                               </div>
-                            : activeTab === 'progress'
-                                ? <div className="flex items-center gap-4"><Activity className="h-12 w-12 text-indigo-600" /> {kid?.name ? `${kid.name}'s ` : ''}Progress Report</div>
                                 : <div className="flex items-center gap-4"><Award className="h-12 w-12 text-amber-500" /> {kid?.name ? `${kid.name}'s ` : ''}Reward Items</div>}
                 </h1>
                 <p className="text-lg font-normal text-slate-500 mt-3">
@@ -1818,9 +1814,7 @@ export default function AssignedActivities() {
                         ? 'Activities that have been marked as completed. You can repeat them if you want.' 
                         : activeTab === 'history'
                             ? 'View past activity and reward history.'
-                            : activeTab === 'progress'
-                                ? 'Track learning progress and activity trends.'
-                                : 'Add or edit reward items'}
+                            : 'Add or edit reward items'}
                 </p>
               </div>
               
@@ -1868,17 +1862,6 @@ export default function AssignedActivities() {
                     >
                       <Sparkles className="h-3 w-3" />
                       Rewards
-                    </button>
-                  </CustomTooltip>
-                  <CustomTooltip content={`View ${kid?.name || 'Kid'}'s Progress Report`}>
-                    <button
-                      onClick={() => setActiveTab('progress')}
-                      className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
-                        activeTab === 'progress' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
-                      }`}
-                    >
-                      <Activity className="h-3 w-3" />
-                      Progress Report
                     </button>
                   </CustomTooltip>
                 </div>
@@ -2347,7 +2330,12 @@ export default function AssignedActivities() {
             {(() => {
               const filteredHistoryBase = historyActivities
                 .filter(a => !selectedDate || a.due_date === selectedDate)
-                .filter(a => !historyDateFilter || (a.completed_at ? a.completed_at.split('T')[0] : a.due_date) === historyDateFilter)
+                .filter(a => {
+                  if (!historyDateFilter) return true;
+                  const dateToUse = a.completion_date || a.created_at;
+                  if (!dateToUse) return a.due_date === historyDateFilter;
+                  return getZonedTime(kid?.timezone, new Date(dateToUse)).isoDate === historyDateFilter;
+                })
                 .filter(a => a.activity_type.toLowerCase().includes(historySearchQuery.toLowerCase()) || (a.description || '').toLowerCase().includes(historySearchQuery.toLowerCase()));
               
               // Group "Parent Bonus" entries by same minute
@@ -2355,9 +2343,9 @@ export default function AssignedActivities() {
               const bonusGroups: { [key: string]: any } = {};
               
               filteredHistoryBase.forEach(item => {
-                if (item.activity_type === 'Parent Bonus' && item.completed_at) {
+                if (item.activity_type === 'Parent Bonus' && (item.completion_date || item.created_at)) {
                   // Group by the formatted date/time (which is down to the minute)
-                  const timeKey = formatKidDate(item.completed_at);
+                  const timeKey = formatKidDate(item.completion_date || item.created_at);
                   if (!bonusGroups[timeKey]) {
                     bonusGroups[timeKey] = { 
                       ...item, 
@@ -2375,7 +2363,7 @@ export default function AssignedActivities() {
               
               const filteredHistory = [...filteredHistoryRaw].sort((a, b) => {
                 if (!historySortConfig.key) {
-                  return new Date(b.completed_at || b.due_date).getTime() - new Date(a.completed_at || a.due_date).getTime();
+                  return new Date(b.completion_date || b.created_at || b.due_date).getTime() - new Date(a.completion_date || a.created_at || a.due_date).getTime();
                 }
                 
                 let aValue: any;
@@ -2383,7 +2371,7 @@ export default function AssignedActivities() {
                 
                 if (historySortConfig.key === 'activity_type') { aValue = a.activity_type; bValue = b.activity_type; }
                 else if (historySortConfig.key === 'description') { aValue = a.description; bValue = b.description; }
-                else if (historySortConfig.key === 'completed_at') { aValue = a.completed_at || a.due_date; bValue = b.completed_at || b.due_date; }
+                else if (historySortConfig.key === 'completion_date') { aValue = a.completion_date || a.created_at || a.due_date; bValue = b.completion_date || b.created_at || b.due_date; }
                 else if (historySortConfig.key === 'reward_qty') { aValue = Number(a.reward_qty) || 0; bValue = Number(b.reward_qty) || 0; }
                 else { return 0; }
                 
@@ -2531,10 +2519,10 @@ export default function AssignedActivities() {
                               </div>
                             </div>
                           </th>
-                          <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortHistory('completed_at')}>
+                          <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortHistory('completion_date')}>
                             <div className="flex items-center gap-1.5">
                               <span>Completion Date</span>
-                              <SortIndicator config={historySortConfig} columnKey="completed_at" />
+                              <SortIndicator config={historySortConfig} columnKey="completion_date" />
                               <div className="group relative">
                                 <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
                                 <div className="absolute right-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
@@ -2633,7 +2621,7 @@ export default function AssignedActivities() {
                               )}
                             </td>
                             <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
-                              {formatSimpleDate(activity.completed_at || activity.due_date)}
+                              {formatSimpleDate(activity.completion_date || activity.created_at || activity.due_date)}
                             </td>
                             
                             <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
@@ -2666,975 +2654,15 @@ export default function AssignedActivities() {
         })()}
           </CardContent>
         </Card>
-      ) : activeTab === 'progress' ? (() => {
-        // Filter history based on duration
-        const filteredHistory = historyActivities.filter(h => {
-          if (reportDuration === 'all') return true;
-          if (!h.completed_at) return false;
-          const completedDate = new Date(h.completed_at);
-          const now = new Date();
-          const diffMs = Math.abs(now.getTime() - completedDate.getTime());
-          const diffHours = diffMs / (1000 * 60 * 60);
-          
-          if (reportDuration === '24h') return diffHours <= 24;
-          if (reportDuration === '7d') return diffHours <= 24 * 7;
-          if (reportDuration === '30d') return diffHours <= 24 * 30;
-          return true;
-        });
 
-        // Group "Parent Bonus" entries by same minute
-        const groupedHistory: any[] = [];
-        const bonusGroups: { [key: string]: any } = {};
-        
-        filteredHistory.forEach(item => {
-          if (item.activity_type === 'Parent Bonus' && item.completed_at) {
-            // Group by the formatted date/time (which is down to the minute)
-            const timeKey = formatKidDate(item.completed_at);
-            if (!bonusGroups[timeKey]) {
-              bonusGroups[timeKey] = { 
-                ...item, 
-                reward_qty: 0,
-                // Keep the original ID or generate a unique one for the group
-                id: `bonus-group-${timeKey}`
-              };
-            }
-            bonusGroups[timeKey].reward_qty += (Number(item.reward_qty) || 0);
-          } else {
-            groupedHistory.push(item);
-          }
-        });
-
-        const finalHistory = [...groupedHistory, ...Object.values(bonusGroups)];
-        const sortedHistory = finalHistory.sort((a, b) => new Date(b.completed_at || '').getTime() - new Date(a.completed_at || '').getTime());
-        const totalHistoryPages = Math.ceil(sortedHistory.length / historyItemsPerPage);
-        const paginatedHistory = sortedHistory.slice((historyPage - 1) * historyItemsPerPage, historyPage * historyItemsPerPage);
-
-        // Combine history and currently completed activities for a complete picture
-        const currentCompleted = activities.filter(a => {
-          if (a.status !== 'completed' || !a.completed_at) return false;
-          if (reportDuration === 'all') return true;
-          
-          const completedDate = new Date(a.completed_at);
-          const now = new Date();
-          const diffMs = Math.abs(now.getTime() - completedDate.getTime());
-          const diffHours = diffMs / (1000 * 60 * 60);
-          
-          if (reportDuration === '24h') return diffHours <= 24;
-          if (reportDuration === '7d') return diffHours <= 24 * 7;
-          if (reportDuration === '30d') return diffHours <= 24 * 30;
-          return true;
-        });
-
-        const combinedCompleted = [...filteredHistory, ...currentCompleted];
-
-        // Activities completed should only count actual activities, not manual reward adjustments or behavior goals
-        const actualActivitiesCompleted = combinedCompleted.filter(item => 
-          item.activity_type !== 'Parent Bonus' && 
-          item.activity_type !== 'Behavior Goal Achieved'
-        );
-        const completedCount = actualActivitiesCompleted.length;
-        
-        const totalRewardsEarned = combinedCompleted.reduce((sum, item) => sum + (Number(item.reward_qty) || 0), 0);
-        
-        // Group by category (including manual rewards if we want them in the chart, or excluding them)
-        // Let's exclude manual rewards from the "Activity" charts to keep them focused on tasks
-        const categories = Array.from(new Set(actualActivitiesCompleted.map(a => a.category || 'Uncategorized')));
-        const categoryData = categories.map(cat => ({
-          name: cat,
-          completed: actualActivitiesCompleted.filter(a => (a.category || 'Uncategorized') === cat).length
-        })).sort((a, b) => b.completed - a.completed);
-
-        const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f43f5e'];
-
-        // Group by activity name
-        const activityNames = Array.from(new Set(actualActivitiesCompleted.map(a => a.activity_type)));
-        const activityData = activityNames.map(name => ({
-          name: name,
-          completed: actualActivitiesCompleted.filter(a => a.activity_type === name).length
-        })).sort((a, b) => b.completed - a.completed).slice(0, 10); // Top 10
-
-        // Group by week
-        const weeklyDataMap: { [key: string]: number } = {};
-        actualActivitiesCompleted.forEach(a => {
-          if (!a.completed_at) return;
-          const date = new Date(a.completed_at);
-          if (isNaN(date.getTime())) return;
-          // Get the start of the week (Monday)
-          const day = date.getDay();
-          const diff = date.getDate() - day + (day === 0 ? -6 : 1);
-          const weekStart = new Date(date.getFullYear(), date.getMonth(), diff);
-          if (isNaN(weekStart.getTime())) return;
-          const weekKey = `Week of ${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
-          weeklyDataMap[weekKey] = (weeklyDataMap[weekKey] || 0) + 1;
-        });
-        const weeklyData = Object.entries(weeklyDataMap)
-          .map(([name, completed]) => ({ name, completed }))
-          .sort((a, b) => new Date(a.name.replace('Week of ', '')).getTime() - new Date(b.name.replace('Week of ', '')).getTime());
-
-        // Group by date and behavior
-        const filteredLogs = behaviorLogs.filter(item => {
-          if (reportDuration === 'all') return true;
-          const completedAt = new Date(item.date || '');
-          if (isNaN(completedAt.getTime())) return false;
-          const now = new Date();
-          const diffMs = Math.abs(now.getTime() - completedAt.getTime());
-          const diffHours = diffMs / (1000 * 60 * 60);
-          
-          if (reportDuration === '24h') return diffHours <= 24;
-          if (reportDuration === '7d') return diffHours <= 24 * 7;
-          if (reportDuration === '30d') return diffHours <= 24 * 30;
-          return true;
-        });
-
-        const dailyDataMap: { [key: string]: { [key: string]: any, _total: number, _date: Date } } = {};
-        filteredLogs.forEach(item => {
-          const date = new Date(item.date);
-          if (isNaN(date.getTime())) return;
-          const dateKey = date.toISOString().split('T')[0];
-          
-          if (!dailyDataMap[dateKey]) {
-            dailyDataMap[dateKey] = { _total: 0, _date: date };
-          }
-          
-          let behavior = item.description || 'Other';
-          if (behavior.toLowerCase().startsWith('goal reached: ')) {
-            behavior = behavior.substring(14).trim();
-          }
-          dailyDataMap[dateKey][behavior] = (dailyDataMap[dateKey][behavior] || 0) + 1;
-          dailyDataMap[dateKey]._total++;
-        });
-        
-        const allBehaviors = Array.from(new Set(filteredLogs.map(a => a.description || 'Other')));
-        const dailyData = Object.entries(dailyDataMap)
-          .map(([key, value]) => ({ 
-            name: value._date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), 
-            fullDate: value._date,
-            ...value
-          }))
-          .sort((a, b) => a.fullDate.getTime() - b.fullDate.getTime());
-
-        // Group behavior logs by Behavior Name and Date
-        const groupedLogsMap: Record<string, any> = {};
-        behaviorLogs.forEach(log => {
-          const bDef = Array.isArray(log.behavior_definitions) ? log.behavior_definitions[0] : log.behavior_definitions;
-          const behaviorName = bDef?.name || 'Manual Log';
-          
-          // Parse description to remove metadata tags like [Time: ...] [Goal: ...]
-          const rawDesc = bDef?.description || '';
-          const timeMatch = rawDesc.match(/^\[Time: (\d{2}):(\d{2}):(\d{2})\](?:\[Priority: (High|Medium|Low)\])?(?:\[Goal: (\d+)\])? (.*)$/s);
-          const behaviorDesc = timeMatch ? timeMatch[6] : rawDesc;
-
-          const dateKey = log.date || (log.created_at ? log.created_at.split('T')[0] : 'Unknown');
-          const groupKey = `${behaviorName}-${dateKey}`;
-          
-          if (!groupedLogsMap[groupKey]) {
-            const trackerEntry = behaviorTracker?.find(t => t.definition_id === log.definition_id);
-            groupedLogsMap[groupKey] = {
-              ...log, // Keep original structure for compatibility
-              id: groupKey, 
-              behavior_name: behaviorName,
-              behavior_description: behaviorDesc,
-              date: dateKey,
-              rewards_earned: 0,
-              descriptions: [],
-              parent_remarks: trackerEntry?.remarks || '-'
-            };
-          }
-          
-          groupedLogsMap[groupKey].rewards_earned += (log.rewards_earned || 0);
-          if (log.remarks && (!groupedLogsMap[groupKey].remarks_list || !groupedLogsMap[groupKey].remarks_list.includes(log.remarks))) {
-            if (!groupedLogsMap[groupKey].remarks_list) groupedLogsMap[groupKey].remarks_list = [];
-            groupedLogsMap[groupKey].remarks_list.push(log.remarks);
-          }
-          // Stay with the latest created_at for sorting
-          if (!groupedLogsMap[groupKey].created_at || new Date(log.created_at) > new Date(groupedLogsMap[groupKey].created_at)) {
-             groupedLogsMap[groupKey].created_at = log.created_at;
-          }
-        });
-
-        const sortedBehaviorLogs = Object.values(groupedLogsMap).sort((a: any, b: any) => new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime());
-        const totalBehaviorPages = Math.ceil(sortedBehaviorLogs.length / behaviorItemsPerPage);
-        const paginatedBehaviors = sortedBehaviorLogs.slice((behaviorPage - 1) * behaviorItemsPerPage, behaviorPage * behaviorItemsPerPage);
-
-        // Filter purchases based on duration
-        const filteredPurchases = purchases.filter(r => {
-          if (reportDuration === 'all') return true;
-          const purchasedDate = new Date(r.purchased_at);
-          const now = new Date();
-          const diffMs = Math.abs(now.getTime() - purchasedDate.getTime());
-          const diffHours = diffMs / (1000 * 60 * 60);
-          
-          if (reportDuration === '24h') return diffHours <= 24;
-          if (reportDuration === '7d') return diffHours <= 24 * 7;
-          if (reportDuration === '30d') return diffHours <= 24 * 30;
-          return true;
-        });
-
-        const sortedPurchases = [...filteredPurchases].sort((a, b) => new Date(b.purchased_at).getTime() - new Date(a.purchased_at).getTime());
-        const totalPurchasePages = Math.ceil(sortedPurchases.length / purchaseItemsPerPage);
-        const paginatedPurchases = sortedPurchases.slice((purchasePage - 1) * purchaseItemsPerPage, purchasePage * purchaseItemsPerPage);
-
-        const durationLabels: Record<string, string> = {
-          '24h': 'the last 24 hours',
-          '7d': 'the last 7 days',
-          '30d': 'the last 30 days',
-          'all': 'all time',
-        };
-
-        return (
-          <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-4">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Duration:</span>
-                <select 
-                  value={reportDuration}
-                  onChange={(e) => setReportDuration(e.target.value as any)}
-                  className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-bold text-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                >
-                  <option value="24h">Last 24 Hours</option>
-                  <option value="7d">Last 7 Days</option>
-                  <option value="30d">Last 30 Days</option>
-                  <option value="all">All Time</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <Card className="border-none ring-1 ring-slate-200 bg-emerald-50/30">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-full bg-emerald-100 p-2 text-emerald-600">
-                      <CheckCircle className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total activities completed in {durationLabels[reportDuration]}</p>
-                      <p className="text-2xl font-black text-slate-900">{completedCount}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="border-none ring-1 ring-slate-200">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-full bg-purple-100 p-2 text-purple-600">
-                      <Award className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Current Rewards Balance</p>
-                      <p className="text-2xl font-black text-slate-900">{kid?.reward_balance || 0}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="border-none ring-1 ring-slate-200 bg-yellow-50/30">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-full bg-yellow-100 p-2 text-yellow-600">
-                      <Sparkles className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Rewards Earned in {durationLabels[reportDuration]}</p>
-                      <p className="text-2xl font-black text-slate-900">{totalRewardsEarned}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
 
             
 
 
-            <Card className="border-none ring-1 ring-slate-200">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-bold flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-indigo-600" />
-                  Rewards Earned by Behavior
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[300px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={Object.values(sortedBehaviorLogs.reduce((acc: any, log: any) => {
-                        const name = log.behavior_name;
-                        if (!acc[name]) acc[name] = { name, rewards: 0 };
-                        acc[name].rewards += (log.rewards_earned || 0);
-                        return acc;
-                      }, {}))}
-                      margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis 
-                        dataKey="name" 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{ fontSize: 10, fill: '#64748b' }}
-                        interval={0}
-                        angle={-45}
-                        textAnchor="end"
-                      />
-                      <YAxis 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{ fontSize: 10, fill: '#64748b' }}
-                      />
-                      <ChartRechartsTooltip 
-                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                        cursor={{ fill: '#f8fafc' }}
-                      />
-                      <Bar dataKey="rewards" radius={[4, 4, 0, 0]} barSize={40}>
-                        {Object.values(sortedBehaviorLogs.reduce((acc: any, log: any) => {
-                          const name = log.behavior_name;
-                          if (!acc[name]) acc[name] = { name, rewards: 0 };
-                          acc[name].rewards += (log.rewards_earned || 0);
-                          return acc;
-                        }, {})).map((entry: any, index: number) => (
-                          <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#6366f1' : '#8b5cf6'} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-
-          <div className="grid gap-6 lg:grid-cols-2">
-            <Card className="border-none ring-1 ring-slate-200">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-bold flex items-center gap-2">
-                  <PieChartIcon className="h-4 w-4 text-emerald-600" />
-                  Behavior Distribution
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[300px] w-full">
-                  {sortedBehaviorLogs.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={Object.values(sortedBehaviorLogs.reduce((acc: any, log: any) => {
-                            const name = log.behavior_name;
-                            if (!acc[name]) acc[name] = { name, count: 0 };
-                            acc[name].count += 1;
-                            return acc;
-                          }, {}))}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={60}
-                          outerRadius={80}
-                          paddingAngle={5}
-                          dataKey="count"
-                        >
-                          {Object.values(sortedBehaviorLogs.reduce((acc: any, log: any) => {
-                            const name = log.behavior_name;
-                            if (!acc[name]) acc[name] = { name, count: 0 };
-                            acc[name].count += 1;
-                            return acc;
-                          }, {})).map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={PIE_COLORS[(index + 2) % PIE_COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <ChartRechartsTooltip 
-                          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                        />
-                        <Legend 
-                          verticalAlign="bottom" 
-                          align="center"
-                          iconType="circle"
-                          wrapperStyle={{ fontSize: '10px', fontWeight: 600, paddingTop: '10px' }}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="flex h-full flex-col items-center justify-center text-slate-400">
-                      <History className="h-12 w-12 mb-2 opacity-20" />
-                      <p className="text-sm font-bold italic">No behavior logs</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-none ring-1 ring-slate-200">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-bold flex items-center gap-2">
-                  <PieChartIcon className="h-4 w-4 text-orange-600" />
-                  Priority Distribution
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[300px] w-full">
-                  {sortedBehaviorLogs.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={Object.values(sortedBehaviorLogs.reduce((acc: any, log: any) => {
-                            const bDef = Array.isArray(log.behavior_definitions) ? log.behavior_definitions[0] : log.behavior_definitions;
-                            const priority = bDef?.priority || 'None';
-                            const label = priority === 'None' ? 'No Priority' : `Priority ${priority}`;
-                            if (!acc[label]) acc[label] = { name: label, count: 0 };
-                            acc[label].count += 1;
-                            return acc;
-                          }, {}))}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={60}
-                          outerRadius={80}
-                          paddingAngle={5}
-                          dataKey="count"
-                        >
-                          {Object.values(sortedBehaviorLogs.reduce((acc: any, log: any) => {
-                            const bDef = Array.isArray(log.behavior_definitions) ? log.behavior_definitions[0] : log.behavior_definitions;
-                            const priority = bDef?.priority || 'None';
-                            const label = priority === 'None' ? 'No Priority' : `Priority ${priority}`;
-                            if (!acc[label]) acc[label] = { name: label, count: 0 };
-                            acc[label].count += 1;
-                            return acc;
-                          }, {})).map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={PIE_COLORS[(index + 4) % PIE_COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <ChartRechartsTooltip 
-                          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                        />
-                        <Legend 
-                          verticalAlign="bottom" 
-                          align="center"
-                          iconType="circle"
-                          wrapperStyle={{ fontSize: '10px', fontWeight: 600, paddingTop: '10px' }}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="flex h-full flex-col items-center justify-center text-slate-400">
-                      <History className="h-12 w-12 mb-2 opacity-20" />
-                      <p className="text-sm font-bold italic">No behavior statistics</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-none ring-1 ring-slate-200">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-bold flex items-center gap-2">
-                  <BarChartIcon className="h-4 w-4 text-amber-600" />
-                  Top Categories
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[300px] w-full">
-                  {categoryData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={categoryData} layout="vertical">
-                        <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
-                        <XAxis type="number" hide />
-                        <YAxis 
-                          dataKey="name" 
-                          type="category" 
-                          axisLine={false} 
-                          tickLine={false} 
-                          tick={{ fontSize: 10, fontWeight: 600, fill: '#64748b' }}
-                          width={100}
-                        />
-                        <ChartRechartsTooltip 
-                          cursor={{ fill: '#f8fafc' }}
-                          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                        />
-                        <Bar dataKey="completed" name="Completed" radius={[0, 4, 4, 0]}>
-                          {categoryData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={PIE_COLORS[(index + 1) % PIE_COLORS.length]} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="flex h-full flex-col items-center justify-center text-slate-400">
-                      <History className="h-12 w-12 mb-2 opacity-20" />
-                      <p className="text-sm font-bold italic">No history</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
             
-            <Card className="border-none ring-1 ring-slate-200">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-bold flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-emerald-600" />
-                    Recent Behavior History ({sortedBehaviorLogs.length})
-                  </CardTitle>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase">Per page:</span>
-                    <select 
-                      className="h-6 rounded border border-slate-200 bg-white px-1 text-[10px] font-bold focus:outline-none focus:ring-1 focus:ring-blue-600"
-                      value={behaviorItemsPerPage}
-                      onChange={(e) => setBehaviorItemsPerPage(Number(e.target.value))}
-                    >
-                      <option value={10}>10</option>
-                      <option value={20}>20</option>
-                      <option value={30}>30</option>
-                      <option value={40}>40</option>
-                      <option value={50}>50</option>
-                    </select>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm text-left">
-                    <thead className="text-xs text-slate-500 bg-slate-50 uppercase border-y border-slate-200 font-bold">
-                      <tr>
-                        <th className="px-4 py-3">Behavior</th>
-                        <th className="px-4 py-3">Behavior Description</th>
-                        <th className="px-4 py-3">Parent's Remarks</th>
-                        <th className="px-4 py-3 text-center">Priority</th>
-                        <th className="px-4 py-3 text-center">Rewards</th>
-                        <th className="px-4 py-3 text-right">Achievement Date</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {paginatedBehaviors.map((log, idx) => (
-                        <tr key={log.id || idx} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-4 py-3">
-                            <div className="text-sm font-bold text-slate-900 truncate max-w-[120px]" 
-                                 title={Array.isArray(log.behavior_definitions) 
-                                        ? (log.behavior_definitions[0]?.name || 'Manual Log') 
-                                        : (log.behavior_definitions?.name || 'Manual Log')}>
-                              {Array.isArray(log.behavior_definitions) 
-                                ? (log.behavior_definitions[0]?.name || 'Manual Log') 
-                                : (log.behavior_definitions?.name || 'Manual Log')}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="text-sm text-slate-600 space-y-1 break-words whitespace-pre-wrap">
-                              {log.behavior_description && (
-                                <div className="mb-2 text-slate-700">
-                                  {log.behavior_description}
-                                </div>
-                              )}
-                              {log.remarks_list?.map((rem: string, i: number) => (
-                                <div key={`rem-${i}`} className="flex items-start gap-1 italic text-slate-500">
-                                  <span className="text-slate-300 mt-0.5 shrink-0">»</span>
-                                  <span className="text-[11px] leading-snug">{rem}</span>
-                                </div>
-                              ))}
-                              {!log.behavior_description && (!log.remarks_list || log.remarks_list.length === 0) && (
-                                <div className="text-slate-400 italic text-[11px]">No details logged</div>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="text-sm text-slate-600 break-words whitespace-pre-wrap" title={log.parent_remarks}>
-                              {log.parent_remarks}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-center line-through">
-                            {(() => {
-                              const bDef = Array.isArray(log.behavior_definitions) ? log.behavior_definitions[0] : log.behavior_definitions;
-                              const priority = bDef?.priority || '-';
-                              return (
-                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider border-none ${
-                                  priority === 'High' ? 'bg-red-100 text-red-700' : 
-                                  priority === 'Medium' ? 'bg-amber-100 text-amber-700' : 
-                                  priority === 'Low' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
-                                }`}>
-                                  {priority}
-                                </span>
-                              );
-                            })()}
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className={`text-sm font-bold ${log.rewards_earned > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
-                              {log.rewards_earned > 0 
-                                ? `+${log.rewards_earned} ${formatReward(kid?.reward_type, log.rewards_earned)}` 
-                                : (log.rewards_earned || '-')}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-right whitespace-nowrap text-slate-600">
-                            {formatSimpleDate(log.created_at)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  
-                  {sortedBehaviorLogs.length > 0 && totalBehaviorPages > 1 && (
-                    <div className="mt-4 px-4 flex items-center justify-between border-t border-slate-100 pt-4">
-                      <p className="text-[10px] font-bold text-slate-500 uppercase">
-                        Page {behaviorPage} of {totalBehaviorPages}
-                      </p>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          disabled={behaviorPage === 1}
-                          onClick={() => setBehaviorPage(prev => Math.max(1, prev - 1))}
-                          className="h-7 w-7 p-0"
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <div className="flex items-center gap-1">
-                          {Array.from({ length: Math.min(5, totalBehaviorPages) }, (_, i) => {
-                            let pageNum;
-                            if (totalBehaviorPages <= 5) {
-                              pageNum = i + 1;
-                            } else if (behaviorPage <= 3) {
-                              pageNum = i + 1;
-                            } else if (behaviorPage >= totalBehaviorPages - 2) {
-                              pageNum = totalBehaviorPages - 4 + i;
-                            } else {
-                              pageNum = behaviorPage - 2 + i;
-                            }
-                            return (
-                              <Button
-                                key={pageNum}
-                                variant={behaviorPage === pageNum ? 'primary' : 'ghost'}
-                                size="xs"
-                                onClick={() => setBehaviorPage(pageNum)}
-                                className={`h-7 w-7 p-0 text-[10px] font-bold ${behaviorPage === pageNum ? 'bg-blue-600 text-white' : 'text-slate-600'}`}
-                              >
-                                {pageNum}
-                              </Button>
-                            );
-                          })}
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          disabled={behaviorPage === totalBehaviorPages}
-                          onClick={() => setBehaviorPage(prev => Math.min(totalBehaviorPages, prev + 1))}
-                          className="h-7 w-7 p-0"
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  )}
 
-                  {sortedBehaviorLogs.length === 0 && (
-                    <div className="text-center py-12 text-slate-400">
-                      <TrendingUp className="h-12 w-12 mx-auto mb-2 opacity-20" />
-                      <p className="text-sm font-bold italic">No behavior history found for the selected duration.</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
 
-            <Card className="border-none ring-1 ring-slate-200">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-bold flex items-center gap-2">
-                    <History className="h-4 w-4 text-blue-600" />
-                    Recent Activities History ({sortedHistory.length})
-                  </CardTitle>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase">Per page:</span>
-                    <select 
-                      className="h-6 rounded border border-slate-200 bg-white px-1 text-[10px] font-bold focus:outline-none focus:ring-1 focus:ring-blue-600"
-                      value={historyItemsPerPage}
-                      onChange={(e) => setHistoryItemsPerPage(Number(e.target.value))}
-                    >
-                      <option value={10}>10</option>
-                      <option value={20}>20</option>
-                      <option value={30}>30</option>
-                      <option value={40}>40</option>
-                      <option value={50}>50</option>
-                    </select>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm text-left">
-                    <thead className="text-xs text-slate-500 bg-slate-50 uppercase border-y border-slate-200 font-bold">
-                      <tr>
-                        <th className="px-4 py-3">Activity Type</th>
-                        <th className="px-4 py-3">Description</th>
-                        <th className="px-4 py-3 text-center">Reward</th>
-                        <th className="px-4 py-3 text-right">Completion Date</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {paginatedHistory.map((activity, idx) => (
-                        <tr key={activity.id || idx} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-4 py-3">
-                            <div className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                              <div className={`rounded-full p-1 ${activity.activity_type === 'Parent Bonus' ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600'}`}>
-                                {activity.activity_type === 'Parent Bonus' ? <Sparkles className="h-3 w-3" /> : <CheckCircle className="h-3 w-3" />}
-                              </div>
-                              {activity.activity_type}
-                              {activity.link?.includes('/social-stories/view/') && (
-                                <div className={`flex h-4 w-4 items-center justify-center rounded-full bg-blue-100 text-blue-600`}>
-                                  <Eye className="h-2.5 w-2.5" />
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="text-xs text-slate-600">
-                              {activity.description || '-'}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <div className="text-sm font-bold text-orange-600 flex items-center justify-center gap-1">
-                              <img src={rewardIcon} alt={kid?.reward_type} className="h-3 w-3 object-contain" referrerPolicy="no-referrer" />
-                              +{activity.reward_qty || 0} {formatReward(kid?.reward_type, activity.reward_qty || 0)}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-right whitespace-nowrap text-slate-600">
-                            {formatSimpleDate(activity.completed_at || activity.due_date)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  
-                  {filteredHistory.length > 0 && totalHistoryPages > 1 && (
-                    <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
-                      <p className="text-[10px] font-bold text-slate-500 uppercase">
-                        Page {historyPage} of {totalHistoryPages}
-                      </p>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          disabled={historyPage === 1}
-                          onClick={() => setHistoryPage(prev => Math.max(1, prev - 1))}
-                          className="h-7 w-7 p-0"
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <div className="flex items-center gap-1">
-                          {Array.from({ length: Math.min(5, totalHistoryPages) }, (_, i) => {
-                            let pageNum;
-                            if (totalHistoryPages <= 5) {
-                              pageNum = i + 1;
-                            } else if (historyPage <= 3) {
-                              pageNum = i + 1;
-                            } else if (historyPage >= totalHistoryPages - 2) {
-                              pageNum = totalHistoryPages - 4 + i;
-                            } else {
-                              pageNum = historyPage - 2 + i;
-                            }
-                            return (
-                              <Button
-                                key={pageNum}
-                                variant={historyPage === pageNum ? 'primary' : 'ghost'}
-                                size="xs"
-                                onClick={() => setHistoryPage(pageNum)}
-                                className={`h-7 w-7 p-0 text-[10px] font-bold ${historyPage === pageNum ? 'bg-blue-600 text-white' : 'text-slate-600'}`}
-                              >
-                                {pageNum}
-                              </Button>
-                            );
-                          })}
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          disabled={historyPage === totalHistoryPages}
-                          onClick={() => setHistoryPage(prev => Math.min(totalHistoryPages, prev + 1))}
-                          className="h-7 w-7 p-0"
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {filteredHistory.length === 0 && (
-                    <div className="text-center py-12 text-slate-400">
-                      <History className="h-12 w-12 mx-auto mb-2 opacity-20" />
-                      <p className="text-sm font-bold italic">No history found for the selected duration.</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-none ring-1 ring-slate-200">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-bold flex items-center gap-2">
-                    <Award className="h-4 w-4 text-purple-600" />
-                    Purchase History ({filteredPurchases.length})
-                  </CardTitle>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase">Per page:</span>
-                    <select 
-                      className="h-6 rounded border border-slate-200 bg-white px-1 text-[10px] font-bold focus:outline-none focus:ring-1 focus:ring-blue-600"
-                      value={purchaseItemsPerPage}
-                      onChange={(e) => setPurchaseItemsPerPage(Number(e.target.value))}
-                    >
-                      <option value={10}>10</option>
-                      <option value={20}>20</option>
-                      <option value={30}>30</option>
-                      <option value={40}>40</option>
-                      <option value={50}>50</option>
-                    </select>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm text-left">
-                    <thead className="text-xs text-slate-500 bg-slate-50 uppercase border-y border-slate-200 font-bold">
-                      <tr>
-                        <th className="px-4 py-3">Item Name</th>
-                        <th className="px-4 py-3 text-center">Cost</th>
-                        <th className="px-4 py-3 text-right">Purchase Date</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {paginatedPurchases.map((purchase, idx) => (
-                        <tr key={purchase.id || idx} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-4 py-3">
-                            <div className="text-sm font-bold text-slate-900">
-                              {purchase.item_name}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <div className="text-sm font-bold text-purple-600 flex items-center justify-center gap-1">
-                              <img src={rewardIcon} alt={kid?.reward_type} className="h-3 w-3 object-contain" referrerPolicy="no-referrer" />
-                              -{purchase.cost} {formatReward(kid?.reward_type, purchase.cost)}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-right whitespace-nowrap text-slate-600">
-                            {formatSimpleDate(purchase.purchased_at)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-
-                  {filteredPurchases.length > 0 && totalPurchasePages > 1 && (
-                    <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
-                      <p className="text-[10px] font-bold text-slate-500 uppercase">
-                        Page {purchasePage} of {totalPurchasePages}
-                      </p>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          disabled={purchasePage === 1}
-                          onClick={() => setPurchasePage(prev => Math.max(1, prev - 1))}
-                          className="h-7 w-7 p-0"
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <div className="flex items-center gap-1">
-                          {Array.from({ length: Math.min(5, totalPurchasePages) }, (_, i) => {
-                            let pageNum;
-                            if (totalPurchasePages <= 5) {
-                              pageNum = i + 1;
-                            } else if (purchasePage <= 3) {
-                              pageNum = i + 1;
-                            } else if (purchasePage >= totalPurchasePages - 2) {
-                              pageNum = totalPurchasePages - 4 + i;
-                            } else {
-                              pageNum = purchasePage - 2 + i;
-                            }
-                            return (
-                              <Button
-                                key={pageNum}
-                                variant={purchasePage === pageNum ? 'primary' : 'ghost'}
-                                size="xs"
-                                onClick={() => setPurchasePage(pageNum)}
-                                className={`h-7 w-7 p-0 text-[10px] font-bold ${purchasePage === pageNum ? 'bg-blue-600 text-white' : 'text-slate-600'}`}
-                              >
-                                {pageNum}
-                              </Button>
-                            );
-                          })}
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          disabled={purchasePage === totalPurchasePages}
-                          onClick={() => setPurchasePage(prev => Math.min(totalPurchasePages, prev + 1))}
-                          className="h-7 w-7 p-0"
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {isPurchasesTableMissing ? (
-                    <div className="text-center py-8 bg-amber-50 rounded-xl border border-amber-200">
-                      <Lock className="h-8 w-8 text-amber-400 mx-auto mb-2" />
-                      <p className="text-xs font-bold text-amber-800 px-4">
-                        Database table not found. Please ask your administrator to run the SQL setup script to enable purchase history.
-                      </p>
-                    </div>
-                  ) : filteredPurchases.length === 0 && (
-                    <div className="text-center py-12 text-slate-400">
-                      <Award className="h-12 w-12 mx-auto mb-2 opacity-20" />
-                      <p className="text-sm font-bold italic">No items bought in this period.</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Quiz Results</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {quizResults.filter(q => {
-                  if (reportDuration === 'all') return true;
-                  if (!q.completed_at) return false;
-                  const completedDate = new Date(q.completed_at);
-                  const now = new Date();
-                  const diffMs = Math.abs(now.getTime() - completedDate.getTime());
-                  const diffHours = diffMs / (1000 * 60 * 60);
-                  
-                  if (reportDuration === '24h') return diffHours <= 24;
-                  if (reportDuration === '7d') return diffHours <= 24 * 7;
-                  if (reportDuration === '30d') return diffHours <= 24 * 30;
-                  return true;
-                }).length === 0 ? (
-                  <p className="text-slate-500">No quiz results yet.</p>
-                ) : (
-                  <div className="space-y-4">
-                    {quizResults.filter(q => {
-                      if (reportDuration === 'all') return true;
-                      if (!q.completed_at) return false;
-                      const completedDate = new Date(q.completed_at);
-                      const now = new Date();
-                      const diffMs = Math.abs(now.getTime() - completedDate.getTime());
-                      const diffHours = diffMs / (1000 * 60 * 60);
-                      
-                      if (reportDuration === '24h') return diffHours <= 24;
-                      if (reportDuration === '7d') return diffHours <= 24 * 7;
-                      if (reportDuration === '30d') return diffHours <= 24 * 30;
-                      return true;
-                    }).map(res => (
-                      <div 
-                        key={res.id} 
-                        className="flex justify-between items-center border-b pb-2 cursor-pointer hover:bg-slate-50 transition-colors p-1 rounded"
-                        onClick={() => setViewingQuizResult(res)}
-                      >
-                        <div>
-                          <p className="font-medium">{res.quizzes?.title || 'Quiz'}</p>
-                          <p className="text-sm text-slate-500">{formatSimpleDate(res.completed_at)}</p>
-                        </div>
-                        <div className="font-bold text-blue-600">
-                          {res.score} / {res.total_questions}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        );
-      })() : activeTab === 'rewards' ? (
+      ) : activeTab === 'rewards' ? (
         <div className="space-y-4">
           <div className="flex justify-start items-center gap-4">
             <select
@@ -3866,7 +2894,7 @@ export default function AssignedActivities() {
                           <HelpCircle className="h-4 w-4 text-yellow-700" />
                         </div>
                         <span className="font-bold text-[15px] leading-tight text-slate-900 normal-case">
-                          How many {kid?.reward_type || 'Tokens'} this item costs.
+                          How many {formatReward(kid?.reward_type || 'Reward', 2)} this item costs?
                         </span>
                       </div>
                       <div className="absolute left-3 sm:left-auto sm:right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
@@ -3957,7 +2985,7 @@ export default function AssignedActivities() {
                           <HelpCircle className="h-4 w-4 text-yellow-700" />
                         </div>
                         <span className="font-bold text-[15px] leading-tight text-slate-900 normal-case">
-                          Where this reward can be redeemed.
+                          Where this reward item can be redeemed - House, Car, Restaurant etc.
                         </span>
                       </div>
                       <div className="absolute left-3 sm:left-auto sm:right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
@@ -4023,19 +3051,8 @@ export default function AssignedActivities() {
                     }}
                   >
                     <option value="">Select a place...</option>
-                    {[
-                      'House', 'Restaurant', 'Park', 'Car', 'Party', 
-                      'Friend’s / relative’s house', 'Store / Mall', 'Any place'
-                    ].map(loc => (
-                      <option key={loc} value={loc}>{loc}</option>
-                    ))}
-                    {/* Unique custom locations from existing items */}
-                    {[...new Set(rewardItems.map(item => item.location))].filter(loc => 
-                      loc && ![
-                        'House', 'Restaurant', 'Park', 'Car', 'Party', 
-                        'Friend’s / relative’s house', 'Store / Mall', 'Any place'
-                      ].includes(loc)
-                    ).map(loc => (
+                    {/* Only show locations from existing items */}
+                    {[...new Set(rewardItems.map(item => item.location))].filter(Boolean).map(loc => (
                       <option key={loc} value={loc!}>{loc}</option>
                     ))}
                     <option value="ADD_NEW" className="text-blue-600 font-bold">+ Add new location...</option>
@@ -4128,7 +3145,7 @@ export default function AssignedActivities() {
                 )}
 
                 {editingActivity && editingActivity.status === 'completed' && (
-                  <div className="flex items-center gap-2 p-2 bg-blue-50 rounded border border-blue-100">
+                  <div className="flex items-center gap-2 p-2 bg-blue-50 rounded border border-blue-100 mb-2">
                     <input
                       type="radio"
                       id="status-pending"
@@ -4136,9 +3153,25 @@ export default function AssignedActivities() {
                       onChange={() => setFormData({ ...formData, status: 'pending' })}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500"
                     />
-                    <label htmlFor="status-pending" className="text-sm font-medium text-blue-800">
-                      Re-assign
-                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <label htmlFor="status-pending" className="text-sm font-medium text-blue-800">
+                        Re-assign
+                      </label>
+                      <div className="group relative">
+                        <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
+                        <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
+                          <div className="flex items-start gap-3">
+                            <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                              <HelpCircle className="h-4 w-4 text-yellow-700" />
+                            </div>
+                            <span className="font-bold text-[15px] leading-tight text-slate-900 normal-case">
+                              Check this to reset a completed activity to re-assign for another date to repeat the activity
+                            </span>
+                          </div>
+                          <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
 

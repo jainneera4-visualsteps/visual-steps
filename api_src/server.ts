@@ -1679,7 +1679,7 @@ app.put('/api/kids/:id', authenticateToken, async (req: any, res) => {
     // Verify ownership
     const { data: kid, error: checkError } = await supabase
       .from('kids')
-      .select('user_id, notes, reward_balance, name, reward_type')
+      .select('user_id, notes, reward_balance, name, reward_type, timezone')
       .eq('id', id)
       .single();
 
@@ -1724,13 +1724,34 @@ app.put('/api/kids/:id', authenticateToken, async (req: any, res) => {
           rewardDisplay += 's';
         }
 
+        const timezone = kid.timezone || 'UTC';
+
+        // Function to convert date to timezone string in YYYY-MM-DD HH:MM:SS
+        const getZonedDateString = (date: Date, tz: string) => {
+          const parts = new Intl.DateTimeFormat('en-US', {
+              timeZone: tz,
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+              hour12: false
+          }).formatToParts(date);
+          
+          const getPart = (type: string) => parts.find(p => p.type === type)?.value || '0';
+          return `${getPart('year')}-${getPart('month')}-${getPart('day')} ${getPart('hour')}:${getPart('minute')}:${getPart('second')}`;
+        };
+
+        const completionDate = getZonedDateString(new Date(), timezone);
+
         await supabase.from('activity_history').insert({
           kid_id: id,
           activity_type: 'Parent Bonus',
           category: 'Reward',
           description: `Parent gave the ${rewardDisplay} to ${currentKidName}.`,
           reward_qty: amountEarned,
-          completed_at: new Date().toISOString()
+          completion_date: completionDate
         });
       }
     }
@@ -1933,7 +1954,7 @@ app.post('/api/kids/:kidId/behavior-definitions', authenticateToken, async (req:
   try {
     const { data: kidCheck, error: checkError } = await supabase
       .from('kids')
-      .select('id')
+      .select('id, timezone')
       .eq('id', kidId)
       .maybeSingle();
 
@@ -1966,11 +1987,18 @@ app.post('/api/kids/:kidId/behavior-definitions', authenticateToken, async (req:
 
     // Insert initial tracking record into behavior_tracker table
     if (definition) {
+      const kidTimezone = kidCheck?.timezone || 'UTC';
+      const now = new Date();
+      const tracked_at = now.toLocaleDateString('en-CA', { timeZone: kidTimezone });
+      const last_tracked_time = now.toLocaleTimeString('en-GB', { timeZone: kidTimezone });
+
       const initialBehaviorTracker: any = {
         kid_id: kidId,
         definition_id: definition.id,
         points: 0,
-        remarks: ''
+        remarks: '',
+        tracked_at: tracked_at,
+        last_tracked_time: last_tracked_time
       };
 
       const { error: trackerError } = await adminSupabase
@@ -2227,7 +2255,7 @@ app.get('/api/kids/:kidId/behaviors', authenticateToken, async (req: any, res) =
   }
 });
 
-const recordBehaviorLog = async (adminSupabase: any, kidId: string, definition_id: string, points: number, rewards: number, description: string, date?: string, remarks?: string) => {
+const recordBehaviorLog = async (adminSupabase: any, kidId: string, definition_id: string, points: number, rewards: number, description: string, date?: string, remarks?: string, type?: string) => {
   // Include points/notes in description since columns like 'points' or 'remarks' might be missing in behaviors
   let finalDescription = description || 'Behavior reported';
   if (points > 0) {
@@ -2263,33 +2291,37 @@ const recordBehaviorLog = async (adminSupabase: any, kidId: string, definition_i
   
   console.log('[recordBehaviorLog] Attempting insert into behavior_logs:', JSON.stringify(logEntry));
   
-  if (typeof logEntry.rewards_earned === 'undefined') {
-      console.warn('[recordBehaviorLog] WRONG: rewards_earned is undefined!', logEntry);
-  } else {
-      console.log('[recordBehaviorLog] rewards_earned is:', logEntry.rewards_earned);
-  }
-  
   try {
     const { data, error } = await adminSupabase.from('behavior_logs').insert([logEntry]).select();
     if (error) {
-      console.error('[recordBehaviorLog] behavior_logs Error Object:', error);
-      console.error('[recordBehaviorLog] behavior_logs Error message string:', String(error));
-      console.error('[recordBehaviorLog] behavior_logs Error details:', JSON.stringify(error, null, 2));
+      console.error('[recordBehaviorLog] behavior_logs Error:', error.message || JSON.stringify(error));
       throw error;
     }
     return data;
-  } catch (err) {
-    console.error('[recordBehaviorLog] Fatal Error:', err);
+  } catch (err: any) {
+    console.error('[recordBehaviorLog] Fatal Error:', err.message || err);
     throw err;
   }
 };
 
 // Update behavior tracker and handle goals
 const updateTrackerAndCheckGoal = async (adminSupabase: any, io: any, kidId: string, definition_id: string, incrementalPoints: number, remarks: string, providedDate?: string) => {
+    // 0. Fetch kid timezone
+    const { data: kidResult, error: kidError } = await adminSupabase
+        .from('kids')
+        .select('timezone')
+        .eq('id', kidId)
+        .maybeSingle();
+    const kidTimezone = kidResult?.timezone || 'UTC';
+    
+    const now = new Date();
+    const tracked_at = now.toLocaleDateString('en-CA', { timeZone: kidTimezone });
+    const last_tracked_time = now.toLocaleTimeString('en-GB', { timeZone: kidTimezone });
+
     // 0. Fetch definition for logic
     const { data: bDef, error: defError } = await adminSupabase
         .from('behavior_definitions')
-        .select('goal, goal_rewards, name')
+        .select('*')
         .eq('id', definition_id)
         .maybeSingle();
     if (defError) throw defError;
@@ -2319,7 +2351,8 @@ const updateTrackerAndCheckGoal = async (adminSupabase: any, io: any, kidId: str
             .update({
                 points: goalReached ? 0 : newPoints,
                 remarks: remarks || '',
-                last_checked_time: new Date().toISOString()
+                last_tracked_time: last_tracked_time,
+                tracked_at: tracked_at
             })
             .eq('id', existing.id)
             .select()
@@ -2335,7 +2368,8 @@ const updateTrackerAndCheckGoal = async (adminSupabase: any, io: any, kidId: str
                 definition_id,
                 points: goalReached ? 0 : newPoints,
                 remarks: remarks || '',
-                last_checked_time: new Date().toISOString()
+                last_tracked_time: last_tracked_time,
+                tracked_at: tracked_at
             })
             .select()
             .maybeSingle();
@@ -2343,13 +2377,43 @@ const updateTrackerAndCheckGoal = async (adminSupabase: any, io: any, kidId: str
         updatedData = id;
     }
 
-    // Always log the behavior increment
-    if (incrementalPoints > 0) {
-        await recordBehaviorLog(adminSupabase, kidId, definition_id, incrementalPoints, 0, `Log for ${bDef?.name || 'Behavior'}`, providedDate, remarks);
-    }
-
-    // Handle goal reached
+    // Always log the behavior increment when goal reached
     if (goalReached) {
+        const goalMessage = `Goal Reached: ${bDef?.name || 'Behavior'}`;
+        await recordBehaviorLog(
+            adminSupabase, 
+            kidId, 
+            definition_id, 
+            goalThreshold, 
+            bDef?.goal_rewards || 0, 
+            goalMessage,
+            providedDate,
+            remarks
+        );
+
+        // Also record in activity_history for total reward tracking
+        /*
+        const completionDate = new Intl.DateTimeFormat('en-CA', { 
+            timeZone: kidTimezone, 
+            year: 'numeric', 
+            month: '2-digit', 
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        }).format(new Date()).replace(',', '');
+
+        await adminSupabase.from('activity_history').insert({
+            kid_id: kidId,
+            activity_type: 'Behavior Goal Achieved',
+            category: 'Behavior',
+            description: `Goal reached for ${bDef?.name || 'Behavior'}: ${bDef?.goal_rewards || 0} earned`,
+            reward_qty: bDef?.goal_rewards || 0,
+            completion_date: completionDate
+        });
+        */
+
         const { data: kid, error: kidErr } = await adminSupabase
             .from('kids')
             .select('notes, reward_type')
@@ -2365,18 +2429,6 @@ const updateTrackerAndCheckGoal = async (adminSupabase: any, io: any, kidId: str
                     kid_id_param: kidId,
                     amount: bDef.goal_rewards
                 });
-
-                // Log to behaviors for progress report
-                await recordBehaviorLog(
-                    adminSupabase, 
-                    kidId, 
-                    definition_id, 
-                    0, 
-                    bDef.goal_rewards, 
-                    `Goal reached: ${bDef?.name || 'Behavior Goal'}`,
-                    providedDate,
-                    remarks
-                );
 
                 // Goal reached message
                 currentNotes = aggregateRewardMessages(
@@ -2440,7 +2492,8 @@ app.post('/api/kids/:kidId/behaviors', authenticateToken, async (req: any, res) 
             finalRewards, 
             description || 'Manual Behavior', 
             date, 
-            remarks
+            remarks,
+            'desired'
         );
         
         if (finalRewards) {
@@ -2537,17 +2590,21 @@ app.get('/api/kids/:kidId/behavior-logs', authenticateToken, async (req: any, re
         console.error('[GET behavior-logs] Supabase Error:', JSON.stringify(logsError, null, 2));
     }
 
-    const combinedLogs = (logs || []).map(l => ({
-        ...l,
-        token_change: l.rewards_earned || 0, // Alias for frontend
-        rewards_earned: l.rewards_earned || 0
-    }));
+    const combinedLogs = (logs || []).map(l => {
+        const bDef = Array.isArray(l.behavior_definitions) ? l.behavior_definitions[0] : l.behavior_definitions;
+        return {
+            ...l,
+            behavior_name: bDef?.name || 'Behavior',
+            token_change: l.rewards_earned || 0, // Alias for frontend
+            rewards_earned: l.rewards_earned || 0
+        };
+    });
 
     let trackerData = [];
     try {
         const { data: td, error: trackerError } = await adminSupabase
           .from('behavior_tracker')
-          .select('definition_id, remarks, points')
+          .select('*')
           .eq('kid_id', kidId);
         
         if (trackerError) {
@@ -3009,7 +3066,7 @@ app.get('/api/kids/:kidId/activity-history', authenticateToken, async (req: any,
       .from('activity_history')
       .select('*, activity_history_steps(*)')
       .eq('kid_id', kidId)
-      .order('completed_at', { ascending: false });
+      .order('created_at', { ascending: false });
 
     if (historyError) {
       if (historyError.code === '42P01') { // undefined_table
@@ -3481,6 +3538,29 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
         .select('description, image_url')
         .eq('activity_id', id);
 
+      // Fetch kid's timezone
+      const { data: kidData } = await supabase.from('kids').select('timezone').eq('id', activity.kid_id).single();
+      const timezone = kidData?.timezone || 'UTC';
+
+      // Function to convert date to timezone string in YYYY-MM-DD HH:MM:SS
+      const getZonedDateString = (date: Date, tz: string) => {
+        const parts = new Intl.DateTimeFormat('en-US', {
+            timeZone: tz,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        }).formatToParts(date);
+        
+        const getPart = (type: string) => parts.find(p => p.type === type)?.value || '0';
+        return `${getPart('year')}-${getPart('month')}-${getPart('day')} ${getPart('hour')}:${getPart('minute')}:${getPart('second')}`;
+      };
+
+      const completionDate = getZonedDateString(new Date(), timezone);
+
       const { data: historyRecord, error: historyError } = await supabase
         .from('activity_history')
         .insert({
@@ -3492,7 +3572,7 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
           link: link,
           image_url: imageUrl,
           due_date: dueDate,
-          completed_at: new Date().toISOString(),
+          completion_date: completionDate,
           reward_qty: rewardQty
         })
         .select('*')
@@ -3973,14 +4053,14 @@ app.delete('/api/reward-items/:id', authenticateToken, async (req: any, res) => 
 app.post('/api/kids/:id/buy', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
   const { id } = req.params;
-  const { quantity, itemName } = req.body;
+  const { quantity, itemName, location, purchasedAt } = req.body;
 
   if (!quantity || quantity <= 0) return res.status(400).json({ error: 'Invalid quantity' });
 
   try {
     const { data: kid, error: kidError } = await supabase
       .from('kids')
-      .select('reward_balance')
+      .select('reward_balance, timezone')
       .eq('id', id)
       .single();
 
@@ -4005,7 +4085,8 @@ app.post('/api/kids/:id/buy', authenticateToken, async (req: any, res) => {
           kid_id: id,
           item_name: itemName,
           cost: quantity,
-          purchased_at: new Date().toISOString()
+          location: location || 'General',
+          purchased_at: purchasedAt || new Date().toISOString()
         });
       
       if (purchaseError) {
@@ -4572,10 +4653,6 @@ async function startServer() {
 
   // Background task to process overdue activities every 5 minutes
   if (!process.env.VERCEL) {
-    server.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-    });
-
     setInterval(async () => {
       console.log('Background Task: Checking for overdue activities...');
       if (!supabaseUrl || !supabaseKey || supabaseUrl.includes('placeholder')) return;
@@ -4686,7 +4763,11 @@ process.on('unhandledRejection', (reason, promise) => {
   });
 
   if (!process.env.VERCEL) {
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`[${new Date().toISOString()}] Server listening on port ${PORT}`);
+    });
+    
     startServer().catch(err => {
-      console.error('Failed to start server:', err);
+      console.error('Failed to initialize Vite/Background tasks:', err);
     });
   }

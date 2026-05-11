@@ -235,7 +235,7 @@ export default function BehaviorsList() {
                   <th className="px-4 py-3 font-bold">Priority</th>
                   <th className="px-4 py-3 font-bold">Target Time</th>
                   <th className="px-4 py-3 font-bold">Goals To Reach</th>
-                  <th className="px-4 py-3 font-bold">Rewards [{kid?.reward_type || 'Rewards'}]</th>
+                  <th className="px-4 py-3 font-bold">Rewards ({kid?.reward_type || 'Reward'}s)</th>
                   <th className="px-4 py-3 font-bold text-right">Actions</th>
                 </tr>
               </thead>
@@ -295,26 +295,19 @@ export default function BehaviorsList() {
                         <td className="px-4 py-3 text-slate-500 max-w-xs truncate">
                           {displayDesc || <span className="italic text-slate-300">No description</span>}
                         </td>
-                        <td className="px-4 py-3">
-                          <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] uppercase inline-flex items-center gap-1 ${
-                            priority === 'High' ? 'bg-rose-100 text-rose-700' : 
-                            priority === 'Medium' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
-                          }`}>
-                              <Target size={10} /> {priority}
-                          </span>
+                        <td className="px-4 py-3 text-slate-500">
+                          {priority}
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="text-slate-600 font-mono text-xs">
-                              {targetTime || <span className="text-slate-300 italic">None</span>}
-                          </div>
+                        <td className="px-4 py-3 text-slate-500">
+                          {targetTime || <span className="text-slate-300 italic">None</span>}
                         </td>
                         <td className="px-4 py-3">
                           {goalVal !== '1' ? (
-                            <span className="text-amber-600 font-bold text-[10px] uppercase">
+                            <div className="font-bold text-slate-900">
                                 {Number(goalVal)}
-                            </span>
+                            </div>
                           ) : (
-                            <span className="text-slate-300 italic text-[10px]">None</span>
+                            <span className="text-slate-300 italic">None</span>
                           )}
                         </td>
                         <td className="px-4 py-3">

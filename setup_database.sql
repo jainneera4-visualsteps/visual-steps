@@ -144,7 +144,7 @@ CREATE TABLE public.activity_history (
     link TEXT,
     image_url TEXT,
     due_date DATE,
-    completed_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    completion_date TEXT,
     reward_qty INTEGER DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -263,7 +263,8 @@ CREATE TABLE IF NOT EXISTS public.behavior_tracker (
     definition_id UUID REFERENCES public.behavior_definitions(id) ON DELETE CASCADE,
     points INTEGER DEFAULT 0,
     remarks TEXT,
-    last_checked_time TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+    tracked_at TEXT,
+    last_tracked_time TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     UNIQUE(kid_id, definition_id)
 );

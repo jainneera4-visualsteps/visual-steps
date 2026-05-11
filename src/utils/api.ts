@@ -47,7 +47,7 @@ export const safeJson = async (response: Response) => {
   throw new Error(`Unexpected response from server (Status: ${status}).`);
 };
 
-export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit, retries = 15): Promise<Response> => {
+export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit, retries = 30): Promise<Response> => {
   let token = null;
   let isKidSession = false;
   try {
@@ -130,9 +130,13 @@ export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit, ret
       }
     }
 
-    if (response.status === 503 && retries > 0) {
-      console.warn(`Service unavailable (503), retrying... (${retries} left)`);
-      const backoff = (16 - retries) * 1000; // Increasing delay
+    const retriableStatuses = [408, 429, 502, 503, 504];
+    if (retriableStatuses.includes(response.status) && retries > 0) {
+      const statusText = `Server error (${response.status})`;
+      const attemptNum = 30 - retries + 1;
+      const backoff = Math.min(10000, attemptNum * 1000); // 1s, 2s, 3s... up to 10s
+      
+      console.warn(`${statusText} for ${url}, retrying in ${backoff}ms... (${retries} left)`);
       await new Promise(resolve => setTimeout(resolve, backoff));
       return apiFetch(input, init, retries - 1);
     }
@@ -201,9 +205,11 @@ export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit, ret
       await new Promise(resolve => setTimeout(resolve, 2000));
       return apiFetch(input, init, retries - 1);
     }
-    console.error(`apiFetch network error for ${url}:`, error);
-    const networkError = new Error(`Failed to connect to the server at ${url}. Please check your internet connection or try again later.`);
+    console.error(`apiFetch network error for ${url} after exhausted retries:`, error);
+    const networkMessage = error instanceof Error ? error.message : String(error);
+    const networkError = new Error(`Network failure: ${networkMessage} (URL: ${url}). Please check your connection.`);
     (networkError as any).originalError = error;
+    (networkError as any).url = url;
     throw networkError;
   }
 };

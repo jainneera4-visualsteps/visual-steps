@@ -14,11 +14,19 @@ interface StoryPage {
   imageUrl: string;
 }
 
+interface QuizQuestion {
+  question: string;
+  options: string[];
+  correctAnswerIndex: number;
+  explanation?: string;
+}
+
 export default function CreateSocialStory() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [pages, setPages] = useState<StoryPage[]>([{ text: '', imageUrl: '' }]);
+  const [quiz, setQuiz] = useState<QuizQuestion[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -184,6 +192,7 @@ export default function CreateSocialStory() {
             
             const content = typeof story.content === 'string' ? JSON.parse(story.content) : story.content;
             if (content.pages) setPages(content.pages);
+            if (content.quiz) setQuiz(content.quiz);
             if (content.narratorSettings) setNarratorSettings(content.narratorSettings);
             if (content.prompt) setPrompt(content.prompt);
             if (content.language) setLanguage(content.language);
@@ -275,7 +284,8 @@ export default function CreateSocialStory() {
         The story title should be interesting, engaging, and fun.
         Break it down into exactly ${storyLength} pages. Each page should have friendly, interactive text, consisting of exactly ${sentencesPerParagraph} sentences.
         The story should suggest how to deal with the issues, what the child can do in the situation, and emphasize that nothing stays the same all the time.
-        Format the response as a JSON object with a "title" property and a "pages" array of objects with a "text" property.`,
+        Also, generate 3-4 simple multiple-choice questions at the end of the story to test the child's understanding.
+        Format the response as a JSON object with a "title" property, a "pages" array, and a "quiz" array of question objects.`,
           responseMimeType: "application/json",
           responseSchema: {
             type: "OBJECT",
@@ -290,9 +300,27 @@ export default function CreateSocialStory() {
                   },
                   required: ["text"]
                 }
+              },
+              quiz: {
+                type: "ARRAY",
+                items: {
+                  type: "OBJECT",
+                  properties: {
+                    question: { type: "STRING" },
+                    options: { 
+                      type: "ARRAY",
+                      items: { type: "STRING" },
+                      minItems: 2,
+                      maxItems: 4
+                    },
+                    correctAnswerIndex: { type: "NUMBER" },
+                    explanation: { type: "STRING" }
+                  },
+                  required: ["question", "options", "correctAnswerIndex"]
+                }
               }
             },
-            required: ["title", "pages"]
+            required: ["title", "pages", "quiz"]
           }
         });
       });
@@ -302,6 +330,9 @@ export default function CreateSocialStory() {
       if (generatedData.pages && Array.isArray(generatedData.pages)) {
         setPages(generatedData.pages.map((p: any) => ({ text: p.text, imageUrl: '' })));
         setTitle(generatedData.title || prompt);
+      }
+      if (generatedData.quiz && Array.isArray(generatedData.quiz)) {
+        setQuiz(generatedData.quiz);
       }
     } catch (error: any) {
       console.error('Failed to generate story', error);
@@ -335,6 +366,7 @@ export default function CreateSocialStory() {
           kidId: selectedKidId || null,
           content: { 
             pages, 
+            quiz,
             narratorSettings,
             prompt,
             language,

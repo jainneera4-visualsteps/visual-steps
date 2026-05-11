@@ -6,6 +6,7 @@ import { useRef, useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import { SocialStoryModal } from './SocialStoryModal';
 import { Link } from 'react-router-dom';
+import { Tooltip } from './ui/Tooltip';
 
 interface ActivityStep {
   id?: number;
@@ -30,7 +31,8 @@ interface Activity {
   repeat_unit?: string;
   steps?: ActivityStep[];
   isHistory?: boolean;
-  completed_at?: string;
+  completion_date?: string;
+  created_at?: string;
 }
 
 export function ActivityDetailModal({ 
@@ -120,18 +122,17 @@ export function ActivityDetailModal({
             @page {
               size: auto;
             }
-            @media print {
-              .no-print { display: none !important; }
-              ${!includeImages ? '.print-image { display: none !important; }' : ''}
-              html, body { 
-                margin: 0; 
-                padding: 0; 
-                background: white; 
-                height: auto !important; 
-                overflow: visible !important;
+              @media print {
+                .no-print { display: none !important; }
+                ${!includeImages ? '.print-image { display: none !important; }' : ''}
+                html, body { 
+                  margin: 0; 
+                  padding: 0; 
+                  background: white; 
+                  height: auto !important; 
+                  overflow: visible !important;
+                }
               }
-              * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-            }
             body { 
               font-family: system-ui, -apple-system, sans-serif;
               padding: 20px;
@@ -145,8 +146,8 @@ export function ActivityDetailModal({
               align-items: center;
               justify-content: space-between;
               border-bottom: 2px solid black;
-              padding-bottom: 15px;
-              margin-bottom: 25px;
+              padding-bottom: 5px;
+              margin-bottom: 15px;
             }
             .logo-container {
               display: flex;
@@ -204,13 +205,15 @@ export function ActivityDetailModal({
   const isSocialStoryLink = activity.link?.includes('/social-stories/view/');
   
   return (
-    <div className="w-full max-w-3xl mx-auto space-y-6 p-6" ref={printRef}>
-      {/* Visual Step Banner for UI */}
-      <div className="flex items-center gap-3 no-print">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg">
-          <Lightbulb className="h-6 w-6" />
-        </div>
-        <h2 className="text-2xl font-black text-slate-900 uppercase">Activity Details</h2>
+    <div className="w-full" ref={printRef}>
+      <div className="flex items-center gap-3 no-print mb-4">
+        <Button variant="ghost" size="xs" onClick={onClose} className="pl-0 h-7 hover:bg-transparent hover:text-blue-600 text-[12px] font-bold uppercase">
+          <ArrowLeft className="mr-1 h-3 w-3" />
+          Back to List
+        </Button>
+        <h1 className="text-xl font-bold tracking-tight text-slate-900 leading-none">
+          View Activity Details
+        </h1>
       </div>
 
       {showPraise && (
@@ -228,18 +231,9 @@ export function ActivityDetailModal({
           </div>
         </div>
       )}
-      <div className="flex items-center gap-3 mb-4 no-print">
-        <Button variant="ghost" size="sm" onClick={onClose} className="pl-0 hover:bg-transparent hover:text-blue-600 font-bold uppercase">
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back
-        </Button>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 leading-none">
-          View Activity
-        </h1>
-      </div>
 
-      <Card className="border-slate-200 bg-white shadow-sm print:shadow-none print:border-none">
-        <CardHeader className="flex flex-row items-center justify-between py-4 px-6 space-y-0 border-b border-slate-100 no-print">
+      <Card className="border-blue-200 bg-blue-50/50 shadow-sm print:shadow-none print:border-none print:bg-transparent">
+        <CardHeader className="flex flex-row items-center justify-between py-2 px-4 space-y-0 border-b border-blue-100/50 print:hidden">
           <div className="flex items-center gap-3">
             {!isReadOnly && onToggleStatus && showToggleOnly && (
               <button
@@ -254,7 +248,7 @@ export function ActivityDetailModal({
                 {activity.status === 'completed' && <CheckCircle className="h-4 w-4" />}
               </button>
             )}
-            <CardTitle className="text-lg font-bold flex items-center gap-2">
+            <CardTitle className="text-base font-bold flex items-center gap-2">
               {activity.activity_type}
               {isSocialStoryLink && (
                 <div className={`flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-blue-600`}>
@@ -262,7 +256,6 @@ export function ActivityDetailModal({
                 </div>
               )}
             </CardTitle>
-
           </div>
           <div className="flex items-center gap-3 no-print">
             {hasImages && canPrint && (
@@ -271,75 +264,79 @@ export function ActivityDetailModal({
                   type="checkbox" 
                   checked={includeImages} 
                   onChange={(e) => setIncludeImages(e.target.checked)}
-                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-3.5 w-3.5"
                 />
-                <span className="text-xs font-bold text-slate-600 uppercase">Include Images</span>
+                <span className="text-[10px] font-bold text-slate-500 uppercase">Include Images</span>
               </label>
             )}
             {canPrint && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9"
-                onClick={handlePrint}
-              >
-                <Printer className="mr-2 h-4 w-4" />
-                Print
-              </Button>
+              <Tooltip content="Print activity details">
+                <Button
+                  variant="outline"
+                  size="xs"
+                  className="h-7 text-[12px]"
+                  onClick={handlePrint}
+                >
+                  <Printer className="mr-1.5 h-3.5 w-3.5" />
+                  Print
+                </Button>
+              </Tooltip>
             )}
             {!isReadOnly && onEdit && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9"
-                onClick={() => onEdit(activity)}
-              >
-                <Edit2 className="mr-2 h-4 w-4" />
-                Edit
-              </Button>
+              <Tooltip content="Edit activity">
+                <Button
+                  variant="outline"
+                  size="xs"
+                  className="h-7 text-[12px]"
+                  onClick={() => onEdit(activity)}
+                >
+                  <Edit2 className="mr-1.5 h-3.5 w-3.5" />
+                  Edit
+                </Button>
+              </Tooltip>
             )}
           </div>
         </CardHeader>
-        <CardContent className="px-6 py-6 space-y-6">
-          <div className={`grid gap-6 ${activity.image_url ? 'md:grid-cols-2' : ''}`}>
+        <CardContent className="px-4 py-4 space-y-4">
+          <div className={`grid gap-4 ${activity.image_url ? 'md:grid-cols-2' : ''}`}>
             {activity.image_url && (
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 print-image">
-                <img src={activity.image_url} alt={activity.activity_type} className="h-64 w-full object-cover" />
+              <div className="overflow-hidden rounded-xl border border-blue-100 bg-white print:bg-transparent print-image">
+                <img src={activity.image_url} alt={activity.activity_type} className="h-48 w-full object-cover" />
               </div>
             )}
-            <div className="space-y-4">
+            <div className="space-y-3">
               {!showToggleOnly && (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {activity.category && (
-                    <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700 uppercase tracking-wider print:bg-transparent print:border print:border-slate-200">
                       {activity.category}
                     </span>
                   )}
-                  <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700 uppercase tracking-wider print:bg-transparent print:border print:border-slate-200">
                     {activity.time_of_day}
                   </span>
-                  <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700 uppercase tracking-wider print:bg-transparent print:border print:border-slate-200">
                     {activity.repeat_frequency}
                   </span>
                 </div>
               )}
               {activity.description && (
                 activity.link ? (
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {isSocialStoryLink ? (
                       <button
                         onClick={() => {
                           const storyId = activity.link.split('/').pop();
                           if (storyId) setViewingStoryId(storyId);
                         }}
-                        className="text-xl text-blue-600 hover:underline font-bold leading-relaxed block text-left"
+                        className="text-lg text-blue-600 hover:underline font-bold leading-relaxed block text-left"
                       >
                         {activity.description}
                       </button>
                     ) : activity.link.startsWith('/') ? (
                       <Link 
                         to={activity.link} 
-                        className="text-xl text-blue-600 hover:underline font-bold leading-relaxed block"
+                        className="text-lg text-blue-600 hover:underline font-bold leading-relaxed block"
                       >
                         {activity.description}
                       </Link>
@@ -348,25 +345,25 @@ export function ActivityDetailModal({
                         href={activity.link} 
                         target="_blank" 
                         rel="noopener noreferrer" 
-                        className="text-xl text-blue-600 hover:underline font-bold leading-relaxed block"
+                        className="text-lg text-blue-600 hover:underline font-bold leading-relaxed block"
                       >
                         {activity.description}
                       </a>
                     )}
                   </div>
                 ) : (
-                  <p className="text-xl text-slate-800 font-medium leading-relaxed">{activity.description}</p>
+                  <p className="text-lg text-slate-800 font-bold leading-relaxed">{activity.description}</p>
                 )
               )}
               {!showToggleOnly && (
                 <div className="space-y-1">
-                  <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                  <div className="text-[12px] font-bold text-slate-500 uppercase tracking-widest">
                     Due Date: {activity.due_date}
                   </div>
-                  {activity.status === 'completed' && activity.completed_at && (
-                    <div className="text-xs font-bold text-emerald-500 uppercase tracking-widest flex items-center gap-1">
-                      <CheckCircle className="h-3 w-3" />
-                      Completed: {new Date(activity.completed_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                  {activity.status === 'completed' && (activity.completion_date || activity.created_at) && (
+                    <div className="text-[12px] font-bold text-emerald-500 uppercase tracking-widest flex items-center gap-1">
+                      <CheckCircle className="h-2.5 w-2.5" />
+                      Completed: {new Date(activity.completion_date || activity.created_at || "").toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
                     </div>
                   )}
                 </div>
@@ -375,23 +372,23 @@ export function ActivityDetailModal({
           </div>
 
           {activity.steps && activity.steps.length > 0 && (
-            <div className="space-y-4 pt-6 border-t border-slate-100">
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Steps</h3>
-              <div className="grid gap-4 sm:grid-cols-2 print:grid-cols-1">
+            <div className="space-y-3 pt-4 border-t border-blue-100/50">
+              <h3 className="text-[12px] font-bold text-slate-500 uppercase tracking-widest">Steps</h3>
+              <div className="grid gap-3 sm:grid-cols-2 print:grid-cols-1">
                 {activity.steps.map((step, index) => (
-                  <div key={index} className="flex gap-4 print:gap-2 items-start print:items-center rounded-2xl border border-slate-200 bg-white p-4 shadow-sm print:shadow-none print:break-inside-avoid print:border-0 print:bg-transparent print:p-2">
+                  <div key={index} className="flex gap-3 print:gap-2 items-start print:items-center rounded-xl border border-blue-100 bg-white p-3 shadow-sm print:shadow-none print:break-inside-avoid print:border-0 print:bg-transparent print:p-2">
                     <div className="hidden print:!flex items-center gap-2 flex-shrink-0">
-                      <div className="h-5 w-5 border-2 border-slate-400 rounded-sm bg-white"></div>
-                      <span className="text-base font-bold text-slate-900">{index + 1}.</span>
+                      <div className="h-4 w-4 border border-slate-400 rounded-sm bg-white"></div>
+                      <span className="text-sm font-bold text-slate-900">{index + 1}.</span>
                     </div>
-                    <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-slate-100 text-sm font-black text-slate-600 print:hidden">
+                    <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[10px] font-black text-blue-600 print:hidden">
                       {index + 1}
                     </span>
                     <div className="flex-1">
-                      <p className="text-sm text-slate-800 font-bold leading-snug">{step.description}</p>
+                      <p className="text-[13px] text-slate-800 font-bold leading-snug">{step.description}</p>
                       {step.image_url && (
-                        <div className="mt-3 rounded-xl overflow-hidden border border-slate-100 print-image">
-                          <img src={step.image_url} alt={`Step ${index + 1}`} className="max-h-48 w-full object-cover" />
+                        <div className="mt-2 rounded-lg overflow-hidden border border-blue-50 print-image">
+                          <img src={step.image_url} alt={`Step ${index + 1}`} className="max-h-32 w-full object-cover" />
                         </div>
                       )}
                     </div>
@@ -402,23 +399,23 @@ export function ActivityDetailModal({
           )}
 
           {!isReadOnly && onToggleStatus && (
-            <div className="pt-6 border-t border-slate-100 flex flex-col items-center gap-4 no-print">
+            <div className="pt-4 border-t border-blue-100/50 flex flex-col items-center gap-3 no-print">
               {!showToggleOnly ? (
                 <button
                   onClick={handleToggle}
                   disabled={activity.status === 'completed' || showPraise}
-                  className={`w-full flex items-center justify-center gap-3 px-8 py-4 rounded-2xl transition-all active:scale-[0.98] shadow-sm font-black text-lg uppercase tracking-wider ${
+                  className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl transition-all active:scale-[0.98] shadow-sm font-black text-sm uppercase tracking-wider ${
                     activity.status === 'completed'
                       ? 'bg-emerald-500 text-white'
                       : 'bg-blue-600 text-white hover:bg-blue-700'
                   }`}
                 >
-                  <div className={`flex h-6 w-6 items-center justify-center rounded-lg border-2 transition-colors ${
+                  <div className={`flex h-5 w-5 items-center justify-center rounded-lg border-2 transition-colors ${
                     activity.status === 'completed'
                       ? 'border-white bg-white text-emerald-500'
                       : 'border-white/30 bg-white/10 text-white'
                   }`}>
-                    {activity.status === 'completed' ? <CheckCircle className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
+                    {activity.status === 'completed' ? <CheckCircle className="h-3 w-3" /> : <Circle className="h-3 w-3" />}
                   </div>
                   <span>
                     {activity.status === 'completed' ? 'Activity Completed!' : 'Mark as Finished'}
@@ -448,8 +445,8 @@ export function ActivityDetailModal({
             align-items: center;
             justify-content: space-between;
             border-bottom: 2px solid black;
-            padding-bottom: 15px;
-            margin-bottom: 25px;
+            padding-bottom: 5px;
+            margin-bottom: 15px;
           }
           .logo-container {
             display: flex;

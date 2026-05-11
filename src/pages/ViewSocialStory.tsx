@@ -11,6 +11,13 @@ interface StoryPage {
   imageUrl: string;
 }
 
+interface QuizQuestion {
+  question: string;
+  options: string[];
+  correctAnswerIndex: number;
+  explanation?: string;
+}
+
 interface SocialStory {
   id: string;
   title: string;
@@ -33,11 +40,16 @@ export default function ViewSocialStory() {
   const { user } = useAuth();
   const [story, setStory] = useState<SocialStory | null>(null);
   const [pages, setPages] = useState<StoryPage[]>([]);
+  const [quiz, setQuiz] = useState<QuizQuestion[]>([]);
   const [narratorSettings, setNarratorSettings] = useState<NarratorSettings | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const [autoPlay, setAutoPlay] = useState(false);
+  const [isQuizMode, setIsQuizMode] = useState(false);
+  const [currentQuizIndex, setCurrentQuizIndex] = useState(0);
+  const [quizResponses, setQuizResponses] = useState<Record<number, number>>({});
+  const [showQuizResults, setShowQuizResults] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [isKidMode, setIsKidMode] = useState(false);
   const [currentWordIndex, setCurrentWordIndex] = useState<number | null>(null);
@@ -72,6 +84,7 @@ export default function ViewSocialStory() {
             setPages(parsed);
           } else if (parsed && typeof parsed === 'object') {
             setPages(parsed.pages || []);
+            setQuiz(parsed.quiz || []);
             setNarratorSettings(parsed.narratorSettings || null);
             setStoryLanguage(parsed.language || 'English');
           }
@@ -474,18 +487,137 @@ export default function ViewSocialStory() {
                     <motion.div 
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
-                      className="mt-8 flex justify-center shrink-0"
+                      className="mt-8 flex flex-col items-center shrink-0 gap-4"
                     >
                       <div className="bg-emerald-50 text-emerald-700 px-6 py-2 rounded-full font-black uppercase tracking-wider text-sm border border-emerald-100 flex items-center gap-2">
                         <Sparkles className="h-4 w-4" />
                         The End!
                       </div>
+                      
+                      {quiz.length > 0 && (
+                        <Button 
+                          onClick={() => setIsQuizMode(true)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white font-bold h-12 px-8 rounded-xl shadow-lg hover:scale-105 transition-all"
+                        >
+                          <Lightbulb className="mr-2 h-5 w-5" />
+                          Take the Quiz!
+                        </Button>
+                      )}
                     </motion.div>
                   )}
                 </div>
               </div>
             </motion.div>
           </AnimatePresence>
+          
+          {/* Quiz Overlay */}
+          {isQuizMode && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="absolute inset-4 md:inset-x-32 md:inset-y-8 z-10 bg-white rounded-2xl shadow-2xl border-4 border-blue-100 p-6 md:p-10 flex flex-col"
+            >
+              {!showQuizResults ? (
+                <>
+                  <div className="flex justify-between items-center mb-8">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                        <Lightbulb className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-black text-slate-900 leading-tight">Story Quiz</h3>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Question {currentQuizIndex + 1} of {quiz.length}</p>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => setIsQuizMode(false)} className="text-slate-400 hover:text-red-500">
+                      <X className="h-6 w-6" />
+                    </Button>
+                  </div>
+
+                  <div className="flex-1 flex flex-col justify-center max-w-2xl mx-auto w-full">
+                    <h4 className="text-2xl font-bold text-slate-800 mb-8 leading-tight">
+                      {quiz[currentQuizIndex].question}
+                    </h4>
+                    <div className="grid grid-cols-1 gap-4">
+                      {quiz[currentQuizIndex].options.map((option, optIdx) => (
+                        <button
+                          key={optIdx}
+                          onClick={() => {
+                            setQuizResponses({ ...quizResponses, [currentQuizIndex]: optIdx });
+                            if (currentQuizIndex < quiz.length - 1) {
+                              setTimeout(() => setCurrentQuizIndex(prev => prev + 1), 600);
+                            } else {
+                              setTimeout(() => setShowQuizResults(true), 800);
+                            }
+                          }}
+                          className={`w-full text-left p-5 rounded-2xl border-4 transition-all duration-200 font-bold text-lg ${
+                            quizResponses[currentQuizIndex] === optIdx 
+                              ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-inner' 
+                              : 'border-slate-100 bg-white hover:border-blue-200 hover:bg-slate-50 text-slate-700 shadow-sm'
+                          }`}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-black transition-colors ${
+                               quizResponses[currentQuizIndex] === optIdx ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400'
+                            }`}>
+                              {String.fromCharCode(65 + optIdx)}
+                            </div>
+                            {option}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="mt-8 flex justify-between items-center border-t border-slate-100 pt-6">
+                    <div className="flex gap-1">
+                      {quiz.map((_, idx) => (
+                        <div key={idx} className={`h-2 w-8 rounded-full transition-colors ${idx === currentQuizIndex ? 'bg-blue-600' : idx < currentQuizIndex ? 'bg-emerald-400' : 'bg-slate-100'}`} />
+                      ))}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
+                  <div className="h-24 w-24 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-6 animate-bounce shadow-inner">
+                    <Sparkles className="h-12 w-12" />
+                  </div>
+                  <h3 className="text-4xl font-black text-slate-900 mb-2 uppercase tracking-tight">Amazing Work!</h3>
+                  <p className="text-xl font-bold text-slate-500 mb-8 leading-relaxed">
+                    You finished the quiz for <br/>
+                    <span className="text-blue-600">"{story.title}"</span>
+                  </p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-md mb-8">
+                    <div className="bg-blue-50 p-6 rounded-3xl border-2 border-blue-100">
+                      <div className="text-4xl font-black text-blue-600">
+                        {Object.values(quizResponses).filter((resp, idx) => resp === quiz[idx].correctAnswerIndex).length}
+                      </div>
+                      <div className="text-xs font-bold text-blue-400 uppercase tracking-widest mt-1">Correct Answers</div>
+                    </div>
+                    <div className="bg-slate-50 p-6 rounded-3xl border-2 border-slate-100">
+                      <div className="text-4xl font-black text-slate-900">{quiz.length}</div>
+                      <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Total Questions</div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4 w-full max-w-sm">
+                    <Button 
+                      className="flex-1 h-14 rounded-2xl font-black text-lg shadow-lg hover:scale-105 transition-transform" 
+                      onClick={() => {
+                        setIsQuizMode(false);
+                        setShowQuizResults(false);
+                        setCurrentQuizIndex(0);
+                        setQuizResponses({});
+                      }}
+                    >
+                      Finish Story
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
 
           {/* Navigation Controls */}
           <div className="absolute inset-x-2 md:inset-x-6 top-1/2 -translate-y-1/2 flex justify-between pointer-events-none">

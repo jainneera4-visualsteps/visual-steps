@@ -1,7 +1,7 @@
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from './Button';
-import { User, LogOut, Menu, X, Lightbulb, ChevronDown, Sparkles, BookOpen, FileText, Gamepad2, LayoutGrid } from 'lucide-react';
+import { User, LogOut, Menu, X, Lightbulb, ChevronDown, Sparkles, BookOpen, FileText, Gamepad2, LayoutGrid, Activity, TrendingUp } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Tooltip } from './ui/Tooltip';
 
@@ -9,10 +9,26 @@ export function Layout() {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isActivitiesOpen, setIsActivitiesOpen] = useState(false);
+  const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
+  const [selectedKidId, setSelectedKidId] = useState<string | null>(localStorage.getItem('dashboard_selected_kid_id') || localStorage.getItem('analysis_selected_kid_id'));
 
   const isActive = (path: string) => location.pathname === path;
+
+  useEffect(() => {
+    // Sync selected kid ID from localStorage
+    const handleStorageChange = () => {
+      setSelectedKidId(localStorage.getItem('dashboard_selected_kid_id') || localStorage.getItem('analysis_selected_kid_id'));
+    };
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also check on path change as our own code might set it without triggering 'storage' event in same tab
+    handleStorageChange();
+
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [location.pathname]);
 
   useEffect(() => {
     const path = location.pathname;
@@ -63,7 +79,7 @@ export function Layout() {
                     Dashboard
                   </Link>
                 </Tooltip>
-                
+
                 <Tooltip content="Create Activities">
                   <div className="relative group">
                     <button
@@ -123,15 +139,51 @@ export function Layout() {
                   </div>
                 </Tooltip>
 
-                <Tooltip content="Parent's Profile">
-                  <Link
-                    to="/profile"
-                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:bg-slate-100 ${
-                      isActive('/profile') ? 'bg-brand-50 text-brand-700' : 'text-slate-600'
-                    }`}
-                  >
-                    Profile
-                  </Link>
+                <Tooltip content="Parent's Analytics">
+                  <div className="relative group">
+                    <button
+                      onMouseEnter={() => {
+                        setIsAnalyticsOpen(true);
+                        setSelectedKidId(localStorage.getItem('dashboard_selected_kid_id') || localStorage.getItem('analysis_selected_kid_id'));
+                      }}
+                      onMouseLeave={() => setIsAnalyticsOpen(false)}
+                      onClick={() => {
+                        setIsAnalyticsOpen(!isAnalyticsOpen);
+                        setSelectedKidId(localStorage.getItem('dashboard_selected_kid_id') || localStorage.getItem('analysis_selected_kid_id'));
+                      }}
+                      className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:bg-slate-100 ${
+                        location.pathname.includes('progress-report') || location.pathname.includes('assigned-activities') 
+                          ? 'bg-brand-50 text-brand-700' : 'text-slate-600'
+                      }`}
+                    >
+                      Analytics
+                      <ChevronDown size={14} className={`transition-transform duration-200 ${isAnalyticsOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    
+                    {/* Analytics dropdown menu */}
+                    {isAnalyticsOpen && (
+                      <div 
+                        onMouseEnter={() => setIsAnalyticsOpen(true)}
+                        onMouseLeave={() => setIsAnalyticsOpen(false)}
+                        className="absolute left-0 mt-0 w-56 rounded-2xl bg-white shadow-2xl shadow-slate-200 ring-1 ring-slate-200 p-2 z-[60] animate-in fade-in zoom-in-95 duration-100"
+                      >
+                        {selectedKidId && (
+                          <Link
+                            to={`/progress-report/${selectedKidId}`}
+                            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all leading-tight ${
+                              location.pathname.includes('progress-report') ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-50 hover:text-brand-600'
+                            }`}
+                            onClick={() => setIsAnalyticsOpen(false)}
+                          >
+                            <div className="h-8 w-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-500">
+                              <Activity size={18} />
+                            </div>
+                            Progress Report
+                          </Link>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </Tooltip>
               </nav>
             )}
@@ -146,7 +198,9 @@ export function Layout() {
             <div className="h-4 w-px bg-slate-200" />
             {user ? (
               <div className="flex items-center gap-4">
-                <span className="text-sm font-medium text-slate-500">Hi, <span className="text-slate-900 font-bold">{user.name.split(' ')[0]}</span></span>
+                <span className="text-sm font-medium text-slate-500">
+                  Hi, <Link to="/profile" className="text-slate-900 font-bold hover:text-brand-600 transition-colors">{user.name.split(' ')[0]}</Link>
+                </span>
                 <Tooltip content="Sign Out">
                   <Button variant="outline" size="sm" onClick={logout} className="h-9">
                     <LogOut className="mr-2 h-4 w-4" />
@@ -167,12 +221,17 @@ export function Layout() {
           </div>
 
           {user && (
-            <button
-              className="md:hidden p-1 text-slate-600"
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-            >
-              {isMenuOpen ? <X size={18} /> : <Menu size={18} />}
-            </button>
+          <button
+            className="md:hidden p-1 text-slate-600"
+            onClick={() => {
+              setIsMenuOpen(!isMenuOpen);
+              if (!isMenuOpen) {
+                setSelectedKidId(localStorage.getItem('dashboard_selected_kid_id') || localStorage.getItem('analysis_selected_kid_id'));
+              }
+            }}
+          >
+            {isMenuOpen ? <X size={18} /> : <Menu size={18} />}
+          </button>
           )}
         </div>
 
@@ -185,7 +244,6 @@ export function Layout() {
                   <Link to="/dashboard" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>
                     Dashboard
                   </Link>
-                  
                   <div className="flex flex-col gap-1.5 pl-2 border-l-2 border-blue-100">
                     <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Activities</span>
                     <Link to="/saved-quizzes" className="text-[12px] font-bold text-slate-600 uppercase flex items-center gap-2" onClick={() => setIsMenuOpen(false)}>
@@ -198,10 +256,15 @@ export function Layout() {
                       <FileText size={14} className="text-amber-500" /> Worksheets
                     </Link>
                   </div>
+                  <div className="flex flex-col gap-1.5 pl-2 border-l-2 border-blue-100">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Analytics</span>
+                    {selectedKidId && (
+                      <Link to={`/progress-report/${selectedKidId}`} className="text-[12px] font-bold text-slate-600 uppercase flex items-center gap-2" onClick={() => setIsMenuOpen(false)}>
+                        <Activity size={14} className="text-indigo-500" /> Progress Report
+                      </Link>
+                    )}
+                  </div>
 
-                  <Link to="/profile" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>
-                    Profile
-                  </Link>
                   <button onClick={() => { logout(); setIsMenuOpen(false); }} className="text-left text-[12px] font-bold text-slate-600 uppercase">
                     Sign out
                   </button>
