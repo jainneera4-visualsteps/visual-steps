@@ -173,7 +173,7 @@ export default function AssignedActivities() {
     }
   }, [viewingQuizResult]);
   const [activitiesSortConfig, setActivitiesSortConfig] = useState<{ key: keyof Activity | null, direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
-  const [completedSortConfig, setCompletedSortConfig] = useState<{ key: string | null, direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
+  const [completedSortConfig, setCompletedSortConfig] = useState<{ key: string | null, direction: 'asc' | 'desc' }>({ key: 'completion_date', direction: 'desc' });
   const [historySortConfig, setHistorySortConfig] = useState<{ key: string | null, direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
   const [predefinedType, setPredefinedType] = useState<string>('');
   const [predefinedId, setPredefinedId] = useState<string>('');
@@ -229,6 +229,11 @@ export default function AssignedActivities() {
 
   const formatSimpleDate = (dateStr: string | null | undefined) => {
     if (!dateStr) return '';
+    if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+      const [y, m, d] = dateStr.split('T')[0].split('-');
+      const date = new Date(Date.UTC(Number(y), Number(m)-1, Number(d)));
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+    }
     return formatKidDate(dateStr, { month: 'short', day: 'numeric', year: 'numeric', hour: undefined, minute: undefined });
   };
 
@@ -1419,7 +1424,7 @@ export default function AssignedActivities() {
       else if (completedSortConfig.key === 'activity_type') { aValue = a.activity_type; bValue = b.activity_type; }
       else if (completedSortConfig.key === 'description') { aValue = a.description; bValue = b.description; }
       else if (completedSortConfig.key === 'repeat_frequency') { aValue = a.repeat_frequency; bValue = b.repeat_frequency; }
-      else if (completedSortConfig.key === 'completion_date') { aValue = a.completion_date || a.created_at || a.due_date; bValue = b.completion_date || b.created_at || b.due_date; }
+      else if (completedSortConfig.key === 'completion_date') { aValue = a.due_date; bValue = b.due_date; }
       else if (completedSortConfig.key === 'time_of_day') { aValue = a.time_of_day; bValue = b.time_of_day; }
       else { return 0; }
       
@@ -1719,7 +1724,7 @@ export default function AssignedActivities() {
                         {activity.repeat_frequency}
                       </td>
                       <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
-                        {formatSimpleDate(activity.completion_date || activity.created_at || activity.due_date)}
+                        {formatSimpleDate(activity.due_date)}
                       </td>
                       <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
                         {activity.time_of_day}
@@ -2621,7 +2626,7 @@ export default function AssignedActivities() {
                               )}
                             </td>
                             <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
-                              {formatSimpleDate(activity.completion_date || activity.created_at || activity.due_date)}
+                              {formatSimpleDate(activity.due_date)}
                             </td>
                             
                             <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
