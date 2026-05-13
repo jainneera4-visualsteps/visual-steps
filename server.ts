@@ -21,7 +21,14 @@ dotenv.config();
 const currentDirname = process.cwd();
 
 const app = express();
-export default app;
+
+// Set default headers for API responses
+app.use((req, res, next) => {
+  if (req.url.startsWith('/api/')) {
+    res.setHeader('Content-Type', 'application/json');
+  }
+  next();
+});
 
 app.use(cors());
 
@@ -39,6 +46,8 @@ app.use((req, res, next) => {
   }
   next();
 });
+
+export default app;
 
 const server = http.createServer(app);
 let io: Server | null = null;
@@ -1399,10 +1408,23 @@ app.post('/api/kids/by-parent-email', async (req, res) => {
     console.log('Found parent user:', user.id);
 
     // Find kids for this user
-    const { data: kids, error: kidsError } = await supabase
+    let { data: kids, error: kidsError } = await supabase
       .from('kids')
       .select('id, name')
       .eq('user_id', user.id);
+
+    // Fallback for parent_id
+    if ((!kids || kids.length === 0) && !kidsError) {
+      console.log('No kids found for user_id in by-parent-email, checking parent_id fallback...');
+      const { data: parentKids, error: parentError } = await supabase
+        .from('kids')
+        .select('id, name')
+        .eq('parent_id', user.id);
+      if (!parentError && parentKids && parentKids.length > 0) {
+        kids = parentKids;
+        console.log(`Found ${kids.length} kids via parent_id fallback for user ${user.id}`);
+      }
+    }
 
     if (kidsError) {
       console.error('Error fetching kids from DB:', kidsError);
@@ -1587,18 +1609,36 @@ app.get('/api/kids', authenticateToken, async (req: any, res) => {
 
   try {
     const supabase = getSupabaseForUser(req);
-    const { data: kids, error } = await supabase
+    
+    // Attempt standard retrieval by user_id
+    let { data: kids, error } = await supabase
       .from('kids')
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
+    
+    // Fallback: If no kids found with user_id, check for parent_id column (legacy/alternative schema)
+    if ((!kids || kids.length === 0) && !error) {
+      console.log('No kids found for user_id, checking parent_id fallback...');
+      const { data: parentKids, error: parentError } = await supabase
+        .from('kids')
+        .select('*')
+        .eq('parent_id', userId)
+        .order('created_at', { ascending: false });
+        
+      if (!parentError && parentKids && parentKids.length > 0) {
+        kids = parentKids;
+        console.log(`Found ${kids.length} kids via parent_id fallback for user ${userId}`);
+      }
+    }
 
     if (error) {
       console.error('Supabase error fetching kids:', error);
       return res.status(500).json({ 
         error: 'Supabase Query Error', 
         message: error.message,
-        details: error
+        details: error,
+        userId: userId
       });
     }
     
