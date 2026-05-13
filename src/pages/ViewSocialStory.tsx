@@ -519,14 +519,14 @@ export default function ViewSocialStory() {
             >
               {!showQuizResults ? (
                 <>
-                  <div className="flex justify-between items-center mb-8">
+                    <div className="flex justify-between items-center mb-8">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-md">
                         <Lightbulb className="h-6 w-6" />
                       </div>
                       <div>
                         <h3 className="text-xl font-black text-slate-900 leading-tight">Story Quiz</h3>
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Question {currentQuizIndex + 1} of {quiz.length}</p>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Question {currentQuizIndex + 1} of {(quiz || []).length}</p>
                       </div>
                     </div>
                     <Button variant="ghost" size="sm" onClick={() => setIsQuizMode(false)} className="text-slate-400 hover:text-red-500">
@@ -535,38 +535,44 @@ export default function ViewSocialStory() {
                   </div>
 
                   <div className="flex-1 flex flex-col justify-center max-w-2xl mx-auto w-full">
-                    <h4 className="text-2xl font-bold text-slate-800 mb-8 leading-tight">
-                      {quiz[currentQuizIndex].question}
-                    </h4>
-                    <div className="grid grid-cols-1 gap-4">
-                      {quiz[currentQuizIndex].options.map((option, optIdx) => (
-                        <button
-                          key={optIdx}
-                          onClick={() => {
-                            setQuizResponses({ ...quizResponses, [currentQuizIndex]: optIdx });
-                            if (currentQuizIndex < quiz.length - 1) {
-                              setTimeout(() => setCurrentQuizIndex(prev => prev + 1), 600);
-                            } else {
-                              setTimeout(() => setShowQuizResults(true), 800);
-                            }
-                          }}
-                          className={`w-full text-left p-5 rounded-2xl border-4 transition-all duration-200 font-bold text-lg ${
-                            quizResponses[currentQuizIndex] === optIdx 
-                              ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-inner' 
-                              : 'border-slate-100 bg-white hover:border-blue-200 hover:bg-slate-50 text-slate-700 shadow-sm'
-                          }`}
-                        >
-                          <div className="flex items-center gap-4">
-                            <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-black transition-colors ${
-                               quizResponses[currentQuizIndex] === optIdx ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400'
-                            }`}>
-                              {String.fromCharCode(65 + optIdx)}
-                            </div>
-                            {option}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
+                    {quiz && quiz[currentQuizIndex] ? (
+                      <>
+                        <h4 className="text-2xl font-bold text-slate-800 mb-8 leading-tight">
+                          {quiz[currentQuizIndex].question}
+                        </h4>
+                        <div className="grid grid-cols-1 gap-4">
+                          {(quiz[currentQuizIndex].options || []).map((option, optIdx) => (
+                            <button
+                              key={optIdx}
+                              onClick={() => {
+                                setQuizResponses({ ...quizResponses, [currentQuizIndex]: optIdx });
+                                if (currentQuizIndex < quiz.length - 1) {
+                                  setTimeout(() => setCurrentQuizIndex(prev => prev + 1), 600);
+                                } else {
+                                  setTimeout(() => setShowQuizResults(true), 800);
+                                }
+                              }}
+                              className={`w-full text-left p-5 rounded-2xl border-4 transition-all duration-200 font-bold text-lg ${
+                                quizResponses[currentQuizIndex] === optIdx 
+                                  ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-inner' 
+                                  : 'border-slate-100 bg-white hover:border-blue-200 hover:bg-slate-50 text-slate-700 shadow-sm'
+                              }`}
+                            >
+                              <div className="flex items-center gap-4">
+                                <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-black transition-colors ${
+                                   quizResponses[currentQuizIndex] === optIdx ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400'
+                                }`}>
+                                  {String.fromCharCode(65 + optIdx)}
+                                </div>
+                                {option}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      <p>No more questions.</p>
+                    )}
                   </div>
 
                   <div className="mt-8 flex justify-between items-center border-t border-slate-100 pt-6">
@@ -591,7 +597,7 @@ export default function ViewSocialStory() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-md mb-8">
                     <div className="bg-blue-50 p-6 rounded-3xl border-2 border-blue-100">
                       <div className="text-4xl font-black text-blue-600">
-                        {Object.values(quizResponses).filter((resp, idx) => resp === quiz[idx].correctAnswerIndex).length}
+                        {Object.values(quizResponses).filter((resp, idx) => quiz[idx] && resp === quiz[idx].correctAnswerIndex).length}
                       </div>
                       <div className="text-xs font-bold text-blue-400 uppercase tracking-widest mt-1">Correct Answers</div>
                     </div>

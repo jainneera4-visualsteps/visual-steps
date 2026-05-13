@@ -792,6 +792,7 @@ export default function Dashboard() {
                                     </div>
                                   </div>
                                 </th>
+
                                 <th className="px-4 py-3 text-center w-24">
                                   <div className="flex flex-col items-center gap-1">
                                     <span>Goal to reach</span>
@@ -888,6 +889,12 @@ export default function Dashboard() {
                                   const elapsed = (currentTime.getTime() - lastTime.getTime()) / 1000;
                                   return elapsed >= def.target_seconds;
                                 })
+                                .sort((a, b) => {
+                                  const priorityOrder: Record<string, number> = { 'High': 1, 'Medium': 2, 'Low': 3 };
+                                  const pA = priorityOrder[a.priority || ''] || 4;
+                                  const pB = priorityOrder[b.priority || ''] || 4;
+                                  return pA - pB;
+                                })
                                 .map((def) => {
                                   const tracker = behaviorTracker.find(t => t.definition_id === def.id);
                                   
@@ -912,6 +919,7 @@ export default function Dashboard() {
                                       </td>
                                       <td className="px-4 py-3 text-slate-900 font-bold">{def.name}</td>
                                       <td className="px-4 py-3 text-xs text-slate-600">{def.description || '---'}</td>
+
                                       <td className="px-4 py-3 text-center font-bold text-slate-600">{def.goal || 1}</td>
                                       <td className="px-4 py-3 text-center font-bold text-slate-600">{tracker?.points || 0}</td>
                                       <td className="px-4 py-3 text-center font-bold text-slate-600">

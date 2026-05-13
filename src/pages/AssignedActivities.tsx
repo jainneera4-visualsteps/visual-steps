@@ -2778,8 +2778,17 @@ export default function AssignedActivities() {
         </CardHeader>
         <CardContent className="px-4 pb-4 space-y-4">
           {viewingQuizResult.questions && viewingQuizResult.questions.map((q: any, idx: number) => {
-            const kidAnswerIndex = viewingQuizResult.responses ? viewingQuizResult.responses[idx] : -1;
-            const isCorrect = kidAnswerIndex === q.correctAnswerIndex;
+            const kidResponse = viewingQuizResult.responses ? viewingQuizResult.responses[idx] : null;
+            
+            let isCorrect = false;
+            if (q.type === 'fill_in_the_blanks') {
+              isCorrect = String(kidResponse || '').trim().toLowerCase() === String(q.correctAnswer || '').trim().toLowerCase();
+            } else {
+              const correctIndices = q.correctAnswerIndices || [q.correctAnswerIndex];
+              const kidIndices = Array.isArray(kidResponse) ? kidResponse : (typeof kidResponse === 'number' ? [kidResponse] : []);
+              isCorrect = correctIndices.length === kidIndices.length && 
+                          correctIndices.every((val: number) => kidIndices.includes(val));
+            }
             
             return (
               <div key={idx} className={`p-4 rounded-xl border-2 ${isCorrect ? 'border-emerald-100 bg-emerald-50/30' : 'border-red-100 bg-red-50/30'}`}>
@@ -2790,34 +2799,67 @@ export default function AssignedActivities() {
                   <div className="flex-1">
                     <h4 className="font-bold text-slate-800">{idx + 1}. {q.question}</h4>
                     
-                    <div className="mt-3 space-y-2">
-                      {q.options.map((option: string, optIdx: number) => {
-                        const isKidChoice = optIdx === kidAnswerIndex;
-                        const isCorrectChoice = optIdx === q.correctAnswerIndex;
-                        
-                        let optionClass = "p-2 rounded-lg text-sm border ";
-                        if (isCorrectChoice) {
-                          optionClass += "border-emerald-500 bg-emerald-100 text-emerald-800 font-bold";
-                        } else if (isKidChoice && !isCorrectChoice) {
-                          optionClass += "border-red-500 bg-red-100 text-red-800 font-bold";
-                        } else {
-                          optionClass += "border-slate-200 bg-white text-slate-600";
-                        }
+                    {q.imageUrl && (
+                      <div className="mt-2 mb-3 max-w-xs overflow-hidden rounded-xl border border-slate-200 bg-white p-1">
+                        <img 
+                          src={q.imageUrl} 
+                          alt="" 
+                          className="w-full h-32 object-cover rounded-lg" 
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
+                    )}
 
-                        return (
-                          <div key={optIdx} className={optionClass}>
-                            <div className="flex items-center justify-between">
-                              <span>{option}</span>
-                              {isKidChoice && (
-                                <span className="text-[10px] uppercase font-black px-1.5 py-0.5 rounded bg-white/50">
-                                  Kid's Choice
-                                </span>
-                              )}
+                    {q.type === 'fill_in_the_blanks' ? (
+                      <div className="mt-3 space-y-2">
+                        <div className={`p-2 rounded-lg text-sm border ${isCorrect ? 'border-emerald-500 bg-emerald-100' : 'border-red-500 bg-red-100'}`}>
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[10px] uppercase font-black text-slate-500">Kid's Answer</span>
+                            <span className="font-bold">{String(kidResponse || 'No answer')}</span>
+                          </div>
+                        </div>
+                        {!isCorrect && (
+                          <div className="p-2 rounded-lg text-sm border border-emerald-500 bg-emerald-50">
+                            <div className="flex flex-col gap-1">
+                              <span className="text-[10px] uppercase font-black text-emerald-600">Correct Answer</span>
+                              <span className="font-bold text-emerald-700">{q.correctAnswer}</span>
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="mt-3 space-y-2">
+                        {q.options.map((option: string, optIdx: number) => {
+                          const correctIndices = q.correctAnswerIndices || [q.correctAnswerIndex];
+                          const kidIndices = Array.isArray(kidResponse) ? kidResponse : (typeof kidResponse === 'number' ? [kidResponse] : []);
+                          
+                          const isKidChoice = kidIndices.includes(optIdx);
+                          const isCorrectChoice = correctIndices.includes(optIdx);
+                          
+                          let optionClass = "p-2 rounded-lg text-sm border ";
+                          if (isCorrectChoice) {
+                            optionClass += "border-emerald-500 bg-emerald-100 text-emerald-800 font-bold";
+                          } else if (isKidChoice && !isCorrectChoice) {
+                            optionClass += "border-red-500 bg-red-100 text-red-800 font-bold";
+                          } else {
+                            optionClass += "border-slate-200 bg-white text-slate-600";
+                          }
+
+                          return (
+                            <div key={optIdx} className={optionClass}>
+                              <div className="flex items-center justify-between">
+                                <span>{option}</span>
+                                {isKidChoice && (
+                                  <span className="text-[10px] uppercase font-black px-1.5 py-0.5 rounded bg-white/50">
+                                    Kid's Choice
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                     
                     {q.explanation && (
                       <div className="mt-3 p-2 bg-white/50 rounded border border-slate-100 text-xs italic text-slate-600">
@@ -3282,12 +3324,16 @@ export default function AssignedActivities() {
                         }}
                       >
                         <option value="">-- Select Activity --</option>
-                        {predefinedType === 'quiz' && quizzes.map(q => (
-                          <option key={q.id} value={q.id}>{q.title}</option>
-                        ))}
-                        {predefinedType === 'story' && socialStories.map(s => (
-                          <option key={s.id} value={s.id}>{s.title}</option>
-                        ))}
+                        {predefinedType === 'quiz' && quizzes
+                          .filter(q => !q.kid_id || q.kid_id === kidId)
+                          .map(q => (
+                            <option key={q.id} value={q.id}>{q.title}</option>
+                          ))}
+                        {predefinedType === 'story' && socialStories
+                          .filter(s => !s.kid_id || s.kid_id === kidId)
+                          .map(s => (
+                            <option key={s.id} value={s.id}>{s.title}</option>
+                          ))}
                         {predefinedType === 'worksheet' && worksheets.map(w => (
                           <option key={w.id} value={w.id}>{w.title}</option>
                         ))}

@@ -51,11 +51,17 @@ export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit, ret
   let token = null;
   let isKidSession = false;
   try {
-    const { data: { session }, error } = await supabase.auth.getSession();
-    if (error && isAuthError(error)) {
-      await clearAuthSession();
+    // If Supabase is pointing to a placeholder, don't even try to get session as it will cause a DNS error/Failed to fetch
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    if (supabaseUrl && !supabaseUrl.includes('placeholder')) {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error && isAuthError(error)) {
+        await clearAuthSession();
+      }
+      token = session?.access_token;
+    } else {
+      console.warn('Supabase not configured, skipping session check in apiFetch');
     }
-    token = session?.access_token;
   } catch (err) {
     console.error('Error getting session in apiFetch:', err);
     if (isAuthError(err)) {
@@ -208,6 +214,12 @@ export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit, ret
     console.error(`apiFetch network error for ${url} after exhausted retries:`, error);
     const networkMessage = error instanceof Error ? error.message : String(error);
     const networkError = new Error(`Network failure: ${networkMessage} (URL: ${url}). Please check your connection.`);
+    
+    // Add alert for critical network failures to help debug
+    if (url.includes('/api/')) {
+      alert(`NETWORK FAILURE:\n\nURL: ${url}\n\nError: ${networkMessage}\n\nThis usually means the browser cannot reach the backend server. Ensure the development server is running and you are not in an offline state.`);
+    }
+    
     (networkError as any).originalError = error;
     (networkError as any).url = url;
     throw networkError;

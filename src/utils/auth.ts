@@ -46,6 +46,7 @@ export const isAuthError = (error: any): boolean => {
   const message = typeof error === 'string' ? error : (error.message || error.error_description || error.error || '');
   
   const isAuthErr = (
+    message.includes('Auth session missing!') ||
     message.includes('Refresh Token Not Found') || 
     message.includes('Invalid Refresh Token') ||
     message.includes('JWT expired') ||

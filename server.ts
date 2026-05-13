@@ -86,7 +86,9 @@ const cleanEnvVar = (name: string): string => {
   if ((cleaned.startsWith('"') && cleaned.endsWith('"')) || (cleaned.startsWith("'") && cleaned.endsWith("'"))) {
     cleaned = cleaned.substring(1, cleaned.length - 1);
   }
-  return cleaned.trim();
+  cleaned = cleaned.trim();
+  if (cleaned === 'undefined' || cleaned === 'null') return '';
+  return cleaned;
 };
 
 const PORT = 3000;
@@ -97,7 +99,8 @@ let supabaseUrl = (cleanEnvVar('SUPABASE_URL') || cleanEnvVar('VITE_SUPABASE_URL
 if (supabaseUrl) {
   if (!supabaseUrl.startsWith('http')) {
     // If it's just a project ID, expand it. Otherwise, assume it needs https://
-    if (supabaseUrl.match(/^[a-z0-9]{20}$/)) { 
+    // Supabase project IDs are usually 20 alphanumeric chars
+    if (supabaseUrl.length >= 15 && supabaseUrl.length <= 30 && /^[a-z0-9]+$/.test(supabaseUrl)) { 
         supabaseUrl = `https://${supabaseUrl}.supabase.co`;
     } else {
         supabaseUrl = 'https://' + supabaseUrl;
@@ -108,14 +111,18 @@ if (supabaseUrl) {
 const supabaseKey = (cleanEnvVar('SUPABASE_ANON_KEY') || cleanEnvVar('VITE_SUPABASE_ANON_KEY') || cleanEnvVar('SUPABASE_KEY') || '').trim();
 const supabaseServiceKey = (cleanEnvVar('SUPABASE_SERVICE_ROLE_KEY') || cleanEnvVar('VITE_SUPABASE_SERVICE_ROLE_KEY') || '').trim();
 
-console.log('[STARTUP] Backend Supabase URL:', supabaseUrl);
-console.log('[STARTUP] Backend Supabase Key:', supabaseKey ? '***' : 'undefined');
-console.log('[STARTUP] Backend Service Key:', supabaseServiceKey ? '***' : 'undefined');
-console.log('[STARTUP] JWT_SECRET:', JWT_SECRET ? '***' : 'undefined');
-console.log('[STARTUP] GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? '***' : (process.env.GOOGLE_API_KEY ? '*** (from GOOGLE_API_KEY)' : 'undefined'));
+console.log('[STARTUP] Backend Supabase URL:', supabaseUrl || 'MISSING');
+console.log('[STARTUP] Backend Supabase Key:', supabaseKey ? `Present (Starts with ${supabaseKey.substring(0, 10)}...)` : 'MISSING');
+console.log('[STARTUP] Backend Service Key:', supabaseServiceKey ? `Present (Starts with ${supabaseServiceKey.substring(0, 10)}...)` : 'NOT FOUND (Using anon key for admin tasks)');
+console.log('[STARTUP] JWT_SECRET:', JWT_SECRET ? 'Present' : 'USING DEFAULT');
 
 if (!supabaseUrl || !supabaseKey) {
-  console.error('[STARTUP] Missing Supabase environment variables. Please set SUPABASE_URL and SUPABASE_ANON_KEY.');
+  console.error('[STARTUP] CRITICAL: Missing Supabase environment variables! Please set SUPABASE_URL and SUPABASE_ANON_KEY.');
+} else {
+  // Check if project URL matches ANON key (both usually contain the project ID or are signed by it)
+  // This is a loose check but helps detect obviously mismatched pairs
+  const urlProject = (supabaseUrl.split('//')[1] || '').split('.')[0];
+  console.log(`[STARTUP] Configured Project ID: ${urlProject}`);
 }
 
 // Helper to get authenticated Supabase client
@@ -232,10 +239,12 @@ app.get('/api/backend-health', async (req, res) => {
 
 // Auth Middleware
 const authenticateToken = async (req: any, res: any, next: any) => {
+  console.log(`[AUTH_DEBUG] Request: ${req.method} ${req.url}`);
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : req.cookies.token;
 
   if (!token || token === 'undefined' || token === 'null') {
+    console.warn(`[AUTH_DEBUG] Missing token string: "${token}" for ${req.url}`);
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
@@ -275,37 +284,73 @@ const authenticateToken = async (req: any, res: any, next: any) => {
       }
     });
     
-    // Verify the token with Supabase
-    // We pass the token explicitly to getUser, and also have it in headers for double resilience
-    const { data: { user }, error } = await supabase.auth.getUser(token);
+    // Verify the token with Supabase with a timeout to prevent hanging connections
+    const getUserWithTimeout = async () => {
+      const timeout = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Supabase request timed out')), 10000)
+      );
+      const request = supabase.auth.getUser(token);
+      return Promise.race([request, timeout]) as Promise<{ data: { user: any }; error: any }>;
+    };
+
+    const { data: { user }, error } = await getUserWithTimeout().catch(err => ({ 
+      data: { user: null }, 
+      error: { message: err.message || 'Supabase Timeout' } 
+    }));
 
     if (error || !user) {
-      console.error(`[AUTH] Supabase verification failed:`, error?.message || 'No user', 'Status:', error?.status);
+      const errorMsg = error?.message || 'No user';
+      console.error(`[AUTH_DEBUG] Supabase verification failed: ${errorMsg}`);
       
       // Detailed mismatch check
       let projectIdFromToken = 'unknown';
+      let tokenIssuer = 'unknown';
+      let decoded: any = null;
       try {
-        const decoded = jwt.decode(token) as any;
-        const tokenIssuer = decoded?.iss || 'unknown';
+        decoded = jwt.decode(token);
+        tokenIssuer = decoded?.iss || 'unknown';
+        
+        // Supabase issuer is usually https://<project>.supabase.co/auth/v1
         if (tokenIssuer && tokenIssuer.includes('.supabase.co')) {
-            projectIdFromToken = tokenIssuer.split('//')[1]?.split('.')[0];
+            const parts = tokenIssuer.split('//')[1]?.split('.');
+            if (parts && parts.length > 0) projectIdFromToken = parts[0];
+        } else if (tokenIssuer && (tokenIssuer.includes('localhost') || tokenIssuer.includes('127.0.0.1'))) {
+            projectIdFromToken = 'localhost';
         }
       } catch (e) {}
       
-      const backendProjectId = supabaseUrl.split('//')[1]?.split('.')[0];
-      const isProjectMismatch = projectIdFromToken !== 'unknown' && projectIdFromToken !== backendProjectId;
+      const backendProjectId = (supabaseUrl.split('//')[1] || '').split('.')[0] || 'unknown';
+      
+      // A mismatch is likely if both are known but different
+      const isProjectMismatch = projectIdFromToken !== 'unknown' && 
+                               backendProjectId !== 'unknown' && 
+                               projectIdFromToken !== backendProjectId;
+
+      console.warn(`[AUTH_DEBUG] Token Info - Issuer: ${tokenIssuer}, ProjectFromToken: ${projectIdFromToken}, UserID: ${decoded?.sub || 'unknown'}`);
+      console.warn(`[AUTH_DEBUG] Backend Info - Project: ${backendProjectId}, URL: ${supabaseUrl}`);
 
       if (isProjectMismatch) {
+        console.error(`[AUTH_DEBUG] PROJECT MISMATCH: Token for "${projectIdFromToken}", Server for "${backendProjectId}".`);
         return res.status(401).json({ 
           error: 'Supabase Project Mismatch', 
-          details: `Your project mismatch detected. Token: ${projectIdFromToken}, Backend: ${backendProjectId}. Ensure VITE_SUPABASE_URL and SUPABASE_URL match the same project.`,
+          details: `Configuration error: Your browser has a session for project "${projectIdFromToken}", but the server is configured to use project "${backendProjectId}". Please ensure VITE_SUPABASE_URL and SUPABASE_URL are both set to the correct URL in settings.`,
+          projectIdFromToken,
+          backendProjectId
+        });
+      }
+
+      // Special handling for the common "Auth session missing!" error
+      if (errorMsg === 'Auth session missing!') {
+        return res.status(401).json({
+          error: 'Invalid Session',
+          details: 'Your session is invalid or has expired. This can happen if you logged out elsewhere or if the Supabase project configuration was recently changed.',
           code: 401
         });
       }
 
       return res.status(401).json({ 
         error: 'Invalid Session', 
-        details: error?.message || 'The session has expired or is invalid.',
+        details: errorMsg,
         code: error?.status || 401
       });
     }
@@ -318,6 +363,7 @@ const authenticateToken = async (req: any, res: any, next: any) => {
         name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0]
     };
     req.token = token;
+    console.log(`[AUTH_DEBUG] Success: Supabase token for ${user.email}`);
     next();
   } catch (err: any) {
     console.error('authenticateToken: Unexpected error:', err.message, err.stack);
@@ -4197,7 +4243,13 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
         ...(config || {}),
         responseMimeType: responseMimeType || config?.responseMimeType,
         responseSchema: responseSchema || config?.responseSchema,
-      }
+      },
+      safetySettings: [
+        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+      ]
     };
 
     if (systemInstruction) {
@@ -4409,7 +4461,7 @@ app.get('/api/quizzes', authenticateToken, async (req: any, res) => {
   try {
     const { data: quizzes, error } = await supabase
       .from('quizzes')
-      .select('id, title, topic, difficulty, grade_level, created_at')
+      .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
@@ -4426,14 +4478,16 @@ app.get('/api/kids/:kidId/quizzes', authenticateToken, async (req: any, res) => 
   const supabase = getSupabaseForUser(req);
   const { kidId } = req.params;
   try {
-    // Note: kid_id column might be missing in some environments
     const { data: quizzes, error } = await supabase
       .from('quizzes')
-      .select('id, title, topic, difficulty, grade_level, created_at')
-      .eq('user_id', req.user.id) // Fallback to user_id if kid_id is missing or just to be safe
+      .select('*') // Select all to avoid explicit column errors if schema isn't updated yet
+      .eq('user_id', req.user.id)
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching quizzes:', error);
+      throw error;
+    }
     res.json({ quizzes });
   } catch (error) {
     console.error(error);
@@ -4463,7 +4517,7 @@ app.get('/api/quizzes/:id', authenticateToken, async (req: any, res) => {
 // Create a quiz
 app.post('/api/quizzes', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
-  const { kidId, title, topic, difficulty, gradeLevel, content } = req.body;
+  const { kidId, title, topic, subject, difficulty, gradeLevel, noOfQuestions, questionType, questionScore, content } = req.body;
   const userId = req.user.id;
   if (!title || !content) return res.status(400).json({ error: 'Title and content are required' });
 
@@ -4471,21 +4525,35 @@ app.post('/api/quizzes', authenticateToken, async (req: any, res) => {
     const id = uuidv4();
     const contentStr = typeof content === 'string' ? content : JSON.stringify(content);
     
+    // Build the insert object dynamically
+    const insertData: any = {
+      id,
+      user_id: userId,
+      title,
+      topic,
+      difficulty,
+      grade_level: gradeLevel,
+      content: contentStr
+    };
+
+    // Only add these if they are provided, and we'll catch the error if columns don't exist
+    if (kidId) insertData.kid_id = kidId;
+    if (subject) insertData.subject = subject;
+    if (noOfQuestions) insertData.no_of_questions = noOfQuestions;
+    if (questionType) insertData.question_type = questionType;
+    if (questionScore) insertData.score_per_question = questionScore;
+
     const { error } = await supabase
       .from('quizzes')
-      .insert([
-        {
-          id,
-          user_id: userId,
-          title,
-          topic,
-          difficulty,
-          grade_level: gradeLevel,
-          content: contentStr
-        }
-      ]);
+      .insert([insertData]);
 
-    if (error) throw error;
+    if (error) {
+      console.error('Database error in POST /api/quizzes:', error);
+      if (error.code === '42703') {
+        throw new Error(`Database schema mismatch: missing columns. Please run the SQL migration. (Raw error: ${error.message})`);
+      }
+      throw error;
+    }
     
     if (kidId) {
       const io = req.app.get('io');
@@ -4495,7 +4563,7 @@ app.post('/api/quizzes', authenticateToken, async (req: any, res) => {
     res.status(201).json({ message: 'Quiz saved successfully', quizId: id });
   } catch (error: any) {
     console.error('Quiz save error:', error);
-    res.status(500).json({ error: 'Internal server error', details: error.message });
+    res.status(500).json({ error: 'Internal server error', details: error.message || String(error) });
   }
 });
 
@@ -4503,7 +4571,7 @@ app.post('/api/quizzes', authenticateToken, async (req: any, res) => {
 app.put('/api/quizzes/:id', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
   const { id } = req.params;
-  const { title, topic, difficulty, gradeLevel, content } = req.body;
+  const { kidId, title, topic, subject, difficulty, gradeLevel, noOfQuestions, questionType, questionScore, content } = req.body;
   const userId = req.user.id;
 
   if (!title || !content) return res.status(400).json({ error: 'Title and content are required' });
@@ -4520,23 +4588,38 @@ app.put('/api/quizzes/:id', authenticateToken, async (req: any, res) => {
 
     const contentStr = typeof content === 'string' ? content : JSON.stringify(content);
 
+    // Build update object dynamically
+    const updateData: any = {
+      title,
+      topic,
+      difficulty,
+      grade_level: gradeLevel,
+      content: contentStr
+    };
+
+    if (kidId !== undefined) updateData.kid_id = kidId;
+    if (subject !== undefined) updateData.subject = subject;
+    if (noOfQuestions !== undefined) updateData.no_of_questions = noOfQuestions;
+    if (questionType !== undefined) updateData.question_type = questionType;
+    if (questionScore !== undefined) updateData.score_per_question = questionScore;
+
     const { error } = await supabase
       .from('quizzes')
-      .update({
-        title,
-        topic,
-        difficulty,
-        grade_level: gradeLevel,
-        content: contentStr
-      })
+      .update(updateData)
       .eq('id', id);
 
-    if (error) throw error;
+    if (error) {
+      console.error('Database error in PUT /api/quizzes/:id:', error);
+      if (error.code === '42703') {
+        throw new Error(`Database schema mismatch: missing columns. Please run the SQL migration. (Raw error: ${error.message})`);
+      }
+      throw error;
+    }
     
     res.json({ message: 'Quiz updated successfully' });
   } catch (error: any) {
     console.error('Quiz update error:', error);
-    res.status(500).json({ error: 'Internal server error', details: error.message });
+    res.status(500).json({ error: 'Internal server error', details: error.message || String(error) });
   }
 });
 
@@ -4763,11 +4846,16 @@ process.on('unhandledRejection', (reason, promise) => {
   });
 
   if (!process.env.VERCEL) {
-    server.listen(PORT, '0.0.0.0', () => {
-      console.log(`[${new Date().toISOString()}] Server listening on port ${PORT}`);
-    });
-    
-    startServer().catch(err => {
-      console.error('Failed to initialize Vite/Background tasks:', err);
+    startServer().then(() => {
+      server.listen(PORT, '0.0.0.0', () => {
+        console.log(`[${new Date().toISOString()}] Server listening on port ${PORT}`);
+      });
+    }).catch(err => {
+      console.error('Failed to initialize server:', err);
+      // Still listen so we can at least show errors or handle pings if possible,
+      // but the app is likely broken.
+      server.listen(PORT, '0.0.0.0', () => {
+        console.log(`[${new Date().toISOString()}] Server listening on port ${PORT} (with startup errors)`);
+      });
     });
   }
