@@ -1,12 +1,12 @@
 import { apiFetch } from '../utils/api';
-import { generateContent, modelNames } from '../lib/gemini';
+import { generateContent, generateImage, modelNames } from '../lib/gemini';
 import { isAuthError } from '../utils/auth';
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Input } from '../components/Input';
-import { ArrowLeft, Sparkles, Loader2, Gamepad2, Save, CheckCircle2, HelpCircle } from 'lucide-react';
+import { ArrowLeft, Sparkles, Loader2, Gamepad2, Save, CheckCircle2, HelpCircle, ImageIcon } from 'lucide-react';
 import { Tooltip } from '../components/ui/Tooltip';
 
 interface QuizContent {
@@ -33,7 +33,10 @@ export default function QuizGenerator() {
   const [questionType, setQuestionType] = useState('Multiple Choice');
   const [numQuestions, setNumQuestions] = useState(5);
   const [questionScore, setQuestionScore] = useState(1);
+  const [autoGenerateImages, setAutoGenerateImages] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingImages, setIsGeneratingImages] = useState<Record<number, boolean>>({});
+  const [isGeneratingAllImages, setIsGeneratingAllImages] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [quiz, setQuiz] = useState<QuizContent | null>(null);
   const [kids, setKids] = useState<{ id: string; name: string }[]>([]);
@@ -120,7 +123,7 @@ export default function QuizGenerator() {
         - Grade Level Consistency: Ensure vocabulary, syntax, and conceptual complexity are perfectly calibrated for ${kidProfile?.grade_level || gradeLevel}.
         - Personalized Context: Infuse the questions with the kid's interests (${kidProfile?.interests || 'N/A'}) to make learning more relatable.
         - Strategic Explanations: Tailor the 'explanation' field to reinforce their weaknesses and build on their strengths.
-        - Content Balance: The quiz should be primarily text-based. Focus on deep learning through well-crafted questions.
+        - Content Balance: The quiz should include AI-generated image prompts to enhance engagement and comprehension for the grade level.
         - Question Types Requirements:
           - Multiple Choice: Provide 3-5 options. At least one question MUST have multiple correct answers (indices in correctAnswerIndices).
           - True/False: Provide exactly 2 options: ["True", "False"]. The question must be a statement that can be true or false. One index in correctAnswerIndices.
@@ -128,7 +131,8 @@ export default function QuizGenerator() {
         - No Choices for Fill in the Blanks: Ensure that for 'Fill in the Blanks', no options are displayed to the user during the quiz (handled by the PlayQuiz component).
         
         The quiz should be educational, fun, and engaging.
-        Include exactly ${numQuestions} questions.`,
+        include exactly ${numQuestions} questions.
+        As a TECHNICAL ILLUSTRATOR AND EXAMINER, for each question, provide a "visualPrompt" ONLY if an illustration is truly beneficial for comprehension or engagement. A precise, clear, minimalistic visual clue/context. STRICTLY ONLY the specific scenario/elements mentioned. NO solutions, answers, hints, or explanations. Use VERY LARGE labels. HIGH-CONTRAST B&W line art, no shading/gray/colors, thick clean lines.`,
           responseMimeType: "application/json",
           responseSchema: {
             type: "OBJECT",
@@ -151,9 +155,10 @@ export default function QuizGenerator() {
                       items: { type: "INTEGER" }, 
                       description: "The indices of the correct options (0-based). For Multiple Choice, can have one or more indices. For True/False/Fill in the Blanks, will have exactly one index." 
                     },
-                    explanation: { type: "STRING", description: "A brief explanation of why the answer is correct" }
+                    explanation: { type: "STRING", description: "A brief explanation of why the answer is correct" },
+                    visualPrompt: { type: "STRING", description: "A description for an illustration related to this question (in English)" }
                   },
-                  required: ["question", "options", "correctAnswerIndices", "explanation"]
+                  required: ["question", "options", "correctAnswerIndices", "explanation", "visualPrompt"]
                 }
               }
             },
@@ -177,6 +182,9 @@ export default function QuizGenerator() {
       data.questionType = questionType;
       setQuiz(data);
 
+      if (autoGenerateImages) {
+        generateAllImagesWithData(data);
+      }
     } catch (error: any) {
       console.error('Failed to generate quiz:', error);
       if (isAuthError(error)) return; // Auth utility handles this
@@ -191,6 +199,69 @@ export default function QuizGenerator() {
       }
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const generateAllImagesWithData = async (quizData: QuizContent) => {
+    setIsGeneratingAllImages(true);
+    try {
+      const updatedQuestions = [...quizData.questions];
+      for (let i = 0; i < updatedQuestions.length; i++) {
+        const question = updatedQuestions[i];
+        const visualPrompt = (question as any).visualPrompt || question.question;
+
+        const illustratorPrompt = `Act as an examiner and a technical diagrammer for ${kidProfile?.grade_level || 'a student'}. Create a precise, clear, minimalistic diagram providing a visual clue/context for this question: "${visualPrompt}". The student's interests include ${kidProfile?.interests || 'learning'}. STRICTLY ONLY represent the mentioned scenario/elements. ABSOLUTELY DO NOT show solutions, correct answers, hints, or explanations. The art is a helpful clue, NOT the answer itself. Use VERY LARGE BOLD labels. HIGH-CONTRAST BLACK AND WHITE LINE ART ONLY. No shading, no gray, no colors, thick clean lines.`;
+        
+        const imageUrl = await generateImage(illustratorPrompt);
+        if (imageUrl) {
+          updatedQuestions[i] = { ...updatedQuestions[i], imageUrl };
+        }
+      }
+      setQuiz({ ...quizData, questions: updatedQuestions });
+    } finally {
+      setIsGeneratingAllImages(false);
+    }
+  };
+
+  const generateQuestionImage = async (index: number) => {
+    if (!quiz || !quiz.questions[index]) return;
+    const question = quiz.questions[index];
+    const visualPrompt = (question as any).visualPrompt || question.question;
+
+    setIsGeneratingImages((prev) => ({ ...prev, [index]: true }));
+    try {
+      // Act as a technical diagrammer. 
+      // Illustration must ONLY depict the specific scenario, elements, or objects mentioned in the question text.
+      // ABSOLUTELY DO NOT show any solutions, correct answers, hints that reveal the final answer, or explanations.
+      // Use VERY LARGE, BOLD, READABLE labels if essential.
+      // HIGH-CONTRAST BLACK AND WHITE LINE ART ONLY. 
+      // No shading, no gray, no colors, thick clean lines on a pure white background.
+      // Illustration should be a helpful clue, not the answer.
+      const illustratorPrompt = `Act as an examiner and a technical diagrammer. Create a precise, clear, minimalistic diagram providing a visual clue/context for this question: "${visualPrompt}". STRICTLY ONLY represent the mentioned scenario/elements. ABSOLUTELY DO NOT show solutions, correct answers, hints, or explanations. The art is a helpful clue, NOT the answer itself. Use VERY LARGE BOLD labels. HIGH-CONTRAST BLACK AND WHITE LINE ART ONLY. No shading, no gray, no colors, thick clean lines.`;
+      
+      const imageUrl = await generateImage(illustratorPrompt);
+      if (imageUrl) {
+        const updatedQuestions = [...quiz.questions];
+        updatedQuestions[index] = { ...updatedQuestions[index], imageUrl };
+        setQuiz({ ...quiz, questions: updatedQuestions });
+      }
+    } catch (error) {
+      console.error('Failed to generate image', error);
+    } finally {
+      setIsGeneratingImages((prev) => ({ ...prev, [index]: false }));
+    }
+  };
+
+  const generateAllImages = async () => {
+    if (!quiz) return;
+    setIsGeneratingAllImages(true);
+    try {
+      for (let i = 0; i < quiz.questions.length; i++) {
+        if (quiz.questions[i].imageUrl) continue;
+        await generateQuestionImage(i);
+      }
+    } finally {
+      setIsGeneratingAllImages(false);
     }
   };
 
@@ -398,6 +469,16 @@ export default function QuizGenerator() {
             <Button 
               variant="outline" 
               size="sm" 
+              onClick={generateAllImages}
+              disabled={isGeneratingAllImages}
+              className="h-8 text-[12px] font-bold border-blue-200 text-blue-700 hover:bg-blue-50"
+            >
+              {isGeneratingAllImages ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <ImageIcon className="mr-1.5 h-3.5 w-3.5" />}
+              Generate All Icons
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
               onClick={handleSave}
               disabled={isSaving}
               className="h-8 text-[12px]"
@@ -427,7 +508,7 @@ export default function QuizGenerator() {
               </div>
             </CardHeader>
             <CardContent className="p-6 space-y-8">
-              {quiz.questions.map((q, idx) => (
+              {(quiz.questions || []).map((q, idx) => (
                 <div key={idx} className="space-y-4 border-b border-slate-100 last:border-0 pb-8 last:pb-0">
                   <div className="flex flex-col lg:flex-row gap-6">
                     {/* Image Container */}
@@ -443,9 +524,21 @@ export default function QuizGenerator() {
                     )}
                     
                     <div className="flex-1 space-y-4">
-                      <h3 className="font-bold text-slate-800 text-lg">
-                        {idx + 1}. {q.question}
-                      </h3>
+                      <div className="flex justify-between items-start">
+                        <h3 className="font-bold text-slate-800 text-lg">
+                          {idx + 1}. {q.question}
+                        </h3>
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          className="h-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-bold"
+                          onClick={() => generateQuestionImage(idx)}
+                          disabled={isGeneratingImages[idx]}
+                        >
+                          {isGeneratingImages[idx] ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 mr-1" />}
+                          AI Art
+                        </Button>
+                      </div>
                       <div className="grid gap-2">
                         {quiz.questionType === 'Fill in the Blanks' ? (
                           <div className="p-3 rounded-lg border border-emerald-500 bg-emerald-50 text-emerald-900 shadow-sm flex items-center gap-3">

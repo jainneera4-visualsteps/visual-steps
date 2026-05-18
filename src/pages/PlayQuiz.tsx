@@ -174,24 +174,24 @@ export default function PlayQuiz() {
         console.log('PlayQuiz: fetched quiz data:', data);
         if (!data.quiz) {
           console.error('PlayQuiz: data.quiz is undefined!');
-          navigate('/dashboard');
+          handleGoBack();
           return;
         }
         const content = typeof data.quiz.content === 'string' ? JSON.parse(data.quiz.content) : data.quiz.content;
         console.log('PlayQuiz: parsed content:', content);
         if (!content || !content.questions) {
           console.error('PlayQuiz: content or content.questions is undefined!');
-          navigate('/dashboard');
+          handleGoBack();
           return;
         }
         setQuiz(content);
         setUserResponses(new Array(content.questions.length).fill([]));
       } else {
-        navigate('/dashboard');
+        handleGoBack();
       }
     } catch (err) {
       console.error('Failed to fetch quiz', err);
-      navigate('/dashboard');
+      handleGoBack();
     } finally {
       setIsLoading(false);
     }
@@ -328,17 +328,12 @@ export default function PlayQuiz() {
     }
   };
 
-  const handleRestart = () => {
-    window.speechSynthesis.cancel();
-    setIsPlaying(false);
-    setIsFeedbackPlaying(false);
-    setCurrentQuestionIndex(0);
-    setSelectedAnswers([]);
-    setTypedAnswer('');
-    setIsAnswerChecked(false);
-    setScore(0);
-    setUserResponses(new Array(quiz?.questions.length || 0).fill([]));
-    setIsFinished(false);
+  const handleGoBack = () => {
+    if (kidId) {
+      navigate(`/kids-dashboard/${kidId}`);
+    } else {
+      navigate('/dashboard');
+    }
   };
 
   if (isLoading) {
@@ -355,7 +350,7 @@ export default function PlayQuiz() {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <h3 className="text-lg font-semibold text-slate-900">Quiz not found</h3>
-        <Button variant="outline" onClick={() => navigate(-1)} className="mt-6">
+        <Button variant="outline" onClick={handleGoBack} className="mt-6">
           Go Back
         </Button>
       </div>
@@ -367,7 +362,7 @@ export default function PlayQuiz() {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <h3 className="text-lg font-semibold text-slate-900">Quiz has no questions</h3>
-        <Button variant="outline" onClick={() => navigate(-1)} className="mt-6">
+        <Button variant="outline" onClick={handleGoBack} className="mt-6">
           Go Back
         </Button>
       </div>
@@ -408,7 +403,7 @@ export default function PlayQuiz() {
             </div>
 
             <div className="grid grid-cols-2 gap-4 pt-4">
-              <Button variant="outline" onClick={() => navigate(`/kids-dashboard/${kidId}`)} className="w-full font-bold">
+              <Button variant="outline" onClick={handleGoBack} className="w-full font-bold">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Go Back
               </Button>
@@ -431,7 +426,7 @@ export default function PlayQuiz() {
       {/* Header */}
       <div className="bg-white border-b border-slate-200 px-4 h-[60px] flex items-center shrink-0 z-10 shadow-sm sticky top-0">
         <div className="w-full flex items-center gap-4">
-          <button onClick={() => navigate(-1)} className="p-2 hover:bg-slate-100 rounded-full transition-colors shrink-0">
+          <button onClick={handleGoBack} className="p-2 hover:bg-slate-100 rounded-full transition-colors shrink-0">
             <ArrowLeft className="h-5 w-5 text-slate-600" />
           </button>
           
@@ -468,7 +463,7 @@ export default function PlayQuiz() {
             <div className="p-4 md:p-8 space-y-6">
               <div className="space-y-0.5">
                 <span className="text-[11px] font-black text-blue-600 uppercase tracking-[0.2em]">Question</span>
-                <h2 className="text-lg md:text-2xl font-bold text-slate-900 leading-tight">
+                <h2 className="text-lg md:text-2xl font-bold text-slate-900 leading-tight text-justify">
                   {currentQuestion.question}
                 </h2>
               </div>
@@ -536,7 +531,7 @@ export default function PlayQuiz() {
                             disabled={isAnswerChecked}
                             className={buttonClass}
                           >
-                            <span className="flex-1 pr-2 leading-tight font-extrabold text-lg line-clamp-2">{option}</span>
+                            <span className="flex-1 pr-2 leading-tight font-extrabold text-lg line-clamp-2 text-justify">{option}</span>
                             {!isAnswerChecked ? (
                               <div className={`shrink-0 w-4 h-4 border-2 transition-colors ${isMultiSelect ? 'rounded' : 'rounded-full'} ${isSelected ? 'border-blue-500 bg-blue-500 flex items-center justify-center shadow-md' : 'border-slate-200 group-hover:border-blue-300'}`}>
                                 {isSelected && isMultiSelect && <CheckCircle2 className="h-3 w-3 text-white" />}
@@ -647,7 +642,7 @@ export default function PlayQuiz() {
                             : (selectedAnswers.length === (currentQuestion.correctAnswerIndices || []).length && selectedAnswers.every(idx => (currentQuestion.correctAnswerIndices || []).includes(idx)))) ? 'Awesome!' : 'Try Again!'}
                         </h4>
                       </div>
-                      <p className="text-slate-700 text-[15px] font-extrabold leading-relaxed">{currentQuestion.explanation}</p>
+                      <p className="text-slate-700 text-[15px] font-extrabold leading-relaxed text-justify">{currentQuestion.explanation}</p>
                     </div>
                   </div>
                 )}

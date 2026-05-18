@@ -197,6 +197,7 @@ CREATE TABLE public.reward_purchases (
 CREATE TABLE public.worksheets (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+    kid_id UUID REFERENCES public.kids(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
     topic TEXT,
     subject TEXT,

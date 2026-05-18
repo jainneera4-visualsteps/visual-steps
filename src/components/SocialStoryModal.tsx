@@ -266,7 +266,7 @@ export function SocialStoryModal({
                 </div>
                 
                 <div className="flex-1 flex flex-col justify-start overflow-y-auto pb-4">
-                  <p className={`${pages[currentPage].imageUrl ? 'text-lg md:text-xl' : 'text-xl md:text-3xl'} font-bold text-slate-800 leading-relaxed text-justify whitespace-pre-wrap`}>
+                  <p className={`${pages[currentPage].imageUrl ? 'text-sm md:text-base' : 'text-base md:text-xl'} font-bold text-slate-800 leading-relaxed text-left whitespace-pre-wrap`}>
                     {(() => {
                       const text = pages[currentPage].text;
                       const shouldHighlight = (narratorSettings as any)?.highlightWords ?? true;
@@ -302,16 +302,6 @@ export function SocialStoryModal({
                         <Sparkles className="h-4 w-4" />
                         The End!
                       </div>
-                      
-                      {quiz.length > 0 && (
-                        <Button 
-                          onClick={() => setIsQuizMode(true)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white font-bold h-12 px-8 rounded-xl shadow-lg hover:scale-105 transition-all"
-                        >
-                          <Lightbulb className="mr-2 h-5 w-5" />
-                          Take the Quiz!
-                        </Button>
-                      )}
                     </motion.div>
                   )}
                 </div>

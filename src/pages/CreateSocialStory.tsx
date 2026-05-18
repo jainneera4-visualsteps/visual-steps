@@ -1,5 +1,5 @@
 import { apiFetch } from '../utils/api';
-import { generateContent, modelNames } from '../lib/gemini';
+import { generateContent, generateImage, modelNames } from '../lib/gemini';
 import { isAuthError } from '../utils/auth';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -7,7 +7,8 @@ import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Input } from '../components/Input';
 import { Textarea } from '../components/Textarea';
-import { ArrowLeft, Sparkles, Save, Plus, Trash2, Image as ImageIcon, Loader2, Volume2, Square, Copy, Printer } from 'lucide-react';
+import { ArrowLeft, Sparkles, Save, Plus, Minus, Trash2, Image as ImageIcon, Loader2, Volume2, Square, Copy, Printer, HelpCircle } from 'lucide-react';
+import { Tooltip } from '../components/ui/Tooltip';
 
 interface StoryPage {
   text: string;
@@ -28,6 +29,8 @@ export default function CreateSocialStory() {
   const [pages, setPages] = useState<StoryPage[]>([{ text: '', imageUrl: '' }]);
   const [quiz, setQuiz] = useState<QuizQuestion[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingImages, setIsGeneratingImages] = useState<Record<number, boolean>>({});
+  const [isGeneratingAllImages, setIsGeneratingAllImages] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [prompt, setPrompt] = useState('');
@@ -56,6 +59,91 @@ export default function CreateSocialStory() {
   const [isTestingVoice, setIsTestingVoice] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [editingPageIndex, setEditingPageIndex] = useState<number | null>(null);
+
+  const t = (text: string) => {
+    if (language === 'English') return text;
+    const translations: Record<string, Record<string, string>> = {
+      'Spanish': {
+        'Story Title': 'Título de la historia',
+        'Page Text': 'Texto de la página',
+        'Image URL (Optional)': 'URL de la imagen (Opcional)',
+        'What is the story about?': '¿De qué trata la historia?',
+        'AI Story Assistant': 'Asistente de historias de IA',
+        'Generate Story': 'Generar historia',
+        'Save Story': 'Guardar historia',
+        'Update Story': 'Actualizar historia',
+        'Story Details': 'Detalles de la historia',
+        'Select Kid': 'Seleccionar niño',
+        'Language': 'Idioma',
+        'Tone': 'Tono',
+        'Number of Pages': 'Número de páginas',
+        'Sentences per Page': 'Frases por página',
+        'Narrator Settings': 'Ajustes del narrador',
+        'Narrator Selection': 'Selección del narrador',
+        'Speech Speed': 'Velocidad de voz',
+        'Visual Sync': 'Sincronización visual',
+        'Highlighting': 'Resaltado',
+        'Add Page': 'Añadir página',
+        'Delete Page': 'Eliminar página',
+        'Back to Social Stories': 'Volver a Historias Sociales',
+        'Create Social Story': 'Crear Historia Social',
+        'Edit Social Story': 'Editar Historia Social',
+        'e.g., Going to the dentist, Sharing toys...': 'p. ej., Ir al dentista, Compartir juguetes...',
+        'Describe what happens on this page...': 'Describe lo que sucede en esta página...',
+      },
+      'Hindi': {
+        'Story Title': 'कहानी का शीर्षक',
+        'Page Text': 'पेज का टेक्स्ट',
+        'Image URL (Optional)': 'छवि URL (वैकल्पिक)',
+        'What is the story about?': 'कहानी किसके बारे में है?',
+        'AI Story Assistant': 'AI कहानी सहायक',
+        'Generate Story': 'कहानी बनाएँ',
+        'Save Story': 'कहानी सहेजें',
+        'Update Story': 'कहानी अपडेट करें',
+        'Story Details': 'कहानी का विवरण',
+        'Select Kid': 'बच्चे का चयन करें',
+        'Language': 'भाषा',
+        'Tone': 'टोन',
+        'Number of Pages': 'पेजों की संख्या',
+        'Sentences per Page': 'प्रति पेज वाक्य',
+        'Narrator Settings': 'कथावाचक सेटिंग्स',
+        'Narrator Selection': 'कथावाचक का चयन',
+        'Speech Speed': 'बोलने की गति',
+        'Visual Sync': 'विज़ुअल सिंक',
+        'Highlighting': 'हाइलाइटिंग',
+        'Add Page': 'पेज जोड़ें',
+        'Delete Page': 'पेज हटाएँ',
+        'Back to Social Stories': 'सोशल स्टोरीज पर वापस जाएं',
+        'Create Social Story': 'सोशल स्टोरी बनाएँ',
+        'Edit Social Story': 'सोशल स्टोरी एडिट करें',
+        'e.g., Going to the dentist, Sharing toys...': 'जैसे कि, डेंटिस्ट के पास जाना, खिलौने साझा करना...',
+        'Describe what happens on this page...': 'बताएं कि इस पेज पर क्या होता है...',
+      },
+      'French': {
+        'Story Title': 'Titre de l\'histoire',
+        'Page Text': 'Texte de la page',
+        'Image URL (Optional)': 'URL de l\'image (Optionnel)',
+        'What is the story about?': 'De quoi parle l\'histoire ?',
+        'AI Story Assistant': 'Assistant d\'histoire IA',
+        'Generate Story': 'Générer l\'histoire',
+        'Save Story': 'Enregistrer l\'histoire',
+        'Update Story': 'Mettre à jour l\'histoire',
+        'Story Details': 'Détails de l\'histoire',
+      },
+      'Portuguese': {
+        'Story Title': 'Título da história',
+        'Page Text': 'Texto da página',
+        'Image URL (Optional)': 'URL da imagem (Opcional)',
+        'What is the story about?': 'Sobre o que é a história?',
+        'AI Story Assistant': 'Assistente de história de IA',
+        'Generate Story': 'Gerar história',
+        'Save Story': 'Salvar história',
+        'Update Story': 'Atualizar história',
+        'Story Details': 'Detalhes da história',
+      }
+    };
+    return translations[language]?.[text] || text;
+  };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -275,30 +363,50 @@ export default function CreateSocialStory() {
     try {
       const storyLength = length === 'Short' ? '3-4' : length === 'Medium' ? '5-6' : '7-8';
       const response = await withRetry(async () => {
+        const kid = kids.find(k => k.id === selectedKidId);
+        const kidContext = kid ? `
+        Kid Profile for Context:
+        - Name: ${kid.name}
+        - Grade Level: ${kid.grade_level || 'N/A'}
+        - Interests: ${kid.interests || 'N/A'}
+        - Strengths: ${kid.strengths || 'N/A'}
+        - Weaknesses: ${kid.weaknesses || 'N/A'}
+        - Behavioral Issues: ${kid.behavioral_issues || 'N/A'}
+        - Sensory Issues: ${kid.sensory_issues || 'N/A'}
+        ` : '';
+
         return await generateContent({
           model: modelNames.flash,
-          prompt: `Create a social story about: ${prompt}. 
-        The story should be written in ${language}.
-        The story should be written in the second person, as if a narrator is talking directly to the child (using 'you').
+          prompt: `You are a Technical Illustrator and Social Story Creator. Create a social story about: ${prompt}. ${kidContext}
+        CRITICAL: The entire story (title, page content, quiz questions, options, and explanations) MUST be written strictly in ${language}. 
+        The story should be written in the second person, as if a narrator is talking directly to the child.
         The tone of the story should be ${tone.toLowerCase()}.
         The story title should be interesting, engaging, and fun.
         Break it down into exactly ${storyLength} pages. Each page should have friendly, interactive text, consisting of exactly ${sentencesPerParagraph} sentences.
-        The story should suggest how to deal with the issues, what the child can do in the situation, and emphasize that nothing stays the same all the time.
-        Also, generate 3-4 simple multiple-choice questions at the end of the story to test the child's understanding.
-        Format the response as a JSON object with a "title" property, a "pages" array, and a "quiz" array of question objects.`,
+        The story should suggest how to deal with the issues and emphasize that nothing stays the same.
+        
+        VISUAL STYLE: As a technical illustrator, provide a "visualPrompt" for each page ONLY if an illustration is truly beneficial for comprehension. 
+        Descriptions should be optimized for EXTREMELY SIMPLE, minimalist, black and white line art. 
+        Thick, clean, bold black lines on pure white background. NO shading, NO gray, NO colors, NO complex details. Focus on very simple, recognizable outlines and shapes. Leave "visualPrompt" empty if not needed.
+        
+        FORMATTING: All page content and story text must be formatted to be justified.
+        
+        Also, generate 3-4 simple multiple-choice questions at the end.
+        Format the response as a JSON object with a "title" property, a "pages" array, and a "quiz" array.`,
           responseMimeType: "application/json",
           responseSchema: {
             type: "OBJECT",
             properties: {
-              title: { type: "STRING", description: "An interesting and engaging title for the story" },
+              title: { type: "STRING", description: `The story title in ${language}` },
               pages: {
                 type: "ARRAY",
                 items: {
                   type: "OBJECT",
                   properties: {
-                    text: { type: "STRING", description: "Friendly, interactive text for the page, consisting of exactly 2-3 sentences." }
+                    text: { type: "STRING", description: `The page text in ${language}` },
+                    visualPrompt: { type: "STRING", description: `A description for an illustration (in English)` }
                   },
-                  required: ["text"]
+                  required: ["text", "visualPrompt"]
                 }
               },
               quiz: {
@@ -306,15 +414,15 @@ export default function CreateSocialStory() {
                 items: {
                   type: "OBJECT",
                   properties: {
-                    question: { type: "STRING" },
+                    question: { type: "STRING", description: `The question text in ${language}` },
                     options: { 
                       type: "ARRAY",
-                      items: { type: "STRING" },
+                      items: { type: "STRING", description: `Option text in ${language}` },
                       minItems: 2,
                       maxItems: 4
                     },
                     correctAnswerIndex: { type: "NUMBER" },
-                    explanation: { type: "STRING" }
+                    explanation: { type: "STRING", description: `Explanation in ${language}` }
                   },
                   required: ["question", "options", "correctAnswerIndex"]
                 }
@@ -328,7 +436,11 @@ export default function CreateSocialStory() {
       const responseText = response.text;
       const generatedData = JSON.parse(responseText || '{}');
       if (generatedData.pages && Array.isArray(generatedData.pages)) {
-        setPages(generatedData.pages.map((p: any) => ({ text: p.text, imageUrl: '' })));
+        setPages(generatedData.pages.map((p: any) => ({ 
+          text: p.text, 
+          imageUrl: '',
+          visualPrompt: p.visualPrompt 
+        })));
         setTitle(generatedData.title || prompt);
       }
       if (generatedData.quiz && Array.isArray(generatedData.quiz)) {
@@ -346,6 +458,43 @@ export default function CreateSocialStory() {
       }
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const generatePageImage = async (index: number) => {
+    const page = pages[index];
+    const visualPrompt = (page as any).visualPrompt || page.text;
+    if (!visualPrompt) return;
+
+    setIsGeneratingImages(prev => ({ ...prev, [index]: true }));
+    try {
+      // Technical Illustrator style requested by user
+      const illustratorPrompt = `VERY SIMPLE, minimalist black and white line art. Thick, clean, bold black lines on pure white background. NO shading, NO gray, NO colors, NO complex details. Content: ${visualPrompt}. CRITICAL: Do NOT include any text, letters, or words in the illustration.`;
+      
+      const imageUrl = await generateImage(illustratorPrompt);
+      if (imageUrl) {
+        updatePage(index, 'imageUrl' as any, imageUrl);
+      } else {
+        alert('Failed to generate image. Please try again.');
+      }
+    } catch (error) {
+      console.error('Failed to generate image', error);
+      alert('An error occurred while generating the image.');
+    } finally {
+      setIsGeneratingImages(prev => ({ ...prev, [index]: false }));
+    }
+  };
+
+  const generateAllImages = async () => {
+    setIsGeneratingAllImages(true);
+    try {
+      for (let i = 0; i < pages.length; i++) {
+        // Skip if already has an image
+        if (pages[i].imageUrl) continue;
+        await generatePageImage(i);
+      }
+    } finally {
+      setIsGeneratingAllImages(false);
     }
   };
 
@@ -403,12 +552,12 @@ export default function CreateSocialStory() {
     <div className="space-y-4 pb-12 w-full">
       <div className="mb-6">
         <button onClick={() => navigate('/social-stories')} className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1 mb-2 transition-colors">
-          <ArrowLeft className="h-4 w-4" /> Back to Social Stories
+          <ArrowLeft className="h-4 w-4" /> {t('Back to Social Stories')}
         </button>
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <h1 className="text-5xl font-normal text-slate-900 tracking-tight leading-none">
-              {isEditing ? 'Edit Social Story' : 'Create Social Story'}
+              {isEditing ? t('Edit Social Story') : t('Create Social Story')}
             </h1>
             <p className="text-lg font-normal text-slate-500 mt-3">
               {isEditing ? 'Modify your custom story' : 'Design a custom story'}
@@ -421,84 +570,136 @@ export default function CreateSocialStory() {
           <CardHeader className="bg-slate-50/50 border-b border-slate-100">
             <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2 uppercase tracking-wider">
               <Sparkles className="h-4 w-4 text-blue-600" />
-              AI Story Assistant
+              {t('AI Story Assistant')}
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Language</label>
-                  <select 
-                    value={language}
-                    onChange={(e) => setLanguage(e.target.value)}
-                    disabled={isEditing}
-                    className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <option>English</option>
-                    <option>Spanish</option>
-                    <option>French</option>
-                    <option>German</option>
-                    <option>Italian</option>
-                    <option>Portuguese</option>
-                    <option>Hindi</option>
-                    <option>Chinese</option>
-                    <option>Japanese</option>
-                  </select>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1">
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{t('Select Kid')}</label>
+                  <Tooltip content="Choose a child to personalize the story based on their profile." variant="help">
+                    <HelpCircle className="h-3 w-3 text-slate-400 cursor-help" />
+                  </Tooltip>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Tone</label>
-                  <select 
-                    value={tone}
-                    onChange={(e) => setTone(e.target.value)}
-                    disabled={isEditing}
-                    className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <option>Calming</option>
-                    <option>Encouraging</option>
-                    <option>Direct</option>
-                    <option>Playful</option>
-                  </select>
-                </div>
+                <select 
+                  value={selectedKidId}
+                  onChange={(e) => handleKidSelect(e.target.value)}
+                  disabled={isEditing}
+                  className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="">All Kids</option>
+                  {kids.map((kid) => (
+                    <option key={kid.id} value={kid.id}>{kid.name}</option>
+                  ))}
+                </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Number of Pages</label>
-                  <select 
-                    value={length}
-                    onChange={(e) => setLength(e.target.value)}
-                    disabled={isEditing}
-                    className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <option value="Short">Short (3-4 pages)</option>
-                    <option value="Medium">Medium (5-6 pages)</option>
-                    <option value="Long">Long (7-8 pages)</option>
-                  </select>
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1">
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{t('Language')}</label>
+                  <Tooltip content="The language in which the story will be generated." variant="help">
+                    <HelpCircle className="h-3 w-3 text-slate-400 cursor-help" />
+                  </Tooltip>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Sentences per Page</label>
-                  <select 
-                    value={sentencesPerParagraph}
-                    onChange={(e) => setSentencesPerParagraph(parseInt(e.target.value))}
-                    disabled={isEditing}
-                    className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                <select 
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  disabled={isEditing}
+                  className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option>English</option>
+                  <option>Spanish</option>
+                  <option>French</option>
+                  <option>German</option>
+                  <option>Italian</option>
+                  <option>Portuguese</option>
+                  <option>Hindi</option>
+                  <option>Chinese</option>
+                  <option>Japanese</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1">
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{t('Tone')}</label>
+                  <Tooltip content="The emotional style of the narrative (e.g., Calming for anxiety, Playful for learning)." variant="help">
+                    <HelpCircle className="h-3 w-3 text-slate-400 cursor-help" />
+                  </Tooltip>
+                </div>
+                <select 
+                  value={tone}
+                  onChange={(e) => setTone(e.target.value)}
+                  disabled={isEditing}
+                  className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option>Calming</option>
+                  <option>Encouraging</option>
+                  <option>Direct</option>
+                  <option>Playful</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1">
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{t('Number of Pages')}</label>
+                  <Tooltip content="Specify the total length of the social story." variant="help">
+                    <HelpCircle className="h-3 w-3 text-slate-400 cursor-help" />
+                  </Tooltip>
+                </div>
+                <select 
+                  value={length}
+                  onChange={(e) => setLength(e.target.value)}
+                  disabled={isEditing}
+                  className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="Short">Short (3-4 pages)</option>
+                  <option value="Medium">Medium (5-6 pages)</option>
+                  <option value="Long">Long (7-8 pages)</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1">
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{t('Sentences per Page')}</label>
+                  <Tooltip content="How many sentences should be on each page? Fewer sentences are easier to read." variant="help">
+                    <HelpCircle className="h-3 w-3 text-slate-400 cursor-help" />
+                  </Tooltip>
+                </div>
+                <div className="flex items-center h-9 w-full bg-white rounded-md border border-slate-200 overflow-hidden shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => setSentencesPerParagraph(Math.max(1, sentencesPerParagraph - 1))}
+                    disabled={isEditing || sentencesPerParagraph <= 1}
+                    className="flex-1 h-full flex items-center justify-center hover:bg-slate-50 border-r border-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                   >
-                    <option value={1}>1 Sentence</option>
-                    <option value={2}>2 Sentences</option>
-                    <option value={3}>3 Sentences</option>
-                    <option value={4}>4 Sentences</option>
-                    <option value={5}>5 Sentences</option>
-                  </select>
+                    <Minus className="h-3.5 w-3.5 text-slate-600" />
+                  </button>
+                  <div className="flex-1 h-full flex items-center justify-center text-sm font-black text-slate-900 bg-slate-50/30">
+                    {sentencesPerParagraph}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSentencesPerParagraph(Math.min(10, sentencesPerParagraph + 1))}
+                    disabled={isEditing || sentencesPerParagraph >= 10}
+                    className="flex-1 h-full flex items-center justify-center hover:bg-slate-50 border-l border-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Plus className="h-3.5 w-3.5 text-slate-600" />
+                  </button>
                 </div>
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">What is the story about?</label>
+              <div className="flex items-center gap-1">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{t('What is the story about?')}</label>
+                <Tooltip content="Describe the social situation or behavioral goal for the AI to focus on." variant="help">
+                  <HelpCircle className="h-3 w-3 text-slate-400 cursor-help" />
+                </Tooltip>
+              </div>
               <div className="space-y-2">
                 <Textarea 
-                  placeholder="e.g., Going to the dentist, Sharing toys..." 
+                  placeholder={t('e.g., Going to the dentist, Sharing toys...')} 
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   disabled={isEditing}
@@ -514,7 +715,21 @@ export default function CreateSocialStory() {
                       className="font-bold"
                     >
                       {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                      Generate Story
+                      {t('Generate Story')}
+                    </Button>
+                  </div>
+                )}
+                {!isEditing && pages.length > 0 && pages[0].text && (
+                  <div className="flex justify-end pt-2">
+                    <Button 
+                      size="sm"
+                      variant="outline"
+                      onClick={generateAllImages} 
+                      disabled={isGeneratingAllImages}
+                      className="font-bold border-blue-200 text-blue-700 hover:bg-blue-50"
+                    >
+                      {isGeneratingAllImages ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ImageIcon className="mr-2 h-4 w-4" />}
+                      Generate All Illustrations
                     </Button>
                   </div>
                 )}
@@ -527,14 +742,19 @@ export default function CreateSocialStory() {
         <CardHeader className="bg-slate-50/50 border-b border-slate-100">
           <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2 uppercase tracking-wider">
             <Volume2 className="h-4 w-4 text-blue-600" />
-            Narrator Settings
+            {t('Narrator Settings')}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-4 space-y-6">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Narrator Selection</label>
+                <div className="flex items-center gap-1">
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{t('Narrator Selection')}</label>
+                  <Tooltip content="Choose between a warm adult voice or a peer-friendly voice." variant="help">
+                    <HelpCircle className="h-3 w-3 text-slate-400 cursor-help" />
+                  </Tooltip>
+                </div>
                 <button 
                   onClick={testVoice}
                   className="text-[10px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 transition-colors"
@@ -550,7 +770,7 @@ export default function CreateSocialStory() {
               <select
                 value={narratorSettings.narratorType}
                 onChange={(e) => setNarratorSettings({ ...narratorSettings, narratorType: e.target.value })}
-                className="w-full h-9 px-3 py-1 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                className="w-full h-9 px-3 py-1 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all hover:border-slate-300"
               >
                 <option value="Kind Adult">Kind Adult</option>
                 <option value="Friendly Peer">Friendly Peer</option>
@@ -558,7 +778,12 @@ export default function CreateSocialStory() {
             </div>
 
             <div className="space-y-3">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Speech Speed</label>
+              <div className="flex items-center gap-1">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{t('Speech Speed')}</label>
+                <Tooltip content="Adjust how fast the story is read aloud." variant="help">
+                  <HelpCircle className="h-3 w-3 text-slate-400 cursor-help" />
+                </Tooltip>
+              </div>
               <select
                 value={narratorSettings.speed}
                 onChange={(e) => {
@@ -566,70 +791,68 @@ export default function CreateSocialStory() {
                   const speedValue = speedLabel === 'Slow' ? 0.8 : speedLabel === 'Fast' ? 1.2 : 1.0;
                   setNarratorSettings({ ...narratorSettings, speed: speedLabel, rate: speedValue });
                 }}
-                className="w-full h-9 px-3 py-1 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                className="w-full h-9 px-3 py-1 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all hover:border-slate-300"
               >
                 <option value="Slow">Slow</option>
                 <option value="Normal">Normal</option>
                 <option value="Fast">Fast</option>
               </select>
             </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center gap-1">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{t('Visual Sync')}</label>
+                <Tooltip content="Highlight words synchronously with the audio to improve tracking and comprehension." variant="help">
+                  <HelpCircle className="h-3 w-3 text-slate-400 cursor-help" />
+                </Tooltip>
+              </div>
+              <div className="flex items-center justify-between h-9 p-2.5 bg-slate-50 rounded-md border border-slate-100 shadow-inner">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{t('Highlighting')}</span>
+                <button
+                  onClick={() => setNarratorSettings({ ...narratorSettings, highlightWords: !narratorSettings.highlightWords })}
+                  className={`relative inline-flex h-4 w-8 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    narratorSettings.highlightWords ? 'bg-blue-600' : 'bg-slate-200'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      narratorSettings.highlightWords ? 'translate-x-4' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
           </div>
 
-          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
-            <div className="space-y-0.5">
-              <label className="text-xs font-bold text-slate-700">Visual Sync</label>
-              <p className="text-[10px] text-slate-500">Highlight words while reading</p>
-            </div>
-            <button
-              onClick={() => setNarratorSettings({ ...narratorSettings, highlightWords: !narratorSettings.highlightWords })}
-              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                narratorSettings.highlightWords ? 'bg-blue-600' : 'bg-slate-200'
-              }`}
-            >
-              <span
-                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                  narratorSettings.highlightWords ? 'translate-x-4' : 'translate-x-0'
-                }`}
-              />
-            </button>
-          </div>
         </CardContent>
       </Card>
 
       <div className="space-y-4 pt-4 no-print">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-900">Story Details</h2>
+          <h2 className="text-lg font-bold text-slate-900">{t('Story Details')}</h2>
           <div className="flex gap-2">
             <Button size="sm" onClick={saveStory} disabled={isSaving} className="font-bold">
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-              {isEditing ? 'Update Story' : 'Save Story'}
+              {isEditing ? t('Update Story') : t('Save Story')}
             </Button>
           </div>
         </div>
 
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           <div className="space-y-1.5">
-            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Story Title</label>
+            <div className="flex items-center gap-1">
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{t('Story Title')}</label>
+              <Tooltip content="The main heading of your social story." variant="help">
+                <HelpCircle className="h-3 w-3 text-slate-400 cursor-help" />
+              </Tooltip>
+            </div>
             <Input 
               placeholder="e.g., My Visit to the Dentist" 
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="text-lg font-bold h-11"
             />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Assign to Kid (Optional)</label>
-            <select 
-              value={selectedKidId}
-              onChange={(e) => handleKidSelect(e.target.value)}
-              className="w-full h-11 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600"
-            >
-              <option value="">Apply to all kids</option>
-              {kids.map((kid) => (
-                <option key={kid.id} value={kid.id}>{kid.name}</option>
-              ))}
-            </select>
           </div>
         </div>
 
@@ -643,17 +866,32 @@ export default function CreateSocialStory() {
                   </div>
                   <div className="flex-1 space-y-4">
                     <div className="space-y-1.5">
-                      <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Page Text</label>
-                      <Textarea 
-                        placeholder="Describe what happens on this page..." 
-                        value={page.text}
-                        onChange={(e) => updatePage(index, 'text', e.target.value)}
-                        rows={3}
-                        className="text-sm resize-none"
-                      />
+                      <div className="flex items-center gap-1">
+                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{t('Page Text')}</label>
+                        <Tooltip content="The content for this specific page of the story." variant="help">
+                          <HelpCircle className="h-3 w-3 text-slate-400 cursor-help" />
+                        </Tooltip>
+                      </div>
+                      <div className="relative">
+                        <Textarea 
+                          placeholder={t('Describe what happens on this page...')} 
+                          value={page.text}
+                          onChange={(e) => updatePage(index, 'text', e.target.value)}
+                          rows={3}
+                          className="text-sm resize-none"
+                        />
+                        <div className="mt-2 p-3 text-sm text-justify text-slate-600 bg-slate-50 border border-slate-100 rounded-md min-h-[40px]">
+                          {page.text || 'Story text preview...'}
+                        </div>
+                      </div>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Image URL (Optional)</label>
+                      <div className="flex items-center gap-1">
+                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{t('Image URL (Optional)')}</label>
+                        <Tooltip content="Provide a link to an image or upload one to visualize this page." variant="help">
+                          <HelpCircle className="h-3 w-3 text-slate-400 cursor-help" />
+                        </Tooltip>
+                      </div>
                       <div className="flex gap-2">
                         <Input 
                           placeholder="https://example.com/image.jpg" 
@@ -675,6 +913,17 @@ export default function CreateSocialStory() {
                             <ImageIcon className="h-4 w-4 text-slate-300" />
                           )}
                         </button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-9 font-bold"
+                          disabled={isGeneratingImages[index]}
+                          onClick={() => generatePageImage(index)}
+                        >
+                          {isGeneratingImages[index] ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1" />}
+                          AI Art
+                        </Button>
                         {page.imageUrl && (
                           <button
                             type="button"
@@ -716,7 +965,7 @@ export default function CreateSocialStory() {
             onClick={addPage}
           >
             <Plus className="mr-2 h-4 w-4" />
-            Add Page
+            {t('Add Page')}
           </Button>
         </div>
       </div>

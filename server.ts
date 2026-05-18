@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import { GoogleGenAI } from '@google/genai';
 // import serverless from 'serverless-http';
 import http from 'http';
 import { Server } from 'socket.io';
@@ -3842,13 +3843,13 @@ app.get('/api/social-stories', authenticateToken, async (req: any, res) => {
       .from('social_stories')
       .select('*')
       .eq('user_id', userId)
-      .order('created_at', { ascending: false });
+      .order('updated_at', { ascending: false });
 
     if (error) throw error;
     res.json({ stories });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Internal server error' });
+  } catch (error: any) {
+    console.error('Social stories fetch error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message || String(error) });
   }
 });
 
@@ -3902,9 +3903,9 @@ app.post('/api/social-stories', authenticateToken, async (req: any, res) => {
     }
 
     res.status(201).json({ message: 'Story created successfully', storyId: id });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Internal server error' });
+  } catch (error: any) {
+    console.error('Social story create error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message || String(error) });
   }
 });
 
@@ -3945,9 +3946,9 @@ app.put('/api/social-stories/:id', authenticateToken, async (req: any, res) => {
     }
 
     res.json({ message: 'Story updated successfully' });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Internal server error' });
+  } catch (error: any) {
+    console.error('Social story update error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message || String(error) });
   }
 });
 
@@ -4248,111 +4249,123 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
     responseSchema 
   } = req.body;
   
-  const modelName = model_body || model_name_body || 'gemini-flash-latest';
-  const apiKey = (cleanEnvVar('GEMINI_API_KEY') || cleanEnvVar('GOOGLE_API_KEY') || cleanEnvVar('VITE_GEMINI_API_KEY') || '').trim();
-  
-  try {
+    const modelNameInput = model_body || model_name_body || 'gemini-3-flash-preview';
+    const apiKey = (cleanEnvVar('GEMINI_API_KEY') || cleanEnvVar('GOOGLE_API_KEY') || cleanEnvVar('VITE_GEMINI_API_KEY') || '').trim();
+    let finalModelName = 'gemini-3-flash-preview';
+    
+    try {
     if (!apiKey || apiKey === 'undefined' || apiKey === 'null' || apiKey.length < 10) {
-      const checkedEnvs = ['GEMINI_API_KEY', 'GOOGLE_API_KEY', 'VITE_GEMINI_API_KEY'];
       return res.status(500).json({ 
-        error: `AI API key not configured correctly. Checked envs: ${checkedEnvs.join(', ')}. Please set GEMINI_API_KEY in your Vercel/Environment settings.` 
+        error: `AI API key not configured. Please set GEMINI_API_KEY in your settings.` 
       });
     }
 
-    // Normalize model names according to gemini-api skill recommended versions
-    const modelLower = (modelName || '').toLowerCase();
-    let finalModelName = 'gemini-3-flash-preview'; // Default robust model
+    const modelLower = (modelNameInput || '').toLowerCase();
+    finalModelName = 'gemini-3-flash-preview';
 
-    if (modelLower.includes('pro')) {
+    if (modelLower.includes('pro-image')) {
+      finalModelName = 'gemini-3-pro-image-preview';
+    } else if (modelLower.includes('pro')) {
       finalModelName = 'gemini-3.1-pro-preview';
     } else if (modelLower.includes('image')) {
       finalModelName = 'gemini-2.5-flash-image';
     } else if (modelLower.includes('flash') || modelLower === '') {
       finalModelName = 'gemini-3-flash-preview';
-    } else if (modelName) {
-      finalModelName = modelName;
+    } else if (modelNameInput) {
+      finalModelName = modelNameInput;
     }
 
-    console.log(`[AI Generation] Using model: ${finalModelName} (v1beta)`);
+    console.log(`[AI Generation] Using SDK with model: ${finalModelName}`);
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${finalModelName}:generateContent?key=${apiKey}`;
+    const ai = new GoogleGenAI({ apiKey });
     
-    const requestBody: any = {
-      contents: Array.isArray(contents) ? contents : [{ role: 'user', parts: [{ text: contents || prompt }] }],
-      generationConfig: {
-        ...(config || {}),
-        responseMimeType: responseMimeType || config?.responseMimeType,
-        responseSchema: responseSchema || config?.responseSchema,
-      },
-      safetySettings: [
-        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
-      ]
-    };
+    // Format contents for SDK
+    const formattedContents = Array.isArray(contents) ? contents : [{ role: 'user', parts: [{ text: contents || prompt }] }];
+    
+    // Scrub undefined/null from config to prevent SDK errors
+    const generationConfig: any = { ...config };
+    if (responseMimeType) generationConfig.responseMimeType = responseMimeType;
+    if (responseSchema) generationConfig.responseSchema = responseSchema;
+    if (systemInstruction) generationConfig.systemInstruction = systemInstruction;
 
-    if (systemInstruction) {
-      requestBody.system_instruction = {
-        parts: [{ text: systemInstruction }]
-      };
-    }
-
-    const aiApiRes = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody)
+    // Filter out null/undefined values
+    Object.keys(generationConfig).forEach(key => {
+        if (generationConfig[key] === undefined || generationConfig[key] === null) {
+            delete generationConfig[key];
+        }
     });
 
-    const data: any = await aiApiRes.json();
-
-    if (!aiApiRes.ok) {
-      console.error('[AI Generation] API Error:', JSON.stringify(data, null, 2));
-      const errorMessage = data.error?.message || 'Gemini API error';
-      return res.status(aiApiRes.status).json({
-        error: errorMessage,
-        details: data.error,
-        message: errorMessage
-      });
-    }
-
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    
-    res.json({
-      text,
-      response: {
-        candidates: data.candidates?.map((c: any) => ({
-          content: {
-            parts: c.content?.parts,
-            role: c.content?.role
-          },
-          finishReason: c.finishReason
-        }))
+    const result = await ai.models.generateContent({
+      model: finalModelName,
+      contents: formattedContents,
+      config: {
+        ...generationConfig,
+        safetySettings: [
+          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+        ]
       }
     });
 
+    let text = result.text;
+    
+    // Handle image-only responses
+    if (!text && result.candidates?.[0]?.content?.parts) {
+      for (const part of result.candidates[0].content.parts) {
+        if (part.inlineData) {
+          text = part.inlineData.data; // Base64 string
+          break;
+        }
+      }
+    }
+
+    res.json({
+      text: text,
+      response: result
+    });
+
   } catch (error: any) {
-    console.error('[AI Generation] Exception:', error);
+    console.error('[AI Generation] SDK Exception:', error);
     
-    // Extract a readable error message
-    let errorMessage = 'AI generation failed';
-    if (typeof error.message === 'string') {
-      errorMessage = error.message;
-    } else if (error.message && typeof error.message.message === 'string') {
-      errorMessage = error.message.message;
-    } else if (typeof error === 'string') {
-      errorMessage = error;
-    }
-    
-    if (errorMessage.includes('API key not valid') || errorMessage.includes('not configured correctly')) {
-      const maskedKey = apiKey ? `${apiKey.substring(0, 3)}...${apiKey.substring(apiKey.length - 3)}` : 'empty';
-      errorMessage = `Invalid AI API key (${maskedKey}). Please check your GEMINI_API_KEY in the Environment panel.`;
+    let errorMessage = error.message || 'AI generation failed';
+    let errorStatus = error.status || 500;
+    let errorReason = '';
+
+    // Extract more detail if possible from SDK error
+    if (error.response?.error) {
+        const remoteError = error.response.error;
+        console.error('[AI Generation] Remote Error Data:', JSON.stringify(remoteError, null, 2));
+        errorMessage = remoteError.message || errorMessage;
+        
+        // Extract ErrorInfo reason if present
+        if (remoteError.details) {
+            const errorInfo = remoteError.details.find((d: any) => 
+                d['@type'] === 'type.googleapis.com/google.rpc.ErrorInfo' || 
+                (d['@type'] && d['@type'].includes('ErrorInfo'))
+            );
+            if (errorInfo) {
+                errorReason = errorInfo.reason || errorInfo.metadata?.reason || '';
+            }
+        }
     }
 
-    console.error('[AI Generation] Final Error Message:', errorMessage);
+    // Add user-friendly advice based on status or reason
+    if (errorStatus === 403 || errorStatus === 400 || errorReason === 'API_KEY_INVALID' || errorMessage.includes('API key not valid')) {
+        errorMessage = `API Key Invalid: ${errorMessage}. Action: Please check your Gemini API key in the app Settings > Secrets menu. Ensure it's correctly copied and the Generative Language API is enabled.`;
+        errorStatus = 403;
+    } else if (errorStatus === 429 || errorReason === 'RATE_LIMIT_EXCEEDED' || errorReason === 'QUOTA_EXHAUSTED' || errorMessage.includes('quota')) {
+        errorMessage = `Quota Exceeded: ${errorMessage}. Action: Please try again in 60 seconds or switch to a paid API key.`;
+        errorStatus = 429;
+    } else if (errorStatus === 404 || errorReason === 'MODEL_NOT_FOUND') {
+        errorMessage = `Model Not Found: ${errorMessage}. Action: The requested model (${finalModelName}) is not available in your region.`;
+        errorStatus = 404;
+    }
 
-    res.status(error.status || 500).json({ 
+    res.status(errorStatus).json({ 
       error: errorMessage,
+      message: errorMessage,
       details: error.stack
     });
   }
@@ -4367,7 +4380,7 @@ app.get('/api/worksheets', authenticateToken, async (req: any, res) => {
   try {
     const { data: worksheets, error } = await supabase
       .from('worksheets')
-      .select('id, title, topic, subject, target_age, grade_level, worksheet_type, created_at')
+      .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
@@ -4403,33 +4416,65 @@ app.get('/api/worksheets/:id', authenticateToken, async (req: any, res) => {
 // Create a worksheet
 app.post('/api/worksheets', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
-  const { title, topic, subject, targetAge, gradeLevel, worksheetType, content } = req.body;
+  const { title, topic, subject, targetAge, gradeLevel, worksheetType, content, kidId } = req.body;
   const userId = req.user.id;
   if (!title || !content) return res.status(400).json({ error: 'Title and content are required' });
 
   try {
+    const supabase = getAdminSupabaseClient();
     const id = uuidv4();
+    const contentStr = typeof content === 'string' ? content : JSON.stringify(content);
+    
+    // Build the insert object dynamically
+    const insertData: any = {
+      id,
+      user_id: userId,
+      title,
+      content: contentStr
+    };
+
+    // Add optional fields only if they are not undefined
+    if (topic !== undefined) insertData.topic = topic;
+    if (subject !== undefined) insertData.subject = subject;
+    if (targetAge !== undefined) insertData.target_age = targetAge;
+    if (gradeLevel !== undefined) insertData.grade_level = gradeLevel;
+    if (worksheetType !== undefined) insertData.worksheet_type = worksheetType;
+    if (kidId !== undefined) insertData.kid_id = kidId;
+
     const { error } = await supabase
       .from('worksheets')
-      .insert([
-        {
-          id,
-          user_id: userId,
-          title,
-          topic,
-          subject,
-          target_age: targetAge,
-          grade_level: gradeLevel,
-          worksheet_type: worksheetType,
-          content: typeof content === 'string' ? content : JSON.stringify(content)
-        }
-      ]);
+      .insert([insertData]);
 
-    if (error) throw error;
+    if (error) {
+      console.error('Database error in POST /api/worksheets:', JSON.stringify(error, null, 2));
+      // If column is missing (42703 or PGRST204), it's a schema issue
+      if (error.code === '42703' || error.code === 'PGRST204') {
+        // Fallback: Try saving without kid_id if it's the specific missing column error
+        console.warn('kid_id column likely missing in worksheets table, retrying without it...');
+        const { kid_id, ...fallbackData } = insertData;
+        const { error: retryError } = await supabase.from('worksheets').insert([fallbackData]);
+        if (retryError) {
+          console.error('Fallback failed:', JSON.stringify(retryError, null, 2));
+          throw retryError;
+        }
+        
+        return res.status(201).json({ 
+          message: 'Worksheet saved successfully (Note: Child assignments are currently disabled for worksheets)', 
+          worksheetId: id,
+          warning: 'Schema mismatch'
+        });
+      }
+      throw error;
+    }
+
     res.status(201).json({ message: 'Worksheet saved successfully', worksheetId: id });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Internal server error' });
+  } catch (error: any) {
+    console.error('Worksheet save error:', JSON.stringify(error, null, 2));
+    res.status(500).json({ 
+      error: 'Failed to save worksheet', 
+      details: error.message || String(error),
+      code: error.code
+    });
   }
 });
 
@@ -4437,31 +4482,65 @@ app.post('/api/worksheets', authenticateToken, async (req: any, res) => {
 app.put('/api/worksheets/:id', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
   const { id } = req.params;
-  const { title, topic, subject, targetAge, gradeLevel, worksheetType, content } = req.body;
+  const { title, topic, subject, targetAge, gradeLevel, worksheetType, content, kidId } = req.body;
   const userId = req.user.id;
 
   if (!title || !content) return res.status(400).json({ error: 'Title and content are required' });
 
   try {
+    const supabase = getAdminSupabaseClient();
+    const contentStr = typeof content === 'string' ? content : JSON.stringify(content);
+    
+    // Build update object dynamically
+    const updateData: any = {
+      content: contentStr
+    };
+
+    if (title !== undefined) updateData.title = title;
+    if (topic !== undefined) updateData.topic = topic;
+    if (subject !== undefined) updateData.subject = subject;
+    if (targetAge !== undefined) updateData.target_age = targetAge;
+    if (gradeLevel !== undefined) updateData.grade_level = gradeLevel;
+    if (worksheetType !== undefined) updateData.worksheet_type = worksheetType;
+
+    if (kidId !== undefined) {
+      updateData.kid_id = kidId || null;
+    }
+
     const { error } = await supabase
       .from('worksheets')
-      .update({
-        title,
-        topic,
-        subject,
-        target_age: targetAge,
-        grade_level: gradeLevel,
-        worksheet_type: worksheetType,
-        content: typeof content === 'string' ? content : JSON.stringify(content)
-      })
+      .update(updateData)
       .eq('id', id)
       .eq('user_id', userId);
 
-    if (error) throw error;
+    if (error) {
+      console.error('Database error in PUT /api/worksheets:', JSON.stringify(error, null, 2));
+      if (error.code === '42703' || error.code === 'PGRST204') {
+        const { kid_id, ...fallbackData } = updateData;
+        const { error: retryError } = await supabase
+          .from('worksheets')
+          .update(fallbackData)
+          .eq('id', id)
+          .eq('user_id', userId);
+        if (retryError) {
+          console.error('Fallback update failed:', JSON.stringify(retryError, null, 2));
+          throw retryError;
+        }
+        
+        return res.json({ 
+          message: 'Worksheet updated successfully (Note: Child assignments are currently disabled for worksheets)' 
+        });
+      }
+      throw error;
+    }
     res.json({ message: 'Worksheet updated successfully' });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Internal server error' });
+  } catch (error: any) {
+    console.error('Worksheet update error:', JSON.stringify(error, null, 2));
+    res.status(500).json({ 
+      error: 'Failed to update worksheet', 
+      details: error.message || String(error),
+      code: error.code
+    });
   }
 });
 
@@ -4556,12 +4635,12 @@ app.get('/api/quizzes/:id', authenticateToken, async (req: any, res) => {
 
 // Create a quiz
 app.post('/api/quizzes', authenticateToken, async (req: any, res) => {
-  const supabase = getSupabaseForUser(req);
   const { kidId, title, topic, subject, difficulty, gradeLevel, noOfQuestions, questionType, questionScore, content } = req.body;
   const userId = req.user.id;
   if (!title || !content) return res.status(400).json({ error: 'Title and content are required' });
 
   try {
+    const supabase = getAdminSupabaseClient();
     const id = uuidv4();
     const contentStr = typeof content === 'string' ? content : JSON.stringify(content);
     
@@ -4570,27 +4649,82 @@ app.post('/api/quizzes', authenticateToken, async (req: any, res) => {
       id,
       user_id: userId,
       title,
-      topic,
-      difficulty,
-      grade_level: gradeLevel,
       content: contentStr
     };
 
-    // Only add these if they are provided, and we'll catch the error if columns don't exist
-    if (kidId) insertData.kid_id = kidId;
-    if (subject) insertData.subject = subject;
-    if (noOfQuestions) insertData.no_of_questions = noOfQuestions;
-    if (questionType) insertData.question_type = questionType;
-    if (questionScore) insertData.score_per_question = questionScore;
+    if (topic !== undefined) insertData.topic = topic;
+    if (difficulty !== undefined) insertData.difficulty = difficulty;
+    if (gradeLevel !== undefined) {
+      insertData.grade_level = gradeLevel;
+      insertData.gradelevel = gradeLevel; // Common variation
+    }
 
+    if (kidId !== undefined && kidId !== '') insertData.kid_id = kidId;
+    if (subject !== undefined) insertData.subject = subject;
+    
+    // Check for schema variations for other fields
+    if (noOfQuestions !== undefined) {
+      insertData.no_of_questions = noOfQuestions;
+      insertData.num_questions = noOfQuestions;
+    }
+    if (questionType !== undefined) {
+      insertData.question_type = questionType;
+      insertData.type = questionType;
+    }
+    if (questionScore !== undefined) {
+      insertData.score_per_question = questionScore;
+      insertData.points_per_question = questionScore;
+    }
+
+    console.log(`[QUIZ_SAVE] Attempting to save quiz for user ${userId}, kid ${kidId || 'none'}`);
+    
     const { error } = await supabase
       .from('quizzes')
       .insert([insertData]);
 
     if (error) {
-      console.error('Database error in POST /api/quizzes:', error);
-      if (error.code === '42703') {
-        throw new Error(`Database schema mismatch: missing columns. Please run the SQL migration. (Raw error: ${error.message})`);
+      console.error('Database error in POST /api/quizzes (Attempt 1):', JSON.stringify(error, null, 2));
+      
+      // If error is column not found, try with restricted data
+      if (error.code === '42703' || error.code === 'PGRST204') {
+        console.warn('One or more columns missing in quizzes table, retrying with minimal fields...');
+        
+        // Final attempt with only fields definitely known to exist in most versions of this table
+        const minimalData: any = {
+          id,
+          user_id: userId,
+          title,
+          content: contentStr
+        };
+        
+        // Add optional fields one by one in the second attempt if the error message doesn't point to them
+        // For simplicity, we just keep the confirmed ones
+        if (topic) minimalData.topic = topic;
+        if (difficulty) minimalData.difficulty = difficulty;
+        if (kidId && kidId !== '') minimalData.kid_id = kidId;
+        
+        // Try grade_level then gradelevel if it fails
+        minimalData.grade_level = gradeLevel;
+
+        const { error: retryError } = await supabase.from('quizzes').insert([minimalData]);
+        
+        if (retryError) {
+          console.error('Fallback quiz insert failed:', JSON.stringify(retryError, null, 2));
+          
+          // One last attempt - absolute minimum
+          if (retryError.code === '42703' || retryError.code === 'PGRST204') {
+            const absoluteMinimal = { id, user_id: userId, title, content: contentStr };
+            const { error: finalError } = await supabase.from('quizzes').insert([absoluteMinimal]);
+            if (finalError) throw finalError;
+          } else {
+            throw retryError;
+          }
+        }
+        
+        return res.status(201).json({ 
+          message: 'Quiz created successfully (some optional fields were omitted due to schema differences)', 
+          quizId: id 
+        });
       }
       throw error;
     }
@@ -4602,8 +4736,12 @@ app.post('/api/quizzes', authenticateToken, async (req: any, res) => {
 
     res.status(201).json({ message: 'Quiz saved successfully', quizId: id });
   } catch (error: any) {
-    console.error('Quiz save error:', error);
-    res.status(500).json({ error: 'Internal server error', details: error.message || String(error) });
+    console.error('Quiz save error (Final Catch):', JSON.stringify(error, null, 2));
+    res.status(500).json({ 
+      error: 'Failed to save quiz', 
+      details: error.message || String(error),
+      code: error.code
+    });
   }
 });
 
@@ -4617,6 +4755,7 @@ app.put('/api/quizzes/:id', authenticateToken, async (req: any, res) => {
   if (!title || !content) return res.status(400).json({ error: 'Title and content are required' });
 
   try {
+    const supabase = getAdminSupabaseClient();
     // Check ownership
     const { data: quiz, error: checkError } = await supabase
       .from('quizzes')
@@ -4649,17 +4788,37 @@ app.put('/api/quizzes/:id', authenticateToken, async (req: any, res) => {
       .eq('id', id);
 
     if (error) {
-      console.error('Database error in PUT /api/quizzes/:id:', error);
-      if (error.code === '42703') {
-        throw new Error(`Database schema mismatch: missing columns. Please run the SQL migration. (Raw error: ${error.message})`);
+      console.error('Database error in PUT /api/quizzes/:id:', JSON.stringify(error, null, 2));
+      if (error.code === '42703' || error.code === 'PGRST204') {
+        console.warn('Fallback update for quiz...');
+        const minimalUpdate = {
+          title,
+          topic,
+          difficulty,
+          grade_level: gradeLevel,
+          content: contentStr
+        };
+        const { error: retryError } = await supabase
+          .from('quizzes')
+          .update(minimalUpdate)
+          .eq('id', id);
+        if (retryError) {
+          console.error('Fallback quiz update failed:', JSON.stringify(retryError, null, 2));
+          throw retryError;
+        }
+        return res.json({ message: 'Quiz updated successfully (some fields omitted)' });
       }
       throw error;
     }
     
     res.json({ message: 'Quiz updated successfully' });
   } catch (error: any) {
-    console.error('Quiz update error:', error);
-    res.status(500).json({ error: 'Internal server error', details: error.message || String(error) });
+    console.error('Quiz update error:', JSON.stringify(error, null, 2));
+    res.status(500).json({ 
+      error: 'Failed to update quiz', 
+      details: error.message || String(error),
+      code: error.code
+    });
   }
 });
 

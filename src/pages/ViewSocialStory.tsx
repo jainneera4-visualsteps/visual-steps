@@ -464,24 +464,26 @@ export default function ViewSocialStory() {
                 </div>
                 
                 <div className="flex-1 flex flex-col justify-start overflow-y-auto pb-4">
-                  <p className={`${pages[currentPage].imageUrl ? 'text-lg md:text-xl' : 'text-xl md:text-3xl'} font-bold text-slate-800 leading-relaxed text-justify whitespace-pre-wrap`}>
+                  <div className={`${pages[currentPage].imageUrl ? 'text-base md:text-lg' : 'text-lg md:text-2xl'} font-bold text-slate-800 leading-relaxed text-justify w-full`}>
                     {(() => {
                       const text = pages[currentPage].text;
                       if (!narratorSettings?.highlightWords || currentWordIndex === null || !isPlaying) {
-                        return text;
+                        return text.split('\n').map((paragraph, i) => (
+                          paragraph.trim() ? <p key={i} className="mb-4 text-justify w-full break-words hyphens-auto">{paragraph}</p> : null
+                        ));
                       }
                       const before = text.substring(0, currentWordIndex);
                       const word = text.substring(currentWordIndex, currentWordIndex + currentWordLength);
                       const after = text.substring(currentWordIndex + currentWordLength);
                       return (
-                        <>
+                        <p className="mb-4 text-justify w-full break-words hyphens-auto">
                           {before}
                           <span className="bg-yellow-200 rounded px-0.5 transition-colors duration-150">{word}</span>
                           {after}
-                        </>
+                        </p>
                       );
                     })()}
-                  </p>
+                  </div>
 
                   {currentPage === pages.length - 1 && (
                     <motion.div 
@@ -493,16 +495,6 @@ export default function ViewSocialStory() {
                         <Sparkles className="h-4 w-4" />
                         The End!
                       </div>
-                      
-                      {quiz.length > 0 && (
-                        <Button 
-                          onClick={() => setIsQuizMode(true)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white font-bold h-12 px-8 rounded-xl shadow-lg hover:scale-105 transition-all"
-                        >
-                          <Lightbulb className="mr-2 h-5 w-5" />
-                          Take the Quiz!
-                        </Button>
-                      )}
                     </motion.div>
                   )}
                 </div>

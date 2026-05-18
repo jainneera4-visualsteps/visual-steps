@@ -6,8 +6,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Input } from '../components/Input';
-import { ArrowLeft, Printer, Sparkles, Loader2, FileText, CheckCircle2, Save, Edit2, Lightbulb } from 'lucide-react';
+import { ArrowLeft, Printer, Sparkles, Loader2, FileText, CheckCircle2, Save, Edit2, Lightbulb, HelpCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { Tooltip } from '../components/ui/Tooltip';
 
 const AutoResizeTextarea = ({ value, onChange, className, placeholder }: any) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -35,15 +36,24 @@ interface WorksheetContent {
   title: string;
   instructions: string;
   imageUrl?: string;
+  visualUrl?: string;
+  visualCategory?: 'RENDER_CSS' | 'ASSET_KEY';
+  visualPrompt?: string;
   sections: {
     type: 'multiple_choice' | 'fill_in_the_blank' | 'short_answer' | 'word_search' | 'coloring' | 'dot_to_dot' | 'puzzle' | 'matching' | 'reading_comprehension' | 'drawing';
     title: string;
     readingPassage?: string;
     drawingPrompt?: string;
+    visualUrl?: string;
+    visualCategory?: 'RENDER_CSS' | 'ASSET_KEY';
+    visualPrompt?: string;
     questions?: {
       question: string;
       options?: string[];
       answer: string;
+      visualUrl?: string;
+      visualCategory?: 'RENDER_CSS' | 'ASSET_KEY';
+      visualPrompt?: string;
     }[];
     wordSearch?: {
       grid: string[][];
@@ -75,7 +85,51 @@ export default function WorksheetGenerator() {
   const [generatedWorksheets, setGeneratedWorksheets] = useState<WorksheetContent[]>([]);
   const [currentWorksheetIndex, setCurrentWorksheetIndex] = useState(0);
   const [showAnswers, setShowAnswers] = useState(false);
+  const [kidId, setKidId] = useState<string>('');
+  const [kidsList, setKidsList] = useState<any[]>([]);
+  const [kidProfile, setKidProfile] = useState<any>(null);
+  const [generatingImageUrl, setGeneratingImageUrl] = useState<string | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
+
+  const generateImageForSection = async (sIdx: number) => {
+    if (!worksheet) return;
+    const section = worksheet.sections[sIdx];
+    if (section.visualCategory !== 'ASSET_KEY' || !section.visualPrompt) return;
+
+    setGeneratingImageUrl(`section-${sIdx}`);
+    try {
+        const prompt = `${section.visualPrompt}. High-contrast Black & White line art with geometrical shapes / story characters or setting. Minimalist, bold clean lines, no shading, no gray, no colors, technical illustration style, white background.`;
+        const imageUrl = await generateImage(prompt);
+        if (imageUrl) {
+            updateSection(sIdx, { visualUrl: imageUrl });
+        }
+    } catch (err) {
+        console.error(err);
+        alert('Failed to generate image');
+    } finally {
+        setGeneratingImageUrl(null);
+    }
+  };
+
+  const generateImageForQuestion = async (sIdx: number, qIdx: number) => {
+    if (!worksheet) return;
+    const question = worksheet.sections[sIdx].questions?.[qIdx];
+    if (!question || question.visualCategory !== 'ASSET_KEY' || !question.visualPrompt) return;
+
+    setGeneratingImageUrl(`question-${sIdx}-${qIdx}`);
+    try {
+        const prompt = `${question.visualPrompt}. High-contrast Black & White line art with geometrical shapes / story characters or setting. Minimalist, bold clean lines, no shading, no gray, no colors, technical illustration style, white background.`;
+        const imageUrl = await generateImage(prompt);
+        if (imageUrl) {
+            updateQuestion(sIdx, qIdx, { visualUrl: imageUrl });
+        }
+    } catch (err) {
+        console.error(err);
+        alert('Failed to generate image');
+    } finally {
+        setGeneratingImageUrl(null);
+    }
+  };
 
   const updateWorksheet = (updates: Partial<WorksheetContent>) => {
     if (!worksheet) return;
@@ -99,6 +153,7 @@ export default function WorksheetGenerator() {
   };
 
   useEffect(() => {
+    fetchKids();
     const params = new URLSearchParams(location.search);
     const id = params.get('id');
     const isEdit = params.get('edit') === 'true';
@@ -106,6 +161,40 @@ export default function WorksheetGenerator() {
       fetchWorksheet(id, isEdit);
     }
   }, [location.search]);
+
+  useEffect(() => {
+    if (kidId) {
+      const fetchKidProfile = async () => {
+        try {
+          const res = await apiFetch(`/api/kids/${encodeURIComponent(kidId)}`);
+          if (res.ok) {
+            const data = await res.json();
+            setKidProfile(data.kid);
+            if (data.kid.grade_level) {
+              setGradeLevel(data.kid.grade_level);
+            }
+          }
+        } catch (err) {
+          console.error('Failed to fetch kid profile:', err);
+        }
+      };
+      fetchKidProfile();
+    } else {
+      setKidProfile(null);
+    }
+  }, [kidId]);
+
+  const fetchKids = async () => {
+    try {
+      const res = await apiFetch('/api/kids');
+      if (res.ok) {
+        const data = await res.json();
+        setKidsList(Array.isArray(data) ? data : (data.kids || []));
+      }
+    } catch (err) {
+      console.error('Failed to fetch kids', err);
+    }
+  };
 
   const fetchWorksheet = async (id: string, isEdit: boolean) => {
     try {
@@ -119,6 +208,7 @@ export default function WorksheetGenerator() {
       setSubject(data.worksheet.subject || 'General');
       setGradeLevel(data.worksheet.grade_level || 'Grade 3');
       setWorksheetType(data.worksheet.worksheet_type || 'Mixed');
+      setKidId(data.worksheet.kid_id || '');
       setIsViewingSaved(!isEdit);
       setShowGenerator(false);
     } catch (err) {
@@ -132,6 +222,14 @@ export default function WorksheetGenerator() {
     setIsSaving(true);
     
     const titleToSave = worksheet.title || `${topic} Worksheet`;
+    
+    // Final check for 7-word limit on save
+    const wordCount = titleToSave.trim().split(/\s+/).filter(Boolean).length;
+    if (wordCount > 7) {
+      alert('Worksheet title cannot be longer than 7 words.');
+      setIsSaving(false);
+      return;
+    }
     
     try {
       console.log('Saving worksheet:', {
@@ -155,6 +253,7 @@ export default function WorksheetGenerator() {
           subject,
           gradeLevel,
           worksheetType,
+          kidId: kidId || null,
           content: { ...worksheet, title: titleToSave }
         })
       });
@@ -267,7 +366,7 @@ export default function WorksheetGenerator() {
       let lastError: string | null = null;
       let hasError = false;
 
-      let skipImages = false;
+      let skipImages = true;
 
       const isMath = subject.toLowerCase() === 'math';
       const isScience = subject.toLowerCase() === 'science';
@@ -285,11 +384,31 @@ export default function WorksheetGenerator() {
             const promptContent = `Generate a highly refined, professional-grade printable worksheet at a ${gradeLevel} reading/comprehension level for the subject ${subject} on the topic: "${topic}". 
               
               CRITICAL CRITERIA:
+              - Catchy Title: MANDATORY maximum of 7 words.
               - Grade Level: ${gradeLevel} (Ensure vocabulary, concepts, and reading complexity are perfectly aligned with this grade level).
               - Subject: ${subject}
               - Topic: ${topic}
               - Difficulty Level: ${difficulty} (Adjust the complexity of questions and depth of knowledge required accordingly).
+              ${kidProfile ? `
+              Kid Profile for Context:
+              - Name: ${kidProfile.name}
+              - Interests: ${kidProfile.interests || 'N/A'}
+              - Strengths: ${kidProfile.strengths || 'N/A'}
+              - Weaknesses: ${kidProfile.weaknesses || 'N/A'}
+              ` : ''}
               ${subjectSpecialInstruction}
+
+              EDUCATIONAL ASSET ROUTER:
+              - You are an educational asset router for an educational worksheet application.
+              - Based on the selected Subject and Topic, determine the most clear, distraction-free visual presentation.
+              - Classify the required image into one of two categories:
+                  - "RENDER_CSS" (for mathematical/geometric shapes, grids).
+                  - "ASSET_KEY" (for illustrative characters or complex objects).
+              - Provide a clear "visualPrompt" for your classification.
+              - Style requirement for ASSET_KEY style: "High-contrast Black & White line art for print. Minimalist, bold clean lines, no shading, no gray tones, no colors."
+              
+              FORMATTING REQUIREMENT:
+              - All paragraph text, reading passages, and individual question texts MUST be formatted for justification.
               
               ${typeInstruction}
               
@@ -304,17 +423,23 @@ export default function WorksheetGenerator() {
                 "title": "string",
                 "instructions": "string",
                 "imagePrompt": "string" (only for coloring/dot_to_dot),
+                "visualCategory": "RENDER_CSS" | "ASSET_KEY",
+                "visualPrompt": "string" (description for the visual),
                 "sections": [
                   {
                     "type": "multiple_choice" | "fill_in_the_blank" | "short_answer" | "word_search" | "coloring" | "dot_to_dot" | "puzzle" | "matching" | "reading_comprehension" | "drawing",
                     "title": "string",
                     "readingPassage": "string" (only for reading_comprehension),
                     "drawingPrompt": "string" (only for drawing),
+                    "visualCategory": "RENDER_CSS" | "ASSET_KEY",
+                    "visualPrompt": "string" (description for the visual),
                     "questions": [
                       {
                         "question": "string",
                         "options": ["string"] (only for multiple_choice),
-                        "answer": "string"
+                        "answer": "string",
+                        "visualCategory": "RENDER_CSS" | "ASSET_KEY" (optional),
+                        "visualPrompt": "string" (optional)
                       }
                     ] (optional),
                     "wordSearch": {
@@ -330,11 +455,21 @@ export default function WorksheetGenerator() {
                 ]
               }`;
 
-            const response = await generateContent({
-              model: modelNames.flash,
-              prompt: promptContent,
-              responseMimeType: "application/json"
-            });
+            let response;
+            try {
+              response = await generateContent({
+                model: modelNames.flash,
+                prompt: promptContent,
+                responseMimeType: "application/json"
+              });
+            } catch (err: any) {
+              console.warn("Retrying without JSON mode due to error:", err.message);
+              // Fallback to regular text mode if JSON mode fails (some models/regions have issues)
+              response = await generateContent({
+                model: modelNames.flash,
+                prompt: promptContent + "\n\nIMPORTANT: Return ONLY valid JSON."
+              });
+            }
             
             const responseText = response.text;
             if (!responseText) throw new Error('Empty response from AI model');
@@ -356,34 +491,62 @@ export default function WorksheetGenerator() {
           });
           
           // Handle image generation if needed
-          if (!skipImages && (worksheetType === 'Coloring Page' || worksheetType === 'Connect the Dots') && data.imagePrompt) {
-            try {
-              console.log(`Generating image for worksheet ${i + 1}...`);
-              // Add delay if not the first worksheet to respect rate limits
-              if (i > 0) {
-                await new Promise(resolve => setTimeout(resolve, 2000));
-              }
+          if (!skipImages) {
+            const hasRootIllustration = data.visualCategory === 'ASSET_KEY' && !!data.visualPrompt;
+            const hasColoringPrompt = (worksheetType === 'Coloring Page' || worksheetType === 'Connect the Dots') && !!data.imagePrompt;
+            
+            // Handle root level image
+            if (hasRootIllustration || hasColoringPrompt) {
+              try {
+                const prompt = hasColoringPrompt 
+                  ? `${data.imagePrompt}. High-contrast Black & White line art with geometrical shapes / story characters or setting. Minimalist, clean white background, no shading, no gray, no colors, simple for kids.`
+                  : `${data.visualPrompt}. High-contrast Black & White line art with geometrical shapes / story characters or setting. Minimalist, bold clean lines, no shading, no gray, no colors, technical illustration style, white background.`;
 
-              const imageUrl = await withRetry(async () => {
-                const prompt = `${data.imagePrompt}. Black and white line art, coloring book style, clean white background, high contrast, simple for kids.`;
-                return await generateImage(prompt);
-              }, 2, 4000);
-              
-              if (imageUrl) {
-                data.imageUrl = imageUrl;
-                if (!data.sections || data.sections.length === 0) {
-                  data.sections = [{
-                    type: worksheetType === 'Coloring Page' ? 'coloring' : 'dot_to_dot',
-                    title: data.title
-                  }];
+                console.log(`Generating root image for worksheet ${i + 1}...`);
+                if (i > 0) await new Promise(resolve => setTimeout(resolve, 2000));
+
+                const imageUrl = await withRetry(async () => await generateImage(prompt), 2, 4000);
+                
+                if (imageUrl) {
+                  if (hasColoringPrompt) {
+                    data.imageUrl = imageUrl;
+                    if (!data.sections || data.sections.length === 0) {
+                      data.sections = [{
+                        type: worksheetType === 'Coloring Page' ? 'coloring' : 'dot_to_dot',
+                        title: data.title
+                      }];
+                    }
+                  } else {
+                    data.visualUrl = imageUrl;
+                  }
                 }
+              } catch (imgErr: any) {
+                const errString = imgErr instanceof Error ? imgErr.message : String(imgErr);
+                console.warn(`Root image generation failed:`, errString);
+                if (errString.includes('429') || errString.includes('quota')) skipImages = true;
               }
-            } catch (imgErr: any) {
-              const errString = imgErr instanceof Error ? imgErr.message : (typeof imgErr === 'string' ? imgErr : JSON.stringify(imgErr));
-              console.warn(`Image generation failed for worksheet ${i + 1}:`, errString);
-              if (errString.includes('429') || errString.includes('RESOURCE_EXHAUSTED') || errString.includes('quota')) {
-                console.warn("Quota exceeded for images, skipping remaining images.");
-                skipImages = true;
+            }
+
+            // Handle section level images
+            if (!skipImages && data.sections) {
+              for (const section of data.sections) {
+                if (section.visualCategory === 'ASSET_KEY' && section.visualPrompt) {
+                  try {
+                    const prompt = `${section.visualPrompt}. High-contrast Black & White line art with geometrical shapes / story characters or setting. Minimalist, bold clean lines, no shading, no gray, no colors, technical illustration style, white background.`;
+                    console.log(`Generating section image for "${section.title}"...`);
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+
+                    const imageUrl = await withRetry(async () => await generateImage(prompt), 1, 3000);
+                    if (imageUrl) section.visualUrl = imageUrl;
+                  } catch (secImgErr: any) {
+                    console.warn(`Section image generation failed:`, secImgErr);
+                    const errString = secImgErr instanceof Error ? secImgErr.message : String(secImgErr);
+                    if (errString.includes('429') || errString.includes('quota')) {
+                      skipImages = true;
+                      break;
+                    }
+                  }
+                }
               }
             }
           }
@@ -639,19 +802,33 @@ export default function WorksheetGenerator() {
       {showGenerator && !isViewingSaved && (
         <Card className="no-print border-none ring-1 ring-slate-200 shadow-sm">
           <CardContent className="p-4 space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Grade Level</label>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <div className="space-y-1.5 text-left">
+                <div className="flex items-center gap-1">
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Select Child</label>
+                  <Tooltip content="Choose which child this worksheet is for to personalize the content." variant="help">
+                    <HelpCircle className="w-3 h-3 text-slate-400 cursor-help" />
+                  </Tooltip>
+                </div>
                 <select 
                   className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  value={gradeLevel}
-                  onChange={(e) => setGradeLevel(e.target.value)}
+                  value={kidId}
+                  onChange={(e) => setKidId(e.target.value)}
                 >
-                  {gradeLevels.map(g => <option key={g} value={g}>{g}</option>)}
+                  <option value="">All Kids</option>
+                  {kidsList.map((kid) => (
+                    <option key={kid.id} value={kid.id}>{kid.name}</option>
+                  ))}
                 </select>
               </div>
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Subject</label>
+
+              <div className="space-y-1.5 text-left">
+                <div className="flex items-center gap-1">
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Subject</label>
+                  <Tooltip content="Select the academic subject for the worksheet." variant="help">
+                    <HelpCircle className="w-3 h-3 text-slate-400 cursor-help" />
+                  </Tooltip>
+                </div>
                 <select 
                   className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   value={subject}
@@ -660,8 +837,14 @@ export default function WorksheetGenerator() {
                   {subjects.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
-              <div className="space-y-1.5 md:col-span-2">
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Topic</label>
+
+              <div className="space-y-1.5 lg:col-span-2 text-left">
+                <div className="flex items-center gap-1">
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Describe a topic / Explain the problem</label>
+                  <Tooltip content="Describe the specific topic or problem you want the worksheet to cover (e.g., 'Addition within 20' or 'Planets')." variant="help">
+                    <HelpCircle className="w-3 h-3 text-slate-400 cursor-help" />
+                  </Tooltip>
+                </div>
                 <Input 
                   placeholder="e.g., Solar System, Fractions, Dinosaurs..." 
                   value={topic}
@@ -669,8 +852,14 @@ export default function WorksheetGenerator() {
                   className="h-9 text-sm"
                 />
               </div>
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Worksheet Type</label>
+
+              <div className="space-y-1.5 text-left">
+                <div className="flex items-center gap-1">
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Worksheet Type</label>
+                  <Tooltip content="Choose the format of the worksheet (e.g., Multiple Choice, Word Search)." variant="help">
+                    <HelpCircle className="w-3 h-3 text-slate-400 cursor-help" />
+                  </Tooltip>
+                </div>
                 <select 
                   className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   value={worksheetType}
@@ -679,8 +868,14 @@ export default function WorksheetGenerator() {
                   {worksheetTypes.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Difficulty</label>
+
+              <div className="space-y-1.5 text-left">
+                <div className="flex items-center gap-1">
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Difficulty</label>
+                  <Tooltip content="Select how challenging the worksheet should be." variant="help">
+                    <HelpCircle className="w-3 h-3 text-slate-400 cursor-help" />
+                  </Tooltip>
+                </div>
                 <select 
                   className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   value={difficulty}
@@ -689,8 +884,14 @@ export default function WorksheetGenerator() {
                   {difficulties.map(d => <option key={d} value={d}>{d}</option>)}
                 </select>
               </div>
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Number of Worksheets</label>
+
+              <div className="space-y-1.5 text-left">
+                <div className="flex items-center gap-1">
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Number of Worksheets</label>
+                  <Tooltip content="Choose how many unique worksheets to generate for this topic (max 10)." variant="help">
+                    <HelpCircle className="w-3 h-3 text-slate-400 cursor-help" />
+                  </Tooltip>
+                </div>
                 <Input 
                   type="number"
                   min="1"
@@ -701,23 +902,26 @@ export default function WorksheetGenerator() {
                 />
               </div>
             </div>
-            <Button 
-              className="w-full h-10 font-bold" 
-              onClick={handleGenerate}
-              disabled={isGenerating || !topic.trim()}
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating Worksheet...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Generate Worksheet
-                </>
-              )}
-            </Button>
+            <div className="flex justify-end">
+              <Button 
+                size="sm"
+                className="px-6 h-9 font-bold" 
+                onClick={handleGenerate}
+                disabled={isGenerating || !topic.trim()}
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating worksheet...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Generate Worksheet
+                  </>
+                )}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -796,13 +1000,30 @@ export default function WorksheetGenerator() {
               </div>
               <div className="worksheet-title-print">
                 {isViewingSaved ? (
-                  <h1 className="text-2xl font-black truncate">{worksheet.title}</h1>
+                  <h1 className="text-2xl font-black truncate text-justify">{worksheet.title}</h1>
                 ) : (
-                  <input 
-                    value={worksheet.title}
-                    onChange={(e) => updateWorksheet({ title: e.target.value })}
-                    className="text-2xl font-black uppercase text-right bg-transparent border-none focus:ring-0 p-0 w-full"
-                  />
+                  <div className="relative group/title w-full flex flex-col items-end">
+                    <input 
+                      value={worksheet.title}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const words = val.trim().split(/\s+/).filter(Boolean);
+                        if (words.length <= 7) {
+                          updateWorksheet({ title: val });
+                        } else {
+                          // Allow backspace or deleting characters even if above limit (though we try to prevent getting there)
+                          if (val.length < worksheet.title.length) {
+                            updateWorksheet({ title: val });
+                          }
+                        }
+                      }}
+                      placeholder="Enter Worksheet Title"
+                      className="text-2xl font-black uppercase text-right bg-transparent border-none focus:ring-0 p-0 w-full placeholder:text-slate-300 text-justify"
+                    />
+                    <div className={`text-[10px] font-bold mt-1 ${worksheet.title.trim().split(/\s+/).filter(Boolean).length > 7 ? 'text-red-500' : 'text-slate-400 opacity-0 group-hover/title:opacity-100'} transition-opacity`}>
+                      {worksheet.title.trim().split(/\s+/).filter(Boolean).length}/7 words
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
@@ -813,22 +1034,33 @@ export default function WorksheetGenerator() {
             </div>
 
             <div className="space-y-8">
-              <div className="bg-slate-50 p-4 rounded border border-slate-200 italic text-slate-700">
-                <p className="font-bold not-italic mb-1">Instructions:</p>
+              <div className="bg-slate-50 p-4 rounded border border-slate-200 italic text-slate-700 text-justify">
+                <p className="font-bold not-italic mb-1 text-left">Instructions:</p>
                 {isViewingSaved ? (
                   worksheet.instructions
                 ) : (
                   <AutoResizeTextarea 
                     value={worksheet.instructions}
                     onChange={(e: any) => updateWorksheet({ instructions: e.target.value })}
-                    className="w-full bg-transparent border-none focus:ring-0 p-0 resize-none block"
+                    className="w-full bg-transparent border-none focus:ring-0 p-0 resize-none block text-justify"
                   />
                 )}
               </div>
 
-              {worksheet.sections.map((section, sIdx) => (
+              {worksheet.visualUrl && (
+                <div className="flex justify-center py-4">
+                  <img 
+                    src={worksheet.visualUrl} 
+                    alt="Worksheet Illustration" 
+                    className="max-w-[300px] h-auto border border-slate-200 rounded-lg shadow-sm"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+              )}
+
+              {(worksheet.sections || []).map((section, sIdx) => (
                 <div key={sIdx} className="space-y-4 section-container">
-                  <h2 className="text-xl font-bold border-b border-slate-200 pb-1 text-slate-800">
+                  <h2 className="text-xl font-bold border-b border-slate-200 pb-1 text-slate-800 flex items-center justify-between">
                     {isViewingSaved ? (
                       section.title.toLowerCase().startsWith('section') ? section.title : `Section ${sIdx + 1}: ${section.title}`
                     ) : (
@@ -838,7 +1070,23 @@ export default function WorksheetGenerator() {
                         className="w-full bg-transparent border-none focus:ring-0 p-0 font-bold"
                       />
                     )}
+
                   </h2>
+                  
+                  {section.visualUrl && (
+                    <div className="relative flex justify-center py-4">
+                      <img 
+                        src={section.visualUrl} 
+                        alt={`${section.title} Illustration`} 
+                        className="max-w-[250px] h-auto border border-slate-200 rounded-lg shadow-sm"
+                        referrerPolicy="no-referrer"
+                      />
+                      {!isViewingSaved && (
+                        <Button size="xs" variant="danger" className="absolute top-2 right-2 h-6" onClick={() => updateSection(sIdx, { visualUrl: undefined })}>Remove</Button>
+                      )}
+                    </div>
+                  )}
+
                   <div className="space-y-6">
                     {section.type === 'coloring' && worksheet.imageUrl && (
                       <div className="flex justify-center py-4">
@@ -863,14 +1111,14 @@ export default function WorksheetGenerator() {
                     )}
 
                     {section.type === 'puzzle' && section.puzzleContent && (
-                      <div className="p-6 bg-slate-50 rounded-lg border border-slate-200 whitespace-pre-wrap font-medium text-slate-800 leading-relaxed">
+                      <div className="p-6 bg-slate-50 rounded-lg border border-slate-200 whitespace-pre-wrap font-medium text-slate-800 leading-relaxed text-justify">
                         {isViewingSaved ? (
                           section.puzzleContent
                         ) : (
                           <AutoResizeTextarea 
                             value={section.puzzleContent}
                             onChange={(e: any) => updateSection(sIdx, { puzzleContent: e.target.value })}
-                            className="w-full bg-transparent border-none focus:ring-0 p-0 resize-none block"
+                            className="w-full bg-transparent border-none focus:ring-0 p-0 resize-none block text-justify"
                           />
                         )}
                       </div>
@@ -880,8 +1128,8 @@ export default function WorksheetGenerator() {
                       <div className="space-y-8">
                         <div className="flex justify-center">
                           <div className="grid grid-cols-15 gap-0 border-2 border-slate-900 bg-slate-900">
-                            {section.wordSearch.grid.map((row, rIdx) => (
-                              row.map((char, cIdx) => (
+                            {(section.wordSearch.grid || []).map((row, rIdx) => (
+                              (row || []).map((char, cIdx) => (
                                 <div key={`${rIdx}-${cIdx}`} className="w-6 h-6 md:w-8 md:h-8 bg-white border border-slate-200 flex items-center justify-center font-bold text-sm md:text-base uppercase">
                                   {char}
                                 </div>
@@ -890,8 +1138,8 @@ export default function WorksheetGenerator() {
                           </div>
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-slate-50 rounded border border-slate-200">
-                          {section.wordSearch.words.map((word, wIdx) => (
-                            <div key={wIdx} className="text-xs font-bold uppercase tracking-widest text-slate-700">
+                          {(section.wordSearch.words || []).map((word, wIdx) => (
+                            <div key={wIdx} className="text-xs font-bold uppercase tracking-widest text-slate-700 text-justify">
                               {word}
                             </div>
                           ))}
@@ -902,14 +1150,14 @@ export default function WorksheetGenerator() {
                     {section.type === 'reading_comprehension' && section.readingPassage && (
                       <div className="p-6 bg-slate-50 rounded-lg border border-slate-200 mb-8">
                         {isViewingSaved ? (
-                          <div className="prose prose-slate max-w-none text-slate-800 leading-relaxed whitespace-pre-wrap">
+                          <div className="prose prose-slate max-w-none text-slate-800 leading-relaxed whitespace-pre-wrap text-justify">
                             {section.readingPassage}
                           </div>
                         ) : (
                           <AutoResizeTextarea 
                             value={section.readingPassage}
                             onChange={(e: any) => updateSection(sIdx, { readingPassage: e.target.value })}
-                            className="w-full bg-transparent border-none focus:ring-0 p-0 resize-none leading-relaxed block"
+                            className="w-full bg-transparent border-none focus:ring-0 p-0 resize-none leading-relaxed block text-justify"
                           />
                         )}
                       </div>
@@ -931,10 +1179,10 @@ export default function WorksheetGenerator() {
                             </div>
                           )}
                         </div>
-                        <div className="aspect-[4/3] w-full border-2 border-dashed border-slate-300 rounded-xl flex items-center justify-center text-slate-400 bg-white">
-                          <div className="text-center">
-                            <p className="font-medium">Draw your masterpiece here!</p>
-                            <p className="text-sm mt-1">Use the space below to express your creativity.</p>
+                        <div className="aspect-[4/3] w-full border-2 border-dashed border-slate-300 rounded-xl flex items-center justify-center text-slate-400 bg-white p-4">
+                          <div className="text-center text-justify">
+                            <p className="font-medium text-justify">Draw your masterpiece here!</p>
+                            <p className="text-sm mt-1 text-justify">Use the space below to express your creativity.</p>
                           </div>
                         </div>
                       </div>
@@ -943,10 +1191,10 @@ export default function WorksheetGenerator() {
                     {section.type === 'matching' && section.matching && (
                       <div className="grid grid-cols-2 gap-12 py-4">
                         <div className="space-y-6">
-                          {section.matching.pairs.map((pair, idx) => (
+                          {(section.matching.pairs || []).map((pair, idx) => (
                             <div key={idx} className="flex items-center gap-1">
                               <div className="w-6 h-6 rounded-full border-2 border-slate-300 flex items-center justify-center text-[10px] font-bold flex-shrink-0">{idx + 1}</div>
-                              <div className="flex-1 p-3 border border-slate-200 rounded-lg bg-white font-medium">
+                              <div className="flex-1 p-3 border border-slate-200 rounded-lg bg-white font-medium text-justify">
                                 {isViewingSaved ? (
                                   pair.left
                                 ) : (
@@ -957,7 +1205,7 @@ export default function WorksheetGenerator() {
                                       newPairs[idx] = { ...newPairs[idx], left: e.target.value };
                                       updateSection(sIdx, { matching: { ...section.matching, pairs: newPairs } });
                                     }}
-                                    className="w-full bg-transparent border-none focus:ring-0 p-0"
+                                    className="w-full bg-transparent border-none focus:ring-0 p-0 text-justify"
                                   />
                                 )}
                               </div>
@@ -965,9 +1213,9 @@ export default function WorksheetGenerator() {
                           ))}
                         </div>
                         <div className="space-y-6">
-                          {section.matching.shuffledRight.map((item, idx) => (
+                          {(section.matching.shuffledRight || []).map((item, idx) => (
                             <div key={idx} className="flex items-center gap-1">
-                              <div className="flex-1 p-3 border border-slate-200 rounded-lg bg-white font-medium text-right">
+                              <div className="flex-1 p-3 border border-slate-200 rounded-lg bg-white font-medium text-right text-justify">
                                 {isViewingSaved ? (
                                   item
                                 ) : (
@@ -978,7 +1226,7 @@ export default function WorksheetGenerator() {
                                       newShuffled[idx] = e.target.value;
                                       updateSection(sIdx, { matching: { ...section.matching, shuffledRight: newShuffled } });
                                     }}
-                                    className="w-full bg-transparent border-none focus:ring-0 p-0 text-right"
+                                    className="w-full bg-transparent border-none focus:ring-0 p-0 text-right text-justify"
                                   />
                                 )}
                               </div>
@@ -986,7 +1234,7 @@ export default function WorksheetGenerator() {
                             </div>
                           ))}
                         </div>
-                        <div className="col-span-2 mt-4 text-center text-slate-400 text-xs italic">
+                        <div className="col-span-2 mt-4 text-center text-slate-400 text-xs italic text-justify px-4">
                           Draw lines to match the items on the left with the correct items on the right.
                         </div>
                       </div>
@@ -1000,14 +1248,14 @@ export default function WorksheetGenerator() {
                           </span>
                           <div className="flex-1">
                             {isViewingSaved ? (
-                              <p className="font-medium text-slate-900">
+                              <p className="font-medium text-slate-900 text-justify">
                                 {q.question}
                               </p>
                             ) : (
                               <AutoResizeTextarea 
                                 value={q.question}
                                 onChange={(e: any) => updateQuestion(sIdx, qIdx, { question: e.target.value })}
-                                className="w-full bg-transparent border-none focus:ring-0 p-0 font-medium text-slate-900 resize-none block"
+                                className="w-full bg-transparent border-none focus:ring-0 p-0 font-medium text-slate-900 resize-none block text-justify"
                               />
                             )}
                           </div>
@@ -1020,7 +1268,7 @@ export default function WorksheetGenerator() {
                               <div key={oIdx} className="flex items-center gap-2 text-slate-700">
                                 <div className="h-4 w-4 rounded-full border border-slate-400" />
                                 {isViewingSaved ? (
-                                  <span>{opt}</span>
+                                  <span className="text-justify">{opt}</span>
                                 ) : (
                                   <input 
                                     value={opt}
@@ -1029,7 +1277,7 @@ export default function WorksheetGenerator() {
                                       newOptions[oIdx] = e.target.value;
                                       updateQuestion(sIdx, qIdx, { options: newOptions });
                                     }}
-                                    className="flex-1 bg-transparent border-none focus:ring-0 p-0"
+                                    className="flex-1 bg-transparent border-none focus:ring-0 p-0 text-justify"
                                   />
                                 )}
                               </div>
@@ -1062,7 +1310,7 @@ export default function WorksheetGenerator() {
                     Answer Key
                   </h2>
                   <div className="space-y-6">
-                    {worksheet.sections.map((section, sIdx) => (
+                    {(worksheet.sections || []).map((section, sIdx) => (
                       <div key={sIdx} className="space-y-2 answer-section">
                         <h3 className="font-bold text-slate-800">
                           {section.title.toLowerCase().startsWith('section') ? section.title : `Section ${sIdx + 1}: ${section.title}`}
@@ -1075,7 +1323,7 @@ export default function WorksheetGenerator() {
                           )}
                           {section.type === 'matching' && section.matching && (
                             <div className="space-y-1">
-                              {section.matching.pairs.map((p, i) => (
+                              {(section.matching.pairs || []).map((p, i) => (
                                 <div key={i} className="text-xs text-slate-600">
                                   {i + 1}. {p.left} → {p.right}
                                 </div>
@@ -1088,7 +1336,7 @@ export default function WorksheetGenerator() {
                             </div>
                           )}
                           {section.questions?.map((q, qIdx) => (
-                            <div key={qIdx} className="text-sm answer-item">
+                            <div key={qIdx} className="text-sm answer-item text-justify">
                               <span className="font-bold">{qIdx + 1}.</span> 
                               {isViewingSaved ? (
                                 q.answer
@@ -1096,7 +1344,7 @@ export default function WorksheetGenerator() {
                                 <input 
                                   value={q.answer}
                                   onChange={(e) => updateQuestion(sIdx, qIdx, { answer: e.target.value })}
-                                  className="ml-1 bg-transparent border-none focus:ring-0 p-0 inline-block"
+                                  className="ml-1 bg-transparent border-none focus:ring-0 p-0 inline-block text-justify"
                                 />
                               )}
                             </div>

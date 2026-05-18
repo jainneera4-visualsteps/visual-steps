@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import { Plus, BookOpen, Trash2, ChevronRight, MessageSquare, ArrowLeft, Eye, Pencil, X, Printer, Loader2, Lightbulb } from 'lucide-react';
+import { Plus, BookOpen, Trash2, ChevronLeft, ChevronRight, MessageSquare, ArrowLeft, Eye, Pencil, Printer, Loader2, HelpCircle } from 'lucide-react';
+import { Tooltip } from '../components/ui/Tooltip';
 import { SocialStoryModal } from '../components/SocialStoryModal';
 
 interface SocialStory {
@@ -11,34 +12,74 @@ interface SocialStory {
   title: string;
   content: string;
   created_at: string;
+  updated_at: string;
+  kid_id: string | null;
+  language?: string;
+  tone?: string;
 }
 
 export default function SocialStories() {
   const navigate = useNavigate();
   const [stories, setStories] = useState<SocialStory[]>([]);
+  const [kids, setKids] = useState<Record<string, any>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [storyToDelete, setStoryToDelete] = useState<string | null>(null);
   const [viewingStoryId, setViewingStoryId] = useState<string | null>(null);
-  const [printingStory, setPrintingStory] = useState<any | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
 
   useEffect(() => {
     fetchStories();
   }, []);
 
-  useEffect(() => {
-    fetchStories();
-  }, []);
+  const totalPages = Math.ceil(stories.length / itemsPerPage) || 1;
+  const paginatedStories = stories.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const fetchStories = async () => {
+    setError(null);
     try {
-      const res = await apiFetch('/api/social-stories');
-      if (res.ok) {
-        const data = await res.json();
-        setStories(data.stories || []);
+      const [storiesRes, kidsRes] = await Promise.all([
+        apiFetch('/api/social-stories'),
+        apiFetch('/api/kids')
+      ]);
+
+      if (storiesRes.ok && kidsRes.ok) {
+        const storiesData = await storiesRes.json();
+        const kidsData = await kidsRes.json();
+        
+        const kidsMap: Record<string, any> = {};
+        const kidsArray = Array.isArray(kidsData) ? kidsData : (kidsData.kids || []);
+        kidsArray.forEach((k: any) => {
+          kidsMap[k.id] = k;
+        });
+        
+        const rawStories = storiesData.stories || [];
+        const processedStories = rawStories.map((story: any) => {
+          try {
+            const parsed = typeof story.content === 'string' ? JSON.parse(story.content) : story.content;
+            return {
+              ...story,
+              language: parsed?.language || 'English',
+              tone: parsed?.tone || 'Calming'
+            };
+          } catch (e) {
+            return { ...story, language: 'English', tone: 'Calming' };
+          }
+        });
+
+        const sortedStories = processedStories.sort((a: any, b: any) => 
+          new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime()
+        );
+        setKids(kidsMap);
+        setStories(sortedStories);
+      } else {
+        setError('Failed to fetch data');
       }
-    } catch (error) {
-      console.error('Failed to fetch stories', error);
+    } catch (err: any) {
+      console.error('Failed to fetch stories', err);
+      setError(err.message || 'Failed to fetch stories');
     } finally {
       setIsLoading(false);
     }
@@ -146,16 +187,20 @@ export default function SocialStories() {
                   color: black !important;
                 }
                 
-                .pages-column { display: flex; flex-direction: column; gap: 30px; }
+                .pages-column { display: flex; flex-direction: column; gap: 20px; }
                 .story-paragraph { 
-                  break-inside: avoid; 
+                  break-inside: auto; 
+                  page-break-inside: auto;
                   padding: 0;
+                  margin-bottom: 20px;
                 }
 
                 .paragraph-content-wrapper {
                   display: flex;
                   gap: 25px;
                   align-items: flex-start;
+                  break-inside: auto;
+                  page-break-inside: auto;
                 }
                 
                 .paragraph-image { 
@@ -169,12 +214,14 @@ export default function SocialStories() {
                   display: flex; 
                   align-items: center; 
                   justify-content: center; 
+                  break-inside: avoid;
                 }
                 .paragraph-image img { width: 100%; height: 100%; object-fit: cover; }
                 
                 .paragraph-text-container { 
                   flex: 1; 
-                  display: flex;
+                  display: block;
+                  break-inside: auto;
                 }
                 .paragraph-text { 
                   font-size: 20px; 
@@ -184,6 +231,7 @@ export default function SocialStories() {
                   white-space: pre-wrap;
                   font-weight: 700;
                   text-align: justify;
+                  break-inside: auto;
                 }
                 
                 @media (max-width: 600px) {
@@ -249,125 +297,230 @@ export default function SocialStories() {
 
   if (isLoading) {
     return (
-      <div className="relative w-full">
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 animate-pulse rounded-xl bg-slate-100" />
-          ))}
-        </div>
+      <div className="flex h-screen items-center justify-center">
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
       </div>
     );
   }
 
   return (
-    <div className="relative w-full">
-      <div className="space-y-3 no-print-area">
-        <div className="mb-6">
-          <button onClick={() => navigate('/dashboard')} className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1 mb-2 transition-colors">
-            <ArrowLeft className="h-4 w-4" /> Back to Dashboard
-          </button>
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-            <div>
-              <h1 className="text-5xl font-normal text-slate-900 tracking-tight leading-none">Social Stories</h1>
-              <p className="text-lg font-normal text-slate-500 mt-3">Create visual stories to help individuals navigate social situations.</p>
-            </div>
-            <Link to="/social-stories/create">
-              <Button variant="outline" size="xs" className="h-7 text-[12px]">
-                <Plus className="mr-1 h-3 w-3" />
-                New Story
-              </Button>
-            </Link>
+    <div className="space-y-6 w-full pb-10">
+      <div className="mb-6">
+        <button onClick={() => navigate('/dashboard')} className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1 mb-2 transition-colors">
+          <ArrowLeft className="h-4 w-4" /> Back to Dashboard
+        </button>
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <h1 className="text-5xl font-normal text-slate-900 tracking-tight leading-none">Social Stories</h1>
+            <p className="text-lg font-normal text-slate-500 mt-3">Create visual stories to help individuals navigate social situations.</p>
           </div>
+          <Link to="/social-stories/create">
+            <Button variant="outline" size="xs" className="h-7 text-[12px]">
+              <Plus className="mr-1 h-3 w-3" />
+              New Story
+            </Button>
+          </Link>
         </div>
+      </div>
 
-        {isLoading ? (
-          <div className="space-y-2">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-16 animate-pulse rounded-xl bg-slate-100" />
-            ))}
-          </div>
-        ) : stories.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center text-slate-400 bg-white rounded-xl border-2 border-dashed border-slate-200">
-            <div className="bg-slate-50 p-6 rounded-full mb-4">
-              <BookOpen className="h-12 w-12" />
+      {error ? (
+        <Card className="border-none ring-1 ring-red-200 bg-red-50">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="rounded-full bg-red-100 p-4 mb-4">
+              <ArrowLeft className="h-8 w-8 text-red-500" />
             </div>
-            <h3 className="text-lg font-bold text-slate-600">No Social Stories</h3>
-            <p className="max-w-xs text-sm">Social stories use simple language and visuals to explain social situations and expectations.</p>
-            <Link to="/social-stories/create" className="mt-4">
-              <Button size="sm">Create Your First Story</Button>
-            </Link>
+            <h3 className="text-lg font-bold text-red-900">Error Fetching Stories</h3>
+            <p className="mt-2 text-sm text-red-700 max-w-sm">
+              {error}
+            </p>
+            <Button onClick={fetchStories} className="mt-6 bg-red-600 hover:bg-red-700">
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      ) : stories.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center text-slate-400 bg-white rounded-xl border-2 border-dashed border-slate-200">
+          <div className="bg-slate-50 p-6 rounded-full mb-4">
+            <BookOpen className="h-12 w-12" />
           </div>
-        ) : (
-          <div className="space-y-2">
-            {stories.map((story) => (
-              <Card key={story.id} className="group overflow-hidden border-none ring-1 ring-slate-200 hover:ring-blue-400 transition-all hover:shadow-md bg-white">
-                <CardContent className="p-2.5 flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                    <MessageSquare className="h-5 w-5" />
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-bold text-base text-slate-900 truncate">
-                        {story.title}
-                      </h3>
-                    </div>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                        Created {(() => {
-                          const d = new Date(story.created_at);
-                          return isNaN(d.getTime()) ? story.created_at : d.toLocaleDateString();
-                        })()}
-                      </span>
-                    </div>
-                  </div>
+          <h3 className="text-lg font-bold text-slate-600">No Social Stories</h3>
+          <p className="max-w-xs text-sm">Social stories use simple language and visuals to explain social situations and expectations.</p>
+          <Link to="/social-stories/create" className="mt-4">
+            <Button size="sm">Create Your First Story</Button>
+          </Link>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+          <div className="px-6 py-4 flex items-center justify-between border-b border-slate-100 bg-white">
+            <div className="flex items-center gap-3">
+              <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">PER PAGE:</span>
+              <div className="relative">
+                <select 
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="appearance-none bg-white border border-slate-200 rounded-lg pl-3 pr-8 py-1.5 text-[13px] font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer min-w-[70px] shadow-sm transition-all hover:border-slate-300"
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+                  <ChevronLeft className="h-3 w-3 rotate-[270deg]" strokeWidth={3} />
+                </div>
+              </div>
+            </div>
 
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      className="h-8 w-8 p-0 text-slate-400 hover:bg-blue-50 hover:text-blue-600"
-                      title="View Story"
-                      onClick={() => setViewingStoryId(story.id)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      className="h-8 w-8 p-0 text-slate-400 hover:bg-slate-50 hover:text-slate-600"
-                      title="Print Story"
-                      onClick={() => handlePrint(story.id)}
-                      disabled={isPrinting}
-                    >
-                      {isPrinting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
-                    </Button>
-                    <Link to={`/social-stories/edit/${story.id}`}>
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        className="h-8 w-8 p-0 text-slate-400 hover:bg-amber-50 hover:text-amber-600"
-                        title="Edit Story"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    </Link>
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      className="h-8 w-8 p-0 text-slate-400 hover:bg-red-50 hover:text-red-600"
-                      onClick={() => setStoryToDelete(story.id)}
-                      title="Delete Story"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="p-1.5 hover:bg-slate-50 rounded-md transition-colors text-slate-400 disabled:opacity-20 disabled:cursor-not-allowed group"
+                >
+                  <ChevronLeft className="h-5 w-5 group-hover:text-slate-600 transition-colors" strokeWidth={2} />
+                </button>
+                <span className="text-[14px] font-bold text-slate-700 whitespace-nowrap">
+                  Page <span className="text-slate-900">{currentPage}</span> of <span className="text-slate-900">{totalPages}</span>
+                </span>
+                <button 
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className="p-1.5 hover:bg-slate-50 rounded-md transition-colors text-slate-400 disabled:opacity-20 disabled:cursor-not-allowed group"
+                >
+                  <ChevronRight className="h-5 w-5 group-hover:text-slate-600 transition-colors" strokeWidth={2} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50/50">
+                    <th className="px-4 py-3">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Kid Name</span>
+                        <Tooltip content="The child assigned to this story." variant="help">
+                          <HelpCircle className="h-3.5 w-3.5 text-blue-500 cursor-help" />
+                        </Tooltip>
+                      </div>
+                    </th>
+                    <th className="px-4 py-3">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Story title</span>
+                        <Tooltip content="The main heading of the social story." variant="help">
+                          <HelpCircle className="h-3.5 w-3.5 text-blue-500 cursor-help" />
+                        </Tooltip>
+                      </div>
+                    </th>
+                    <th className="px-4 py-3">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Language</span>
+                      </div>
+                    </th>
+                    <th className="px-4 py-3">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Tone</span>
+                      </div>
+                    </th>
+                    <th className="px-4 py-3">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Updated At</span>
+                        <Tooltip content="The date this story was last updated." variant="help">
+                          <HelpCircle className="h-3.5 w-3.5 text-blue-500 cursor-help" />
+                        </Tooltip>
+                      </div>
+                    </th>
+                    <th className="px-4 py-3 whitespace-nowrap text-right">
+                      <div className="flex items-center justify-end gap-1.5 text-right">
+                        <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Actions</span>
+                        <Tooltip content="Manage your social stories." variant="help">
+                          <HelpCircle className="h-3.5 w-3.5 text-blue-500 cursor-help" />
+                        </Tooltip>
+                      </div>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedStories.map((story) => {
+                    const kid = kids[story.kid_id || ''];
+                    return (
+                      <tr key={story.id} className="group hover:bg-slate-50/80 transition-colors border-b border-slate-100 last:border-0">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            {kid?.avatar ? (
+                              <img src={kid.avatar} className="h-6 w-6 rounded-full object-cover" alt="" referrerPolicy="no-referrer" />
+                            ) : (
+                              <div className="h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center text-[11px] font-bold text-blue-600">
+                                {kid?.name?.charAt(0) || 'A'}
+                              </div>
+                            )}
+                            <span className="font-bold text-slate-700 text-[13px]">{kid?.name || 'All Kids'}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col">
+                            <span className="font-bold text-slate-900 text-[14px] leading-tight">{story.title}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-[13px] font-medium text-slate-600">{story.language || 'English'}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-[13px] font-medium text-slate-600">{story.tone || 'Calming'}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-[14px] font-medium text-slate-600">
+                            {(() => {
+                              const d = new Date(story.updated_at || story.created_at);
+                              return isNaN(d.getTime()) 
+                                ? (story.updated_at || story.created_at) 
+                                : d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+                            })()}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-end gap-3">
+                            <button 
+                              className="text-slate-400 hover:text-blue-500 transition-colors" 
+                              title="View"
+                              onClick={() => setViewingStoryId(story.id)}
+                            >
+                              <Eye className="h-5 w-5" />
+                            </button>
+                            <button 
+                              className="text-slate-400 hover:text-blue-500 transition-colors" 
+                              title="Print"
+                              onClick={() => handlePrint(story.id)}
+                              disabled={isPrinting}
+                            >
+                              {isPrinting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Printer className="h-5 w-5" />}
+                            </button>
+                            <Link to={`/social-stories/edit/${story.id}`}>
+                              <button className="text-slate-400 hover:text-blue-500 transition-colors" title="Edit">
+                                <Pencil className="h-5 w-5" />
+                              </button>
+                            </Link>
+                            <button 
+                              onClick={() => setStoryToDelete(story.id)}
+                              className="text-slate-400 hover:text-red-500 transition-colors" 
+                              title="Delete"
+                            >
+                              <Trash2 className="h-5 w-5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
-      </div>
 
       {/* Story Delete Confirmation Modal */}
       {storyToDelete && (

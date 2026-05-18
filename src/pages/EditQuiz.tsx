@@ -1,11 +1,12 @@
 import { apiFetch } from '../utils/api';
+import { generateImage } from '../lib/gemini';
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Input } from '../components/Input';
 import { Textarea } from '../components/Textarea';
-import { ArrowLeft, Save, Plus, Trash2, CheckCircle2, Loader2, Image as ImageIcon, Layers } from 'lucide-react';
+import { ArrowLeft, Save, Plus, Trash2, CheckCircle2, Loader2, Image as ImageIcon, Layers, Sparkles } from 'lucide-react';
 import { LayeredCanvasEditor } from '../components/LayeredCanvasEditor';
 
 interface QuizQuestion {
@@ -29,6 +30,7 @@ export default function EditQuiz() {
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [topic, setTopic] = useState('');
+  const [subject, setSubject] = useState('General Knowledge');
   const [difficulty, setDifficulty] = useState('Medium');
   const [gradeLevel, setGradeLevel] = useState('Grade 1');
   const [description, setDescription] = useState('');
@@ -37,6 +39,7 @@ export default function EditQuiz() {
   const [questionType, setQuestionType] = useState('Multiple Choice');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isGeneratingImages, setIsGeneratingImages] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     fetchQuiz();
@@ -50,6 +53,7 @@ export default function EditQuiz() {
         const quiz = data.quiz;
         setTitle(quiz.title);
         setTopic(quiz.topic || '');
+        setSubject(quiz.subject || 'General Knowledge');
         setDifficulty(quiz.difficulty || 'Medium');
         setGradeLevel(quiz.grade_level || 'Grade 1');
 
@@ -148,6 +152,33 @@ export default function EditQuiz() {
       updateQuestion(index, 'imageUrl', reader.result as string);
     };
     reader.readAsDataURL(file);
+  };
+
+  const generateQuestionImage = async (index: number) => {
+    const question = questions[index];
+    const visualPrompt = (question as any).visualPrompt || question.question;
+    if (!visualPrompt) return;
+
+    setIsGeneratingImages((prev) => ({ ...prev, [index]: true }));
+    try {
+      // Act as a technical diagrammer. 
+      // Illustration must ONLY depict the specific scenario, elements, or objects mentioned in the question text.
+      // ABSOLUTELY DO NOT show any solutions, correct answers, hints that reveal the final answer, or explanations.
+      // Use VERY LARGE, BOLD, READABLE labels if essential.
+      // HIGH-CONTRAST BLACK AND WHITE LINE ART ONLY. 
+      // No shading, no gray, no colors, thick clean lines on a pure white background.
+      // Illustration should be a helpful clue, not the answer.
+      const illustratorPrompt = `Act as an examiner and a technical diagrammer. Create a precise, clear, minimalistic diagram providing a visual clue/context for this question: "${visualPrompt}". STRICTLY ONLY represent the mentioned scenario/elements. ABSOLUTELY DO NOT show solutions, correct answers, hints, or explanations. The art is a helpful clue, NOT the answer itself. Use VERY LARGE BOLD labels. HIGH-CONTRAST BLACK AND WHITE LINE ART ONLY. No shading, no gray, no colors, thick clean lines.`;
+      
+      const imageUrl = await generateImage(illustratorPrompt);
+      if (imageUrl) {
+        updateQuestion(index, 'imageUrl', imageUrl);
+      }
+    } catch (error) {
+      console.error('Failed to generate image', error);
+    } finally {
+      setIsGeneratingImages((prev) => ({ ...prev, [index]: false }));
+    }
   };
 
   const updateOption = (qIndex: number, optIndex: number, value: string) => {
@@ -373,6 +404,16 @@ export default function EditQuiz() {
                           className="text-[10px] h-7"
                         >
                           Upload Local File
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="xs" 
+                          onClick={() => generateQuestionImage(qIdx)}
+                          disabled={isGeneratingImages[qIdx]}
+                          className="text-[10px] h-7 font-bold text-blue-600 border-blue-200"
+                        >
+                          {isGeneratingImages[qIdx] ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Sparkles className="w-3 h-3 mr-1" />}
+                          AI Art
                         </Button>
                         {q.imageUrl && (
                           <Button 

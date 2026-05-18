@@ -2829,7 +2829,7 @@ export default function AssignedActivities() {
                       </div>
                     ) : (
                       <div className="mt-3 space-y-2">
-                        {q.options.map((option: string, optIdx: number) => {
+                        {(q.options || []).map((option: string, optIdx: number) => {
                           const correctIndices = q.correctAnswerIndices || [q.correctAnswerIndex];
                           const kidIndices = Array.isArray(kidResponse) ? kidResponse : (typeof kidResponse === 'number' ? [kidResponse] : []);
                           
@@ -3334,7 +3334,9 @@ export default function AssignedActivities() {
                           .map(s => (
                             <option key={s.id} value={s.id}>{s.title}</option>
                           ))}
-                        {predefinedType === 'worksheet' && worksheets.map(w => (
+                        {predefinedType === 'worksheet' && worksheets
+                          .filter(w => !w.kid_id || w.kid_id === kidId)
+                          .map(w => (
                           <option key={w.id} value={w.id}>{w.title}</option>
                         ))}
                       </select>

@@ -221,14 +221,7 @@ export default function SavedQuizzes() {
                         </Tooltip>
                       </div>
                     </th>
-                    <th className="px-4 py-3">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Score per question</span>
-                        <Tooltip content="The points awarded for each correct answer." variant="help">
-                          <HelpCircle className="h-3.5 w-3.5 text-blue-500 cursor-help" />
-                        </Tooltip>
-                      </div>
-                    </th>
+
                     <th className="px-4 py-3 whitespace-nowrap text-right">
                       <div className="flex items-center justify-end gap-1.5 text-right">
                         <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Actions</span>
@@ -276,11 +269,7 @@ export default function SavedQuizzes() {
                             {quiz.difficulty || 'Medium'}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className="text-[14px] font-bold text-slate-700">
-                            {quiz.score_per_question || 1} pts
-                          </span>
-                        </td>
+
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-3">
                             <Link to={`/play-quiz/${quiz.id}`}>

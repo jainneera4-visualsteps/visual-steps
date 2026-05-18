@@ -168,18 +168,32 @@ export function Layout() {
                         className="absolute left-0 mt-0 w-56 rounded-2xl bg-white shadow-2xl shadow-slate-200 ring-1 ring-slate-200 p-2 z-[60] animate-in fade-in zoom-in-95 duration-100"
                       >
                         {selectedKidId && (
-                          <Link
-                            to={`/progress-report/${selectedKidId}`}
-                            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all leading-tight ${
-                              location.pathname.includes('progress-report') ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-50 hover:text-brand-600'
-                            }`}
-                            onClick={() => setIsAnalyticsOpen(false)}
-                          >
-                            <div className="h-8 w-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-500">
-                              <Activity size={18} />
-                            </div>
-                            Progress Report
-                          </Link>
+                          <>
+                            <Link
+                              to={`/progress-report/${selectedKidId}`}
+                              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all leading-tight ${
+                                location.pathname.includes('progress-report') ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-50 hover:text-brand-600'
+                              }`}
+                              onClick={() => setIsAnalyticsOpen(false)}
+                            >
+                              <div className="h-8 w-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-500">
+                                <Activity size={18} />
+                              </div>
+                              Progress Report
+                            </Link>
+                            <Link
+                              to={`/summary-report/${selectedKidId}`}
+                              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all leading-tight ${
+                                location.pathname.includes('summary-report') ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-50 hover:text-brand-600'
+                              }`}
+                              onClick={() => setIsAnalyticsOpen(false)}
+                            >
+                              <div className="h-8 w-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-500">
+                                <TrendingUp size={18} />
+                              </div>
+                              Summary Report
+                            </Link>
+                          </>
                         )}
                       </div>
                     )}
@@ -259,9 +273,14 @@ export function Layout() {
                   <div className="flex flex-col gap-1.5 pl-2 border-l-2 border-blue-100">
                     <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Analytics</span>
                     {selectedKidId && (
-                      <Link to={`/progress-report/${selectedKidId}`} className="text-[12px] font-bold text-slate-600 uppercase flex items-center gap-2" onClick={() => setIsMenuOpen(false)}>
-                        <Activity size={14} className="text-indigo-500" /> Progress Report
-                      </Link>
+                      <>
+                        <Link to={`/progress-report/${selectedKidId}`} className="text-[12px] font-bold text-slate-600 uppercase flex items-center gap-2" onClick={() => setIsMenuOpen(false)}>
+                          <Activity size={14} className="text-indigo-500" /> Progress Report
+                        </Link>
+                        <Link to={`/summary-report/${selectedKidId}`} className="text-[12px] font-bold text-slate-600 uppercase flex items-center gap-2" onClick={() => setIsMenuOpen(false)}>
+                          <TrendingUp size={14} className="text-emerald-500" /> Summary Report
+                        </Link>
+                      </>
                     )}
                   </div>
 
