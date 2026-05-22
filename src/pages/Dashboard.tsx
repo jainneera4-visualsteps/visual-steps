@@ -6,6 +6,8 @@ import { getZonedTime, formatInTimezone } from '../utils/dateUtils';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../components/Button';
+import { NewParentWalkthrough } from '../components/NewParentWalkthrough';
+import { useWalkthrough } from '../context/WalkthroughContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Select } from '../components/Select';
 import { Plus, User, Calendar, BookOpen, Gamepad2, Clock, Trophy, Sparkles, Loader2, ArrowLeft, Edit2, Activity, Brain, Save, Send, HelpCircle } from 'lucide-react';
@@ -52,6 +54,7 @@ export default function Dashboard() {
   }, []);
 
   const [showBuyGrid, setShowBuyGrid] = useState(false);
+  const { isOpen: showWalkthrough, setIsOpen: setShowWalkthrough, steps, hasSeenWalkthrough } = useWalkthrough();
 
   const [selectedKid, setSelectedKid] = useState<Kid | null>(null);
   const [rewardItems, setRewardItems] = useState<any[]>([]);
@@ -85,6 +88,12 @@ export default function Dashboard() {
       localStorage.setItem('dashboard_selected_kid_id', dashboardSelectedKidId);
     }
   }, [dashboardSelectedKidId]);
+
+  useEffect(() => {
+    if (!hasSeenWalkthrough) {
+      setShowWalkthrough(true);
+    }
+  }, [hasSeenWalkthrough, setShowWalkthrough]);
 
   useEffect(() => {
     if (kids.length > 0) {
@@ -994,7 +1003,24 @@ export default function Dashboard() {
         </div>
       </div>
 
+      <div className="mb-5 rounded-3xl border border-slate-200 bg-slate-50 p-5 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-900">New Parent Walkthrough</h2>
+            <p className="mt-1 text-sm text-slate-600">Need a quick guided tour of the parent tools? Open the walkthrough any time.</p>
+          </div>
+          <Button size="md" variant="secondary" onClick={() => setShowWalkthrough(true)}>
+            Start Walkthrough
+          </Button>
+        </div>
+      </div>
+
       {renderContent()}
+      <NewParentWalkthrough
+        isOpen={showWalkthrough}
+        onClose={() => setShowWalkthrough(false)}
+        steps={steps}
+      />
     </div>
   );
 }

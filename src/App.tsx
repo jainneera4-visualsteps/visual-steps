@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { WalkthroughProvider } from './context/WalkthroughContext';
 import { Layout } from './components/Layout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { KidProtectedRoute } from './components/KidProtectedRoute';
@@ -40,7 +41,8 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
+        <WalkthroughProvider>
+          <Routes>
           <Route path="/" element={<Layout />}>
             <Route index element={<Home />} />
             <Route path="login" element={<Home />} />
@@ -94,6 +96,7 @@ export default function App() {
             <Route path="/polygon-hunt" element={<PolygonHunt />} />
           </Route>
         </Routes>
+        </WalkthroughProvider>
       </AuthProvider>
     </BrowserRouter>
   );
