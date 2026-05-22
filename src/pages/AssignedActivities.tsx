@@ -3194,11 +3194,11 @@ export default function AssignedActivities() {
                 {editingActivity && editingActivity.status === 'completed' && (
                   <div className="flex items-center gap-2 p-2 bg-blue-50 rounded border border-blue-100 mb-2">
                     <input
-                      type="radio"
+                      type="checkbox"
                       id="status-pending"
                       checked={formData.status === 'pending'}
-                      onChange={() => setFormData({ ...formData, status: 'pending' })}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                      onChange={(e) => setFormData({ ...formData, status: e.target.checked ? 'pending' : 'completed' })}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 rounded"
                     />
                     <div className="flex items-center gap-1.5">
                       <label htmlFor="status-pending" className="text-sm font-medium text-blue-800">

@@ -8,6 +8,7 @@ import Signup from './pages/Signup';
 import ForgotPassword from './pages/ForgotPassword';
 import Dashboard from './pages/Dashboard';
 import ProgressReport from './pages/ProgressReport';
+import SummaryReport from './pages/SummaryReport';
 import Behaviors from './pages/Behaviors';
 import BehaviorsList from './pages/BehaviorsList';
 import AddBehavior from './pages/AddBehavior';
@@ -50,6 +51,7 @@ export default function App() {
             <Route element={<ProtectedRoute />}>
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="progress-report/:kidId" element={<ProgressReport />} />
+              <Route path="summary-report/:kidId" element={<SummaryReport />} />
               <Route path="behaviors/:kidId" element={<Behaviors />} />
               <Route path="behaviors-list/:kidId" element={<BehaviorsList />} />
               <Route path="behaviors/add/:kidId" element={<AddBehavior />} />
