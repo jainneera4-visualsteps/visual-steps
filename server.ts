@@ -1067,6 +1067,98 @@ app.get('/api/kids/:kidId/quiz-results', authenticateToken, async (req: any, res
   }
 });
 
+app.delete('/api/quiz-results/:id', authenticateToken, async (req: any, res) => {
+  const supabase = getAdminSupabaseClient();
+  const { id } = req.params;
+  const userId = req.user?.id;
+
+  if (!id) {
+    return res.status(400).json({ error: 'Missing quiz result id' });
+  }
+
+  try {
+    const { data: quizResult, error: resultError } = await supabase
+      .from('quiz_results')
+      .select('id,kid_id')
+      .eq('id', id)
+      .single();
+
+    if (resultError || !quizResult) {
+      return res.status(404).json({ error: 'Quiz result not found' });
+    }
+
+    const { data: kid, error: kidError } = await supabase
+      .from('kids')
+      .select('user_id')
+      .eq('id', quizResult.kid_id)
+      .single();
+
+    if (kidError || !kid || kid.user_id !== userId) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const { error: deleteError } = await supabase
+      .from('quiz_results')
+      .delete()
+      .eq('id', id);
+
+    if (deleteError) {
+      return res.status(500).json({ error: deleteError.message });
+    }
+
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('[DELETE /api/quiz-results/:id] Error deleting quiz result:', err);
+    res.status(500).json({ error: 'Internal server error', details: err.message });
+  }
+});
+
+app.delete('/api/kids/:kidId/quiz-results/:id', authenticateToken, async (req: any, res) => {
+  const supabase = getAdminSupabaseClient();
+  const { kidId, id } = req.params;
+  const userId = req.user?.id;
+
+  if (!id || !kidId) {
+    return res.status(400).json({ error: 'Missing kid or quiz result id' });
+  }
+
+  try {
+    const { data: quizResult, error: resultError } = await supabase
+      .from('quiz_results')
+      .select('id,kid_id')
+      .eq('id', id)
+      .single();
+
+    if (resultError || !quizResult || quizResult.kid_id !== kidId) {
+      return res.status(404).json({ error: 'Quiz result not found' });
+    }
+
+    const { data: kid, error: kidError } = await supabase
+      .from('kids')
+      .select('user_id')
+      .eq('id', kidId)
+      .single();
+
+    if (kidError || !kid || kid.user_id !== userId) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const { error: deleteError } = await supabase
+      .from('quiz_results')
+      .delete()
+      .eq('id', id);
+
+    if (deleteError) {
+      return res.status(500).json({ error: deleteError.message });
+    }
+
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('[DELETE /api/kids/:kidId/quiz-results/:id] Error deleting quiz result:', err);
+    res.status(500).json({ error: 'Internal server error', details: err.message });
+  }
+});
+
 // Chatbot Management Routes
 app.get('/api/chatbots/:kidId', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
@@ -4249,9 +4341,9 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
     responseSchema 
   } = req.body;
   
-    const modelNameInput = model_body || model_name_body || 'gemini-3-flash-preview';
+    const modelNameInput = model_body || model_name_body || 'gemini-3.1-pro-preview';
     const apiKey = (cleanEnvVar('GEMINI_API_KEY') || cleanEnvVar('GOOGLE_API_KEY') || cleanEnvVar('VITE_GEMINI_API_KEY') || '').trim();
-    let finalModelName = 'gemini-3-flash-preview';
+    let finalModelName = 'gemini-3.1-pro-preview';
     
     try {
     if (!apiKey || apiKey === 'undefined' || apiKey === 'null' || apiKey.length < 10) {
@@ -4261,7 +4353,7 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
     }
 
     const modelLower = (modelNameInput || '').toLowerCase();
-    finalModelName = 'gemini-3-flash-preview';
+    finalModelName = 'gemini-3.1-pro-preview';
 
     if (modelLower.includes('pro-image')) {
       finalModelName = 'gemini-3-pro-image-preview';
@@ -4269,7 +4361,7 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
       finalModelName = 'gemini-3.1-pro-preview';
     } else if (modelLower.includes('image')) {
       finalModelName = 'gemini-2.5-flash-image';
-    } else if (modelLower.includes('flash') || modelLower === '') {
+    } else if (modelLower.includes('flash')) {
       finalModelName = 'gemini-3-flash-preview';
     } else if (modelNameInput) {
       finalModelName = modelNameInput;

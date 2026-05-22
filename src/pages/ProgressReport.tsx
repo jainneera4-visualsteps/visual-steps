@@ -17,7 +17,8 @@ import {
   Eye,
   ArrowLeft,
   Lock,
-  HelpCircle
+  HelpCircle,
+  Trash2
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -94,6 +95,7 @@ export default function ProgressReport() {
   const [quizResults, setQuizResults] = useState<QuizResult[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [viewingQuizResult, setViewingQuizResult] = useState<QuizResult | null>(null);
+  const [deletingQuizId, setDeletingQuizId] = useState<string | null>(null);
   
   const [reportDuration, setReportDuration] = useState<'24h' | '7d' | '30d' | 'all'>('7d');
   const [historyPage, setHistoryPage] = useState(1);
@@ -181,6 +183,34 @@ export default function ProgressReport() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const deleteQuizResult = async (quizResultId: string) => {
+    const confirmed = window.confirm('Delete this quiz result? This cannot be undone.');
+    if (!confirmed) return;
+    setDeletingQuizId(quizResultId);
+
+    try {
+      if (!kidId) {
+        throw new Error('Child ID missing. Cannot delete quiz result.');
+      }
+
+      const res = await apiFetch(`/api/kids/${encodeURIComponent(kidId)}/quiz-results/${encodeURIComponent(quizResultId)}`, {
+        method: 'DELETE'
+      });
+
+      if (!res.ok) {
+        const err = await safeJson(res);
+        throw new Error(err?.error || 'Failed to delete quiz result');
+      }
+
+      setQuizResults(prev => prev.filter(result => result.id !== quizResultId));
+    } catch (error: any) {
+      console.error('ProgressReport: Failed to delete quiz result', error);
+      alert(error?.message || 'Unable to delete quiz result.');
+    } finally {
+      setDeletingQuizId(null);
     }
   };
 
@@ -904,6 +934,7 @@ export default function ProgressReport() {
                   <th className="px-6 py-4 text-center">SCORE</th>
                   <th className="px-6 py-4 text-center">PERCENTAGE</th>
                   <th className="px-6 py-4 text-right">COMPLETION DATE</th>
+                  <th className="px-6 py-4 text-center">DELETE</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -934,12 +965,23 @@ export default function ProgressReport() {
                         <td className="px-6 py-4 text-right text-slate-500 font-medium">
                           {formatSimpleDate(result.completed_at)}
                         </td>
+                        <td className="px-6 py-4 text-center">
+                          <button
+                            type="button"
+                            onClick={() => deleteQuizResult(result.id)}
+                            className="inline-flex items-center justify-center rounded-full p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                            disabled={deletingQuizId === result.id}
+                            aria-label="Delete quiz result"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </td>
                       </tr>
                     );
                   })
                 ) : (
                   <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center text-slate-400 italic">
+                    <td colSpan={5} className="px-6 py-12 text-center text-slate-400 italic">
                       No quiz results found for this period.
                     </td>
                   </tr>

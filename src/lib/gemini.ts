@@ -33,7 +33,7 @@ export async function generateContent(options: {
       throw new Error("No valid API key in frontend");
     }
 
-    const modelName = options.model || modelNames.flash;
+    const modelName = options.model || modelNames.pro;
     const ai = getGenAI();
     
     const response = await ai.models.generateContent({
