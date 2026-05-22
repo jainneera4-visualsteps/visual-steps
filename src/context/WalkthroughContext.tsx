@@ -20,7 +20,6 @@ interface WalkthroughContextType {
   currentStep: number;
   setCurrentStep: (step: number) => void;
   steps: WalkthroughStep[];
-  setSteps: (steps: WalkthroughStep[]) => void;
   hasSeenWalkthrough: boolean;
   markWalkthroughSeen: () => void;
   nextStep: () => void;
@@ -414,7 +413,6 @@ export function WalkthroughProvider({ children }: { children: React.ReactNode })
         currentStep,
         setCurrentStep,
         steps,
-        setSteps,
         hasSeenWalkthrough,
         markWalkthroughSeen,
         nextStep,

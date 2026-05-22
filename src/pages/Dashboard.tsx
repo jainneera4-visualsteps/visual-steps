@@ -729,10 +729,12 @@ export default function Dashboard() {
                                   const trackerSuccess = await handleUpdateTracker(dashboardSelectedKidId, defId, newPoints, remarks);
                                   
                                   // Check if goal earned
-                                  console.log('Checking goal:', { newPoints, goal: behaviorDef.goal, trackerSuccess });
-                                  if (trackerSuccess && newPoints >= (behaviorDef.goal || 1)) {
-                                    // The backend updateTrackerAndCheckGoal handles rewarding and logging on its own.
-                                    console.log('Goal reached, backend handles rewards.');
+                                  if (behaviorDef) {
+                                    console.log('Checking goal:', { newPoints, goal: behaviorDef.goal, trackerSuccess });
+                                    if (trackerSuccess && newPoints >= (behaviorDef.goal || 1)) {
+                                      // The backend updateTrackerAndCheckGoal handles rewarding and logging on its own.
+                                      console.log('Goal reached, backend handles rewards.');
+                                    }
                                   }
                                 }
                                 setSelectedBehaviors(new Set());
