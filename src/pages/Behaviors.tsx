@@ -45,6 +45,7 @@ interface BehaviorDefinition {
   target_time?: string;
   target_seconds?: number;
   is_active: boolean;
+  color?: string;
 }
 
 interface Behavior {
@@ -76,6 +77,7 @@ export default function Behaviors() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<'log' | 'rules' | 'progress'>('rules');
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -115,7 +117,15 @@ export default function Behaviors() {
     };
 
     if (kidId) fetchData();
-  }, [kidId]);
+  }, [kidId, refreshTrigger]);
+
+  useEffect(() => {
+    const handleRemoteUpdate = () => {
+      setRefreshTrigger(prev => prev + 1);
+    };
+    window.addEventListener('api_data_updated', handleRemoteUpdate);
+    return () => window.removeEventListener('api_data_updated', handleRemoteUpdate);
+  }, []);
 
   const handleLogSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -534,16 +544,28 @@ export default function Behaviors() {
                     definitions.map(def => {
                       // Prefer columns, fallback to parsing description (migration)
                       let targetTime = def.target_time;
-                      const timeMatch = (def.description || '').match(/^\[Time: (\d{2}):(\d{2}):(\d{2})\]/);
+                      let displayDesc = def.description || '';
+                      let colorVal = def.color || '#10b981'; // default emerald/green
+
+                      const colorMatch = displayDesc.match(/^\[Color: (#?[a-zA-Z0-9]+)\]\s*(.*)$/s);
+                      if (colorMatch) {
+                        colorVal = colorMatch[1];
+                        displayDesc = colorMatch[2];
+                      }
+
+                      const timeMatch = displayDesc.match(/^\[Time: (\d{2}):(\d{2}):(\d{2})\]/);
                       if (timeMatch && (!def.target_time || def.target_time === '00:00:00')) {
                         targetTime = `${timeMatch[1]}:${timeMatch[2]}:${timeMatch[3]}`;
                       }
                       
                       return (
-                        <Card key={def.id} className="group hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-500/5 transition-all duration-300">
+                        <Card key={def.id} className="group hover:shadow-xl transition-all duration-300 border-l-4" style={{ borderLeftColor: colorVal }}>
                           <CardContent className="p-6 flex items-center justify-between">
                             <div className="flex items-center gap-5">
-                              <div className="h-14 w-14 rounded-2xl bg-emerald-50 flex items-center justify-center text-2xl shadow-sm group-hover:scale-110 transition-transform">
+                              <div 
+                                className="h-14 w-14 rounded-2xl flex items-center justify-center text-2xl shadow-sm group-hover:scale-110 transition-transform border"
+                                style={{ backgroundColor: `${colorVal}15`, borderColor: colorVal, color: colorVal }}
+                              >
                                 {def.icon || '⭐'}
                               </div>
                               <div>
@@ -607,16 +629,28 @@ export default function Behaviors() {
                   definitions.map(def => {
                     // Prefer columns, fallback to parsing description (migration)
                     let targetTime = def.target_time;
-                    const timeMatch = (def.description || '').match(/^\[Time: (\d{2}):(\d{2}):(\d{2})\]/);
+                    let displayDesc = def.description || '';
+                    let colorVal = def.color || '#ef4444'; // default red/rose
+
+                    const colorMatch = displayDesc.match(/^\[Color: (#?[a-zA-Z0-9]+)\]\s*(.*)$/s);
+                    if (colorMatch) {
+                      colorVal = colorMatch[1];
+                      displayDesc = colorMatch[2];
+                    }
+
+                    const timeMatch = displayDesc.match(/^\[Time: (\d{2}):(\d{2}):(\d{2})\]/);
                     if (timeMatch && (!def.target_time || def.target_time === '00:00:00')) {
                       targetTime = `${timeMatch[1]}:${timeMatch[2]}:${timeMatch[3]}`;
                     }
 
                     return (
-                      <Card key={def.id} className="group hover:border-rose-200 hover:shadow-xl hover:shadow-rose-500/5 transition-all duration-300">
+                      <Card key={def.id} className="group hover:shadow-xl transition-all duration-300 border-l-4" style={{ borderLeftColor: colorVal }}>
                         <CardContent className="p-6 flex items-center justify-between">
                           <div className="flex items-center gap-5">
-                            <div className="h-14 w-14 rounded-2xl bg-rose-50 flex items-center justify-center text-2xl shadow-sm group-hover:scale-110 transition-transform">
+                            <div 
+                              className="h-14 w-14 rounded-2xl flex items-center justify-center text-2xl shadow-sm group-hover:scale-110 transition-transform border"
+                              style={{ backgroundColor: `${colorVal}15`, borderColor: colorVal, color: colorVal }}
+                            >
                               {def.icon || '⚠️'}
                             </div>
                             <div>

@@ -1,5 +1,6 @@
 {
   "name": "Visual Steps - Empowering Every Step of the Journey",
   "description": "A supportive platform for parents of children with autism, featuring profile management, developmental tracking, and a visual learning interface inspired by IXL.",
-  "requestFramePermissions": ["microphone", "geolocation"]
+  "requestFramePermissions": ["microphone", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

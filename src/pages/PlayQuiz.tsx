@@ -336,6 +336,16 @@ export default function PlayQuiz() {
     }
   };
 
+  const handleRestart = () => {
+    setCurrentQuestionIndex(0);
+    setSelectedAnswers([]);
+    setTypedAnswer('');
+    setIsAnswerChecked(false);
+    setScore(0);
+    setIsFinished(false);
+    setUserResponses([]);
+  };
+
   if (isLoading) {
     console.log('PlayQuiz: isLoading is true');
     return (

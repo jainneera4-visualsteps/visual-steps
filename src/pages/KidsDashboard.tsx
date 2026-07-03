@@ -11,6 +11,7 @@ import { ActivityDetailModal } from '../components/ActivityDetailModal';
 import { getZonedTime, formatInTimezone, convertDateToTimeZone } from '../utils/dateUtils';
 import { SocialStoryModal } from '../components/SocialStoryModal';
 import { ChatbotComponent } from '../components/ChatbotComponent';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface ActivityStep {
   id?: number;
@@ -152,6 +153,182 @@ export default function KidsDashboard() {
   const [behaviorDefinitions, setBehaviorDefinitions] = useState<any[]>([]);
   const [behaviorLogs, setBehaviorLogs] = useState<any[]>([]);
   const [behaviorTracker, setBehaviorTracker] = useState<any[]>([]);
+
+  // Token flying animation states
+  const [flyingTokens, setFlyingTokens] = useState<Array<{
+    id: string;
+    startX: number;
+    startY: number;
+    endX: number;
+    endY: number;
+    color: string;
+  }>>([]);
+
+  const [celebrationParticles, setCelebrationParticles] = useState<Array<{
+    id: string;
+    x: number;
+    y: number;
+    color: string;
+    angle: number;
+    velocity: number;
+    size: number;
+  }>>([]);
+
+  const prevTrackerRef = useRef<any[]>([]);
+  const isInitialTrackerLoadRef = useRef(true);
+
+  // Play dynamic synthesis sound when token starts flying
+  const playLaunchSound = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const now = ctx.currentTime;
+      
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(330, now); // E4
+      osc.frequency.exponentialRampToValueAtTime(660, now + 0.25); // E5
+      
+      gain.gain.setValueAtTime(0.08, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+      
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.3);
+    } catch (e) {
+      console.warn('Launch sound error:', e);
+    }
+  };
+
+  // Play dynamic bell chime sound when token lands
+  const playImpactSound = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const now = ctx.currentTime;
+      
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(880, now); // A5
+      gain1.gain.setValueAtTime(0.1, now);
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = 'triangle';
+      osc2.frequency.setValueAtTime(1320, now + 0.05); // E6
+      gain2.gain.setValueAtTime(0.05, now + 0.05);
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      
+      osc1.start(now);
+      osc1.stop(now + 0.4);
+      osc2.start(now + 0.05);
+      osc2.stop(now + 0.35);
+    } catch (e) {
+      console.warn('Impact sound error:', e);
+    }
+  };
+
+  // Trigger celebration particles at destination
+  const spawnCelebration = (x: number, y: number, color: string) => {
+    const particleCount = 12;
+    const newParticles = Array.from({ length: particleCount }).map((_, idx) => {
+      const angle = (idx / particleCount) * 360 + (Math.random() * 15 - 7.5);
+      const velocity = 3 + Math.random() * 4;
+      const size = 6 + Math.random() * 8;
+      return {
+        id: `${Date.now()}-${idx}-${Math.random()}`,
+        x,
+        y,
+        color,
+        angle,
+        velocity,
+        size
+      };
+    });
+
+    setCelebrationParticles(prev => [...prev, ...newParticles]);
+
+    // Remove particles after 800ms
+    setTimeout(() => {
+      const idsToRemove = newParticles.map(p => p.id);
+      setCelebrationParticles(prev => prev.filter(p => !idsToRemove.includes(p.id)));
+    }, 800);
+  };
+
+  // Trigger flying tokens
+  const triggerFlyingToken = (definitionId: string, amount: number) => {
+    const def = behaviorDefinitions.find(d => d.id === definitionId);
+    if (!def) return;
+
+    let rawDesc = def.description || '';
+    let colorVal = def.color || (def.type === 'desired' ? '#10b981' : '#ef4444');
+    const colorMatch = rawDesc.match(/^\[Color: (#?[a-zA-Z0-9]+)\]\s*(.*)$/s);
+    if (colorMatch) {
+      colorVal = colorMatch[1];
+    }
+
+    for (let i = 0; i < amount; i++) {
+      setTimeout(() => {
+        const sourceEl = document.getElementById(`behavior-card-${definitionId}`);
+        const destEl = document.getElementById('token-destination-container');
+
+        if (sourceEl && destEl) {
+          const sourceRect = sourceEl.getBoundingClientRect();
+          const destRect = destEl.getBoundingClientRect();
+
+          const startX = sourceRect.left + sourceRect.width / 2;
+          const startY = sourceRect.top + sourceRect.height / 2;
+          const endX = destRect.left + destRect.width / 2;
+          const endY = destRect.top + destRect.height / 2;
+
+          const tokenId = `${definitionId}-${Date.now()}-${i}-${Math.random()}`;
+          setFlyingTokens(prev => [...prev, {
+            id: tokenId,
+            startX,
+            startY,
+            endX,
+            endY,
+            color: colorVal
+          }]);
+          playLaunchSound();
+        }
+      }, i * 150);
+    }
+  };
+
+  // Listen to point increases
+  useEffect(() => {
+    if (!behaviorTracker || behaviorTracker.length === 0) return;
+
+    if (isInitialTrackerLoadRef.current) {
+      prevTrackerRef.current = behaviorTracker;
+      isInitialTrackerLoadRef.current = false;
+      return;
+    }
+
+    behaviorTracker.forEach((newEntry) => {
+      const prevEntry = prevTrackerRef.current.find(t => t.definition_id === newEntry.definition_id);
+      const prevPoints = prevEntry ? prevEntry.points : 0;
+      const newPoints = newEntry.points;
+
+      if (newPoints > prevPoints) {
+        const diff = newPoints - prevPoints;
+        triggerFlyingToken(newEntry.definition_id, diff);
+      }
+    });
+
+    prevTrackerRef.current = behaviorTracker;
+  }, [behaviorTracker, behaviorDefinitions]);
 
   const calculateAge = (dob: string, timezone?: string) => {
     if (!dob) return '';
@@ -1266,16 +1443,94 @@ export default function KidsDashboard() {
                         </div>
                         <h3 className={`text-lg font-black ${currentTheme.rulesTitle} uppercase tracking-wider`}>My Progress</h3>
                       </div>
+
+                      {/* Token Collection section on top */}
+                      {behaviorDefinitions.filter(def => def.is_active !== false).length > 0 && (
+                        <div className="mb-6 pb-6 border-b border-slate-200/60 dark:border-slate-700/60" id="token-destination-container">
+                          <div className="flex items-center gap-2 mb-4">
+                            <Sparkles className="h-4 w-4 text-amber-500 animate-pulse" />
+                            <h4 className="text-sm font-black text-slate-700 uppercase tracking-wider">
+                              My Points Earned
+                            </h4>
+                          </div>
+                          
+                          {(() => {
+                            const allTokens = behaviorDefinitions
+                              .filter(def => def.is_active !== false)
+                              .flatMap((def) => {
+                                let rawDesc = def.description || '';
+                                let colorVal = def.color || (def.type === 'desired' ? '#10b981' : '#ef4444');
+
+                                const colorMatch = rawDesc.match(/^\[Color: (#?[a-zA-Z0-9]+)\]\s*(.*)$/s);
+                                if (colorMatch) {
+                                  colorVal = colorMatch[1];
+                                  rawDesc = colorMatch[2];
+                                }
+
+                                const timeMatch = rawDesc.match(/^\[Time: (\d{2}):(\d{2}):(\d{2})\](?:\[Priority: (High|Medium|Low)\])?(?:\[Goal: (\d+)\])? (.*)$/s);
+                                const displayDesc = timeMatch ? timeMatch[6] : rawDesc;
+
+                                const trackerEntry = behaviorTracker.find(t => t.definition_id === def.id);
+                                const currentHits = trackerEntry ? trackerEntry.points : 0;
+                                
+                                return Array.from({ length: currentHits }).map((_, idx) => ({
+                                  id: `${def.id}-${idx}`,
+                                  name: displayDesc || def.name,
+                                  color: colorVal,
+                                }));
+                              });
+
+                            if (allTokens.length > 0) {
+                              return (
+                                <div className="flex flex-wrap gap-2 p-3 bg-slate-50/50 rounded-xl border border-slate-100 min-h-[60px] items-center">
+                                  {allTokens.map((token) => (
+                                    <div 
+                                      key={token.id}
+                                      className="h-8 w-8 rounded-full flex items-center justify-center shadow-md relative transition-transform duration-300 hover:scale-110 shrink-0 border border-white/25 animate-in zoom-in-50 duration-300"
+                                      style={{ 
+                                        backgroundColor: token.color,
+                                        boxShadow: `0 4px 6px -1px ${token.color}55, 0 2px 4px -2px ${token.color}55, inset 0 2px 4px rgba(255, 255, 255, 0.45)`
+                                      }}
+                                      title={token.name}
+                                    >
+                                      <Star className="h-4 w-4 fill-white text-white/95" />
+                                      <div className="absolute inset-0.5 rounded-full border border-white/20 pointer-events-none" />
+                                    </div>
+                                  ))}
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div className="text-center py-4 bg-slate-50/50 rounded-xl border border-slate-100 border-dashed">
+                                <p className="text-xs font-medium text-slate-400">
+                                  No tokens collected yet. Start your daily habits to earn them!
+                                </p>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+
                       <div className="space-y-4">
                         {behaviorDefinitions.filter(def => def.is_active !== false).length > 0 ? (
                           behaviorDefinitions
                             .filter(def => def.is_active !== false)
                             .map((def) => {
-                            const timeMatch = (def.description || '').match(/^\[Time: (\d{2}):(\d{2}):(\d{2})\](?:\[Priority: (High|Medium|Low)\])?(?:\[Goal: (\d+)\])? (.*)$/s);
+                            let rawDesc = def.description || '';
+                            let colorVal = def.color || (def.type === 'desired' ? '#10b981' : '#ef4444');
+
+                            const colorMatch = rawDesc.match(/^\[Color: (#?[a-zA-Z0-9]+)\]\s*(.*)$/s);
+                            if (colorMatch) {
+                              colorVal = colorMatch[1];
+                              rawDesc = colorMatch[2];
+                            }
+
+                            const timeMatch = rawDesc.match(/^\[Time: (\d{2}):(\d{2}):(\d{2})\](?:\[Priority: (High|Medium|Low)\])?(?:\[Goal: (\d+)\])? (.*)$/s);
                             const priority = def.priority || (timeMatch && timeMatch[4] ? timeMatch[4] : 'Medium');
                             const goalValue = def.goal || (timeMatch && timeMatch[5] ? parseInt(timeMatch[5]) : 1);
                             const targetTime = def.target_time || (timeMatch ? `${timeMatch[1]}:${timeMatch[2]}:${timeMatch[3]}` : null);
-                            const displayDesc = timeMatch ? timeMatch[6] : def.description;
+                            const displayDesc = timeMatch ? timeMatch[6] : rawDesc;
                             
                             // Count actual hits/logs for this behavior
                             const trackerEntry = behaviorTracker.find(t => t.definition_id === def.id);
@@ -1287,47 +1542,39 @@ export default function KidsDashboard() {
                             const progress = Math.min(100, (currentHits / goalValue) * 100);
                             
                             return (
-                              <div key={def.id} className="space-y-3 p-3 rounded-lg bg-white/50 border border-slate-100 shadow-sm transition-all hover:shadow-md">
-                                {remarks && (
-                                  <p className="text-xs text-brand-700 font-bold italic animate-in fade-in slide-in-from-top-1 duration-500">
-                                    {remarks}
-                                  </p>
-                                )}
-                                <div className="flex items-center">
-                                  <div className="flex-1 flex items-center">
-                                    <div className="relative flex-1 group">
-                                      {/* Battery Body */}
-                                      <div className={`h-8 w-full rounded-lg border-2 p-1 flex gap-1 ${kid?.theme === 'space' ? 'border-slate-700 bg-slate-800' : 'border-slate-300 bg-slate-50 shadow-inner'}`}>
-                                        {/* Segments (using 5 segments like typical phone battery levels) */}
-                                        {[20, 40, 60, 80, 100].map((threshold, i) => (
-                                          <div 
-                                            key={threshold}
-                                            style={{ transitionDelay: `${i * 100}ms` }}
-                                            className={`h-full flex-1 rounded-sm transition-all duration-700 ${
-                                              progress >= threshold 
-                                                ? (def.type === 'desired' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]' : 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.4)]')
-                                                : progress > (threshold - 20)
-                                                  ? (def.type === 'desired' ? 'bg-emerald-500/40' : 'bg-rose-500/40')
-                                                  : 'bg-transparent'
-                                            }`}
-                                          />
-                                        ))}
-                                      </div>
-                                      
-                                      {/* Battery Tip */}
-                                      <div className={`absolute -right-2 top-1/2 -translate-y-1/2 w-2 h-4 rounded-r-md border-y-2 border-r-2 ${kid?.theme === 'space' ? 'border-slate-700 bg-slate-800' : 'border-slate-300 bg-slate-200'}`} />
-                                      
-                                      {/* Energy "Zzap" effect for high progress */}
-                                      {progress >= 100 && (
-                                        <div className="absolute -top-3 -right-3 animate-bounce">
-                                          <Sparkles className="h-5 w-5 text-yellow-400" />
+                              <div key={def.id} id={`behavior-card-${def.id}`} className="space-y-3 p-3 rounded-lg bg-white/50 border border-slate-100 shadow-sm transition-all hover:shadow-md">
+                                <div className="flex flex-col gap-2">
+                                  {currentHits > 0 ? (
+                                    <div className="flex flex-wrap gap-1.5 items-center min-h-[32px]">
+                                      {Array.from({ length: currentHits }).map((_, index) => (
+                                        <div 
+                                          key={index}
+                                          className="h-7 w-7 rounded-full flex items-center justify-center shadow-md relative transition-transform duration-300 hover:scale-110 shrink-0 border border-white/25 animate-in zoom-in-50 duration-300"
+                                          style={{ 
+                                            backgroundColor: colorVal,
+                                            boxShadow: `0 4px 6px -1px ${colorVal}55, 0 2px 4px -2px ${colorVal}55, inset 0 2px 4px rgba(255, 255, 255, 0.45)`
+                                          }}
+                                          title={`Token ${index + 1}`}
+                                        >
+                                          {/* Inner gold/white shiny star to make it look like a token/coin */}
+                                          <Star className="h-3.5 w-3.5 fill-white text-white/95" />
+                                          <div className="absolute inset-0.5 rounded-full border border-white/20 pointer-events-none" />
                                         </div>
-                                      )}
+                                      ))}
+                                      <span className="text-xs font-black ml-1.5 uppercase tracking-wide px-2 py-0.5 rounded bg-slate-100 border border-slate-200" style={{ color: colorVal }}>
+                                        {currentHits} {currentHits === 1 ? 'Token' : 'Tokens'}
+                                      </span>
                                     </div>
-                                    <span className={`text-sm font-black ml-5 shrink-0 ${def.type === 'desired' ? 'text-emerald-600' : 'text-rose-600'} flex items-center gap-1`}>
-                                      {Math.round(progress)}
-                                    </span>
-                                  </div>
+                                  ) : (
+                                    <div className="flex items-center gap-2 min-h-[32px]">
+                                      <div className="h-7 w-7 rounded-full border-2 border-dashed border-slate-300 flex items-center justify-center shrink-0">
+                                        <Star className="h-3.5 w-3.5 text-slate-300" />
+                                      </div>
+                                      <span className="text-[11px] font-bold text-slate-400">
+                                        Earn tokens for doing this!
+                                      </span>
+                                    </div>
+                                  )}
                                 </div>
                                 <div className="space-y-1">
                                   <p className="text-[16px] font-black text-slate-700 uppercase tracking-tight">
@@ -1389,6 +1636,24 @@ export default function KidsDashboard() {
                   <h2 className="text-3xl font-black text-slate-800 mb-2 leading-tight">Amazing Job!</h2>
                   <p className="text-slate-600 mb-8 font-medium">
                     {(() => {
+                      if (pendingReward.is_behavior_goal_reward) {
+                        return (
+                          <>
+                            You have earned 1 <span className="text-emerald-600 font-black">{pendingReward.reward_type}</span> for reaching <span className="text-emerald-600 font-black">10 points</span> on your Daily Behavior Tracker!
+                            <span className="block mt-2 font-bold text-slate-500 text-sm italic">The {pendingReward.reward_type} has been added to your balance!</span>
+                          </>
+                        );
+                      }
+
+                      if (pendingReward.is_special_reward) {
+                        return (
+                          <>
+                            You have earned the reward item: <span className="text-emerald-600 font-black">{pendingReward.reward_item_name}</span> for reaching <span className="text-emerald-600 font-black">10 points</span> on your Daily Behavior Tracker!
+                            <span className="block mt-2 font-bold text-slate-500 text-sm italic">This reward item has been added to your collection!</span>
+                          </>
+                        );
+                      }
+
                       const rewardTypeRaw = kid?.reward_type || 'stars';
                       const rewardType = pendingReward.amount === 1 
                         ? (rewardTypeRaw.toLowerCase().endsWith('s') ? rewardTypeRaw.slice(0, -1) : rewardTypeRaw)
@@ -1460,6 +1725,106 @@ export default function KidsDashboard() {
           </div>
         )}
       </main>
+
+      {/* Flying Tokens and Celebration Particles Layer */}
+      <AnimatePresence>
+        {flyingTokens.map((token) => (
+          <motion.div
+            key={token.id}
+            initial={{ 
+              x: token.startX - 14, 
+              y: token.startY - 14, 
+              scale: 0.5, 
+              opacity: 0,
+              rotate: 0
+            }}
+            animate={{ 
+              x: token.endX - 14, 
+              y: token.endY - 14, 
+              scale: [1, 1.4, 1], 
+              opacity: [0, 1, 1, 0.8],
+              rotate: 360
+            }}
+            exit={{ opacity: 0 }}
+            transition={{ 
+              duration: 0.8, 
+              ease: [0.25, 1, 0.5, 1]
+            }}
+            onAnimationComplete={() => {
+              setFlyingTokens(prev => prev.filter(t => t.id !== token.id));
+              spawnCelebration(token.endX, token.endY, token.color);
+              playImpactSound();
+            }}
+            style={{
+              position: 'fixed',
+              left: 0,
+              top: 0,
+              zIndex: 9999,
+              pointerEvents: 'none',
+            }}
+          >
+            <div 
+              className="h-7 w-7 rounded-full flex items-center justify-center shadow-lg border border-white/40"
+              style={{ 
+                backgroundColor: token.color,
+                boxShadow: `0 0 12px ${token.color}aa, inset 0 2px 4px rgba(255, 255, 255, 0.45)`
+              }}
+            >
+              <Star className="h-3.5 w-3.5 fill-white text-white/95" />
+            </div>
+          </motion.div>
+        ))}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {celebrationParticles.map((particle) => {
+          const rad = (particle.angle * Math.PI) / 180;
+          const destX = Math.cos(rad) * (particle.velocity * 12);
+          const destY = Math.sin(rad) * (particle.velocity * 12);
+
+          return (
+            <motion.div
+              key={particle.id}
+              initial={{ 
+                x: particle.x, 
+                y: particle.y, 
+                scale: 0, 
+                opacity: 1,
+                rotate: 0
+              }}
+              animate={{ 
+                x: particle.x + destX, 
+                y: particle.y + destY, 
+                scale: [0.8, 1.2, 0], 
+                opacity: [1, 0.8, 0],
+                rotate: Math.random() > 0.5 ? 180 : -180
+              }}
+              transition={{ 
+                duration: 0.7, 
+                ease: "easeOut" 
+              }}
+              style={{
+                position: 'fixed',
+                left: 0,
+                top: 0,
+                zIndex: 9998,
+                pointerEvents: 'none',
+                width: particle.size,
+                height: particle.size,
+              }}
+            >
+              <Sparkles 
+                style={{ 
+                  color: particle.color, 
+                  width: particle.size, 
+                  height: particle.size,
+                  filter: `drop-shadow(0 0 4px ${particle.color})`
+                }} 
+              />
+            </motion.div>
+          );
+        })}
+      </AnimatePresence>
 
     </div>
   );

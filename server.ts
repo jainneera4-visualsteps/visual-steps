@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Type } from '@google/genai';
 // import serverless from 'serverless-http';
 import http from 'http';
 import { Server } from 'socket.io';
@@ -611,6 +611,371 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+// Helper to compile dynamic family action history log for AI instruction
+async function buildConciergeSystemInstruction(req: any): Promise<string> {
+  const userId = req.user?.id;
+  let historyLogText = "No recent system history log entries recorded yet.";
+  
+  if (userId) {
+    try {
+      const supabase = getSupabaseForUser(req);
+      
+      // Get kids
+      let { data: kids } = await supabase
+        .from('kids')
+        .select('id, name')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+        
+      if (!kids || kids.length === 0) {
+        const { data: parentKids } = await supabase
+          .from('kids')
+          .select('id, name')
+          .eq('parent_id', userId)
+          .order('created_at', { ascending: false });
+        kids = parentKids || [];
+      }
+      
+      if (kids && kids.length > 0) {
+        const kidIds = kids.map(k => k.id);
+        const kidNamesMap = new Map(kids.map(k => [k.id, k.name]));
+        
+        // Fetch recent activities
+        const { data: recentActivities } = await supabase
+          .from('activities')
+          .select('id, activity_type, category, description, title, kid_id, created_at')
+          .in('kid_id', kidIds)
+          .order('created_at', { ascending: false })
+          .limit(3);
+          
+        // Fetch recent behavior logs
+        const { data: recentBehaviorLogs } = await supabase
+          .from('behavior_logs')
+          .select('id, description, token_change, rewards_earned, kid_id, created_at')
+          .in('kid_id', kidIds)
+          .order('created_at', { ascending: false })
+          .limit(3);
+          
+        // Fetch recent worksheets
+        const { data: recentWorksheets } = await supabase
+          .from('worksheets')
+          .select('id, kid_id, subject, topic, grade_level, created_at')
+          .in('kid_id', kidIds)
+          .order('created_at', { ascending: false })
+          .limit(3);
+          
+        const logLines: string[] = [];
+        
+        if (recentActivities && recentActivities.length > 0) {
+          recentActivities.forEach(act => {
+            const kidName = kidNamesMap.get(act.kid_id) || 'Student';
+            const dateStr = act.created_at ? new Date(act.created_at).toLocaleDateString() : 'recent';
+            logLines.push(`- Scheduled Activity: Created "${act.title || act.description || 'Task'}" (${act.activity_type || 'chore'}) for ${kidName} on ${dateStr}.`);
+          });
+        }
+        
+        if (recentBehaviorLogs && recentBehaviorLogs.length > 0) {
+          recentBehaviorLogs.forEach(log => {
+            const kidName = kidNamesMap.get(log.kid_id) || 'Student';
+            const dateStr = log.created_at ? new Date(log.created_at).toLocaleDateString() : 'recent';
+            const tokens = log.token_change || log.rewards_earned || 0;
+            logLines.push(`- Token Economy Action: Distributed ${tokens} reward token(s) to ${kidName} for "${log.description || 'Positive Behavior'}" on ${dateStr}.`);
+          });
+        }
+        
+        if (recentWorksheets && recentWorksheets.length > 0) {
+          recentWorksheets.forEach(ws => {
+            const kidName = kidNamesMap.get(ws.kid_id) || 'Student';
+            const dateStr = ws.created_at ? new Date(ws.created_at).toLocaleDateString() : 'recent';
+            logLines.push(`- Worksheet Generated: Created a ${ws.subject || 'Math'} worksheet about ${ws.topic || 'practice'} for ${kidName} on ${dateStr}.`);
+          });
+        }
+        
+        if (logLines.length > 0) {
+          historyLogText = logLines.join('\n');
+        }
+      }
+    } catch (e) {
+      console.error('Error compiling user history log for system instructions:', e);
+    }
+  }
+
+  return `# ROLE
+You are an adaptive AI Assistant for our parenting platform. Your job is to help parents seamlessly navigate the website, explain available features, and dynamically configure or execute any application functionality based on the user's active context.
+
+# DYNAMIC MEMORY & LEARNING
+You have access to a live "User History Log" provided at the start of the conversation. This log updates automatically whenever the user takes any action on the website. 📈
+
+Always review the User History Log before responding. 
+- If a user wants to repeat, modify, or reference a past action, look at the most recent relevant entries in the History Log. 🕒
+- Replicate or adapt the parameters, settings, and context found in that log entry to execute the new task precisely. ⚙️
+
+# CURRENT USER HISTORY LOG
+${historyLogText}
+
+# INSTRUCTIONS
+1. Check the history log to understand the user's recent activity, preferences, and past actions across the platform. 📋
+2. If critical information is missing to repeat or perform an action, ask exactly one clarifying question. ❓
+3. Use your available function tools to execute the appropriate website action based on these learned details. 🚀`;
+}
+
+// AI Command Endpoint
+app.post('/api/command', authenticateToken, async (req: any, res) => {
+  console.log('[API] /api/command hit!', { prompt: req.body?.prompt });
+  const { prompt } = req.body;
+  
+  // Clean apiKey safely using cleanEnvVar helper and standard direct env fallback
+  let apiKey = (cleanEnvVar('GEMINI_API_KEY') || cleanEnvVar('VITE_GEMINI_API_KEY') || cleanEnvVar('GOOGLE_API_KEY') || '').trim();
+  if (!apiKey || apiKey === 'undefined' || apiKey === 'null' || apiKey.length < 10) {
+    apiKey = (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
+  }
+  
+  console.log('[API] Using API Key (DEBUG):', {
+    present: !!apiKey,
+    length: apiKey?.length,
+    start: apiKey?.substring(0, 4)
+  });
+  if (!apiKey || apiKey === 'undefined' || apiKey === 'null' || apiKey.length < 10) {
+    console.log('[API] GEMINI_API_KEY missing or invalid');
+    return res.status(500).json({ error: 'GEMINI_API_KEY is not configured or invalid' });
+  }
+
+  try {
+    const ai = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
+
+    const systemInstruction = await buildConciergeSystemInstruction(req);
+
+    // Try gemini-3.5-flash first as it is the standard and widely supported text model
+    let response;
+    try {
+      console.log('[API] Attempting model gemini-3.5-flash');
+      response = await ai.models.generateContent({
+        model: 'gemini-3.5-flash',
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        config: {
+          systemInstruction,
+          tools: [{
+            functionDeclarations: [
+              {
+                name: 'triggerOnboardingTour',
+                description: 'Triggers the onboarding walkthrough tour for the parent.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {}
+                }
+              },
+              {
+                name: 'openPage',
+                description: 'Navigates the parent to a specific page/route of the App Map. Path options: "/", "/worksheets", "/reports", "/planner", "/tokens".',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    path: {
+                      type: Type.STRING,
+                      description: 'The target route, e.g. /worksheets, /reports, /planner, /tokens, /'
+                    }
+                  },
+                  required: ['path']
+                }
+              },
+              {
+                name: 'addActivity',
+                description: 'Creates a new digital chore, homework, task, or activity for a child.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    activityType: {
+                      type: Type.STRING,
+                      description: 'Type of activity, e.g. chore, learning, activity'
+                    },
+                    title: {
+                      type: Type.STRING,
+                      description: 'Title or name of the activity, e.g. vacuuming, reading'
+                    }
+                  },
+                  required: ['activityType', 'title']
+                }
+              },
+              {
+                name: 'distributeTokens',
+                description: 'Distributes and awards reward tokens to a kid for positive behaviors.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    tokens: {
+                      type: Type.INTEGER,
+                      description: 'How many tokens to distribute'
+                    }
+                  },
+                  required: ['tokens']
+                }
+              },
+              {
+                name: 'generate_custom_quiz',
+                description: 'Triggers the creation of a personalized quiz for a child based on history context.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    student_id: {
+                      type: Type.STRING,
+                      description: 'The unique identifier of the kid/student.'
+                    },
+                    subject: {
+                      type: Type.STRING,
+                      description: 'The educational subject of the quiz (e.g., Mathematics, Science, Reading).'
+                    },
+                    topic: {
+                      type: Type.STRING,
+                      description: 'The specific topic or concept to test (e.g., Addition, Photosynthesis, Sight Words).'
+                    },
+                    difficulty: {
+                      type: Type.STRING,
+                      description: 'The difficulty level of the quiz (e.g., easy, medium, hard).'
+                    },
+                    number_of_questions: {
+                      type: Type.INTEGER,
+                      description: 'The number of questions to generate for the quiz (default is 5).'
+                    }
+                  },
+                  required: ['student_id', 'subject', 'topic']
+                }
+              }
+            ]
+          }]
+        }
+      });
+    } catch (modelError: any) {
+      console.warn('[API] gemini-3.5-flash failed, falling back to gemini-3-flash-preview:', modelError.message || modelError);
+      response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        config: {
+          systemInstruction,
+          tools: [{
+            functionDeclarations: [
+              {
+                name: 'triggerOnboardingTour',
+                description: 'Triggers the onboarding walkthrough tour for the parent.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {}
+                }
+              },
+              {
+                name: 'openPage',
+                description: 'Navigates the parent to a specific page/route of the App Map. Path options: "/", "/worksheets", "/reports", "/planner", "/tokens".',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    path: {
+                      type: Type.STRING,
+                      description: 'The target route, e.g. /worksheets, /reports, /planner, /tokens, /'
+                    }
+                  },
+                  required: ['path']
+                }
+              },
+              {
+                name: 'addActivity',
+                description: 'Creates a new digital chore, homework, task, or activity for a child.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    activityType: {
+                      type: Type.STRING,
+                      description: 'Type of activity, e.g. chore, learning, activity'
+                    },
+                    title: {
+                      type: Type.STRING,
+                      description: 'Title or name of the activity, e.g. vacuuming, reading'
+                    }
+                  },
+                  required: ['activityType', 'title']
+                }
+              },
+              {
+                name: 'distributeTokens',
+                description: 'Distributes and awards reward tokens to a kid for positive behaviors.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    tokens: {
+                      type: Type.INTEGER,
+                      description: 'How many tokens to distribute'
+                    }
+                  },
+                  required: ['tokens']
+                }
+              },
+              {
+                name: 'generate_custom_quiz',
+                description: 'Triggers the creation of a personalized quiz for a child based on history context.',
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    student_id: {
+                      type: Type.STRING,
+                      description: 'The unique identifier of the kid/student.'
+                    },
+                    subject: {
+                      type: Type.STRING,
+                      description: 'The educational subject of the quiz (e.g., Mathematics, Science, Reading).'
+                    },
+                    topic: {
+                      type: Type.STRING,
+                      description: 'The specific topic or concept to test (e.g., Addition, Photosynthesis, Sight Words).'
+                    },
+                    difficulty: {
+                      type: Type.STRING,
+                      description: 'The difficulty level of the quiz (e.g., easy, medium, hard).'
+                    },
+                    number_of_questions: {
+                      type: Type.INTEGER,
+                      description: 'The number of questions to generate for the quiz (default is 5).'
+                    }
+                  },
+                  required: ['student_id', 'subject', 'topic']
+                }
+              }
+            ]
+          }]
+        }
+      });
+    }
+
+    console.log('[API] Gemini response received');
+    
+    const functionCalls = response.functionCalls;
+    const call = functionCalls?.[0];
+
+    if (call) {
+      res.json({ 
+        functionCall: call.name, 
+        args: call.args, 
+        response: response.text || `Executed action: ${call.name}` 
+      });
+    } else {
+      const text = response.text;
+      res.json({ response: text || "The assistant didn't have a response." });
+    }
+  } catch (error: any) {
+    console.error('AI Command Error:', error);
+    const status = error.status || 500;
+    const message = error.message || (error.error && error.error.message) || error.toString();
+    res.status(status).json({
+      error: 'Failed to process AI command',
+      details: message,
+    });
+  }
+});
+
 // Upload File Endpoint
 app.post('/api/upload', authenticateToken, (req: any, res) => {
   console.log('Received upload request');
@@ -1064,98 +1429,6 @@ app.get('/api/kids/:kidId/quiz-results', authenticateToken, async (req: any, res
     res.json({ results: data });
   } catch (err) {
     res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.delete('/api/quiz-results/:id', authenticateToken, async (req: any, res) => {
-  const supabase = getAdminSupabaseClient();
-  const { id } = req.params;
-  const userId = req.user?.id;
-
-  if (!id) {
-    return res.status(400).json({ error: 'Missing quiz result id' });
-  }
-
-  try {
-    const { data: quizResult, error: resultError } = await supabase
-      .from('quiz_results')
-      .select('id,kid_id')
-      .eq('id', id)
-      .single();
-
-    if (resultError || !quizResult) {
-      return res.status(404).json({ error: 'Quiz result not found' });
-    }
-
-    const { data: kid, error: kidError } = await supabase
-      .from('kids')
-      .select('user_id')
-      .eq('id', quizResult.kid_id)
-      .single();
-
-    if (kidError || !kid || kid.user_id !== userId) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-
-    const { error: deleteError } = await supabase
-      .from('quiz_results')
-      .delete()
-      .eq('id', id);
-
-    if (deleteError) {
-      return res.status(500).json({ error: deleteError.message });
-    }
-
-    res.json({ success: true });
-  } catch (err: any) {
-    console.error('[DELETE /api/quiz-results/:id] Error deleting quiz result:', err);
-    res.status(500).json({ error: 'Internal server error', details: err.message });
-  }
-});
-
-app.delete('/api/kids/:kidId/quiz-results/:id', authenticateToken, async (req: any, res) => {
-  const supabase = getAdminSupabaseClient();
-  const { kidId, id } = req.params;
-  const userId = req.user?.id;
-
-  if (!id || !kidId) {
-    return res.status(400).json({ error: 'Missing kid or quiz result id' });
-  }
-
-  try {
-    const { data: quizResult, error: resultError } = await supabase
-      .from('quiz_results')
-      .select('id,kid_id')
-      .eq('id', id)
-      .single();
-
-    if (resultError || !quizResult || quizResult.kid_id !== kidId) {
-      return res.status(404).json({ error: 'Quiz result not found' });
-    }
-
-    const { data: kid, error: kidError } = await supabase
-      .from('kids')
-      .select('user_id')
-      .eq('id', kidId)
-      .single();
-
-    if (kidError || !kid || kid.user_id !== userId) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-
-    const { error: deleteError } = await supabase
-      .from('quiz_results')
-      .delete()
-      .eq('id', id);
-
-    if (deleteError) {
-      return res.status(500).json({ error: deleteError.message });
-    }
-
-    res.json({ success: true });
-  } catch (err: any) {
-    console.error('[DELETE /api/kids/:kidId/quiz-results/:id] Error deleting quiz result:', err);
-    res.status(500).json({ error: 'Internal server error', details: err.message });
   }
 });
 
@@ -2103,11 +2376,24 @@ app.get('/api/kids/:kidId/behavior-definitions', authenticateToken, async (req: 
       return res.status(403).json({ error: 'Unauthorized or kid not found' });
     }
 
-    const { data: definitions, error } = await adminSupabase
+    let selectFields = 'id, kid_id, name, description, priority, is_active, created_at, color';
+    let { data: definitions, error } = await adminSupabase
       .from('behavior_definitions')
-      .select('id, kid_id, name, description, priority, goal_rewards, target_time, target_seconds, goal, is_active, created_at')
+      .select(selectFields)
       .eq('kid_id', kidId)
       .order('created_at', { ascending: true });
+
+    if (error && (error.code === '42703' || error.code === 'PGRST204')) {
+      console.log('[GET behavior-definitions] Color column missing, falling back without color');
+      selectFields = 'id, kid_id, name, description, priority, is_active, created_at';
+      const fallbackResult = await adminSupabase
+        .from('behavior_definitions')
+        .select(selectFields)
+        .eq('kid_id', kidId)
+        .order('created_at', { ascending: true });
+      definitions = fallbackResult.data;
+      error = fallbackResult.error;
+    }
 
     if (error) {
       console.error('[GET behavior-definitions] Supabase Error:', error);
@@ -2124,7 +2410,7 @@ app.post('/api/kids/:kidId/behavior-definitions', authenticateToken, async (req:
   const adminSupabase = getAdminSupabaseClient();
   const supabase = getSupabaseForUser(req);
   const { kidId } = req.params;
-  const { name, description, occurrence, icon, priority, goal_rewards, target_time, goal, is_active } = req.body;
+  const { name, description, icon, priority, is_active } = req.body;
 
   if (!name) {
     return res.status(400).json({ error: 'Missing required field: name' });
@@ -2146,18 +2432,27 @@ app.post('/api/kids/:kidId/behavior-definitions', authenticateToken, async (req:
       name, 
       description,
       priority: priority || 'Medium',
-      goal_rewards: parseInt(goal_rewards) || 1,
-      target_time: target_time || '00:00:00',
-      target_seconds: parseInt(req.body.target_seconds) || 0,
-      goal: goal !== undefined ? parseInt(goal) : 0,
-      is_active: is_active !== undefined ? is_active : true
+      is_active: is_active !== undefined ? is_active : true,
+      color: req.body.color || '#3b82f6'
     };
 
-    const { data: definition, error } = await adminSupabase
+    let { data: definition, error } = await adminSupabase
       .from('behavior_definitions')
       .insert([payload])
       .select()
       .maybeSingle();
+
+    if (error && (error.code === '42703' || error.code === 'PGRST204')) {
+      console.log('[POST behavior-definitions] Color column missing, retrying without color column');
+      const { color: _c, ...fallbackPayload } = payload;
+      const fallbackResult = await adminSupabase
+        .from('behavior_definitions')
+        .insert([fallbackPayload])
+        .select()
+        .maybeSingle();
+      definition = fallbackResult.data;
+      error = fallbackResult.error;
+    }
 
     if (error) {
       console.error('[POST behavior-definitions] Supabase Error:', JSON.stringify(error, null, 2));
@@ -2202,11 +2497,24 @@ app.get('/api/behavior-definitions/:id', authenticateToken, async (req: any, res
   const { id } = req.params;
 
   try {
-    const { data: definition, error } = await adminSupabase
+    let selectFields = 'id, kid_id, name, description, priority, is_active, created_at, color';
+    let { data: definition, error } = await adminSupabase
       .from('behavior_definitions')
-      .select('id, kid_id, name, description, priority, goal_rewards, target_time, target_seconds, goal, is_active, created_at')
+      .select(selectFields)
       .eq('id', id)
       .maybeSingle();
+
+    if (error && (error.code === '42703' || error.code === 'PGRST204')) {
+      console.log('[GET behavior-definition] Color column missing, falling back without color');
+      selectFields = 'id, kid_id, name, description, priority, is_active, created_at';
+      const fallbackResult = await adminSupabase
+        .from('behavior_definitions')
+        .select(selectFields)
+        .eq('id', id)
+        .maybeSingle();
+      definition = fallbackResult.data;
+      error = fallbackResult.error;
+    }
 
     if (error || !definition) {
       return res.status(404).json({ error: 'Behavior definition not found' });
@@ -2216,7 +2524,7 @@ app.get('/api/behavior-definitions/:id', authenticateToken, async (req: any, res
     const { data: kidCheck, error: checkError } = await supabase
       .from('kids')
       .select('id')
-      .eq('id', definition.kid_id)
+      .eq('id', (definition as any).kid_id)
       .maybeSingle();
 
     if (checkError || !kidCheck) {
@@ -2234,7 +2542,7 @@ app.put('/api/behavior-definitions/:id', authenticateToken, async (req: any, res
   const adminSupabase = getAdminSupabaseClient();
   const supabase = getSupabaseForUser(req);
   const { id } = req.params;
-  const { name, description, occurrence, icon, priority, goal_rewards, target_time, goal, is_active } = req.body;
+  const { name, description, icon, priority, is_active } = req.body;
 
   try {
     // Verify ownership of the definition first
@@ -2262,19 +2570,29 @@ app.put('/api/behavior-definitions/:id', authenticateToken, async (req: any, res
       name, 
       description,
       priority: priority || 'Medium',
-      goal_rewards: parseInt(goal_rewards) || 1,
-      target_time: target_time || '00:00:00',
-      target_seconds: parseInt(req.body.target_seconds) || 0,
-      goal: goal !== undefined ? parseInt(goal) : 0,
-      is_active: is_active !== undefined ? is_active : true
+      is_active: is_active !== undefined ? is_active : true,
+      color: req.body.color || '#3b82f6'
     };
 
-    const { data: updatedDef, error } = await adminSupabase
+    let { data: updatedDef, error } = await adminSupabase
       .from('behavior_definitions')
       .update(payload)
       .eq('id', id)
       .select()
       .maybeSingle();
+
+    if (error && (error.code === '42703' || error.code === 'PGRST204')) {
+      console.log('[PUT behavior-definitions] Color column missing, retrying without color column');
+      const { color: _c, ...fallbackPayload } = payload;
+      const fallbackResult = await adminSupabase
+        .from('behavior_definitions')
+        .update(fallbackPayload)
+        .eq('id', id)
+        .select()
+        .maybeSingle();
+      updatedDef = fallbackResult.data;
+      error = fallbackResult.error;
+    }
 
     if (error) {
       console.error('[PUT behavior-definitions] Supabase Error:', JSON.stringify(error, null, 2));
@@ -2412,7 +2730,7 @@ app.get('/api/kids/:kidId/behaviors', authenticateToken, async (req: any, res) =
     // Fetch definitions separately to avoid missing relationship (PGRST200) issue
     const { data: definitions, error: defsError } = await adminSupabase
       .from('behavior_definitions')
-      .select('id, kid_id, name, description, priority, goal_rewards, target_time, target_seconds, goal, is_active, created_at')
+      .select('id, kid_id, name, description, priority, is_active, created_at')
       .eq('kid_id', kidId);
 
     if (defsError) {
@@ -2518,17 +2836,17 @@ const updateTrackerAndCheckGoal = async (adminSupabase: any, io: any, kidId: str
     const oldPoints = existing?.points || 0;
     const newPoints = oldPoints + incrementalPoints;
     
-    // Check if goal just reached
+    // Check if goal just reached by crossing a multiple of the goal threshold
     const goalThreshold = (bDef?.goal || 1);
-    const goalReached = newPoints >= goalThreshold;
+    const goalReached = Math.floor(newPoints / goalThreshold) > Math.floor(oldPoints / goalThreshold);
 
     let updatedData;
     if (existing) {
-        // 2. Update
+        // 2. Update - retain the increased points value
         const { data: ud, error: updateError } = await adminSupabase
             .from('behavior_tracker')
             .update({
-                points: goalReached ? 0 : newPoints,
+                points: newPoints,
                 remarks: remarks || '',
                 last_tracked_time: last_tracked_time,
                 tracked_at: tracked_at
@@ -2539,13 +2857,13 @@ const updateTrackerAndCheckGoal = async (adminSupabase: any, io: any, kidId: str
         if (updateError) throw updateError;
         updatedData = ud;
     } else {
-        // 3. Insert
+        // 3. Insert - retain the increased points value
         const { data: id, error: insertError } = await adminSupabase
             .from('behavior_tracker')
             .insert({
                 kid_id: kidId,
                 definition_id,
-                points: goalReached ? 0 : newPoints,
+                points: newPoints,
                 remarks: remarks || '',
                 last_tracked_time: last_tracked_time,
                 tracked_at: tracked_at
@@ -2604,10 +2922,19 @@ const updateTrackerAndCheckGoal = async (adminSupabase: any, io: any, kidId: str
             
             // Increment balance
             if (bDef?.goal_rewards) {
-                await adminSupabase.rpc('increment_reward_balance', {
+                const { error: rpcError } = await adminSupabase.rpc('increment_reward_balance', {
                     kid_id_param: kidId,
                     amount: bDef.goal_rewards
                 });
+
+                if (rpcError) {
+                    console.warn('RPC increment_reward_balance failed, falling back to manual update:', rpcError);
+                    const { data: kidData, error: kidFetchError } = await adminSupabase.from('kids').select('reward_balance').eq('id', kidId).single();
+                    if (!kidFetchError) {
+                        const newBalance = (kidData?.reward_balance || 0) + bDef.goal_rewards;
+                        await adminSupabase.from('kids').update({ reward_balance: newBalance }).eq('id', kidId);
+                    }
+                }
 
                 // Goal reached message
                 currentNotes = aggregateRewardMessages(
@@ -2676,10 +3003,19 @@ app.post('/api/kids/:kidId/behaviors', authenticateToken, async (req: any, res) 
         );
         
         if (finalRewards) {
-            await adminSupabase.rpc('increment_reward_balance', {
+            const { error: rpcError } = await adminSupabase.rpc('increment_reward_balance', {
                 kid_id_param: kidId,
                 amount: finalRewards
             });
+            
+            if (rpcError) {
+                console.warn('RPC increment_reward_balance failed, falling back to manual update:', rpcError);
+                const { data: kidData, error: kidFetchError } = await adminSupabase.from('kids').select('reward_balance').eq('id', kidId).single();
+                if (!kidFetchError) {
+                    const newBalance = (kidData?.reward_balance || 0) + finalRewards;
+                    await adminSupabase.from('kids').update({ reward_balance: newBalance }).eq('id', kidId);
+                }
+            }
         }
         
         const io = req.app.get('io');
@@ -2716,10 +3052,19 @@ app.delete('/api/behaviors/:id', authenticateToken, async (req: any, res) => {
 
     // Revert balance if needed
     if (log.rewards_earned) {
-        await adminSupabase.rpc('increment_reward_balance', {
+        const { error: rpcError } = await adminSupabase.rpc('increment_reward_balance', {
             kid_id_param: log.kid_id,
             amount: -log.rewards_earned
         });
+
+        if (rpcError) {
+            console.warn('RPC increment_reward_balance failed, falling back to manual update:', rpcError);
+            const { data: kidData, error: kidFetchError } = await adminSupabase.from('kids').select('reward_balance').eq('id', log.kid_id).single();
+            if (!kidFetchError) {
+                const newBalance = (kidData?.reward_balance || 0) - log.rewards_earned;
+                await adminSupabase.from('kids').update({ reward_balance: newBalance }).eq('id', log.kid_id);
+            }
+        }
     }
 
     res.json({ message: 'Deleted' });
@@ -2760,7 +3105,7 @@ app.get('/api/kids/:kidId/behavior-logs', authenticateToken, async (req: any, re
     // Fetch from behavior_logs table (primary)
     const { data: logs, error: logsError } = await adminSupabase
       .from('behavior_logs')
-      .select('*, behavior_definitions(name, priority, target_time, description)')
+      .select('*, behavior_definitions(name, priority, description)')
       .eq('kid_id', kidId)
       .order('date', { ascending: false })
       .order('created_at', { ascending: false });
@@ -2839,7 +3184,90 @@ app.post('/api/kids/:kidId/behavior-tracker', authenticateToken, async (req: any
         date
     );
 
-    return res.status(200).json({ tracker: updatedData });
+    // Calculate total points earned across all behavior trackers for this kid
+    const { data: trackerRows, error: trackerError } = await adminSupabase
+      .from('behavior_tracker')
+      .select('points')
+      .eq('kid_id', kidId);
+
+    if (trackerError) {
+      console.error('[POST behavior-tracker] Error fetching trackers for total points calculation:', trackerError);
+    }
+
+    const totalPoints = (trackerRows || []).reduce((sum: number, row: any) => sum + (row.points || 0), 0);
+    console.log('[POST behavior-tracker] Total points earned for kid:', totalPoints);
+
+    let earnedReward = false;
+    let rewardType = 'Penny';
+
+    if (totalPoints >= 10) {
+      // 1. Fetch kid's profile to get reward_type and current reward_balance, and to append notes
+      const { data: kid, error: kidErr } = await adminSupabase
+        .from('kids')
+        .select('notes, reward_type, reward_balance')
+        .eq('id', kidId)
+        .single();
+
+      if (!kidErr && kid) {
+        rewardType = kid.reward_type || 'Penny';
+        const newBalance = (kid.reward_balance || 0) + 1;
+
+        // 2. Update child's reward_balance (rewards increased by 1)
+        const { error: updateKidError } = await adminSupabase
+          .from('kids')
+          .update({ reward_balance: newBalance })
+          .eq('id', kidId);
+
+        if (updateKidError) {
+          console.error('[POST behavior-tracker] Failed to update kid reward balance:', updateKidError);
+        } else {
+          earnedReward = true;
+        }
+
+        // 3. Reset all points earned for the behaviors to 0
+        const { error: resetError } = await adminSupabase
+          .from('behavior_tracker')
+          .update({ points: 0, last_tracked_time: null })
+          .eq('kid_id', kidId);
+
+        if (resetError) {
+          console.error('[POST behavior-tracker] Failed to reset behavior tracker points:', resetError);
+        }
+
+        // 4. Alert kid: add custom [PendingReward] to kid's notes
+        let currentNotes = kid.notes || '';
+        const goalMessage = `You have earned 1 ${rewardType}!`;
+        const specialPayload = {
+          amount: 1,
+          behaviors: [{ name: "Daily Behavior Tracker (10 Points reached!)", amount: 1 }],
+          already_added: true,
+          timestamp: Date.now(),
+          is_special_reward: false,
+          is_behavior_goal_reward: true,
+          reward_type: rewardType
+        };
+        const pendingLine = `[PendingReward]: ${JSON.stringify(specialPayload)} [Message]: ${goalMessage}`;
+        
+        const lines = currentNotes ? currentNotes.split('\n') : [];
+        let resultNotes = lines.join('\n').trim();
+        if (resultNotes) resultNotes += '\n\n';
+        resultNotes += pendingLine;
+
+        await adminSupabase.from('kids').update({ notes: resultNotes }).eq('id', kidId);
+      }
+
+      // Notify via Socket.io
+      const io = req.app.get('io');
+      if (io) {
+        io.to(`kid_${kidId}`).emit('data_updated', { kidId });
+      }
+    }
+
+    return res.status(200).json({ 
+      tracker: updatedData, 
+      earnedReward, 
+      rewardType 
+    });
   } catch (error: any) {
     console.error('[POST behavior-tracker] Error:', error.message || error);
     if (error.details) console.error('[POST behavior-tracker] Details:', error.details);
@@ -3436,10 +3864,19 @@ app.put('/api/kids/:kidId/confirm-reward', authenticateToken, async (req: any, r
         // Use totalPendingAmount for balance update logic
         // We only increment if NOT already added (though usually goal rewards are already added)
         if (!alreadyAdded) {
-            await adminSupabase.rpc('increment_reward_balance', {
+            const { error: rpcError } = await adminSupabase.rpc('increment_reward_balance', {
                 kid_id_param: kidId,
                 amount: totalPendingAmount
             });
+
+            if (rpcError) {
+                console.warn('RPC increment_reward_balance failed, falling back to manual update:', rpcError);
+                const { data: kidData, error: kidFetchError } = await adminSupabase.from('kids').select('reward_balance').eq('id', kidId).single();
+                if (!kidFetchError) {
+                    const newBalance = (kidData?.reward_balance || 0) + totalPendingAmount;
+                    await adminSupabase.from('kids').update({ reward_balance: newBalance }).eq('id', kidId);
+                }
+            }
         }
         
         // Update notes (removes the pending reward notification)
@@ -4328,6 +4765,77 @@ app.get('/api/kids/:kidId/purchases', authenticateToken, async (req: any, res) =
   }
 });
 
+// --- AI Helpers ---
+
+/**
+ * Executes a Gemini API call with automatic retry on transient (503, 429, 500) errors,
+ * and falls back to alternative models if the primary model fails.
+ */
+async function generateContentWithRetryAndFallback(
+  ai: any,
+  params: {
+    model: string;
+    contents: any;
+    config?: any;
+  },
+  maxRetries = 2
+): Promise<any> {
+  const modelNameInput = params.model;
+  const modelLower = (modelNameInput || '').toLowerCase();
+  
+  // Decide sequential models list for fallback
+  let modelsToTry: string[] = [];
+  if (modelLower.includes('pro')) {
+    modelsToTry = [modelNameInput, 'gemini-3.1-pro-preview', 'gemini-3.5-flash', 'gemini-3-flash-preview'];
+  } else if (modelLower.includes('image')) {
+    modelsToTry = [modelNameInput, 'gemini-2.5-flash-image', 'gemini-3.1-flash-image-preview'];
+  } else {
+    modelsToTry = [modelNameInput, 'gemini-3.5-flash', 'gemini-3-flash-preview', 'gemini-3.1-flash-lite'];
+  }
+  
+  // Clean up any empty or duplicated items
+  modelsToTry = modelsToTry.filter((m, index, self) => m && self.indexOf(m) === index);
+
+  let lastError: any = null;
+
+  for (const model of modelsToTry) {
+    let attempts = 0;
+    while (attempts <= maxRetries) {
+      try {
+        console.log(`[AI SDK Engine] Attempting model ${model} (attempt ${attempts + 1}/${maxRetries + 1})...`);
+        const result = await ai.models.generateContent({
+          ...params,
+          model,
+        });
+        console.log(`[AI SDK Engine] Success with model ${model}`);
+        return result;
+      } catch (err: any) {
+        attempts++;
+        lastError = err;
+        const errCode = err.status || (err.error && err.error.code) || 500;
+        const errMsg = err.message || '';
+        
+        console.error(`[AI SDK Engine] Model ${model} failed with code ${errCode}: ${errMsg}`);
+        
+        // If it's a non-transient user error or invalid key, propagate immediately
+        if (errCode === 400 || errCode === 403 || errMsg.includes('API key not valid') || errMsg.includes('API_KEY_INVALID')) {
+          throw err;
+        }
+
+        // If it's 503, 500, or 429, wait and retry before failing/moving to next fallback
+        if (attempts <= maxRetries) {
+          const delayTime = Math.min(2000, 500 * Math.pow(2, attempts));
+          console.log(`[AI SDK Engine] Transient error, retrying in ${delayTime}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delayTime));
+        }
+      }
+    }
+    console.warn(`[AI SDK Engine] Model ${model} failed all attempts. Trying next fallback...`);
+  }
+
+  throw lastError;
+}
+
 // --- AI Generation API ---
 app.post('/api/generate', authenticateToken, async (req: any, res) => {
   const { 
@@ -4341,9 +4849,9 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
     responseSchema 
   } = req.body;
   
-    const modelNameInput = model_body || model_name_body || 'gemini-3.1-pro-preview';
-    const apiKey = (cleanEnvVar('GEMINI_API_KEY') || cleanEnvVar('GOOGLE_API_KEY') || cleanEnvVar('VITE_GEMINI_API_KEY') || '').trim();
-    let finalModelName = 'gemini-3.1-pro-preview';
+    const modelNameInput = model_body || model_name_body || 'gemini-3-flash-preview';
+    const apiKey = (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "").trim();
+    let finalModelName = 'gemini-3-flash-preview';
     
     try {
     if (!apiKey || apiKey === 'undefined' || apiKey === 'null' || apiKey.length < 10) {
@@ -4353,7 +4861,7 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
     }
 
     const modelLower = (modelNameInput || '').toLowerCase();
-    finalModelName = 'gemini-3.1-pro-preview';
+    finalModelName = 'gemini-3-flash-preview';
 
     if (modelLower.includes('pro-image')) {
       finalModelName = 'gemini-3-pro-image-preview';
@@ -4361,7 +4869,7 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
       finalModelName = 'gemini-3.1-pro-preview';
     } else if (modelLower.includes('image')) {
       finalModelName = 'gemini-2.5-flash-image';
-    } else if (modelLower.includes('flash')) {
+    } else if (modelLower.includes('flash') || modelLower === '') {
       finalModelName = 'gemini-3-flash-preview';
     } else if (modelNameInput) {
       finalModelName = modelNameInput;
@@ -4369,7 +4877,14 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
 
     console.log(`[AI Generation] Using SDK with model: ${finalModelName}`);
 
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
     
     // Format contents for SDK
     const formattedContents = Array.isArray(contents) ? contents : [{ role: 'user', parts: [{ text: contents || prompt }] }];
@@ -4387,7 +4902,7 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
         }
     });
 
-    const result = await ai.models.generateContent({
+    const result = await generateContentWithRetryAndFallback(ai, {
       model: finalModelName,
       contents: formattedContents,
       config: {

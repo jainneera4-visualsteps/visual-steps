@@ -1,7 +1,7 @@
 import { Link, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from './Button';
-import { User, LogOut, Menu, X, Lightbulb, ChevronDown, Sparkles, BookOpen, FileText, Gamepad2, LayoutGrid, Activity, TrendingUp } from 'lucide-react';
+import { User, LogOut, Menu, X, Lightbulb, ChevronDown, Sparkles, BookOpen, FileText, Gamepad2, LayoutGrid, Activity, TrendingUp, Bot } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Tooltip } from './ui/Tooltip';
 
@@ -66,7 +66,7 @@ export function Layout() {
               </div>
               <span className="text-xl font-display font-bold tracking-tight text-slate-900">Visual Steps</span>
             </Link>
-
+            
             {user && (
               <nav className="hidden md:flex items-center gap-1">
                 <Tooltip content="Parent's Dashboard">
@@ -306,7 +306,7 @@ export function Layout() {
         )}
       </header>
 
-      <main className="flex-grow overflow-y-auto p-2 md:p-3 print:overflow-visible print:h-auto print:p-0 print:block">
+      <main className="flex flex-grow overflow-y-auto p-2 md:p-3 print:overflow-visible print:h-auto print:p-0 print:block">
         <div className="w-full h-full print:h-auto print:block">
           <Outlet />
         </div>
@@ -318,6 +318,7 @@ export function Layout() {
             &copy; {new Date().getFullYear()} Visual Steps.
           </div>
         </div>
+
       </footer>
     </div>
   );

@@ -15,6 +15,18 @@ interface Kid {
   timezone?: string;
 }
 
+export const COLOR_PALETTE = [
+  { name: 'Blue', hex: '#3b82f6', bgClass: 'bg-blue-500', borderClass: 'border-blue-600' },
+  { name: 'Indigo', hex: '#6366f1', bgClass: 'bg-indigo-500', borderClass: 'border-indigo-600' },
+  { name: 'Purple', hex: '#a855f7', bgClass: 'bg-purple-500', borderClass: 'border-purple-600' },
+  { name: 'Pink', hex: '#ec4899', bgClass: 'bg-pink-500', borderClass: 'border-pink-600' },
+  { name: 'Red', hex: '#ef4444', bgClass: 'bg-red-500', borderClass: 'border-red-600' },
+  { name: 'Orange', hex: '#f97316', bgClass: 'bg-orange-500', borderClass: 'border-orange-600' },
+  { name: 'Amber', hex: '#f59e0b', bgClass: 'bg-amber-500', borderClass: 'border-amber-600' },
+  { name: 'Green', hex: '#10b981', bgClass: 'bg-emerald-500', borderClass: 'border-emerald-600' },
+  { name: 'Teal', hex: '#14b8a6', bgClass: 'bg-teal-500', borderClass: 'border-teal-600' },
+];
+
 export default function AddBehavior() {
   const { kidId, id } = useParams<{ kidId?: string; id?: string }>();
   const navigate = useNavigate();
@@ -28,13 +40,10 @@ export default function AddBehavior() {
     return {
       name: '',
       remarks: '',
+      color: '#3b82f6',
       date: zoned.isoDate,
       hour: zoned.hour,
-      occurrence: 1,
-      target_value: 0,
-      target_unit: 'minutes',
       priority: 'Medium',
-      goal: 0,
       is_active: true,
     };
   });
@@ -58,47 +67,31 @@ export default function AddBehavior() {
             
             // Prefer new columns, fallback to parsing description for legacy data
             let priorityVal = def.priority || 'Medium';
-            let goalVal = def.goal_rewards || 1;
-            // Assuming target_time is stored as "value unit" (e.g., "5 minutes") for now
-            let targetValue = 0;
-            let targetUnit = 'minutes';
-            if (def.target_time) {
-              const parts = def.target_time.split(' ');
-              if (parts.length === 2) {
-                targetValue = parseInt(parts[0]);
-                targetUnit = parts[1];
-              } else {
-                // Legacy support if it was HH:MM:SS, just try to parse it to minutes as a fallback
-                const [h, m] = def.target_time.split(':').map(Number);
-                targetValue = (h || 0) * 60 + (m || 0);
-                targetUnit = 'minutes';
-              }
-            }
             let displayDescription = def.description || '';
             let isActive = def.is_active !== undefined ? def.is_active : true;
+            let colorVal = def.color || '#3b82f6';
+
+            // Parse color from description if present
+            const colorMatch = displayDescription.match(/^\[Color: (#?[a-zA-Z0-9]+)\]\s*(.*)$/s);
+            if (colorMatch) {
+              colorVal = colorMatch[1];
+              displayDescription = colorMatch[2];
+            }
 
             // If columns seem empty/default and description contains metadata, parse it (migration support)
             const metadataMatch = displayDescription.match(/^\[Time: (\d{2}):(\d{2})\](?:\[Priority: (High|Medium|Low)\])?(?:\[Goal: (\d+)\])? (.*)$/s);
-            if (metadataMatch && (!def.priority || def.goal_rewards === 1 || def.target_time === '00:00')) {
-              const h = metadataMatch[1];
-              const m = metadataMatch[2];
-              targetValue = parseInt(h) * 60 + parseInt(m);
-              targetUnit = 'minutes';
+            if (metadataMatch && (!def.priority || def.target_time === '00:00')) {
               priorityVal = metadataMatch[3] || 'Medium';
-              goalVal = metadataMatch[4] ? parseInt(metadataMatch[4]) : 1;
               displayDescription = metadataMatch[5];
             }
             
             setFormData({
               name: def.name,
               remarks: displayDescription,
+              color: colorVal,
               date: getZonedTime(kid?.timezone).isoDate,
               hour: getZonedTime(kid?.timezone).hour,
-              occurrence: goalVal,
-              target_value: targetValue,
-              target_unit: targetUnit as any,
               priority: priorityVal,
-              goal: def.goal || 0,
               is_active: isActive,
             });
             
@@ -139,29 +132,14 @@ export default function AddBehavior() {
     setIsSubmitting(true);
     setFormError(null);
     try {
-      const targetTime = `${formData.target_value} ${formData.target_unit}`;
-      
-      let targetSeconds = 0;
-      const val = formData.target_value;
-      switch (formData.target_unit) {
-        case 'seconds': targetSeconds = val; break;
-        case 'minutes': targetSeconds = val * 60; break;
-        case 'hours': targetSeconds = val * 3600; break;
-        case 'days': targetSeconds = val * 86400; break;
-        case 'weeks': targetSeconds = val * 604800; break;
-        case 'months': targetSeconds = val * 2592000; break;
-        default: targetSeconds = val * 60;
-      }
-      
+      const remarksWithColor = `[Color: ${formData.color}] ${formData.remarks || ''}`;
+
       const payload = {
         name: formData.name,
-        description: formData.remarks || '',
+        description: remarksWithColor,
         priority: formData.priority,
-        goal_rewards: formData.occurrence,
-        target_time: targetTime,
-        target_seconds: targetSeconds,
-        goal: formData.goal,
         is_active: formData.is_active,
+        color: formData.color,
       };
 
       const url = id 
@@ -226,7 +204,7 @@ export default function AddBehavior() {
 
       <Card className="border-blue-200 bg-blue-50/50 shadow-sm">
         <CardHeader className="flex flex-row items-center justify-between py-2 px-4 space-y-0">
-          <CardTitle className="text-base font-bold">{id ? 'Edit Rules' : 'Behavior Details'}</CardTitle>
+          <CardTitle className="text-base font-bold">{id ? 'Edit Behavior' : 'Behavior Details'}</CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-3">
           <form onSubmit={handleSubmit} className="space-y-2.5">
@@ -262,6 +240,35 @@ export default function AddBehavior() {
               </div>
             </div>
 
+            {/* Colors picker */}
+            <div className="space-y-1 bg-slate-50/50 p-2.5 rounded-md border border-slate-200">
+              <label className="text-[12px] font-bold text-slate-500 uppercase flex items-center gap-1">
+                Choose Color
+                <CustomTooltip variant="help" content={<span className="text-slate-900 leading-snug font-medium">Select a color to visually identify and highlight this behavior.</span>}><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip>
+              </label>
+              <div className="flex flex-wrap gap-2 py-1">
+                {COLOR_PALETTE.map((item) => (
+                  <button
+                    key={item.hex}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, color: item.hex })}
+                    className="h-7 w-7 rounded-full flex items-center justify-center transition-all duration-200 border-2 cursor-pointer shadow-sm hover:scale-105"
+                    style={{ 
+                      backgroundColor: item.hex,
+                      borderColor: formData.color === item.hex ? '#0f172a' : 'transparent',
+                      transform: formData.color === item.hex ? 'scale(1.1)' : 'none',
+                      boxShadow: formData.color === item.hex ? '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' : 'none'
+                    }}
+                    title={item.name}
+                  >
+                    {formData.color === item.hex && (
+                      <span className="text-white text-xs font-bold drop-shadow">✓</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="space-y-0.5 flex items-center gap-2">
               <input
                 type="checkbox"
@@ -282,57 +289,6 @@ export default function AddBehavior() {
               />
             </div>
 
-            <div className="grid gap-2.5 md:grid-cols-3">
-              <div className="space-y-0.5">
-                <label className="text-[12px] font-bold text-slate-500 uppercase flex items-center gap-1">Goal (Points to Reach) <CustomTooltip variant="help" content={<div className="flex items-start gap-3 max-w-[250px]"><div className="bg-yellow-100 rounded-full p-1 mt-0.5"><HelpCircle className="h-4 w-4 text-yellow-800" /></div><span className="text-slate-900 leading-snug font-medium">Define the target score or count the child needs to achieve to earn rewards for this behavior.</span></div>}><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></label>
-                <input
-                  type="number"
-                  className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
-                  value={formData.goal}
-                  onChange={(e) => setFormData({ ...formData, goal: parseInt(e.target.value) || 0 })}
-                  min="0"
-                  placeholder="e.g., 10"
-                />
-              </div>
-
-              <div className="space-y-0.5">
-                <label className="text-[12px] font-bold text-slate-500 uppercase flex items-center gap-1">Target Time (Duration) <CustomTooltip variant="help" content={<div className="flex items-start gap-3 max-w-[250px]"><div className="bg-yellow-100 rounded-full p-1 mt-0.5"><HelpCircle className="h-4 w-4 text-yellow-800" /></div><span className="text-slate-900 leading-snug font-medium">Set a time threshold. The behavior log entry becomes available only after this duration has elapsed.</span></div>}><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></label>
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    className="flex h-8 w-20 rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
-                    value={formData.target_value}
-                    onChange={(e) => setFormData({ ...formData, target_value: Math.max(0, parseInt(e.target.value) || 0) })}
-                    min="0"
-                  />
-                  <select
-                    className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
-                    value={formData.target_unit}
-                    onChange={(e) => setFormData({ ...formData, target_unit: e.target.value })}
-                  >
-                    <option value="seconds">Seconds</option>
-                    <option value="minutes">Minutes</option>
-                    <option value="hours">Hours</option>
-                    <option value="days">Days</option>
-                    <option value="weeks">Weeks</option>
-                    <option value="months">Months</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="space-y-0.5">
-                <label className="text-[12px] font-bold text-slate-500 uppercase flex items-center gap-1">Goal Rewards (+) <CustomTooltip variant="help" content={<div className="flex items-start gap-3 max-w-[250px]"><div className="bg-yellow-100 rounded-full p-1 mt-0.5"><HelpCircle className="h-4 w-4 text-yellow-800" /></div><span className="text-slate-900 leading-snug font-medium">Specify the number of rewards (e.g., tokens) the child receives upon achieving the goal.</span></div>}><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></label>
-                <input
-                  type="number"
-                  className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
-                  value={formData.occurrence}
-                  onChange={(e) => setFormData({ ...formData, occurrence: parseInt(e.target.value) || 1 })}
-                  min="1"
-                  placeholder="e.g., 5"
-                />
-              </div>
-            </div>
-
             <div className="flex justify-end items-center pt-1 gap-2">
               <Button 
                 type="button" 
@@ -350,7 +306,7 @@ export default function AddBehavior() {
                 disabled={isSubmitting}
               >
                 {isSubmitting ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : null}
-                {id ? 'Update Rule' : 'Save Behavior'}
+                {id ? 'Update Behavior' : 'Save Behavior'}
               </Button>
             </div>
           </form>

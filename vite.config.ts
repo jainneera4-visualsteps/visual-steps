@@ -22,13 +22,13 @@ export default defineConfig(({mode}) => {
       'process.env.SUPABASE_URL': JSON.stringify(
         env.SUPABASE_URL || process.env.SUPABASE_URL || 
         env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 
-        env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL
+        env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL || ''
       ),
       'process.env.SUPABASE_KEY': JSON.stringify(
         env.SUPABASE_KEY || process.env.SUPABASE_KEY || 
         env.SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || 
         env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
-        env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY
+        env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || ''
       ),
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || ''),
     },

@@ -236,6 +236,7 @@ CREATE TABLE public.behavior_definitions (
     goal INTEGER,
     icon TEXT,
     is_active BOOLEAN DEFAULT true,
+    color TEXT DEFAULT '#3b82f6',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 

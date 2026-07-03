@@ -6,11 +6,9 @@ import { getZonedTime, formatInTimezone } from '../utils/dateUtils';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../components/Button';
-import { NewParentWalkthrough } from '../components/NewParentWalkthrough';
-import { useWalkthrough } from '../context/WalkthroughContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Select } from '../components/Select';
-import { Plus, User, Calendar, BookOpen, Gamepad2, Clock, Trophy, Sparkles, Loader2, ArrowLeft, Edit2, Activity, Brain, Save, Send, HelpCircle } from 'lucide-react';
+import { Plus, User, Calendar, BookOpen, Gamepad2, Clock, Trophy, Sparkles, Loader2, ArrowLeft, Edit2, Activity, Brain, Save, Send, HelpCircle, BookOpenText } from 'lucide-react';
 
 interface Kid {
   id: string;
@@ -41,6 +39,7 @@ interface BehaviorDefinition {
   target_seconds?: number;
   goal?: number;
   is_active?: boolean;
+  color?: string;
 }
 
 export default function Dashboard() {
@@ -54,7 +53,6 @@ export default function Dashboard() {
   }, []);
 
   const [showBuyGrid, setShowBuyGrid] = useState(false);
-  const { isOpen: showWalkthrough, setIsOpen: setShowWalkthrough, steps, hasSeenWalkthrough } = useWalkthrough();
 
   const [selectedKid, setSelectedKid] = useState<Kid | null>(null);
   const [rewardItems, setRewardItems] = useState<any[]>([]);
@@ -81,7 +79,6 @@ export default function Dashboard() {
   const [isLoggingBehavior, setIsLoggingBehavior] = useState(false);
   const [behaviorLogs, setBehaviorLogs] = useState<any[]>([]);
   const [behaviorTracker, setBehaviorTracker] = useState<any[]>([]);
-  const [selectedBehaviors, setSelectedBehaviors] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (dashboardSelectedKidId) {
@@ -89,11 +86,7 @@ export default function Dashboard() {
     }
   }, [dashboardSelectedKidId]);
 
-  useEffect(() => {
-    if (!hasSeenWalkthrough) {
-      setShowWalkthrough(true);
-    }
-  }, [hasSeenWalkthrough, setShowWalkthrough]);
+
 
   useEffect(() => {
     if (kids.length > 0) {
@@ -445,6 +438,12 @@ export default function Dashboard() {
       if (!res.ok) {
         throw new Error('Failed to update tracker');
       }
+      
+      const resData = await safeJson(res);
+      if (resData && resData.earnedReward) {
+        alert(`🎉 ${targetKid?.name || 'Your child'} has reached 10 points and earned 1 ${resData.rewardType || 'reward'}! All Daily Behavior Tracker points have been reset to 0.`);
+      }
+
       await fetchLogs(); // Fetch fresh data
       return true;
     } catch (err) {
@@ -714,57 +713,16 @@ export default function Dashboard() {
                       <div className="mt-1 border border-slate-100 rounded-xl overflow-hidden shadow-sm">
                         <div className="bg-slate-50 px-4 py-2 border-b border-slate-100 flex justify-between items-center">
                           <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Daily Behavior Tracker - {new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}</h4>
-                          <Tooltip content={`Track ${kid.name}'s Behaviors`}>
-                            <Button 
-                              size="sm" 
-                              onClick={async () => {
-                                // Save All implementation
-                                for (const defId of selectedBehaviors) {
-                                  const tracker = behaviorTracker.find(t => t.definition_id === defId);
-                                  const remarks = tracker?.remarks || '';
-                                  const behaviorDef = behaviorDefinitions.find(d => d.id === defId);
-                                  const pointsIncrement = 1;
-                                  const newPoints = (tracker?.points || 0) + pointsIncrement;
-                                  
-                                  const trackerSuccess = await handleUpdateTracker(dashboardSelectedKidId, defId, newPoints, remarks);
-                                  
-                                  // Check if goal earned
-                                  if (behaviorDef) {
-                                    console.log('Checking goal:', { newPoints, goal: behaviorDef.goal, trackerSuccess });
-                                    if (trackerSuccess && newPoints >= (behaviorDef.goal || 1)) {
-                                      // The backend updateTrackerAndCheckGoal handles rewarding and logging on its own.
-                                      console.log('Goal reached, backend handles rewards.');
-                                    }
-                                  }
-                                }
-                                setSelectedBehaviors(new Set());
-                                fetchTrackerData();
-                              }}
-                            >
-                              Update
-                            </Button>
-                          </Tooltip>
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg font-black text-brand-600 bg-brand-50 px-3.5 py-1 rounded-full border border-brand-200 shadow-sm flex items-center gap-1" title="Total Points">
+                              {behaviorTracker.reduce((sum, t) => sum + (t.points || 0), 0)}
+                            </span>
+                          </div>
                         </div>
                         <div className="max-h-[600px] overflow-y-auto">
                           <table className="w-full text-left text-sm border-collapse">
                             <thead className="sticky top-0 bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase">
                               <tr>
-                                <th className="px-4 py-3">
-                                  <div className="group relative">
-                                    <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
-                                    <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
-                                      <div className="flex items-start gap-3">
-                                        <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
-                                          <HelpCircle className="h-4 w-4 text-yellow-700" />
-                                        </div>
-                                        <span className="font-bold text-[15px] leading-tight text-slate-900">
-                                          Parents need to tick the checkbox and click on the 'Update' button to track progress. This will increase the points towards the goals and data will be updated accordingly.
-                                        </span>
-                                      </div>
-                                      <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
-                                    </div>
-                                  </div>
-                                </th>
                                 <th className="px-4 py-3">
                                   <div className="flex items-center gap-1.5">
                                     <span>Desired Behavior</span>
@@ -806,25 +764,6 @@ export default function Dashboard() {
 
                                 <th className="px-4 py-3 text-center w-24">
                                   <div className="flex flex-col items-center gap-1">
-                                    <span>Goal to reach</span>
-                                    <div className="group relative">
-                                      <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
-                                      <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
-                                        <div className="flex items-start gap-3">
-                                          <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
-                                            <HelpCircle className="h-4 w-4 text-yellow-700" />
-                                          </div>
-                                          <span className="font-bold text-[15px] leading-tight text-slate-900 text-left">
-                                            The total successes needed to earn a reward. This goal is continuous; once reached, your child earns the rewards specified for this behavior.
-                                          </span>
-                                        </div>
-                                        <div className="absolute left-1/2 -translate-x-1/2 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </th>
-                                <th className="px-4 py-3 text-center w-24">
-                                  <div className="flex flex-col items-center gap-1">
                                     <span>Points earned</span>
                                     <div className="group relative">
                                       <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
@@ -838,44 +777,6 @@ export default function Dashboard() {
                                           </span>
                                         </div>
                                         <div className="absolute left-1/2 -translate-x-1/2 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </th>
-                                <th className="px-4 py-3 text-center w-24">
-                                  <div className="flex flex-col items-center gap-1">
-                                    <span>Points (%)</span>
-                                    <div className="group relative">
-                                      <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
-                                      <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
-                                        <div className="flex items-start gap-3">
-                                          <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
-                                            <HelpCircle className="h-4 w-4 text-yellow-700" />
-                                          </div>
-                                          <span className="font-bold text-[15px] leading-tight text-slate-900 text-left">
-                                            Your child's current progress toward reaching the behavior goal.
-                                          </span>
-                                        </div>
-                                        <div className="absolute left-1/2 -translate-x-1/2 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </th>
-                                <th className="px-4 py-3 border-b border-slate-100 text-center w-48">
-                                  <div className="flex flex-col items-center gap-1">
-                                    <span>Parent's remarks</span>
-                                    <div className="group relative">
-                                      <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
-                                      <div className="absolute right-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
-                                        <div className="flex items-start gap-3">
-                                          <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
-                                            <HelpCircle className="h-4 w-4 text-yellow-700" />
-                                          </div>
-                                          <span className="font-bold text-[15px] leading-tight text-slate-900 text-left">
-                                            Your feedback or observations about your child's progress on this behavior today.
-                                          </span>
-                                        </div>
-                                        <div className="absolute right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
                                       </div>
                                     </div>
                                   </div>
@@ -909,49 +810,46 @@ export default function Dashboard() {
                                 .map((def) => {
                                   const tracker = behaviorTracker.find(t => t.definition_id === def.id);
                                   
+                                  let rawDesc = def.description || '';
+                                  let colorVal = def.color || '#3b82f6';
+
+                                  const colorMatch = rawDesc.match(/^\[Color: (#?[a-zA-Z0-9]+)\]\s*(.*)$/s);
+                                  if (colorMatch) {
+                                    colorVal = colorMatch[1];
+                                    rawDesc = colorMatch[2];
+                                  }
+
                                   return (
                                     <tr key={def.id} className="hover:bg-slate-50 transition-colors border-b border-slate-100">
-                                      <td className="px-4 py-3 text-center">
-                                        <input type="checkbox"
-                                          checked={selectedBehaviors.has(def.id)}
-                                          onChange={(e) => {
-                                            if (e.target.checked) {
-                                              setSelectedBehaviors(prev => new Set(prev).add(def.id));
-                                            } else {
-                                              setSelectedBehaviors(prev => {
-                                                const next = new Set(prev);
-                                                next.delete(def.id);
-                                                return next;
-                                              });
-                                            }
-                                          }}
-                                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                                        />
+                                      <td className="px-4 py-3 text-slate-900 font-bold">
+                                        <div className="flex items-center gap-2">
+                                          <span 
+                                            className="h-3.5 w-3.5 rounded-full border border-slate-200 shadow-sm shrink-0 animate-pulse" 
+                                            style={{ backgroundColor: colorVal }}
+                                            title={`Color: ${colorVal}`}
+                                          />
+                                          <span>{def.name}</span>
+                                        </div>
                                       </td>
-                                      <td className="px-4 py-3 text-slate-900 font-bold">{def.name}</td>
-                                      <td className="px-4 py-3 text-xs text-slate-600">{def.description || '---'}</td>
+                                      <td className="px-4 py-3 text-xs text-slate-600">{rawDesc || '---'}</td>
 
-                                      <td className="px-4 py-3 text-center font-bold text-slate-600">{def.goal || 1}</td>
-                                      <td className="px-4 py-3 text-center font-bold text-slate-600">{tracker?.points || 0}</td>
                                       <td className="px-4 py-3 text-center font-bold text-slate-600">
-                                        {tracker ? Math.round(((tracker.points || 0) / (def.goal || 1)) * 100) : 0}%
-                                      </td>
-                                      <td className="px-4 py-3 text-center">
-                                        <input type="text"
-                                           value={tracker?.remarks || ''}
-                                           onChange={(e) => {
-                                             const newRemarks = e.target.value;
-                                             setBehaviorTracker(prev => {
-                                               const exists = prev.some(t => t.definition_id === def.id);
-                                               if (exists) {
-                                                 return prev.map(t => t.definition_id === def.id ? {...t, remarks: newRemarks} : t);
-                                               }
-                                               return [...prev, { definition_id: def.id, remarks: newRemarks, points: 0 }];
-                                             });
-                                           }}
-                                           className="w-full border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                                           placeholder="Add a remark..."
-                                        />
+                                        <div className="flex items-center justify-center gap-2">
+                                          <span>{tracker?.points || 0}</span>
+                                          <Button
+                                            size="sm"
+                                            className="h-6 w-6 p-0 rounded-full flex items-center justify-center shrink-0"
+                                            onClick={async () => {
+                                              const currentPoints = tracker?.points || 0;
+                                              const newPoints = currentPoints + 1;
+                                              const remarks = tracker?.remarks || '';
+                                              await handleUpdateTracker(dashboardSelectedKidId, def.id, newPoints, remarks);
+                                            }}
+                                            title="Increase points by 1"
+                                          >
+                                            <Plus className="h-3.5 w-3.5" />
+                                          </Button>
+                                        </div>
                                       </td>
                                     </tr>
                                   );
@@ -1005,24 +903,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="mb-5 rounded-3xl border border-slate-200 bg-slate-50 p-5 shadow-sm">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-xl font-semibold text-slate-900">New Parent Walkthrough</h2>
-            <p className="mt-1 text-sm text-slate-600">Need a quick guided tour of the parent tools? Open the walkthrough any time.</p>
-          </div>
-          <Button size="md" variant="secondary" onClick={() => setShowWalkthrough(true)}>
-            Start Walkthrough
-          </Button>
-        </div>
-      </div>
-
       {renderContent()}
-      <NewParentWalkthrough
-        isOpen={showWalkthrough}
-        onClose={() => setShowWalkthrough(false)}
-        steps={steps}
-      />
     </div>
   );
 }

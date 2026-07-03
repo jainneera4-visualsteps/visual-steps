@@ -26,6 +26,7 @@ interface BehaviorDefinition {
   target_seconds?: number;
   goal?: number;
   is_active: boolean;
+  color?: string;
 }
 
 interface Behavior {
@@ -237,16 +238,13 @@ export default function BehaviorsList() {
                   <th className="px-4 py-3 font-bold"><div className="flex items-center gap-1">Active<CustomTooltip variant="help" content={<div className="flex items-start gap-3 max-w-[250px]"><div className="bg-yellow-100 rounded-full p-1 mt-0.5"><HelpCircle className="h-4 w-4 text-yellow-800" /></div><span className="text-slate-900 leading-snug font-medium">Toggles whether this behavior rule is currently being tracked.</span></div>}><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></div></th>
                   <th className="px-4 py-3 font-bold"><div className="flex items-center gap-1">Behavior Description<CustomTooltip variant="help" content={<div className="flex items-start gap-3 max-w-[250px]"><div className="bg-yellow-100 rounded-full p-1 mt-0.5"><HelpCircle className="h-4 w-4 text-yellow-800" /></div><span className="text-slate-900 leading-snug font-medium">A detailed explanation of the behavior.</span></div>}><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></div></th>
                   <th className="px-4 py-3 font-bold"><div className="flex items-center gap-1">Priority<CustomTooltip variant="help" content={<div className="flex items-start gap-3 max-w-[250px]"><div className="bg-yellow-100 rounded-full p-1 mt-0.5"><HelpCircle className="h-4 w-4 text-yellow-800" /></div><span className="text-slate-900 leading-snug font-medium">The priority level of the behavior (High, Medium, Low).</span></div>}><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></div></th>
-                  <th className="px-4 py-3 font-bold"><div className="flex items-center gap-1">Check-in After<CustomTooltip variant="help" content={<div className="flex items-start gap-3 max-w-[250px]"><div className="bg-yellow-100 rounded-full p-1 mt-0.5"><HelpCircle className="h-4 w-4 text-yellow-800" /></div><span className="text-slate-900 leading-snug font-medium">Behavior log entry becomes available only after this duration has elapsed.</span></div>}><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></div></th>
-                  <th className="px-4 py-3 font-bold"><div className="flex items-center gap-1">Goals To Reach<CustomTooltip variant="help" content={<div className="flex items-start gap-3 max-w-[250px]"><div className="bg-yellow-100 rounded-full p-1 mt-0.5"><HelpCircle className="h-4 w-4 text-yellow-800" /></div><span className="text-slate-900 leading-snug font-medium">The target goal or count to reach.</span></div>}><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></div></th>
-                  <th className="px-4 py-3 font-bold"><div className="flex items-center gap-1">Rewards ({kid?.reward_type || 'Reward'}s)<CustomTooltip variant="help" content={<div className="flex items-start gap-3 max-w-[250px]"><div className="bg-yellow-100 rounded-full p-1 mt-0.5"><HelpCircle className="h-4 w-4 text-yellow-800" /></div><span className="text-slate-900 leading-snug font-medium">When the kid has achieved the goal, rewards balance will be updated by {kid?.reward_type || 'Reward'}s.</span></div>}><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></div></th>
                   <th className="px-4 py-3 font-bold text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {definitions.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-20 text-center">
+                    <td colSpan={5} className="py-20 text-center">
                       <div className="flex flex-col items-center gap-3 text-slate-400">
                         <div className="h-16 w-16 rounded-3xl bg-slate-50 flex items-center justify-center mb-1">
                           <History className="h-10 w-10 opacity-20" />
@@ -271,8 +269,15 @@ export default function BehaviorsList() {
                     let priority = def.priority || 'Medium';
                     let goalVal = def.goal !== undefined ? def.goal.toString() : (def.goal_rewards?.toString() || '1');
                     let displayDesc = def.description;
+                    let colorVal = def.color || '#3b82f6';
 
-                    const timeMatch = (def.description || '').match(/^\[Time: (\d{2}):(\d{2}):(\d{2})\](?:\[Priority: (High|Medium|Low)\])?(?:\[Goal: (\d+)\])? (.*)$/s);
+                    const colorMatch = (def.description || '').match(/^\[Color: (#?[a-zA-Z0-9]+)\]\s*(.*)$/s);
+                    if (colorMatch) {
+                      colorVal = colorMatch[1];
+                      displayDesc = colorMatch[2];
+                    }
+
+                    const timeMatch = (displayDesc || '').match(/^\[Time: (\d{2}):(\d{2}):(\d{2})\](?:\[Priority: (High|Medium|Low)\])?(?:\[Goal: (\d+)\])? (.*)$/s);
                     if (timeMatch && (!def.priority || def.goal_rewards === 1 || def.target_time === '00:00:00')) {
                       targetTime = `${timeMatch[1]}:${timeMatch[2]}:${timeMatch[3]}`;
                       priority = timeMatch[4] || 'Medium';
@@ -284,8 +289,14 @@ export default function BehaviorsList() {
                     return (
                       <tr key={def.id} className="hover:bg-slate-50 transition-colors">
                         <td className="px-4 py-3">
-                          <div className="font-bold text-slate-900 uppercase tracking-tight" title={`ID: ${def.id}`}>
-                            {def.name}
+                          <div className="flex items-center gap-2">
+                            <span 
+                              className="h-3 w-3 rounded-full border border-slate-200 shadow-sm shrink-0" 
+                              style={{ backgroundColor: colorVal }}
+                            />
+                            <div className="font-bold text-slate-900 uppercase tracking-tight" title={`ID: ${def.id}`}>
+                              {def.name}
+                            </div>
                           </div>
                         </td>
                         <td className="px-4 py-3">
@@ -301,23 +312,6 @@ export default function BehaviorsList() {
                         </td>
                         <td className="px-4 py-3 text-slate-500">
                           {priority}
-                        </td>
-                        <td className="px-4 py-3 text-slate-500">
-                          {targetTime || <span className="text-slate-300 italic">None</span>}
-                        </td>
-                        <td className="px-4 py-3">
-                          {goalVal !== '1' ? (
-                            <div className="font-bold text-slate-900">
-                                {Number(goalVal)}
-                            </div>
-                          ) : (
-                            <span className="text-slate-300 italic">None</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="font-bold text-slate-900">
-                              {Number(def.goal_rewards || 0)}
-                          </div>
                         </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">

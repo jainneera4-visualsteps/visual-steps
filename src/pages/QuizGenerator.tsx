@@ -60,6 +60,30 @@ export default function QuizGenerator() {
   }, []);
 
   useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const kidParam = params.get('student_id');
+    const subjectParam = params.get('subject');
+    const topicParam = params.get('topic');
+    const difficultyParam = params.get('difficulty');
+    const questionsParam = params.get('questions');
+
+    if (kidParam) setSelectedKidId(kidParam);
+    if (subjectParam) setSubject(subjectParam);
+    if (topicParam) setTopic(topicParam);
+    if (difficultyParam) {
+      if (['easy', 'medium', 'hard'].includes(difficultyParam.toLowerCase())) {
+        setDifficulty(difficultyParam.charAt(0).toUpperCase() + difficultyParam.slice(1).toLowerCase());
+      } else {
+        setDifficulty(difficultyParam);
+      }
+    }
+    if (questionsParam) {
+      const num = parseInt(questionsParam, 10);
+      if (!isNaN(num)) setNumQuestions(num);
+    }
+  }, [location.search]);
+
+  useEffect(() => {
     if (selectedKidId) {
       const fetchKidProfile = async () => {
         try {

@@ -1,17 +1,20 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
+export interface FieldGuide {
+  fieldName: string;
+  description: string;
+  icon?: string;
+  selector?: string; // CSS selector for target element
+}
+
 export interface WalkthroughStep {
   title: string;
   description: string;
   actionLabel: string;
   link?: string;
   pageRoute?: string;
-  fieldGuides?: Array<{
-    fieldName: string;
-    description: string;
-    icon?: string;
-  }>;
+  fieldGuides?: FieldGuide[];
 }
 
 interface WalkthroughContextType {
@@ -40,9 +43,18 @@ export function WalkthroughProvider({ children }: { children: React.ReactNode })
 
   const [steps] = useState<WalkthroughStep[]>([
     {
-      title: "Sign up and get started",
-      description: "Create your parent account so you can manage your child's profile, activities, and rewards all in one place.",
-      actionLabel: "Got it",
+      title: "Welcome! Let's get started",
+      description: "To begin, add your child's profile to get personalized tools.",
+      actionLabel: "Add Child",
+      link: "/add-kid",
+      pageRoute: "/dashboard",
+      fieldGuides: [
+        {
+          fieldName: "Add Child",
+          description: "Click here to start creating a profile.",
+          selector: "a[href='/add-kid']",
+        }
+      ],
     },
     {
       title: "Create a child profile",
@@ -54,38 +66,47 @@ export function WalkthroughProvider({ children }: { children: React.ReactNode })
         {
           fieldName: "Child's Name",
           description: "Enter your child's name. This will appear throughout the app.",
+          selector: 'input[name*="name"], input[placeholder*="name"]',
         },
         {
           fieldName: "Date of Birth",
           description: "Select the date to calculate their current age and grade level.",
+          selector: 'input[type="date"]',
         },
         {
           fieldName: "Grade Level",
           description: "Choose the current grade. This helps suggest age-appropriate activities.",
+          selector: 'select',
         },
         {
           fieldName: "Strengths & Weaknesses",
           description: "List key strengths and areas to improve. This helps personalize content.",
+          selector: 'textarea[name*="strength"]',
         },
         {
           fieldName: "Hobbies & Interests",
           description: "Enter hobbies and interests. These are used in games and activities.",
+          selector: 'textarea[name*="hobby"], textarea[name*="interest"]',
         },
         {
           fieldName: "Behavioral Issues & Therapies",
           description: "Note any behavioral challenges and current therapies. Helps tailor behavior support.",
+          selector: 'textarea[name*="behavior"], textarea[name*="therapy"]',
         },
         {
           fieldName: "Sensory Issues",
           description: "Describe any sensory sensitivities. Affects how activities are recommended.",
+          selector: 'textarea[name*="sensory"]',
         },
         {
           fieldName: "Reward System",
           description: "Choose a reward type (Penny, Token, Star, etc.) and quantity. This motivates your child.",
+          selector: 'input[name*="reward"], select[name*="reward"]',
         },
         {
           fieldName: "Theme & Timezone",
           description: "Pick a theme color and timezone for accurate time tracking and display.",
+          selector: 'select[name*="timezone"]',
         },
       ],
     },
@@ -99,30 +120,37 @@ export function WalkthroughProvider({ children }: { children: React.ReactNode })
         {
           fieldName: "Behavior Rules Tab",
           description: "Create specific behavior definitions with names, descriptions, icons, and reward values.",
+          selector: '[role="tab"], button[aria-selected="true"]',
         },
         {
           fieldName: "Log Behavior Tab",
           description: "Quickly log when your child demonstrates a behavior. Track positive actions daily.",
+          selector: '[role="tab"], button',
         },
         {
           fieldName: "Progress Tab",
           description: "View behavior trends and progress over time with visual charts.",
+          selector: 'canvas, svg',
         },
         {
           fieldName: "Add Rule Button",
           description: "Click to create a new behavior rule (e.g., \"Listened the First Time\").",
+          selector: 'button[type="submit"], button.add-btn, button[data-action="add"]',
         },
         {
           fieldName: "Behavior Name",
           description: "A short, clear name for the behavior (e.g., \"Helpful at Home\").",
+          selector: 'input[name*="name"], input[placeholder*="behavior"]',
         },
         {
           fieldName: "Goal Rewards",
           description: "How many rewards your child earns when they reach the daily goal for this behavior.",
+          selector: 'input[type="number"]',
         },
         {
           fieldName: "Target Time & Goal",
           description: "Set how many times per day this behavior should occur or for how long.",
+          selector: 'input[name*="goal"], input[name*="target"]',
         },
       ],
     },
@@ -136,22 +164,27 @@ export function WalkthroughProvider({ children }: { children: React.ReactNode })
         {
           fieldName: "Activity Library",
           description: "Browse curated educational and behavioral activities.",
+          selector: 'section, main, [role="main"]',
         },
         {
           fieldName: "Assign Activity",
           description: "Select activities and set due dates or frequency.",
+          selector: 'button[type="submit"], input[type="date"]',
         },
         {
           fieldName: "Assigned List",
           description: "See all activities assigned to your child with due dates and status.",
+          selector: 'ul, ol, .list, [role="list"]',
         },
         {
           fieldName: "Mark as Complete",
           description: "Check off activities as your child completes them.",
+          selector: 'input[type="checkbox"]',
         },
         {
           fieldName: "View Details",
           description: "Click an activity to see full instructions and learning objectives.",
+          selector: 'button, a[href*="/"]',
         },
       ],
     },
@@ -170,26 +203,32 @@ export function WalkthroughProvider({ children }: { children: React.ReactNode })
         {
           fieldName: "Quiz Title",
           description: "Enter a descriptive name for the quiz (e.g., \"Multiplication Facts\").",
+          selector: 'input[name*="title"]',
         },
         {
           fieldName: "Quiz Description",
           description: "Explain the quiz purpose and what skills are being tested.",
+          selector: 'textarea[name*="description"]',
         },
         {
           fieldName: "Add Questions",
           description: "Click to add multiple-choice or short-answer questions.",
+          selector: 'button[type="submit"]',
         },
         {
           fieldName: "Question Details",
           description: "Enter the question text, correct answer, and distractors (wrong answers).",
+          selector: 'input[name*="question"], textarea[name*="question"]',
         },
         {
           fieldName: "Difficulty Level",
           description: "Mark as Easy, Medium, or Hard to help track skill progression.",
+          selector: 'select[name*="difficulty"], input[name*="difficulty"]',
         },
         {
           fieldName: "Save & Assign",
           description: "Save the quiz and assign it to your child with a due date.",
+          selector: 'button[type="submit"]',
         },
       ],
     },
@@ -203,22 +242,27 @@ export function WalkthroughProvider({ children }: { children: React.ReactNode })
         {
           fieldName: "Story Title",
           description: "Enter a descriptive title (e.g., \"Going to the Dentist\").",
+          selector: 'input[name*="title"]',
         },
         {
           fieldName: "Story Content",
           description: "Write step-by-step narrative that prepares your child for situations.",
+          selector: 'textarea[name*="content"], textarea[name*="story"]',
         },
         {
           fieldName: "Add Images",
           description: "Upload or generate images to illustrate each part of the story.",
+          selector: 'input[type="file"]',
         },
         {
           fieldName: "Use AI to Generate",
           description: "Let AI help create engaging stories based on your description.",
+          selector: 'button[type="submit"]',
         },
         {
           fieldName: "Publish",
           description: "Save and share the story with your child.",
+          selector: 'button[type="submit"]',
         },
       ],
     },
@@ -232,30 +276,37 @@ export function WalkthroughProvider({ children }: { children: React.ReactNode })
         {
           fieldName: "Worksheet Title",
           description: "Name your worksheet (e.g., \"Sight Words Practice\").",
+          selector: 'input[name*="title"]',
         },
         {
           fieldName: "Subject",
           description: "Choose subject area (Math, Reading, Spelling, etc.).",
+          selector: 'select[name*="subject"], input[name*="subject"]',
         },
         {
           fieldName: "Difficulty Level",
           description: "Select appropriate difficulty for your child.",
+          selector: 'select[name*="difficulty"], input[name*="difficulty"]',
         },
         {
           fieldName: "Content Type",
           description: "Choose exercise type (fill-in-the-blank, matching, multiple choice, etc.).",
+          selector: 'select[name*="type"], input[name*="type"]',
         },
         {
           fieldName: "Generate Worksheet",
           description: "Use AI to auto-generate appropriate practice problems.",
+          selector: 'button[type="submit"]',
         },
         {
           fieldName: "Customize",
           description: "Edit and personalize problems before saving.",
+          selector: 'button[type="button"]',
         },
         {
           fieldName: "Print or Assign",
           description: "Download to print or assign digitally to your child.",
+          selector: 'a[download], button[aria-label*="print"]',
         },
       ],
     },
@@ -276,18 +327,22 @@ export function WalkthroughProvider({ children }: { children: React.ReactNode })
         {
           fieldName: "Completed Tab",
           description: "Filter to see only finished activities.",
+          selector: '[role="tab"], button',
         },
         {
           fieldName: "Activity Details",
           description: "Click to view completion date, score, and feedback.",
+          selector: 'button, a[href*="/"]',
         },
         {
           fieldName: "Completion Date",
           description: "See when your child finished each activity.",
+          selector: 'span, div',
         },
         {
           fieldName: "Success Rate",
           description: "View the score or percentage achieved on quizzes.",
+          selector: 'span, div',
         },
       ],
     },
@@ -301,18 +356,22 @@ export function WalkthroughProvider({ children }: { children: React.ReactNode })
         {
           fieldName: "Time Period Filter",
           description: "Select date ranges to view specific months or years.",
+          selector: 'input[type="date"], select',
         },
         {
           fieldName: "Activity History",
           description: "See all activities your child has completed in chronological order.",
+          selector: 'table, ul, ol, [role="list"]',
         },
         {
           fieldName: "Behavior Trends",
           description: "View how behavior scores have changed over time.",
+          selector: 'canvas, svg',
         },
         {
           fieldName: "Export Data",
           description: "Download records for reports or therapist sharing.",
+          selector: 'button, a[download]',
         },
       ],
     },
@@ -326,22 +385,27 @@ export function WalkthroughProvider({ children }: { children: React.ReactNode })
         {
           fieldName: "Quiz Results",
           description: "View all quiz attempts with scores and dates completed.",
+          selector: 'section, div, table',
         },
         {
           fieldName: "Quiz History Table",
           description: "See each quiz with ability to delete old attempts or retake.",
+          selector: 'table, [role="table"]',
         },
         {
           fieldName: "Behavior Summary",
           description: "Charts showing behavior tracking and daily progress.",
+          selector: 'canvas, svg',
         },
         {
           fieldName: "Overall Stats",
           description: "Summary of rewards earned, activities completed, and goals met.",
+          selector: 'div, section',
         },
         {
           fieldName: "Delete Button",
           description: "Remove old quiz attempts to keep records clean.",
+          selector: 'button, a',
         },
       ],
     },

@@ -43,25 +43,51 @@ export const clearAuthSession = async () => {
 
 export const isAuthError = (error: any): boolean => {
   if (!error) return false;
-  const message = typeof error === 'string' ? error : (error.message || error.error_description || error.error || '');
   
+  // Extract all potential error message strings recursively/comprehensively
+  const getErrorMessages = (err: any): string[] => {
+    if (!err) return [];
+    if (typeof err === 'string') return [err];
+    
+    const messages: string[] = [];
+    if (typeof err === 'object') {
+      if (typeof err.message === 'string') messages.push(err.message);
+      if (typeof err.error_description === 'string') messages.push(err.error_description);
+      if (typeof err.error === 'string') messages.push(err.error);
+      if (typeof err.details === 'string') messages.push(err.details);
+      if (typeof err.code === 'string') messages.push(err.code);
+      
+      // Handle nested structures e.g. err.error: { message: '...' }
+      if (err.error && typeof err.error === 'object') {
+        messages.push(...getErrorMessages(err.error));
+      }
+      try {
+        messages.push(JSON.stringify(err));
+      } catch (e) {}
+    }
+    return messages;
+  };
+
+  const messages = getErrorMessages(error);
+  const combinedMessage = messages.join(' ').toLowerCase();
+
   const isAuthErr = (
-    message.includes('Auth session missing!') ||
-    message.includes('Refresh Token Not Found') || 
-    message.includes('Invalid Refresh Token') ||
-    message.includes('JWT expired') ||
-    message.includes('Invalid login credentials') ||
-    message.includes('Invalid Session') ||
-    message.includes('Supabase Project Mismatch') ||
-    message.includes('Unauthorized') ||
-    message.includes('Forbidden') ||
-    message.includes('User not found') ||
-    message.includes('session_not_found') ||
-    message.includes('refresh_token_not_found')
+    combinedMessage.includes('session') ||
+    combinedMessage.includes('refresh') ||
+    combinedMessage.includes('jwt') ||
+    combinedMessage.includes('unauthorized') ||
+    combinedMessage.includes('forbidden') ||
+    combinedMessage.includes('credentials') ||
+    combinedMessage.includes('expired') ||
+    combinedMessage.includes('auth') ||
+    combinedMessage.includes('mismatch') ||
+    combinedMessage.includes('not found') ||
+    combinedMessage.includes('invalid') ||
+    combinedMessage.includes('token')
   );
 
   if (isAuthErr) {
-    console.error('Detected Auth Error:', message);
+    console.error('Detected Auth Error inside error object:', error, 'Combined message parsed:', combinedMessage);
   }
   
   return isAuthErr;
