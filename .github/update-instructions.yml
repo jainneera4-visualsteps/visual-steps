@@ -3,7 +3,7 @@ name: Update Copilot Instructions 🔄
 on:
   push:
     branches:
-      - main # Runs whenever code is pushed or merged into the main branch
+      - main
 
 jobs:
   update-docs:
@@ -12,7 +12,21 @@ jobs:
       - name: Checkout Repository 📥
         uses: actions/checkout@v4
 
-      # This step ensures your instructions file stays noted when code changes
-      - name: Log Action Trigger 📝
-        run: |
-          echo "Main branch updated! Checking for documentation adjustments..."
+      - name: Setup Node.js 🟢
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies 📦
+        run: npm ci || npm install
+
+      - name: Generate New Instructions 🤖
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: node scripts/generate-instructions.mjs
+
+      - name: Commit & Push Changes 🚀
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "docs: auto-update copilot-instructions.md via Gemini [skip ci]"
+          file_pattern: ".github/copilot-instructions.md"
