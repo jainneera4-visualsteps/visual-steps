@@ -1,78 +1,45 @@
-# Copilot Instructions for Visual Steps
+```markdown
+# GitHub Copilot Instructions for Educational Platform
 
-## Project Overview
+This project is a full-stack educational web application designed for children, featuring interactive activities, games, AI-generated content, and progress tracking.
 
-Visual Steps is a child-focused learning and behavior support web app for parents, therapists, and caregivers. The product combines activity assignment, progress tracking, reward systems, social stories, quizzes, worksheets, and gamified learning experiences for kids. The UI is built around a warm, child-friendly experience, while the parent dashboard provides management and analytics tools.
+**Project Goals:**
+*   Develop, maintain, and enhance an engaging educational platform for kids.
+*   Implement new features, optimize existing ones, and ensure a robust, scalable architecture.
 
-## Tech Stack
+**Key Technologies & Stack:**
+*   **Frontend:** React 19, Vite, TypeScript, Tailwind CSS, Radix UI, Framer Motion, React Router DOM, Socket.IO Client.
+*   **Backend:** Node.js 20, Express, TypeScript, Socket.IO.
+*   **Database/BaaS:** Supabase (PostgreSQL, Authentication, Storage).
+*   **AI:** Google Gemini via `@google/genai` for generative features (quizzes, stories) and AI chat (Concierge).
+*   **Authentication:** JWT, bcryptjs.
+*   **Deployment:** Vercel (likely for frontend) and Node.js server.
 
-- Frontend: React 19 with TypeScript
-- Routing: React Router DOM v7
-- Build tooling: Vite 6
-- Styling: Tailwind CSS 4 with utility classes and custom component wrappers
-- UI components: Radix UI Tooltip, Framer Motion / Motion, Lucide React
-- Backend: Express.js server running in TypeScript/ESM
-- Real-time: Socket.IO for live updates and room-based events
-- AI features: Google Gemini via @google/genai
-- Authentication & data: Supabase JS client and server-side Supabase integration
-- File uploads: Multer + local uploads directory
-- Other utilities: JWT, bcryptjs, nodemailer, cookie-parser, uuid
+**Core Functionalities & Domains:**
+*   User Management (Parents & Kids accounts, authentication, profiles).
+*   Activity Library, Assignment, and Progress Tracking.
+*   Educational Games (Memory, Sorting, Polygons, BrainQuest, EvenOdd, LevelUp).
+*   Content Generation: Quizzes, Worksheets, Social Stories (often AI-assisted).
+*   Real-time Features: Potentially for collaborative activities or chat (Socket.IO).
+*   Reporting: Progress reports, summary reports.
+*   AI Concierge/Chatbot for assistance.
+*   Creative Tools: Layered Canvas Editor for interactive content.
 
-## Repository Structure
+**Coding Style & Best Practices:**
+*   **TypeScript:** Strictly typed code for reliability and maintainability.
+*   **React:** Functional components, Hooks, Context API for global state (Auth, Walkthrough).
+*   **Tailwind CSS:** Utility-first styling, prefer `tailwind-merge` and `clsx` for dynamic classes.
+*   **API Interaction:** Use `src/utils/api.ts` for consistent backend communication.
+*   **Supabase:** Leverage `src/lib/supabase.ts` for all Supabase client interactions.
+*   **Google Gemini:** Use `src/lib/gemini.ts` for AI model interactions.
+*   **Modularity:** Keep components small, focused, and reusable.
+*   **File Structure:** Adhere to the existing `src/components`, `src/pages`, `src/context`, `src/lib`, `src/utils`, `src/constants` structure.
+*   **Performance:** Optimize for fast loading and smooth user experience, especially on mobile.
 
-- src/ - main React application
-  - pages/ - route-level screens such as Dashboard, KidsDashboard, ActivityLibrary, QuizGenerator, SocialStories, Games, and report pages
-  - components/ - reusable UI blocks such as Layout, Button, Card, Input, Select, Textarea, Layout, and modal components
-  - context/ - React context providers for auth and walkthrough state
-  - lib/ - shared services like Supabase client, Gemini AI helpers, and utility integrations
-  - utils/ - helper modules for auth, API requests, rewards, dates, and other shared logic
-- server.ts - Express backend entrypoint with API routes, auth middleware, Supabase helpers, uploads, and Socket.IO setup
-- uploads/ - local storage for uploaded images/files
-- root scripts and config files - package.json, tsconfig.json, vite.config.ts, vercel.json
-- migration and inspection scripts at the repo root - these are utility scripts for database and schema work and should be treated as support tooling
-
-## Backend and Database Conventions
-
-- The backend runs through Express in server.ts and exposes REST-style API endpoints under /api/.
-- Supabase is the primary data backend. The client is initialized in src/lib/supabase.ts for the frontend and in server.ts for server-side calls.
-- Authentication is handled through Supabase auth on the client, and the backend uses bearer tokens or cookie-based JWT-style session handling for protected routes.
-- The app often uses fallback logic for offline/placeholder environments. If Supabase credentials are missing, code should degrade gracefully rather than crashing the UI.
-- File uploads are stored locally in uploads/ and served statically from /uploads.
-- Socket.IO is used for real-time updates; components often join rooms for a specific kid and refresh data when data_updated events arrive.
-
-## Frontend Development Patterns
-
-- Prefer functional React components and hooks.
-- Keep page-level logic in the page components under src/pages and place reusable UI in src/components.
-- Follow existing naming conventions: PascalCase for components and files, camelCase for variables/functions, and descriptive names for state and handlers.
-- When adding a new feature, mirror the structure of existing pages and reuse shared utilities from src/utils and src/lib rather than duplicating logic.
-- Use the existing shared API wrapper: apiFetch and safeJson from src/utils/api.ts for network requests.
-- Favor the existing UI patterns:
-  - use Button, Card, Input, Select, Textarea, and layout wrappers from src/components for consistency
-  - use Tailwind utility classes for styling
-  - keep child-friendly visual design and accessible, readable interfaces
-- When working with async data, prefer loading states, graceful fallbacks, and defensive parsing to handle inconsistent API payloads.
-- Keep local storage usage cautious and resilient; many screens implement safe localStorage helpers to avoid failures from quota or browser restrictions.
-
-## Code Style Guidelines
-
-- TypeScript should be used whenever possible; keep types explicit for new interfaces and props.
-- Preserve the project’s tolerant error-handling style: log helpful warnings and continue gracefully when optional data is unavailable.
-- Avoid introducing unnecessary dependencies unless the feature clearly requires them.
-- Follow existing patterns for route protection and auth-aware views using ProtectedRoute and KidProtectedRoute.
-- Respect the app’s domain model: kids, activities, quizzes, worksheets, social stories, rewards, and parent messages are core entities.
-
-## Working Recommendations
-
-- Before making changes, inspect the relevant page/component and nearby utilities to match existing patterns.
-- When editing UI, preserve the current visual tone and avoid making the app feel overly corporate or generic.
-- For new backend routes, keep them under the existing /api namespace and integrate with the existing Supabase helpers.
-- For AI-related features, keep prompt logic and model selection centralized in src/lib/gemini.ts when possible.
-- When working with forms, prefer existing input components and controlled state patterns already used in the current pages.
-
-## Validation
-
-- Run the typecheck/lint step when making significant changes:
-  - npm run lint
-- If you modify backend or API behavior, also verify the app still starts locally with:
-  - npm run dev
+**When providing assistance:**
+*   **Prioritize Security:** Be mindful of authentication, authorization, and data privacy, especially with user and kid data.
+*   **Contextual Understanding:** Understand the user (parent/kid) and the specific educational context of the feature.
+*   **AI Integration:** Suggest how to best leverage Gemini for content generation, personalization, or interactive features.
+*   **Database Interactions:** Formulate secure and efficient Supabase queries.
+*   **UI/UX:** Focus on intuitive user interfaces and engaging experiences for children.
+```
