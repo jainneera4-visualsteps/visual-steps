@@ -2,7 +2,6 @@ import { apiFetch, safeJson } from '../utils/api';
 import { io } from 'socket.io-client';
 import { formatReward, rewardImages } from '../utils/rewardUtils';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import confetti from 'canvas-confetti';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Calendar, Star, Lock, Lightbulb, LayoutGrid, CheckCircle, Circle, Clock, Target, Coins, LayoutList, WifiOff, Loader2, Gamepad2, PlayCircle, Sun, CloudSun, Moon, Sparkles, LogOut, Trophy, Eye, TrendingUp, MessageSquare, X } from 'lucide-react';
 import { Button } from '../components/Button';
@@ -11,7 +10,6 @@ import { ActivityDetailModal } from '../components/ActivityDetailModal';
 import { getZonedTime, formatInTimezone, convertDateToTimeZone } from '../utils/dateUtils';
 import { SocialStoryModal } from '../components/SocialStoryModal';
 import { ChatbotComponent } from '../components/ChatbotComponent';
-import { motion, AnimatePresence } from 'motion/react';
 
 interface ActivityStep {
   id?: number;
@@ -80,6 +78,7 @@ export default function KidsDashboard() {
   const { kidId } = useParams();
   const navigate = useNavigate();
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [allActivities, setAllActivities] = useState<Activity[]>([]);
   const [quizzes, setQuizzes] = useState<any[]>([]);
   const [kid, setKid] = useState<Kid | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -89,58 +88,6 @@ export default function KidsDashboard() {
   const lastMessageRef = useRef<string | undefined>(undefined);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const playNotificationSound = useCallback(() => {
-    try {
-      if (!audioRef.current) {
-        audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3');
-      }
-      audioRef.current.currentTime = 0;
-      audioRef.current.volume = 0.5;
-      audioRef.current.play().catch(e => console.log('Audio play blocked:', e));
-    } catch (e) {
-      console.error('Failed to play sound', e);
-    }
-  }, []);
-
-  const triggerCelebration = useCallback(() => {
-    playNotificationSound();
-    const count = 200;
-    const defaults = {
-      origin: { y: 0.7 },
-      zIndex: 1000
-    };
-
-    function fire(particleRatio: number, opts: any) {
-      confetti({
-        ...defaults,
-        ...opts,
-        particleCount: Math.floor(count * particleRatio)
-      });
-    }
-
-    fire(0.25, {
-      spread: 26,
-      startVelocity: 55,
-    });
-    fire(0.2, {
-      spread: 60,
-    });
-    fire(0.35, {
-      spread: 100,
-      decay: 0.91,
-      scalar: 0.8
-    });
-    fire(0.1, {
-      spread: 120,
-      startVelocity: 25,
-      decay: 0.92,
-      scalar: 1.2
-    });
-    fire(0.1, {
-      spread: 120,
-      startVelocity: 45,
-    });
-  }, []);
   const [viewingStoryId, setViewingStoryId] = useState<string | null>(null);
   const [isAccessAllowed, setIsAccessAllowed] = useState(true);
   const [accessMessage, setAccessMessage] = useState('');
@@ -149,186 +96,6 @@ export default function KidsDashboard() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [timezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
-  
-  const [behaviorDefinitions, setBehaviorDefinitions] = useState<any[]>([]);
-  const [behaviorLogs, setBehaviorLogs] = useState<any[]>([]);
-  const [behaviorTracker, setBehaviorTracker] = useState<any[]>([]);
-
-  // Token flying animation states
-  const [flyingTokens, setFlyingTokens] = useState<Array<{
-    id: string;
-    startX: number;
-    startY: number;
-    endX: number;
-    endY: number;
-    color: string;
-  }>>([]);
-
-  const [celebrationParticles, setCelebrationParticles] = useState<Array<{
-    id: string;
-    x: number;
-    y: number;
-    color: string;
-    angle: number;
-    velocity: number;
-    size: number;
-  }>>([]);
-
-  const prevTrackerRef = useRef<any[]>([]);
-  const isInitialTrackerLoadRef = useRef(true);
-
-  // Play dynamic synthesis sound when token starts flying
-  const playLaunchSound = () => {
-    try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      const now = ctx.currentTime;
-      
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(330, now); // E4
-      osc.frequency.exponentialRampToValueAtTime(660, now + 0.25); // E5
-      
-      gain.gain.setValueAtTime(0.08, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
-      
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.3);
-    } catch (e) {
-      console.warn('Launch sound error:', e);
-    }
-  };
-
-  // Play dynamic bell chime sound when token lands
-  const playImpactSound = () => {
-    try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      const now = ctx.currentTime;
-      
-      const osc1 = ctx.createOscillator();
-      const gain1 = ctx.createGain();
-      osc1.type = 'sine';
-      osc1.frequency.setValueAtTime(880, now); // A5
-      gain1.gain.setValueAtTime(0.1, now);
-      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-      osc1.connect(gain1);
-      gain1.connect(ctx.destination);
-      
-      const osc2 = ctx.createOscillator();
-      const gain2 = ctx.createGain();
-      osc2.type = 'triangle';
-      osc2.frequency.setValueAtTime(1320, now + 0.05); // E6
-      gain2.gain.setValueAtTime(0.05, now + 0.05);
-      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
-      osc2.connect(gain2);
-      gain2.connect(ctx.destination);
-      
-      osc1.start(now);
-      osc1.stop(now + 0.4);
-      osc2.start(now + 0.05);
-      osc2.stop(now + 0.35);
-    } catch (e) {
-      console.warn('Impact sound error:', e);
-    }
-  };
-
-  // Trigger celebration particles at destination
-  const spawnCelebration = (x: number, y: number, color: string) => {
-    const particleCount = 12;
-    const newParticles = Array.from({ length: particleCount }).map((_, idx) => {
-      const angle = (idx / particleCount) * 360 + (Math.random() * 15 - 7.5);
-      const velocity = 3 + Math.random() * 4;
-      const size = 6 + Math.random() * 8;
-      return {
-        id: `${Date.now()}-${idx}-${Math.random()}`,
-        x,
-        y,
-        color,
-        angle,
-        velocity,
-        size
-      };
-    });
-
-    setCelebrationParticles(prev => [...prev, ...newParticles]);
-
-    // Remove particles after 800ms
-    setTimeout(() => {
-      const idsToRemove = newParticles.map(p => p.id);
-      setCelebrationParticles(prev => prev.filter(p => !idsToRemove.includes(p.id)));
-    }, 800);
-  };
-
-  // Trigger flying tokens
-  const triggerFlyingToken = (definitionId: string, amount: number) => {
-    const def = behaviorDefinitions.find(d => d.id === definitionId);
-    if (!def) return;
-
-    let rawDesc = def.description || '';
-    let colorVal = def.color || (def.type === 'desired' ? '#10b981' : '#ef4444');
-    const colorMatch = rawDesc.match(/^\[Color: (#?[a-zA-Z0-9]+)\]\s*(.*)$/s);
-    if (colorMatch) {
-      colorVal = colorMatch[1];
-    }
-
-    for (let i = 0; i < amount; i++) {
-      setTimeout(() => {
-        const sourceEl = document.getElementById(`behavior-card-${definitionId}`);
-        const destEl = document.getElementById('token-destination-container');
-
-        if (sourceEl && destEl) {
-          const sourceRect = sourceEl.getBoundingClientRect();
-          const destRect = destEl.getBoundingClientRect();
-
-          const startX = sourceRect.left + sourceRect.width / 2;
-          const startY = sourceRect.top + sourceRect.height / 2;
-          const endX = destRect.left + destRect.width / 2;
-          const endY = destRect.top + destRect.height / 2;
-
-          const tokenId = `${definitionId}-${Date.now()}-${i}-${Math.random()}`;
-          setFlyingTokens(prev => [...prev, {
-            id: tokenId,
-            startX,
-            startY,
-            endX,
-            endY,
-            color: colorVal
-          }]);
-          playLaunchSound();
-        }
-      }, i * 150);
-    }
-  };
-
-  // Listen to point increases
-  useEffect(() => {
-    if (!behaviorTracker || behaviorTracker.length === 0) return;
-
-    if (isInitialTrackerLoadRef.current) {
-      prevTrackerRef.current = behaviorTracker;
-      isInitialTrackerLoadRef.current = false;
-      return;
-    }
-
-    behaviorTracker.forEach((newEntry) => {
-      const prevEntry = prevTrackerRef.current.find(t => t.definition_id === newEntry.definition_id);
-      const prevPoints = prevEntry ? prevEntry.points : 0;
-      const newPoints = newEntry.points;
-
-      if (newPoints > prevPoints) {
-        const diff = newPoints - prevPoints;
-        triggerFlyingToken(newEntry.definition_id, diff);
-      }
-    });
-
-    prevTrackerRef.current = behaviorTracker;
-  }, [behaviorTracker, behaviorDefinitions]);
 
   const calculateAge = (dob: string, timezone?: string) => {
     if (!dob) return '';
@@ -377,9 +144,10 @@ export default function KidsDashboard() {
   const [today, setToday] = useState<string | null>(null);
   const completedTodayCount = activities.filter(a => {
     if (a.status !== 'completed') return false;
+    const effectiveToday = today || getZonedTime(kid?.timezone).isoDate;
     const dateToUse = a.completion_date || a.created_at;
-    if (!dateToUse) return a.due_date === today;
-    return getZonedTime(kid?.timezone, new Date(dateToUse)).isoDate === today;
+    if (!dateToUse) return a.due_date === effectiveToday;
+    return getZonedTime(kid?.timezone, new Date(dateToUse)).isoDate === effectiveToday;
   }).length;
   
   const rewardIcon = kid?.reward_type ? (rewardImages[kid.reward_type] || rewardImages['Penny']) : rewardImages['Penny'];
@@ -683,6 +451,106 @@ export default function KidsDashboard() {
   // Exit Modal State
   const [rewardItems, setRewardItems] = useState<RewardItem[]>([]);
 
+  const safeLocalStorageGet = (key: string) => {
+    try {
+      return localStorage.getItem(key);
+    } catch (error) {
+      console.warn(`KidsDashboard: localStorage.getItem failed for ${key}`, error);
+      return null;
+    }
+  };
+
+  const shrinkKidCacheValue = (value: string) => {
+    try {
+      const parsed = JSON.parse(value);
+      if (!parsed || typeof parsed !== 'object') return null;
+      const reduced = { ...parsed } as Record<string, any>;
+      [
+        'notes',
+        'parent_message',
+        'hobbies',
+        'interests',
+        'strengths',
+        'weaknesses',
+        'sensory_issues',
+        'behavioral_issues',
+        'therapies'
+      ].forEach((field) => {
+        if (field in reduced) {
+          delete reduced[field];
+        }
+      });
+      return JSON.stringify(reduced);
+    } catch {
+      return null;
+    }
+  };
+
+  const safeLocalStorageSet = (key: string, value: string) => {
+    try {
+      localStorage.setItem(key, value);
+      return;
+    } catch (error: any) {
+      console.warn(`KidsDashboard: localStorage.setItem failed for ${key}`,
+        { error, valueSize: value.length, key });
+
+      // Attempt best-effort cleanup when quota is exceeded, then retry once
+      try {
+        const isQuota = error && (
+          error.name === 'QuotaExceededError' ||
+          error.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+          error.code === 22 ||
+          error.code === 1014 ||
+          (typeof error.message === 'string' && error.message.toLowerCase().includes('quota'))
+        );
+
+        if (isQuota) {
+          const evictLargeCaches = () => {
+            try {
+              Object.keys(localStorage).forEach(k => {
+                if (k.startsWith('activities_') || k.startsWith('all_activities_')) {
+                  try { localStorage.removeItem(k); } catch (e) {}
+                }
+              });
+            } catch (e) {
+              // ignore iteration errors
+            }
+          };
+
+          if (key.startsWith('kid_')) {
+            const kidIdFromKey = key.slice(4);
+            try { localStorage.removeItem(`activities_${kidIdFromKey}`); } catch (e) {}
+            try { localStorage.removeItem(`all_activities_${kidIdFromKey}`); } catch (e) {}
+          }
+
+          evictLargeCaches();
+
+          if (key.startsWith('kid_')) {
+            const trimmedValue = shrinkKidCacheValue(value);
+            if (trimmedValue && trimmedValue.length < value.length) {
+              try {
+                localStorage.setItem(key, trimmedValue);
+                console.warn(`KidsDashboard: Stored trimmed kid cache for ${key} after quota error`, { originalSize: value.length, trimmedSize: trimmedValue.length });
+                return;
+              } catch (e2) {
+                console.warn('KidsDashboard: retry with trimmed kid cache failed', e2);
+              }
+            }
+          }
+
+          try {
+            localStorage.setItem(key, value);
+            return;
+          } catch (e2) {
+            console.warn('KidsDashboard: retry after localStorage cleanup failed', e2);
+          }
+        }
+      } catch (cleanupErr) {
+        console.warn('KidsDashboard: localStorage cleanup attempt threw', cleanupErr);
+      }
+    }
+  };
+
   useEffect(() => {
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
@@ -737,11 +605,23 @@ export default function KidsDashboard() {
     if (!silent) setIsLoading(true);
     
     // Load from cache first
-    const cachedKid = localStorage.getItem(`kid_${kidId}`);
-    const cachedActivities = localStorage.getItem(`activities_${kidId}`);
+    const cachedKid = safeLocalStorageGet(`kid_${kidId}`);
+    const cachedActivities = safeLocalStorageGet(`activities_${kidId}`);
     
-    if (cachedKid) setKid(JSON.parse(cachedKid));
-    if (cachedActivities) setActivities(JSON.parse(cachedActivities));
+    if (cachedKid) {
+      try {
+        setKid(JSON.parse(cachedKid));
+      } catch (error) {
+        console.warn('KidsDashboard: Failed to parse cached kid data', error, cachedKid);
+      }
+    }
+    if (cachedActivities) {
+      try {
+        setActivities(JSON.parse(cachedActivities));
+      } catch (error) {
+        console.warn('KidsDashboard: Failed to parse cached activities', error, cachedActivities);
+      }
+    }
 
     if (navigator.onLine) {
       try {
@@ -750,26 +630,34 @@ export default function KidsDashboard() {
         setToday(localDate);
         const localTime = zoned.totalMinutes;
 
+        console.log('KidsDashboard: fetchData start', {
+          kidId,
+          kidTimezone: kid?.timezone,
+          localDate,
+          localTime,
+          cachedKid: !!cachedKid,
+          cachedActivities: !!cachedActivities,
+        });
+
         // Fetch everything in parallel - using a wrapper to prevent one failure from breaking all
         const fetchWrapper = async (p: Promise<Response>, name: string) => {
           try {
             const res = await p;
+            console.log(`KidsDashboard: ${name} fetch status`, { status: res.status, statusText: res.statusText, url: res.url });
             return res;
           } catch (e) {
             console.error(`KidsDashboard: Individual fetch failed (${name}):`, e);
             // Return a mock "failed" response instead of throwing
-            return { ok: false, status: 0, statusText: 'Network Error', json: async () => ({ error: 'Network Error' }) } as any as Response;
+            return { ok: false, status: 0, statusText: 'Network Error', url: '', json: async () => ({ error: 'Network Error' }) } as any as Response;
           }
         };
 
-        const [kidRes, actRes, rewardRes, quizRes, defsRes, logsRes, trackerRes] = await Promise.all([
+        const [kidRes, actRes, allActRes, rewardRes, quizRes] = await Promise.all([
           fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}`), 'kid'),
           fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/activities?mode=kid&localDate=${localDate}&localTime=${localTime}&_t=${Date.now()}`), 'activities'),
+          fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/activities?mode=parent&localDate=${localDate}&localTime=${localTime}&_t=${Date.now()}`), 'all-activities'),
           fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/reward-items?onlyActive=true`), 'rewards'),
-          fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/quizzes`), 'quizzes'),
-          fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/behavior-definitions`), 'behavior-defs'),
-          fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/behaviors`), 'behavior-logs'),
-          fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/behavior-tracker`), 'behavior-tracker')
+          fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/quizzes`), 'quizzes')
         ]);
 
         // Process Kid Data
@@ -777,16 +665,38 @@ export default function KidsDashboard() {
           const kidData = await safeJson(kidRes);
           if (kidData && kidData.kid) {
             setKid(kidData.kid);
-            localStorage.setItem(`kid_${kidId}`, JSON.stringify(kidData.kid));
+            safeLocalStorageSet(`kid_${kidId}`, JSON.stringify(kidData.kid));
           }
         }
 
         // Process Activities
         if (actRes.ok) {
           const actData = await safeJson(actRes);
-          const allActivities = actData.activities || [];
-          setActivities(allActivities);
-          localStorage.setItem(`activities_${kidId}`, JSON.stringify(allActivities));
+          const allActivities = Array.isArray(actData)
+            ? actData
+            : actData.activities || actData.data?.activities || actData.data || [];
+          if (!Array.isArray(allActivities)) {
+            console.warn('KidsDashboard: Unexpected activities payload shape:', actData);
+          }
+          const normalizedActivities = Array.isArray(allActivities) ? allActivities : [];
+          console.log('KidsDashboard: Loaded activities', normalizedActivities.length, normalizedActivities);
+          setActivities(normalizedActivities);
+          safeLocalStorageSet(`activities_${kidId}`, JSON.stringify(normalizedActivities));
+        }
+
+        // Process All Activities
+        if (allActRes.ok) {
+          const allActData = await safeJson(allActRes);
+          const allActivities = Array.isArray(allActData)
+            ? allActData
+            : allActData.activities || allActData.data?.activities || allActData.data || [];
+          if (!Array.isArray(allActivities)) {
+            console.warn('KidsDashboard: Unexpected all-activities payload shape:', allActData);
+          }
+          const normalizedAllActivities = Array.isArray(allActivities) ? allActivities : [];
+          console.log('KidsDashboard: Loaded allActivities', normalizedAllActivities.length, normalizedAllActivities);
+          setAllActivities(normalizedAllActivities);
+          safeLocalStorageSet(`all_activities_${kidId}`, JSON.stringify(normalizedAllActivities));
         }
 
         // Process Rewards
@@ -799,32 +709,6 @@ export default function KidsDashboard() {
         if (quizRes.ok) {
           const quizData = await safeJson(quizRes);
           setQuizzes(quizData.quizzes || []);
-        }
-
-        // Process Behavior Definitions
-        if (defsRes.ok) {
-          const defsData = await safeJson(defsRes);
-          const definitions = defsData.definitions || [];
-          const priorityMap: Record<string, number> = { High: 3, Medium: 2, Low: 1 };
-          const getPriority = (def: any) => {
-            if (def.priority) return priorityMap[def.priority] || 2;
-            const match = (def.description || '').match(/\[Priority: (High|Medium|Low)\]/);
-            return match ? priorityMap[match[1]] : 2;
-          };
-          definitions.sort((a: any, b: any) => getPriority(b) - getPriority(a));
-          setBehaviorDefinitions(definitions);
-        }
-
-        // Process Logs
-        if (logsRes.ok) {
-          const logsData = await safeJson(logsRes);
-          setBehaviorLogs(logsData.behaviors || []);
-        }
-
-        // Process Tracker
-        if (trackerRes.ok) {
-          const trackerData = await safeJson(trackerRes);
-          setBehaviorTracker(trackerData.tracker || []);
         }
 
       } catch (error: any) {
@@ -864,7 +748,6 @@ export default function KidsDashboard() {
               const dismissedKey = `dismissed_reward_${kidId}_${rewardId}`;
               if (!localStorage.getItem(dismissedKey)) {
                 setShowRewardModal(true);
-                triggerCelebration();
               }
             }
           }
@@ -881,14 +764,12 @@ export default function KidsDashboard() {
     if (kid && kid.parent_message) {
       const lastSeen = localStorage.getItem(`last_seen_message_${kidId}`);
       if (kid.parent_message !== lastSeen) {
-        console.log('New parent message detected, triggering celebration');
-        triggerCelebration();
-        localStorage.setItem(`last_seen_message_${kidId}`, kid.parent_message);
+        safeLocalStorageSet(`last_seen_message_${kidId}`, kid.parent_message);
       }
     } else if (kid) {
       localStorage.removeItem(`last_seen_message_${kidId}`);
     }
-  }, [kid, kidId, triggerCelebration, pendingReward, showRewardModal]);
+  }, [kid, kidId, pendingReward, showRewardModal]);
 
   useEffect(() => {
     // Set up socket connection
@@ -942,14 +823,14 @@ export default function KidsDashboard() {
       a.id === activity.id ? { ...a, status: newStatus, completion_date: now } : a
     );
     setActivities(updatedActivities);
-    localStorage.setItem(`activities_${kidId}`, JSON.stringify(updatedActivities));
+    safeLocalStorageSet(`activities_${kidId}`, JSON.stringify(updatedActivities));
     
     // Optimistic update for kid's reward balance
     if (kid && newStatus === 'completed') {
       const rewardQty = kid.reward_quantity || 0; // Default to 0 if not set
       const updatedKid = { ...kid, reward_balance: (kid.reward_balance || 0) + rewardQty };
       setKid(updatedKid);
-      localStorage.setItem(`kid_${kidId}`, JSON.stringify(updatedKid));
+      safeLocalStorageSet(`kid_${kidId}`, JSON.stringify(updatedKid));
     }
 
     if (selectedActivity && selectedActivity.id === activity.id) {
@@ -958,6 +839,7 @@ export default function KidsDashboard() {
 
     if (navigator.onLine) {
       try {
+        const targetTimezone = kid?.timezone || timezone;
         const res = await apiFetch(`/api/activities/${encodeURIComponent(activity.id)}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -969,8 +851,8 @@ export default function KidsDashboard() {
             imageUrl: activity.image_url,
             dueDate: activity.due_date,
             status: newStatus,
-            completedAt: convertDateToTimeZone(new Date(), kid!.timezone),
-            createdAt: convertDateToTimeZone(activity.created_at || new Date(), kid!.timezone),
+            completedAt: convertDateToTimeZone(new Date(), targetTimezone),
+            createdAt: convertDateToTimeZone(activity.created_at || new Date(), targetTimezone),
           }),
         });
         
@@ -1001,7 +883,7 @@ export default function KidsDashboard() {
     try {
         if (pendingReward) {
           const rewardId = pendingReward.timestamp || JSON.stringify(pendingReward);
-          localStorage.setItem(`dismissed_reward_${kidId}_${rewardId}`, 'true');
+          safeLocalStorageSet(`dismissed_reward_${kidId}_${rewardId}`, 'true');
         }
         const res = await apiFetch(`/api/kids/${encodeURIComponent(kid.id)}/confirm-reward`, {
             method: 'PUT',
@@ -1206,12 +1088,7 @@ export default function KidsDashboard() {
                 </div>
               )}
 
-              {/* Dashboard Content Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-                
-                {/* Left Column: Activities / Main Content (2/3 width on desktop) */}
-                <div className="lg:col-span-2 w-full min-w-0">
-                  <div className="flex flex-col gap-6">
+              <div className="flex flex-col gap-6">
                     {!isAccessAllowed ? (
                       <div className={`p-8 rounded-2xl border-2 border-dashed ${kid?.theme === 'space' ? 'border-slate-800 bg-slate-900/50' : 'border-slate-200 bg-white/50'} text-center flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-500`}>
                         <div className={`mb-4 rounded-full ${currentTheme.rulesHeader} p-6 shadow-md animate-bounce`}>
@@ -1294,15 +1171,15 @@ export default function KidsDashboard() {
                     ) : (
                       <div className="w-full">
                         {(() => {
+                          const effectiveToday = today || getZonedTime(kid?.timezone).isoDate;
                           const filtered = activities.filter(a => {
                             if (activeTab === 'todo') {
-                              return a.status !== 'completed' && a.due_date === today;
-                            } else {
-                              if (a.status !== 'completed') return false;
-                              const dateToUse = a.completion_date || a.created_at;
-                              if (!dateToUse) return a.due_date === today;
-                              return getZonedTime(kid?.timezone, new Date(dateToUse)).isoDate === today;
+                              return a.status !== 'completed' && a.due_date === effectiveToday;
                             }
+                            if (activeTab === 'completed') {
+                              return a.status === 'completed' && a.due_date === effectiveToday;
+                            }
+                            return false;
                           });
                           
                           if (filtered.length === 0) {
@@ -1430,180 +1307,7 @@ export default function KidsDashboard() {
                     )}
                   </div>
                 </div>
-
-                {/* Right Column: Sidebar (1/3 width on desktop, stacks on mobile) */}
-                <aside className="lg:col-span-1 flex flex-col gap-8 lg:sticky lg:top-8 self-start">
-                  
-                  {/* Right Bottom: Rules */}
-                  {kid?.rules && (
-                    <div className={`rounded-2xl border ${currentTheme.rules} p-6 shadow-sm ring-1 ring-black/5`}>
-                      <div className="flex items-center gap-3 mb-6">
-                        <div className={`flex h-10 w-10 items-center justify-center rounded-full ${currentTheme.rulesHeader} shadow-sm`}>
-                          <Lightbulb className="h-5 w-5" />
-                        </div>
-                        <h3 className={`text-lg font-black ${currentTheme.rulesTitle} uppercase tracking-wider`}>My Progress</h3>
-                      </div>
-
-                      {/* Token Collection section on top */}
-                      {behaviorDefinitions.filter(def => def.is_active !== false).length > 0 && (
-                        <div className="mb-6 pb-6 border-b border-slate-200/60 dark:border-slate-700/60" id="token-destination-container">
-                          <div className="flex items-center gap-2 mb-4">
-                            <Sparkles className="h-4 w-4 text-amber-500 animate-pulse" />
-                            <h4 className="text-sm font-black text-slate-700 uppercase tracking-wider">
-                              My Points Earned
-                            </h4>
-                          </div>
-                          
-                          {(() => {
-                            const allTokens = behaviorDefinitions
-                              .filter(def => def.is_active !== false)
-                              .flatMap((def) => {
-                                let rawDesc = def.description || '';
-                                let colorVal = def.color || (def.type === 'desired' ? '#10b981' : '#ef4444');
-
-                                const colorMatch = rawDesc.match(/^\[Color: (#?[a-zA-Z0-9]+)\]\s*(.*)$/s);
-                                if (colorMatch) {
-                                  colorVal = colorMatch[1];
-                                  rawDesc = colorMatch[2];
-                                }
-
-                                const timeMatch = rawDesc.match(/^\[Time: (\d{2}):(\d{2}):(\d{2})\](?:\[Priority: (High|Medium|Low)\])?(?:\[Goal: (\d+)\])? (.*)$/s);
-                                const displayDesc = timeMatch ? timeMatch[6] : rawDesc;
-
-                                const trackerEntry = behaviorTracker.find(t => t.definition_id === def.id);
-                                const currentHits = trackerEntry ? trackerEntry.points : 0;
-                                
-                                return Array.from({ length: currentHits }).map((_, idx) => ({
-                                  id: `${def.id}-${idx}`,
-                                  name: displayDesc || def.name,
-                                  color: colorVal,
-                                }));
-                              });
-
-                            if (allTokens.length > 0) {
-                              return (
-                                <div className="flex flex-wrap gap-2 p-3 bg-slate-50/50 rounded-xl border border-slate-100 min-h-[60px] items-center">
-                                  {allTokens.map((token) => (
-                                    <div 
-                                      key={token.id}
-                                      className="h-8 w-8 rounded-full flex items-center justify-center shadow-md relative transition-transform duration-300 hover:scale-110 shrink-0 border border-white/25 animate-in zoom-in-50 duration-300"
-                                      style={{ 
-                                        backgroundColor: token.color,
-                                        boxShadow: `0 4px 6px -1px ${token.color}55, 0 2px 4px -2px ${token.color}55, inset 0 2px 4px rgba(255, 255, 255, 0.45)`
-                                      }}
-                                      title={token.name}
-                                    >
-                                      <Star className="h-4 w-4 fill-white text-white/95" />
-                                      <div className="absolute inset-0.5 rounded-full border border-white/20 pointer-events-none" />
-                                    </div>
-                                  ))}
-                                </div>
-                              );
-                            }
-
-                            return (
-                              <div className="text-center py-4 bg-slate-50/50 rounded-xl border border-slate-100 border-dashed">
-                                <p className="text-xs font-medium text-slate-400">
-                                  No tokens collected yet. Start your daily habits to earn them!
-                                </p>
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      )}
-
-                      <div className="space-y-4">
-                        {behaviorDefinitions.filter(def => def.is_active !== false).length > 0 ? (
-                          behaviorDefinitions
-                            .filter(def => def.is_active !== false)
-                            .map((def) => {
-                            let rawDesc = def.description || '';
-                            let colorVal = def.color || (def.type === 'desired' ? '#10b981' : '#ef4444');
-
-                            const colorMatch = rawDesc.match(/^\[Color: (#?[a-zA-Z0-9]+)\]\s*(.*)$/s);
-                            if (colorMatch) {
-                              colorVal = colorMatch[1];
-                              rawDesc = colorMatch[2];
-                            }
-
-                            const timeMatch = rawDesc.match(/^\[Time: (\d{2}):(\d{2}):(\d{2})\](?:\[Priority: (High|Medium|Low)\])?(?:\[Goal: (\d+)\])? (.*)$/s);
-                            const priority = def.priority || (timeMatch && timeMatch[4] ? timeMatch[4] : 'Medium');
-                            const goalValue = def.goal || (timeMatch && timeMatch[5] ? parseInt(timeMatch[5]) : 1);
-                            const targetTime = def.target_time || (timeMatch ? `${timeMatch[1]}:${timeMatch[2]}:${timeMatch[3]}` : null);
-                            const displayDesc = timeMatch ? timeMatch[6] : rawDesc;
-                            
-                            // Count actual hits/logs for this behavior
-                            const trackerEntry = behaviorTracker.find(t => t.definition_id === def.id);
-                            const currentHits = trackerEntry ? trackerEntry.points : 0;
-                            const remarks = trackerEntry ? trackerEntry.remarks : '';
-                            // Reset count logic
-                            // Or just continuous total until they reach goal N times?
-                            // Let's assume progress is towards the goal.
-                            const progress = Math.min(100, (currentHits / goalValue) * 100);
-                            
-                            return (
-                              <div key={def.id} id={`behavior-card-${def.id}`} className="space-y-3 p-3 rounded-lg bg-white/50 border border-slate-100 shadow-sm transition-all hover:shadow-md">
-                                <div className="flex flex-col gap-2">
-                                  {currentHits > 0 ? (
-                                    <div className="flex flex-wrap gap-1.5 items-center min-h-[32px]">
-                                      {Array.from({ length: currentHits }).map((_, index) => (
-                                        <div 
-                                          key={index}
-                                          className="h-7 w-7 rounded-full flex items-center justify-center shadow-md relative transition-transform duration-300 hover:scale-110 shrink-0 border border-white/25 animate-in zoom-in-50 duration-300"
-                                          style={{ 
-                                            backgroundColor: colorVal,
-                                            boxShadow: `0 4px 6px -1px ${colorVal}55, 0 2px 4px -2px ${colorVal}55, inset 0 2px 4px rgba(255, 255, 255, 0.45)`
-                                          }}
-                                          title={`Token ${index + 1}`}
-                                        >
-                                          {/* Inner gold/white shiny star to make it look like a token/coin */}
-                                          <Star className="h-3.5 w-3.5 fill-white text-white/95" />
-                                          <div className="absolute inset-0.5 rounded-full border border-white/20 pointer-events-none" />
-                                        </div>
-                                      ))}
-                                      <span className="text-xs font-black ml-1.5 uppercase tracking-wide px-2 py-0.5 rounded bg-slate-100 border border-slate-200" style={{ color: colorVal }}>
-                                        {currentHits} {currentHits === 1 ? 'Token' : 'Tokens'}
-                                      </span>
-                                    </div>
-                                  ) : (
-                                    <div className="flex items-center gap-2 min-h-[32px]">
-                                      <div className="h-7 w-7 rounded-full border-2 border-dashed border-slate-300 flex items-center justify-center shrink-0">
-                                        <Star className="h-3.5 w-3.5 text-slate-300" />
-                                      </div>
-                                      <span className="text-[11px] font-bold text-slate-400">
-                                        Earn tokens for doing this!
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="space-y-1">
-                                  <p className="text-[16px] font-black text-slate-700 uppercase tracking-tight">
-                                    {displayDesc || def.name}
-                                  </p>
-                                </div>
-                              </div>
-                            );
-                          })
-                        ) : (
-                          kid.rules.split('\n').filter(r => r.trim()).map((rule, idx) => (
-                          <div key={idx} className="flex gap-3 items-start group">
-                            <div className={`mt-2 h-2 w-2 rounded-full shrink-0 ${currentTheme.accent} group-hover:scale-125 transition-transform`} />
-                            <p className="text-sm sm:text-base font-medium leading-relaxed break-words">
-                              {rule}
-                            </p>
-                          </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-
-                </aside>
-
               </div>
-            </div>
-          </div>
         )}
         {showRewardModal && pendingReward && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
@@ -1727,105 +1431,6 @@ export default function KidsDashboard() {
       </main>
 
       {/* Flying Tokens and Celebration Particles Layer */}
-      <AnimatePresence>
-        {flyingTokens.map((token) => (
-          <motion.div
-            key={token.id}
-            initial={{ 
-              x: token.startX - 14, 
-              y: token.startY - 14, 
-              scale: 0.5, 
-              opacity: 0,
-              rotate: 0
-            }}
-            animate={{ 
-              x: token.endX - 14, 
-              y: token.endY - 14, 
-              scale: [1, 1.4, 1], 
-              opacity: [0, 1, 1, 0.8],
-              rotate: 360
-            }}
-            exit={{ opacity: 0 }}
-            transition={{ 
-              duration: 0.8, 
-              ease: [0.25, 1, 0.5, 1]
-            }}
-            onAnimationComplete={() => {
-              setFlyingTokens(prev => prev.filter(t => t.id !== token.id));
-              spawnCelebration(token.endX, token.endY, token.color);
-              playImpactSound();
-            }}
-            style={{
-              position: 'fixed',
-              left: 0,
-              top: 0,
-              zIndex: 9999,
-              pointerEvents: 'none',
-            }}
-          >
-            <div 
-              className="h-7 w-7 rounded-full flex items-center justify-center shadow-lg border border-white/40"
-              style={{ 
-                backgroundColor: token.color,
-                boxShadow: `0 0 12px ${token.color}aa, inset 0 2px 4px rgba(255, 255, 255, 0.45)`
-              }}
-            >
-              <Star className="h-3.5 w-3.5 fill-white text-white/95" />
-            </div>
-          </motion.div>
-        ))}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {celebrationParticles.map((particle) => {
-          const rad = (particle.angle * Math.PI) / 180;
-          const destX = Math.cos(rad) * (particle.velocity * 12);
-          const destY = Math.sin(rad) * (particle.velocity * 12);
-
-          return (
-            <motion.div
-              key={particle.id}
-              initial={{ 
-                x: particle.x, 
-                y: particle.y, 
-                scale: 0, 
-                opacity: 1,
-                rotate: 0
-              }}
-              animate={{ 
-                x: particle.x + destX, 
-                y: particle.y + destY, 
-                scale: [0.8, 1.2, 0], 
-                opacity: [1, 0.8, 0],
-                rotate: Math.random() > 0.5 ? 180 : -180
-              }}
-              transition={{ 
-                duration: 0.7, 
-                ease: "easeOut" 
-              }}
-              style={{
-                position: 'fixed',
-                left: 0,
-                top: 0,
-                zIndex: 9998,
-                pointerEvents: 'none',
-                width: particle.size,
-                height: particle.size,
-              }}
-            >
-              <Sparkles 
-                style={{ 
-                  color: particle.color, 
-                  width: particle.size, 
-                  height: particle.size,
-                  filter: `drop-shadow(0 0 4px ${particle.color})`
-                }} 
-              />
-            </motion.div>
-          );
-        })}
-      </AnimatePresence>
-
     </div>
   );
 }

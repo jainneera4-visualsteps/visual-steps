@@ -8,7 +8,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Select } from '../components/Select';
-import { Plus, User, Calendar, BookOpen, Gamepad2, Clock, Trophy, Sparkles, Loader2, ArrowLeft, Edit2, Activity, Brain, Save, Send, HelpCircle, BookOpenText } from 'lucide-react';
+import { Plus, User, Calendar, BookOpen, Gamepad2, Clock, Trophy, Sparkles, Loader2, ArrowLeft, Edit2, Activity, Brain, Save, Send, HelpCircle, BookOpenText, Trash2 } from 'lucide-react';
 
 interface Kid {
   id: string;
@@ -28,24 +28,50 @@ interface Kid {
   timezone?: string;
 }
 
-interface BehaviorDefinition {
+interface ParentMessageRecord {
   id: string;
-  name: string;
-  description?: string;
-  icon?: string;
-  priority?: string;
-  goal_rewards?: number;
-  target_time?: string;
-  target_seconds?: number;
-  goal?: number;
-  is_active?: boolean;
-  color?: string;
+  kid_id: string;
+  message: string;
+  created_at: string;
 }
 
 export default function Dashboard() {
   const [kids, setKids] = useState<Kid[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const safeLocalStorageSet = (key: string, value: string) => {
+    try {
+      localStorage.setItem(key, value);
+    } catch (error) {
+      console.warn(`Dashboard: localStorage.setItem failed for ${key}`, error);
+      try {
+        const err = error as any;
+        const isQuota = err && (
+          err.name === 'QuotaExceededError' ||
+          err.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+          err.code === 22 ||
+          err.code === 1014 ||
+          (typeof err.message === 'string' && err.message.toLowerCase().includes('quota'))
+        );
+
+        if (!isQuota) return;
+
+        Object.keys(localStorage).forEach((k) => {
+          if (k.startsWith('activities_') || k.startsWith('all_activities_') || k === 'kids_list') {
+            try {
+              localStorage.removeItem(k);
+            } catch {
+              // Ignore best-effort cleanup errors.
+            }
+          }
+        });
+
+        localStorage.setItem(key, value);
+      } catch (retryError) {
+        console.warn(`Dashboard: localStorage retry failed for ${key}`, retryError);
+      }
+    }
+  };
   
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -58,9 +84,19 @@ export default function Dashboard() {
   const [rewardItems, setRewardItems] = useState<any[]>([]);
   const [isBuying, setIsBuying] = useState<string | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<string>('');
-  const [dashboardSelectedKidId, setDashboardSelectedKidId] = useState<string>(() => localStorage.getItem('dashboard_selected_kid_id') || '');
+  const [dashboardSelectedKidId, setDashboardSelectedKidId] = useState<string>(() => {
+    try {
+      return localStorage.getItem('dashboard_selected_kid_id') || '';
+    } catch (error) {
+      console.warn('Dashboard: localStorage.getItem failed for dashboard_selected_kid_id', error);
+      return '';
+    }
+  });
   const [parentMessage, setParentMessage] = useState<string>('');
   const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [messagesByKid, setMessagesByKid] = useState<Record<string, ParentMessageRecord[]>>({});
+  const [isMessagesLoadingByKid, setIsMessagesLoadingByKid] = useState<Record<string, boolean>>({});
+  const [selectedMessageIdsByKid, setSelectedMessageIdsByKid] = useState<Record<string, string[]>>({});
   
   useEffect(() => {
     if (rewardItems.length > 0) {
@@ -71,18 +107,9 @@ export default function Dashboard() {
     }
   }, [rewardItems]);
   
-  // Quick Behavior Log State
-  const [behaviorDefinitions, setBehaviorDefinitions] = useState<BehaviorDefinition[]>([]);
-  const [selectedBehaviorDefId, setSelectedBehaviorDefId] = useState<string>('');
-  const [isLogged, setIsLogged] = useState<boolean>(true);
-  const [behaviorRemarks, setBehaviorRemarks] = useState<string>('');
-  const [isLoggingBehavior, setIsLoggingBehavior] = useState(false);
-  const [behaviorLogs, setBehaviorLogs] = useState<any[]>([]);
-  const [behaviorTracker, setBehaviorTracker] = useState<any[]>([]);
-
   useEffect(() => {
     if (dashboardSelectedKidId) {
-      localStorage.setItem('dashboard_selected_kid_id', dashboardSelectedKidId);
+      safeLocalStorageSet('dashboard_selected_kid_id', dashboardSelectedKidId);
     }
   }, [dashboardSelectedKidId]);
 
@@ -96,32 +123,6 @@ export default function Dashboard() {
       }
     }
   }, [kids]);
-
-  const fetchTrackerData = async () => {
-    if (!dashboardSelectedKidId) return;
-    try {
-      const [defRes, trackerRes] = await Promise.all([
-        apiFetch(`/api/kids/${dashboardSelectedKidId}/behavior-definitions`),
-        apiFetch(`/api/kids/${dashboardSelectedKidId}/behavior-tracker`)
-      ]);
-                
-      if (defRes.ok) {
-        const data = await safeJson(defRes);
-        setBehaviorDefinitions(data.definitions || []);
-      }
-      if (trackerRes.ok) {
-        const data = await safeJson(trackerRes);
-        setBehaviorTracker(data.tracker || []);
-      }
-    } catch (err) {
-      console.error('Error fetching definitions/tracker:', err);
-    }
-  };
-
-  useEffect(() => {
-    fetchTrackerData();
-    fetchRewardItemsForSelectedKid();
-  }, [dashboardSelectedKidId]);
 
   const fetchRewardItemsForSelectedKid = async () => {
     if (!dashboardSelectedKidId) return;
@@ -137,26 +138,31 @@ export default function Dashboard() {
     }
   };
 
-  const fetchLogs = async () => {
-    if (!dashboardSelectedKidId) return;
+  const fetchMessagesForKid = async (kidId: string) => {
+    if (!kidId) return;
+    setIsMessagesLoadingByKid(prev => ({ ...prev, [kidId]: true }));
     try {
-      const behaviorRes = await apiFetch(`/api/kids/${dashboardSelectedKidId}/behaviors`);
-      
-      if (behaviorRes.ok) {
-        const data = await safeJson(behaviorRes);
-        setBehaviorLogs(data.behaviors || []);
-      }
-      await fetchTrackerData();
+      const res = await apiFetch(`/api/kids/${kidId}/messages`);
+      if (!res.ok) throw new Error('Failed to fetch parent messages');
+      const data = await safeJson(res);
+      const messages = data.messages || [];
+      setMessagesByKid(prev => ({ ...prev, [kidId]: messages }));
+      setSelectedMessageIdsByKid(prev => {
+        const validIds = new Set(messages.map((m: ParentMessageRecord) => m.id));
+        const existing = prev[kidId] || [];
+        return {
+          ...prev,
+          [kidId]: existing.filter((id) => validIds.has(id))
+        };
+      });
     } catch (err) {
-      console.error('Error fetching behavior logs:', err);
+      console.error('Failed to fetch parent messages:', err);
+      setMessagesByKid(prev => ({ ...prev, [kidId]: [] }));
+    } finally {
+      setIsMessagesLoadingByKid(prev => ({ ...prev, [kidId]: false }));
     }
   };
 
-  useEffect(() => {
-    if (dashboardSelectedKidId) {
-      fetchLogs();
-    }
-  }, [dashboardSelectedKidId]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -176,7 +182,7 @@ export default function Dashboard() {
         // Sort kids by age descending (oldest to youngest) -> dob ascending
         kidsList.sort((a: Kid, b: Kid) => new Date(a.dob).getTime() - new Date(b.dob).getTime());
         setKids(kidsList);
-        localStorage.setItem('kids_list', JSON.stringify(kidsList));
+        safeLocalStorageSet('kids_list', JSON.stringify(kidsList));
       } catch (err: any) {
         console.error('Dashboard: Failed to fetch kids', { error: err, message: err?.message });
       } finally {
@@ -186,6 +192,12 @@ export default function Dashboard() {
 
     fetchDashboardData();
   }, []);
+
+  useEffect(() => {
+    if (dashboardSelectedKidId) {
+      fetchMessagesForKid(dashboardSelectedKidId);
+    }
+  }, [dashboardSelectedKidId]);
 
   // Join rooms when kids are loaded
   useEffect(() => {
@@ -207,9 +219,13 @@ export default function Dashboard() {
             if (kidsData && Array.isArray(kidsData.kids)) {
               const sortedKids = [...kidsData.kids].sort((a: Kid, b: Kid) => new Date(a.dob).getTime() - new Date(b.dob).getTime());
               setKids(sortedKids);
-              localStorage.setItem('kids_list', JSON.stringify(sortedKids));
+              safeLocalStorageSet('kids_list', JSON.stringify(sortedKids));
             }
           });
+
+        if (data?.kidId) {
+          fetchMessagesForKid(data.kidId);
+        }
       }
     });
 
@@ -316,17 +332,18 @@ export default function Dashboard() {
     
     setIsSendingMessage(true);
     try {
-      const res = await apiFetch(`/api/kids/${kidId}`, {
-        method: 'PUT',
+      const res = await apiFetch(`/api/kids/${kidId}/messages`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ parent_message: parentMessage }),
+        body: JSON.stringify({ message: parentMessage }),
       });
 
       if (res.ok) {
         setParentMessage('');
-        alert('Message sent to child!');
+        await fetchMessagesForKid(kidId);
       } else {
-        alert('Failed to send message');
+        const data = await safeJson(res);
+        alert(data?.error || 'Failed to send message');
       }
     } catch (err) {
       console.error('Send message error:', err);
@@ -336,135 +353,104 @@ export default function Dashboard() {
     }
   };
 
-  const handleQuickLogBehavior = async (kidId: string) => {
-    if (!selectedBehaviorDefId) return;
-    
-    const behaviorDef = behaviorDefinitions.find(d => d.id === selectedBehaviorDefId);
-    if (!behaviorDef) return;
-
-    const targetKid = kids.find(k => k.id === kidId);
-    const zoned = getZonedTime(targetKid?.timezone);
-
-    setIsLoggingBehavior(true);
+  const handleDeleteMessage = async (kidId: string, messageId: string) => {
     try {
-      const res = await apiFetch(`/api/kids/${kidId}/behaviors`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          definition_id: behaviorDef.id,
-          description: behaviorDef.name,
-          date: zoned.isoDate, 
-          hour: zoned.hour,
-          completed: true,
-          remarks: behaviorRemarks || 'Manual entry',
-          rewards_earned: 0
-        }),
-      });
-
-      if (res.ok) {
-        setBehaviorRemarks('');
-        await fetchLogs();
-      } else {
-        const data = await safeJson(res);
-        alert(data.info || data.message || 'Failed to log behavior');
-      }
-    } catch (err) {
-      console.error('Quick log error:', err);
-    } finally {
-      setIsLoggingBehavior(false);
-    }
-  };
-
-  const handleIncrementBehavior = async (kidId: string, defId: string) => {
-    const behaviorDef = behaviorDefinitions.find(d => d.id === defId);
-    if (!behaviorDef) return;
-
-    const targetKid = kids.find(k => k.id === kidId);
-    const zoned = getZonedTime(targetKid?.timezone);
-
-    // Optimistic UI update
-    const tempLog = { definition_id: defId, description: 'Added entry' };
-    setBehaviorLogs(prev => [...prev, tempLog]);
-
-    try {
-      const res = await apiFetch(`/api/kids/${kidId}/behaviors`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          definition_id: behaviorDef.id,
-          description: behaviorDef.name,
-          date: zoned.isoDate,
-          hour: zoned.hour,
-          completed: true,
-          remarks: 'Incremented from dashboard',
-          rewards_earned: 0
-        }),
-      });
-
-      if (res.ok) {
-        await fetchLogs(); // Refresh with server data
-      } else {
-        // Rollback on error
-        setBehaviorLogs(prev => prev.filter(log => log !== tempLog));
-        const errData = await safeJson(res);
-        alert(errData.message || 'Failed to log behavior');
-      }
-    } catch (err) {
-      // Rollback on error
-      setBehaviorLogs(prev => prev.filter(log => log !== tempLog));
-      console.error('Log behavior error:', err);
-    }
-  };
-
-  const handleUpdateTracker = async (kidId: string, definition_id: string, points: number, remarks: string) => {
-    const targetKid = kids.find(k => k.id === kidId);
-    const zoned = getZonedTime(targetKid?.timezone);
-
-    // Optimistic UI update
-    handleLocalTrackerUpdate(kidId, definition_id, points, remarks);
-
-    try {
-      const res = await apiFetch(`/api/kids/${kidId}/behavior-tracker`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          definition_id,
-          points,
-          remarks,
-          date: zoned.isoDate
-        }),
+      const res = await apiFetch(`/api/kids/${kidId}/messages/${messageId}`, {
+        method: 'DELETE',
       });
 
       if (!res.ok) {
-        throw new Error('Failed to update tracker');
-      }
-      
-      const resData = await safeJson(res);
-      if (resData && resData.earnedReward) {
-        alert(`🎉 ${targetKid?.name || 'Your child'} has reached 10 points and earned 1 ${resData.rewardType || 'reward'}! All Daily Behavior Tracker points have been reset to 0.`);
+        const data = await safeJson(res);
+        alert(data?.error || 'Failed to delete message');
+        return;
       }
 
-      await fetchLogs(); // Fetch fresh data
-      return true;
+      setMessagesByKid(prev => ({
+        ...prev,
+        [kidId]: (prev[kidId] || []).filter((msg) => msg.id !== messageId)
+      }));
+      setSelectedMessageIdsByKid(prev => ({
+        ...prev,
+        [kidId]: (prev[kidId] || []).filter((id) => id !== messageId)
+      }));
     } catch (err) {
-      console.error('Update tracker error:', err);
-      // Rollback is implicitly handled by fetchLogs
-      await fetchLogs();
-      return false;
+      console.error('Delete message error:', err);
+      alert('Failed to delete message');
     }
   };
 
-  const handleLocalTrackerUpdate = (kidId: string, definition_id: string, points: number, remarks: string) => {
-    setBehaviorTracker(prev => {
-      const index = prev.findIndex(t => t.definition_id === definition_id);
-      if (index > -1) {
-        const next = [...prev];
-        next[index] = { ...next[index], points, remarks };
-        return next;
-      }
-      return [...prev, { kid_id: kidId, definition_id, points, remarks }];
+  const handleToggleMessageSelection = (kidId: string, messageId: string) => {
+    setSelectedMessageIdsByKid(prev => {
+      const existing = prev[kidId] || [];
+      const isSelected = existing.includes(messageId);
+      return {
+        ...prev,
+        [kidId]: isSelected
+          ? existing.filter((id) => id !== messageId)
+          : [...existing, messageId]
+      };
     });
   };
+
+  const handleToggleSelectAllMessages = (kidId: string) => {
+    const messages = messagesByKid[kidId] || [];
+    const allIds = messages.map((msg) => msg.id);
+    const selectedIds = selectedMessageIdsByKid[kidId] || [];
+    const shouldSelectAll = selectedIds.length !== allIds.length;
+
+    setSelectedMessageIdsByKid(prev => ({
+      ...prev,
+      [kidId]: shouldSelectAll ? allIds : []
+    }));
+  };
+
+  const handleDeleteSelectedMessages = async (kidId: string) => {
+    const selectedIds = selectedMessageIdsByKid[kidId] || [];
+    if (selectedIds.length === 0) return;
+
+    const confirmed = window.confirm(`Delete ${selectedIds.length} selected message(s)?`);
+    if (!confirmed) return;
+
+    try {
+      const results = await Promise.all(
+        selectedIds.map(async (messageId) => {
+          const res = await apiFetch(`/api/kids/${kidId}/messages/${messageId}`, { method: 'DELETE' });
+          return { messageId, ok: res.ok };
+        })
+      );
+
+      const deletedIds = results.filter((r) => r.ok).map((r) => r.messageId);
+      const failedCount = results.length - deletedIds.length;
+
+      if (deletedIds.length > 0) {
+        setMessagesByKid(prev => ({
+          ...prev,
+          [kidId]: (prev[kidId] || []).filter((msg) => !deletedIds.includes(msg.id))
+        }));
+      }
+
+      setSelectedMessageIdsByKid(prev => ({ ...prev, [kidId]: [] }));
+
+      if (failedCount > 0) {
+        alert(`${failedCount} message(s) could not be deleted.`);
+      }
+    } catch (err) {
+      console.error('Bulk delete message error:', err);
+      alert('Failed to delete selected messages');
+    }
+  };
+
+  const formatMessageTimestamp = (createdAt: string) => {
+    const date = new Date(createdAt);
+    const datePart = date.toLocaleDateString();
+    const timePart = date.toLocaleTimeString([], {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+    return `${datePart}, ${timePart}`;
+  };
+
 
   const renderContent = () => {
     if (isLoading) {
@@ -699,167 +685,75 @@ export default function Dashboard() {
                         <Button size="sm" variant="outline">Activities</Button>
                       </Link>
                     </Tooltip>
-                    <Tooltip content={`Manage ${kid.name}'s Behaviors`}>
-                      <Link to={`/behaviors-list/${kid.id}`}>
-                        <Button size="sm" variant="outline">Behaviors</Button>
-                      </Link>
-                    </Tooltip>
                   </div>
 
-                  {/* Behavior Logging Tool */}
-                  <div className="pt-1 mt-1 border-t border-slate-100 space-y-2">
-                    {/* Behavior Tracker Grid */}
-                    {behaviorDefinitions.length > 0 && (
-                      <div className="mt-1 border border-slate-100 rounded-xl overflow-hidden shadow-sm">
-                        <div className="bg-slate-50 px-4 py-2 border-b border-slate-100 flex justify-between items-center">
-                          <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Daily Behavior Tracker - {new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}</h4>
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg font-black text-brand-600 bg-brand-50 px-3.5 py-1 rounded-full border border-brand-200 shadow-sm flex items-center gap-1" title="Total Points">
-                              {behaviorTracker.reduce((sum, t) => sum + (t.points || 0), 0)}
-                            </span>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Message History
+                      </label>
+                      <span className="text-[10px] font-medium text-slate-400">
+                        Latest first
+                      </span>
+                    </div>
+
+                    {isMessagesLoadingByKid[kid.id] ? (
+                      <div className="rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-500 shadow-sm">Loading messages...</div>
+                    ) : (messagesByKid[kid.id] || []).length === 0 ? (
+                      <div className="rounded-lg border border-dashed border-slate-200 bg-white p-4 text-center text-xs text-slate-400 shadow-sm">
+                        No messages yet.
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-slate-200 overflow-hidden shadow-sm bg-white">
+                        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-1 focus:ring-blue-600"
+                              checked={(messagesByKid[kid.id] || []).length > 0 && (selectedMessageIdsByKid[kid.id] || []).length === (messagesByKid[kid.id] || []).length}
+                              onChange={() => handleToggleSelectAllMessages(kid.id)}
+                              aria-label="Select all messages"
+                              title="Select all"
+                            />
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Messages</span>
                           </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSelectedMessages(kid.id)}
+                            disabled={(selectedMessageIdsByKid[kid.id] || []).length === 0}
+                            className="inline-flex h-7 w-7 items-center justify-center rounded text-red-600 hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+                            title="Delete selected messages"
+                            aria-label="Delete selected messages"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
                         </div>
-                        <div className="max-h-[600px] overflow-y-auto">
-                          <table className="w-full text-left text-sm border-collapse">
-                            <thead className="sticky top-0 bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase">
-                              <tr>
-                                <th className="px-4 py-3">
-                                  <div className="flex items-center gap-1.5">
-                                    <span>Desired Behavior</span>
-                                    <div className="group relative">
-                                      <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
-                                      <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
-                                        <div className="flex items-start gap-3">
-                                          <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
-                                            <HelpCircle className="h-4 w-4 text-yellow-700" />
-                                          </div>
-                                          <span className="font-bold text-[15px] leading-tight text-slate-900">
-                                            The positive activity or behavior you want to encourage in your child.
-                                          </span>
-                                        </div>
-                                        <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </th>
-                                <th className="px-4 py-3">
-                                  <div className="flex items-center gap-1.5">
-                                    <span>Behavior Description</span>
-                                    <div className="group relative">
-                                      <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
-                                      <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
-                                        <div className="flex items-start gap-3">
-                                          <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
-                                            <HelpCircle className="h-4 w-4 text-yellow-700" />
-                                          </div>
-                                          <span className="font-bold text-[15px] leading-tight text-slate-900">
-                                            Specific details or criteria describing how this behavior should be performed.
-                                          </span>
-                                        </div>
-                                        <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </th>
 
-                                <th className="px-4 py-3 text-center w-24">
-                                  <div className="flex flex-col items-center gap-1">
-                                    <span>Points earned</span>
-                                    <div className="group relative">
-                                      <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
-                                      <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
-                                        <div className="flex items-start gap-3">
-                                          <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
-                                            <HelpCircle className="h-4 w-4 text-yellow-700" />
-                                          </div>
-                                          <span className="font-bold text-[15px] leading-tight text-slate-900 text-left">
-                                            The total number of successes your child has achieved toward this goal.
-                                          </span>
-                                        </div>
-                                        <div className="absolute left-1/2 -translate-x-1/2 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-50">
-                              {behaviorDefinitions
-                                .filter(def => {
-                                  if (def.is_active === false) return false;
-                                  
-                                  const tracker = behaviorTracker.find(t => t.definition_id === def.id);
-                                  if (!tracker?.last_tracked_time) return true; // Never tracked is ready
-                                  if (!def.target_seconds || def.target_seconds === 0) return true; // No interval is always ready
-                                  
-                                  const lastTime = tracker.last_tracked_time.includes('T') 
-                                    ? new Date(tracker.last_tracked_time)
-                                    : new Date(`${tracker.tracked_at || new Date().toISOString().split('T')[0]}T${tracker.last_tracked_time}`);
-                                  
-                                  if (isNaN(lastTime.getTime())) return true;
-
-                                  const elapsed = (currentTime.getTime() - lastTime.getTime()) / 1000;
-                                  return elapsed >= def.target_seconds;
-                                })
-                                .sort((a, b) => {
-                                  const priorityOrder: Record<string, number> = { 'High': 1, 'Medium': 2, 'Low': 3 };
-                                  const pA = priorityOrder[a.priority || ''] || 4;
-                                  const pB = priorityOrder[b.priority || ''] || 4;
-                                  return pA - pB;
-                                })
-                                .map((def) => {
-                                  const tracker = behaviorTracker.find(t => t.definition_id === def.id);
-                                  
-                                  let rawDesc = def.description || '';
-                                  let colorVal = def.color || '#3b82f6';
-
-                                  const colorMatch = rawDesc.match(/^\[Color: (#?[a-zA-Z0-9]+)\]\s*(.*)$/s);
-                                  if (colorMatch) {
-                                    colorVal = colorMatch[1];
-                                    rawDesc = colorMatch[2];
-                                  }
-
-                                  return (
-                                    <tr key={def.id} className="hover:bg-slate-50 transition-colors border-b border-slate-100">
-                                      <td className="px-4 py-3 text-slate-900 font-bold">
-                                        <div className="flex items-center gap-2">
-                                          <span 
-                                            className="h-3.5 w-3.5 rounded-full border border-slate-200 shadow-sm shrink-0 animate-pulse" 
-                                            style={{ backgroundColor: colorVal }}
-                                            title={`Color: ${colorVal}`}
-                                          />
-                                          <span>{def.name}</span>
-                                        </div>
-                                      </td>
-                                      <td className="px-4 py-3 text-xs text-slate-600">{rawDesc || '---'}</td>
-
-                                      <td className="px-4 py-3 text-center font-bold text-slate-600">
-                                        <div className="flex items-center justify-center gap-2">
-                                          <span>{tracker?.points || 0}</span>
-                                          <Button
-                                            size="sm"
-                                            className="h-6 w-6 p-0 rounded-full flex items-center justify-center shrink-0"
-                                            onClick={async () => {
-                                              const currentPoints = tracker?.points || 0;
-                                              const newPoints = currentPoints + 1;
-                                              const remarks = tracker?.remarks || '';
-                                              await handleUpdateTracker(dashboardSelectedKidId, def.id, newPoints, remarks);
-                                            }}
-                                            title="Increase points by 1"
-                                          >
-                                            <Plus className="h-3.5 w-3.5" />
-                                          </Button>
-                                        </div>
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                            </tbody>
-                          </table>
+                        <div className="max-h-64 overflow-y-auto">
+                          {(messagesByKid[kid.id] || []).map((msg) => (
+                          <div key={msg.id} className="border-b border-slate-100 last:border-b-0">
+                            <div className="flex items-start gap-3 px-4 py-3">
+                              <input
+                                type="checkbox"
+                                className="mt-5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-1 focus:ring-blue-600"
+                                checked={(selectedMessageIdsByKid[kid.id] || []).includes(msg.id)}
+                                onChange={() => handleToggleMessageSelection(kid.id, msg.id)}
+                                aria-label="Select message"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                  {formatMessageTimestamp(msg.created_at)}
+                                </p>
+                                <p className="mt-1 text-sm text-slate-700 leading-6 break-words">{msg.message}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                         </div>
                       </div>
                     )}
                   </div>
+
                 </div>
               </CardContent>
             </Card>

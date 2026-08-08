@@ -8,12 +8,15 @@ interface User {
   email: string;
   name: string;
   secret_question?: string;
+  max_parent_message_days?: number;
+  max_parent_messages?: number;
 }
 
 interface AuthContextType {
   user: User | null;
   logout: () => void;
   isLoading: boolean;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,6 +25,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const userRef = useRef<User | null>(null);
+
+  const refreshProfile = async () => {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error || !session?.user) return;
+
+      const { data, error: profileError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+
+      if (!profileError && data) {
+        setUser(data);
+      }
+    } catch (error) {
+      console.warn('AuthContext: failed to refresh profile', error);
+    }
+  };
 
   useEffect(() => {
     userRef.current = user;
@@ -107,7 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, logout, isLoading, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

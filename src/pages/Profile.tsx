@@ -8,13 +8,14 @@ import { AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Profile() {
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [secretQuestion, setSecretQuestion] = useState('');
   const [secretAnswer, setSecretAnswer] = useState('');
+  const [maxParentMessageDays, setMaxParentMessageDays] = useState('20');
   const [message, setMessage] = useState({ type: '', text: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
@@ -34,6 +35,7 @@ export default function Profile() {
       setName(user.name);
       setEmail(user.email);
       setSecretQuestion(user.secret_question || '');
+      setMaxParentMessageDays(String(user.max_parent_message_days || user.max_parent_messages || 20));
     }
   }, [user]);
 
@@ -46,11 +48,23 @@ export default function Profile() {
       const res = await apiFetch('/api/user/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, newPassword, secretQuestion, secretAnswer }),
+        body: JSON.stringify({ name, email, newPassword, secretQuestion, secretAnswer, maxParentMessageDays }),
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Update failed');
+      if (!res.ok) {
+        const detailSuffix = data?.details ? `: ${data.details}` : '';
+        throw new Error((data?.error || 'Update failed') + detailSuffix);
+      }
+
+      if (data?.profile) {
+        setName(data.profile.name || '');
+        setEmail(data.profile.email || '');
+        setSecretQuestion(data.profile.secret_question || '');
+        setMaxParentMessageDays(String(data.profile.max_parent_message_days || data.profile.max_parent_messages || 20));
+      }
+
+      await refreshProfile();
 
       setMessage({ type: 'success', text: 'Profile updated successfully' });
       setNewPassword(''); // Clear password field
@@ -175,6 +189,22 @@ export default function Profile() {
                 onChange={(e) => setNewPassword(e.target.value)}
                 className="h-7 text-sm"
               />
+            </div>
+
+            <div className="pt-1.5 border-t border-slate-100">
+              <h3 className="text-[12px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Parent Messaging</h3>
+              <Input
+                label="Days to Keep Messages"
+                type="number"
+                min="1"
+                step="1"
+                value={maxParentMessageDays}
+                onChange={(e) => setMaxParentMessageDays(e.target.value)}
+                className="h-7 text-sm"
+              />
+              <p className="mt-1 text-[11px] text-slate-500">
+                Messages older than this many days are automatically deleted.
+              </p>
             </div>
 
             <div className="flex justify-between items-center pt-1.5">

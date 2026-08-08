@@ -108,8 +108,7 @@ export default function AssignedActivities() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [behaviorLogs, setBehaviorLogs] = useState<any[]>([]);
-  const [behaviorTracker, setBehaviorTracker] = useState<any[]>([]);
+  
   const [historyActivities, setHistoryActivities] = useState<Activity[]>([]);
   const [kid, setKid] = useState<Kid | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -163,8 +162,6 @@ export default function AssignedActivities() {
   const [purchaseItemsPerPage, setPurchaseItemsPerPage] = useState(10);
   const [activitiesPage, setActivitiesPage] = useState(1);
   const [activitiesItemsPerPage, setActivitiesItemsPerPage] = useState(10);
-  const [behaviorPage, setBehaviorPage] = useState(1);
-  const [behaviorItemsPerPage, setBehaviorItemsPerPage] = useState(10);
   const [viewingQuizResult, setViewingQuizResult] = useState<any | null>(null);
 
   useEffect(() => {
@@ -185,10 +182,6 @@ export default function AssignedActivities() {
   useEffect(() => {
     setPurchasePage(1);
   }, [reportDuration, purchaseItemsPerPage]);
-
-  useEffect(() => {
-    setBehaviorPage(1);
-  }, [reportDuration, behaviorItemsPerPage]);
   const [completedSearchQuery, setCompletedSearchQuery] = useState('');
   const [completedCategoryFilter, setCompletedCategoryFilter] = useState('All');
   const [completedDateFilter, setCompletedDateFilter] = useState('');
@@ -741,7 +734,6 @@ export default function AssignedActivities() {
     fetchQuizzes();
     fetchQuizResults();
     fetchWorksheets();
-    fetchBehaviorLogs();
 
     // Set up socket connection
     const socket = io(window.location.origin);
@@ -755,18 +747,12 @@ export default function AssignedActivities() {
       if (data.kidId === kidId) {
         fetchData({ silent: true, skipSamples: true });
         fetchRewardItems();
-        fetchBehaviorLogs();
       }
     });
 
-    // Refresh data every 10 seconds to keep dates/times current
     const intervalId = setInterval(() => {
-      // Check if date has changed since last fetch
       const zoned = getZonedTime(kid?.timezone);
       const currentLocalDate = zoned.isoDate;
-      
-      // If date changed, force a non-silent refresh (or silent depending on UX preference)
-      // We'll use silent for now to avoid flickering, but the data will update
       fetchData({ silent: true, skipSamples: true });
     }, 10000);
 
@@ -787,20 +773,6 @@ export default function AssignedActivities() {
       socket.disconnect();
     };
   }, [kidId]);
-
-  const fetchBehaviorLogs = async () => {
-    try {
-      const res = await apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/behavior-logs`);
-      if (res.ok) {
-        const data = await safeJson(res);
-        console.log('AssignedActivities: Fetched behavior logs:', data.logs);
-        setBehaviorLogs(data.logs || []);
-        setBehaviorTracker(data.tracker || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch behavior logs', error);
-    }
-  };
 
   const fetchActivityTypes = async () => {
     try {
@@ -1297,9 +1269,9 @@ export default function AssignedActivities() {
           imageUrl: activity.image_url,
           dueDate: activity.due_date,
           status: newStatus,
-          ...(newStatus === 'completed' ? { 
-            completedAt: convertDateToTimeZone(new Date(), kid!.timezone),
-            createdAt: convertDateToTimeZone(activity.created_at, kid!.timezone) 
+          ...(newStatus === 'completed' ? {
+            completedAt: convertDateToTimeZone(new Date(), kid?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone),
+            createdAt: convertDateToTimeZone(activity.created_at, kid?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone)
           } : {}),
         }),
       });

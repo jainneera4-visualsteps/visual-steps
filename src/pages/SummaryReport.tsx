@@ -8,7 +8,7 @@ import { formatInTimezone } from '../utils/dateUtils';
 
 interface ActivityItem {
   id: string;
-  type: 'Quiz' | 'Worksheet' | 'Social Story' | 'Behavior' | 'Parent Bonus';
+  type: 'Quiz' | 'Worksheet' | 'Social Story' | 'Parent Bonus';
   title: string;
   date: string;
   details: string;
@@ -32,11 +32,10 @@ export default function SummaryReport() {
     if (!kidId) return;
     setIsLoading(true);
     try {
-      const [kidRes, actRes, histRes, behaviorRes, quizRes] = await Promise.all([
+      const [kidRes, actRes, histRes, quizRes] = await Promise.all([
         apiFetch(`/api/kids/${encodeURIComponent(kidId)}`),
         apiFetch(`/api/kids/${encodeURIComponent(kidId)}/activities`),
         apiFetch(`/api/kids/${encodeURIComponent(kidId)}/activity-history`),
-        apiFetch(`/api/kids/${encodeURIComponent(kidId)}/behavior-logs`),
         apiFetch(`/api/kids/${encodeURIComponent(kidId)}/quiz-results`)
       ]);
 
@@ -74,20 +73,6 @@ export default function SummaryReport() {
         });
       }
 
-      if (behaviorRes.ok) {
-        const data = await safeJson(behaviorRes);
-        (data.logs || []).forEach((log: any) => {
-            const bDef = Array.isArray(log.behavior_definitions) ? log.behavior_definitions[0] : log.behavior_definitions;
-            activitiesData.push({
-                id: log.id,
-                type: 'Behavior',
-                title: bDef?.name || 'Behavior Goal',
-                date: log.created_at,
-                details: bDef?.description || '',
-                reward: log.rewards_earned
-            });
-        });
-      }
 
       if (quizRes.ok) {
         const data = await safeJson(quizRes);
@@ -166,7 +151,6 @@ export default function SummaryReport() {
                         {act.type === 'Quiz' && <Gamepad2 className="h-4 w-4 text-indigo-500" />}
                         {act.type === 'Worksheet' && <FileText className="h-4 w-4 text-amber-500" />}
                         {act.type === 'Social Story' && <BookOpen className="h-4 w-4 text-rose-500" />}
-                        {act.type === 'Behavior' && <Star className="h-4 w-4 text-emerald-500" />}
                         {act.type === 'Parent Bonus' && <Star className="h-4 w-4 text-blue-500" />}
                         {act.type}
                     </td>

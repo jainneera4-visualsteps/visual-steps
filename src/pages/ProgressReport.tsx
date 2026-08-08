@@ -89,8 +89,7 @@ export default function ProgressReport() {
   const [kid, setKid] = useState<Kid | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [historyActivities, setHistoryActivities] = useState<Activity[]>([]);
-  const [behaviorLogs, setBehaviorLogs] = useState<any[]>([]);
-  const [behaviorTracker, setBehaviorTracker] = useState<any[]>([]);
+  
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [quizResults, setQuizResults] = useState<QuizResult[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -99,11 +98,9 @@ export default function ProgressReport() {
   
   const [reportDuration, setReportDuration] = useState<'24h' | '7d' | '30d' | 'all'>('7d');
   const [historyPage, setHistoryPage] = useState(1);
-  const [behaviorPage, setBehaviorPage] = useState(1);
   const [purchasePage, setPurchasePage] = useState(1);
   const [quizPage, setQuizPage] = useState(1);
   const [historyItemsPerPage, setHistoryItemsPerPage] = useState(10);
-  const [behaviorItemsPerPage, setBehaviorItemsPerPage] = useState(10);
   const [purchaseItemsPerPage, setPurchaseItemsPerPage] = useState(10);
   const [quizItemsPerPage, setQuizItemsPerPage] = useState(10);
 
@@ -131,12 +128,11 @@ export default function ProgressReport() {
         }
       };
 
-      const [kidRes, actRes, histRes, redRes, behaviorRes, quizRes] = await Promise.all([
+      const [kidRes, actRes, histRes, redRes, quizRes] = await Promise.all([
         fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId)}`), 'kid'),
         fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId)}/activities?mode=parent`), 'activities'),
         fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId)}/activity-history`), 'history'),
         fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId)}/purchases`), 'purchases'),
-        fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId)}/behavior-logs`), 'behavior-logs'),
         fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId)}/quiz-results`), 'quiz-results')
       ]);
 
@@ -162,12 +158,6 @@ export default function ProgressReport() {
         setPurchases(data.purchases || []);
       } else {
         console.error('ProgressReport: Failed to fetch purchases', redRes.status);
-      }
-
-      if (behaviorRes.ok) {
-        const data = await safeJson(behaviorRes);
-        setBehaviorLogs(data.logs || []);
-        setBehaviorTracker(data.tracker || []);
       }
 
       if (quizRes.ok) {
@@ -299,33 +289,7 @@ export default function ProgressReport() {
     completed: actualActivitiesCompleted.filter(a => (a.category || 'Uncategorized') === cat).length
   })).sort((a, b) => b.completed - a.completed);
 
-  // Behavior processing
-  const groupedLogsMap: Record<string, any> = {};
-  behaviorLogs.forEach(log => {
-    const bDef = Array.isArray(log.behavior_definitions) ? log.behavior_definitions[0] : log.behavior_definitions;
-    const behaviorName = bDef?.name || 'Manual Log';
-    const dateKey = log.date || (log.created_at ? getZonedTime(kid?.timezone, new Date(log.created_at)).isoDate : 'Unknown');
-    const groupKey = `${behaviorName}-${dateKey}`;
-    
-    if (!groupedLogsMap[groupKey]) {
-      groupedLogsMap[groupKey] = {
-        ...log,
-        id: groupKey, 
-        behavior_name: behaviorName,
-        date: dateKey,
-        rewards_earned: 0,
-        remarks_list: []
-      };
-    }
-    groupedLogsMap[groupKey].rewards_earned += (log.rewards_earned || 0);
-    if (log.remarks && !groupedLogsMap[groupKey].remarks_list.includes(log.remarks)) {
-      groupedLogsMap[groupKey].remarks_list.push(log.remarks);
-    }
-  });
-
-  const sortedBehaviorLogs = Object.values(groupedLogsMap).sort((a: any, b: any) => new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime());
-  const paginatedBehaviors = sortedBehaviorLogs.slice((behaviorPage - 1) * behaviorItemsPerPage, behaviorPage * behaviorItemsPerPage);
-  const totalBehaviorPages = Math.ceil(sortedBehaviorLogs.length / behaviorItemsPerPage);
+  
 
   const filteredPurchases = purchases.filter(r => {
     if (reportDuration === 'all') return true;
@@ -600,60 +564,6 @@ export default function ProgressReport() {
       </div>
 
       <div className="grid gap-8 lg:grid-cols-2">
-        {/* Behavior Chart */}
-        <Card className="border-none ring-1 ring-slate-200 shadow-sm overflow-hidden">
-          <CardHeader className="bg-slate-50/50 border-b border-slate-100 p-6">
-            <CardTitle className="text-lg font-bold flex items-center gap-2">
-              <TrendingUp className="text-brand-600 h-5 w-5" />
-              Rewards by Behavior
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-6 h-[400px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={Object.values(sortedBehaviorLogs.reduce((acc: any, log: any) => {
-                  const name = log.behavior_name;
-                  if (!acc[name]) acc[name] = { name, rewards: 0 };
-                  acc[name].rewards += (log.rewards_earned || 0);
-                  return acc;
-                }, {}))}
-                margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis 
-                  dataKey="name" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 10, fill: '#64748b', fontWeight: 700 }}
-                  interval={0}
-                  angle={-45}
-                  textAnchor="end"
-                />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 10, fill: '#64748b', fontWeight: 700 }}
-                />
-                <ChartRechartsTooltip 
-                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
-                  cursor={{ fill: '#f8fafc' }}
-                />
-                <Bar dataKey="rewards" radius={[8, 8, 0, 0]} barSize={40}>
-                  {Object.values(sortedBehaviorLogs.reduce((acc: any, log: any) => {
-                    const name = log.behavior_name;
-                    if (!acc[name]) acc[name] = { name, rewards: 0 };
-                    acc[name].rewards += (log.rewards_earned || 0);
-                    return acc;
-                  }, {})).map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Category Chart */}
         <Card className="border-none ring-1 ring-slate-200 shadow-sm overflow-hidden">
           <CardHeader className="bg-slate-50/50 border-b border-slate-100 p-6">
             <CardTitle className="text-lg font-bold flex items-center gap-2">
@@ -693,100 +603,6 @@ export default function ProgressReport() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Behavior History Table */}
-      <Card className="border-none ring-1 ring-slate-200 shadow-sm overflow-hidden">
-        <CardHeader className="bg-slate-50/50 border-b border-slate-100 p-6 flex flex-row items-center justify-between">
-          <CardTitle className="text-lg font-bold flex items-center gap-2">
-            <History className="text-blue-600 h-5 w-5" />
-            Behavior Achievement History ({sortedBehaviorLogs.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {sortedBehaviorLogs.length > 0 && totalBehaviorPages > 1 && (
-            <div className="flex items-center justify-between px-6 py-2 border-b border-slate-100 bg-slate-50/30">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">PER PAGE:</span>
-                <select
-                  className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  value={behaviorItemsPerPage}
-                  onChange={(e) => {
-                    setBehaviorItemsPerPage(Number(e.target.value));
-                    setBehaviorPage(1);
-                  }}
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                </select>
-              </div>
-              <div className="flex items-center gap-3">
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  disabled={behaviorPage === 1}
-                  onClick={() => setBehaviorPage(prev => Math.max(1, prev - 1))}
-                  className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600 disabled:opacity-30"
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </Button>
-                <span className="text-xs font-bold text-slate-600 tracking-tight">
-                  Page {behaviorPage} of {totalBehaviorPages}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  disabled={behaviorPage === totalBehaviorPages}
-                  onClick={() => setBehaviorPage(prev => Math.min(totalBehaviorPages, prev + 1))}
-                  className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600 disabled:opacity-30"
-                >
-                  <ChevronRight className="h-5 w-5" />
-                </Button>
-              </div>
-            </div>
-          )}
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-[10px] text-slate-500 bg-slate-50 uppercase border-b border-slate-200 font-bold tracking-widest">
-                <tr>
-                  <th className="px-6 py-4"><div className="flex items-center gap-1">BEHAVIOR<CustomTooltip content="The specific positive behavior being tracked."><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></div></th>
-                  <th className="px-6 py-4"><div className="flex items-center gap-1">BEHAVIOR DESCRIPTION<CustomTooltip content="Detailed definition of the behavior."><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></div></th>
-                  <th className="px-6 py-4"><div className="flex items-center gap-1">PARENT'S REMARKS<CustomTooltip content="Optional notes provided by the parent when logging this behavior."><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></div></th>
-                  <th className="px-6 py-4"><div className="flex items-center gap-1">PRIORITY<CustomTooltip content="Indicated importance of this behavior."><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></div></th>
-                  <th className="px-6 py-4 text-center"><div className="flex items-center justify-center gap-1">REWARDS<CustomTooltip content="Total rewards earned for this behavior log."><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></div></th>
-                  <th className="px-6 py-4 text-right"><div className="flex items-center justify-end gap-1">ACHIEVEMENT DATE<CustomTooltip content="The date this behavior was logged or achieved."><HelpCircle className="h-3 w-3 text-slate-400 cursor-help" /></CustomTooltip></div></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {paginatedBehaviors.map((log, idx) => {
-                    const bDef = Array.isArray(log.behavior_definitions) ? log.behavior_definitions[0] : log.behavior_definitions;
-                    const trackerForThisDef = behaviorTracker.find(t => t.definition_id === log.definition_id);
-                    const displayRemarks = log.remarks_list?.length > 0 
-                      ? log.remarks_list.join(', ') 
-                      : (trackerForThisDef?.remarks || '-');
-
-                    return (
-                      <tr key={log.id || idx} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-6 py-4 font-bold text-slate-900 max-w-[150px] truncate">{log.behavior_name}</td>
-                        <td className="px-6 py-4 text-slate-500 italic max-w-sm truncate">{bDef?.description || '-'}</td>
-                        <td className="px-6 py-4 text-slate-500 italic max-w-sm truncate">{displayRemarks}</td>
-                      <td className="px-6 py-4 text-slate-500 italic uppercase">
-                        {bDef?.priority || '-'}
-                      </td>
-                      <td className="px-6 py-4 text-center font-black text-amber-600">
-                        {log.rewards_earned > 0 ? `+${log.rewards_earned} ${formatReward(kid?.reward_type, log.rewards_earned)}` : '-'}
-                      </td>
-                      <td className="px-6 py-4 text-right text-slate-500 font-medium">
-                        {formatSimpleDate(log.created_at)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Activity History Table */}
       <Card className="border-none ring-1 ring-slate-200 shadow-sm overflow-hidden">

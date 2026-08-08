@@ -1,8 +1,6 @@
 -- Drop tables in reverse order of dependencies
-DROP TABLE IF EXISTS public.behavior_tracker CASCADE;
-DROP TABLE IF EXISTS public.behavior_logs CASCADE;
-DROP TABLE IF EXISTS public.behavior_definitions CASCADE;
 DROP TABLE IF EXISTS public.activity_history_steps CASCADE;
+
 DROP TABLE IF EXISTS public.activity_history CASCADE;
 DROP TABLE IF EXISTS public.activity_steps CASCADE;
 DROP TABLE IF EXISTS public.activities CASCADE;
@@ -15,6 +13,7 @@ DROP TABLE IF EXISTS public.reward_items CASCADE;
 DROP TABLE IF EXISTS public.social_stories CASCADE;
 DROP TABLE IF EXISTS public.worksheets CASCADE;
 DROP TABLE IF EXISTS public.quizzes CASCADE;
+DROP TABLE IF EXISTS public.parent_messages CASCADE;
 DROP TABLE IF EXISTS public.kids CASCADE;
 DROP TABLE IF EXISTS public.users CASCADE;
 
@@ -26,6 +25,8 @@ CREATE TABLE public.users (
     password_hash TEXT,
     secret_question TEXT,
     secret_answer_hash TEXT,
+    max_parent_message_days INTEGER DEFAULT 20,
+    max_parent_messages INTEGER DEFAULT 20,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -193,6 +194,15 @@ CREATE TABLE public.reward_purchases (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- Create parent_messages table
+CREATE TABLE public.parent_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+    kid_id UUID REFERENCES public.kids(id) ON DELETE CASCADE,
+    message TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- Create worksheets table
 CREATE TABLE public.worksheets (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -222,55 +232,6 @@ CREATE TABLE public.quizzes (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Create behavior_definitions table
-CREATE TABLE public.behavior_definitions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    kid_id UUID REFERENCES public.kids(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    type TEXT NOT NULL, -- 'desired' or 'undesired'
-    description TEXT,
-    priority TEXT DEFAULT 'Medium',
-    goal_rewards INTEGER DEFAULT 1,
-    target_time TEXT DEFAULT '00:00:00',
-    target_seconds INTEGER DEFAULT 0,
-    goal INTEGER,
-    icon TEXT,
-    is_active BOOLEAN DEFAULT true,
-    color TEXT DEFAULT '#3b82f6',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- Create behavior_logs table
-CREATE TABLE public.behavior_logs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    kid_id UUID REFERENCES public.kids(id) ON DELETE CASCADE,
-    definition_id UUID REFERENCES public.behavior_definitions(id) ON DELETE SET NULL,
-    type TEXT NOT NULL, -- 'desired' or 'undesired'
-    description TEXT NOT NULL,
-    date DATE NOT NULL DEFAULT CURRENT_DATE,
-    hour INTEGER,
-    completed BOOLEAN DEFAULT true,
-    remarks TEXT,
-    occurrence INTEGER DEFAULT 1,
-    points INTEGER DEFAULT 0,
-    rewards_earned INTEGER DEFAULT 0,
-    goal INTEGER,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- Create behavior_tracker table
-CREATE TABLE IF NOT EXISTS public.behavior_tracker (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    kid_id UUID REFERENCES public.kids(id) ON DELETE CASCADE,
-    definition_id UUID REFERENCES public.behavior_definitions(id) ON DELETE CASCADE,
-    points INTEGER DEFAULT 0,
-    remarks TEXT,
-    tracked_at TEXT,
-    last_tracked_time TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    UNIQUE(kid_id, definition_id)
-);
-
 -- RLS Policies
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.kids ENABLE ROW LEVEL SECURITY;
@@ -285,17 +246,9 @@ ALTER TABLE public.activity_history_steps ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.social_stories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reward_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reward_purchases ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.parent_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.worksheets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.quizzes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.behavior_definitions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.behavior_logs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.behavior_tracker ENABLE ROW LEVEL SECURITY;
-
--- Behavior Tracker
-CREATE POLICY "Users can view their kids behavior tracker" ON public.behavior_tracker FOR SELECT USING (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
-CREATE POLICY "Users can insert their kids behavior tracker" ON public.behavior_tracker FOR INSERT WITH CHECK (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
-CREATE POLICY "Users can update their kids behavior tracker" ON public.behavior_tracker FOR UPDATE USING (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
-CREATE POLICY "Users can delete their kids behavior tracker" ON public.behavior_tracker FOR DELETE USING (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
 
 -- Users
 CREATE POLICY "Users can view their own profile" ON public.users FOR SELECT USING (auth.uid() = id);
@@ -374,6 +327,12 @@ CREATE POLICY "Users can insert their kids reward purchases" ON public.reward_pu
 CREATE POLICY "Users can update their kids reward purchases" ON public.reward_purchases FOR UPDATE USING (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
 CREATE POLICY "Users can delete their kids reward purchases" ON public.reward_purchases FOR DELETE USING (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
 
+-- Parent Messages
+CREATE POLICY "Users can view their kids parent messages" ON public.parent_messages FOR SELECT USING (kid_id IN (SELECT id FROM public.kids k WHERE k.user_id = auth.uid() OR (to_jsonb(k)->>'parent_id')::uuid = auth.uid()) AND user_id = auth.uid());
+CREATE POLICY "Users can insert their kids parent messages" ON public.parent_messages FOR INSERT WITH CHECK (kid_id IN (SELECT id FROM public.kids k WHERE k.user_id = auth.uid() OR (to_jsonb(k)->>'parent_id')::uuid = auth.uid()) AND user_id = auth.uid());
+CREATE POLICY "Users can update their kids parent messages" ON public.parent_messages FOR UPDATE USING (kid_id IN (SELECT id FROM public.kids k WHERE k.user_id = auth.uid() OR (to_jsonb(k)->>'parent_id')::uuid = auth.uid()) AND user_id = auth.uid());
+CREATE POLICY "Users can delete their kids parent messages" ON public.parent_messages FOR DELETE USING (kid_id IN (SELECT id FROM public.kids k WHERE k.user_id = auth.uid() OR (to_jsonb(k)->>'parent_id')::uuid = auth.uid()) AND user_id = auth.uid());
+
 -- Worksheets
 CREATE POLICY "Users can view their own worksheets" ON public.worksheets FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can insert their own worksheets" ON public.worksheets FOR INSERT WITH CHECK (auth.uid() = user_id);
@@ -385,18 +344,6 @@ CREATE POLICY "Users can view their own quizzes" ON public.quizzes FOR SELECT US
 CREATE POLICY "Users can insert their own quizzes" ON public.quizzes FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can update their own quizzes" ON public.quizzes FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete their own quizzes" ON public.quizzes FOR DELETE USING (auth.uid() = user_id);
-
--- Behavior Definitions
-CREATE POLICY "Users can view their kids behavior definitions" ON public.behavior_definitions FOR SELECT USING (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
-CREATE POLICY "Users can insert their kids behavior definitions" ON public.behavior_definitions FOR INSERT WITH CHECK (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
-CREATE POLICY "Users can update their kids behavior definitions" ON public.behavior_definitions FOR UPDATE USING (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
-CREATE POLICY "Users can delete their kids behavior definitions" ON public.behavior_definitions FOR DELETE USING (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
-
--- Behavior Logs
-CREATE POLICY "Users can view their kids behavior logs" ON public.behavior_logs FOR SELECT USING (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
-CREATE POLICY "Users can insert their kids behavior logs" ON public.behavior_logs FOR INSERT WITH CHECK (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
-CREATE POLICY "Users can update their kids behavior logs" ON public.behavior_logs FOR UPDATE USING (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
-CREATE POLICY "Users can delete their kids behavior logs" ON public.behavior_logs FOR DELETE USING (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
 
 -- Functions
 CREATE OR REPLACE FUNCTION public.increment_reward_balance(kid_id_param UUID, amount INTEGER)
