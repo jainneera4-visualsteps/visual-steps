@@ -86,7 +86,7 @@ export default function App() {
             <Route path="/sorting-game" element={<SortingGame />} />
             <Route path="/even-odd" element={<EvenOddGame />} />
             <Route path="/polygons-game" element={<PolygonsGame />} />
-            <Route path="/polygon-hunt" element={<PolygonHunt />} />
+            <Route path="/polygon-hunt1" element={<PolygonHunt />} />
           </Route>
         </Routes>
         </WalkthroughProvider>
