@@ -1,45 +1,36 @@
-```markdown
-# GitHub Copilot Instructions for Educational Platform
+This is a fullstack TypeScript React application for an educational platform, primarily targeting children.
 
-This project is a full-stack educational web application designed for children, featuring interactive activities, games, AI-generated content, and progress tracking.
+**Key Technologies:**
+*   **Frontend:** React 19, Vite, Tailwind CSS (with Radix UI, Framer Motion, Lucide icons).
+*   **Backend:** Node.js (v20+), Express.js (API), `tsx` for development.
+*   **Database/Auth:** Supabase.
+*   **AI:** Google Gemini (`@google/genai`) for features like AI Concierge and content generation.
+*   **Real-time:** Socket.io (client & server).
+*   **State/Routing:** React Context API, React Router DOM v6+.
+*   **Tools:** TypeScript, esbuild, `clsx`, `tailwind-merge`.
 
-**Project Goals:**
-*   Develop, maintain, and enhance an engaging educational platform for kids.
-*   Implement new features, optimize existing ones, and ensure a robust, scalable architecture.
+**Core Functionality:**
+*   **Educational Games:** A variety of interactive games (Memory, Sorting, Even/Odd, Polygons, BrainQuest, LevelUp).
+*   **Content Generation:** AI-powered Quiz and Worksheet Generators.
+*   **Social Stories:** Creation, viewing, and management of social stories.
+*   **AI Concierge:** An AI chatbot providing guidance and assistance.
+*   **Activity Management:** Assigning and tracking activities for children.
+*   **User Management:** Separate dashboards for parents/guardians and kids, authentication (JWT, bcrypt).
+*   **Reporting:** Progress and summary reports.
+*   **Utilities:** PDF generation (`jspdf`, `html2canvas`), emoji picker, confetti animations.
 
-**Key Technologies & Stack:**
-*   **Frontend:** React 19, Vite, TypeScript, Tailwind CSS, Radix UI, Framer Motion, React Router DOM, Socket.IO Client.
-*   **Backend:** Node.js 20, Express, TypeScript, Socket.IO.
-*   **Database/BaaS:** Supabase (PostgreSQL, Authentication, Storage).
-*   **AI:** Google Gemini via `@google/genai` for generative features (quizzes, stories) and AI chat (Concierge).
-*   **Authentication:** JWT, bcryptjs.
-*   **Deployment:** Vercel (likely for frontend) and Node.js server.
-
-**Core Functionalities & Domains:**
-*   User Management (Parents & Kids accounts, authentication, profiles).
-*   Activity Library, Assignment, and Progress Tracking.
-*   Educational Games (Memory, Sorting, Polygons, BrainQuest, EvenOdd, LevelUp).
-*   Content Generation: Quizzes, Worksheets, Social Stories (often AI-assisted).
-*   Real-time Features: Potentially for collaborative activities or chat (Socket.IO).
-*   Reporting: Progress reports, summary reports.
-*   AI Concierge/Chatbot for assistance.
-*   Creative Tools: Layered Canvas Editor for interactive content.
-
-**Coding Style & Best Practices:**
-*   **TypeScript:** Strictly typed code for reliability and maintainability.
-*   **React:** Functional components, Hooks, Context API for global state (Auth, Walkthrough).
-*   **Tailwind CSS:** Utility-first styling, prefer `tailwind-merge` and `clsx` for dynamic classes.
-*   **API Interaction:** Use `src/utils/api.ts` for consistent backend communication.
-*   **Supabase:** Leverage `src/lib/supabase.ts` for all Supabase client interactions.
-*   **Google Gemini:** Use `src/lib/gemini.ts` for AI model interactions.
-*   **Modularity:** Keep components small, focused, and reusable.
-*   **File Structure:** Adhere to the existing `src/components`, `src/pages`, `src/context`, `src/lib`, `src/utils`, `src/constants` structure.
-*   **Performance:** Optimize for fast loading and smooth user experience, especially on mobile.
+**File Structure Overview:**
+*   `src/components`: Reusable UI components and specific feature components (e.g., `AIConciergeChatbox`, `LayeredCanvasEditor`).
+*   `src/pages`: Application views, often corresponding to routes.
+*   `src/context`: Global state management (Auth, Walkthrough).
+*   `src/lib`: Integrations (Supabase, Gemini) and general utilities.
+*   `src/utils`: API calls, auth helpers, date utilities, reward logic.
+*   `src/constants`: Static configuration and guide content.
 
 **When providing assistance:**
-*   **Prioritize Security:** Be mindful of authentication, authorization, and data privacy, especially with user and kid data.
-*   **Contextual Understanding:** Understand the user (parent/kid) and the specific educational context of the feature.
-*   **AI Integration:** Suggest how to best leverage Gemini for content generation, personalization, or interactive features.
-*   **Database Interactions:** Formulate secure and efficient Supabase queries.
-*   **UI/UX:** Focus on intuitive user interfaces and engaging experiences for children.
-```
+*   Prioritize TypeScript-first solutions.
+*   Adhere to Tailwind CSS and Radix UI conventions for styling and accessibility.
+*   Consider both client-side (React) and server-side (Express, Supabase) implications for fullstack tasks.
+*   Leverage Supabase for data operations and authentication where applicable.
+*   Suggest AI integration (Gemini) for features involving content generation or intelligent responses.
+*   Be aware of `AuthContext` for user roles and authentication state, and `WalkthroughContext` for guided tours.
