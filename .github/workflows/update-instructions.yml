@@ -4,8 +4,12 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
+  # ... rest of your workflow steps remain the same
   update-docs:
     runs-on: ubuntu-latest
     steps:
