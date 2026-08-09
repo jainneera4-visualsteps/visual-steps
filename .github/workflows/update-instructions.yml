@@ -13,8 +13,10 @@ jobs:
   update-docs:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository 📥
+      - name: Checkout repository 📥
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
 
       - name: Setup Node.js 🟢
         uses: actions/setup-node@v4
