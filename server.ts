@@ -14,6 +14,7 @@ import multer from 'multer';
 import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
 import path from 'path';
+import { getParentMessageCutoff, normalizeParentMessageRetentionDays } from './src/utils/parentMessageRetention';
 
 dotenv.config();
 
@@ -2069,9 +2070,7 @@ app.post('/api/kids/verify-code', async (req, res) => {
 });
 
 const normalizeMaxParentMessageDays = (value: any) => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0) return 20;
-  return Math.floor(parsed);
+  return normalizeParentMessageRetentionDays(value);
 };
 
 const getParentMessageRetentionDays = async (supabase: any, userId: string) => {
@@ -2094,9 +2093,6 @@ const getParentMessageRetentionDays = async (supabase: any, userId: string) => {
 
   return 20;
 };
-
-const getParentMessageCutoff = (retentionDays: number) =>
-  new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000).toISOString();
 
 const getLatestParentMessagesMap = async (supabase: any, userId: string, kidIds: string[]) => {
   const latestByKid: Record<string, string> = {};
