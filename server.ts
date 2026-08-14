@@ -1397,9 +1397,9 @@ const normalizeMaxParentMessageDays = (value: any) => {
   return Math.floor(parsed);
 };
 
-const getParentMessageRetentionDays = async (userId: string) => {
+const getParentMessageRetentionDays = async (supabase: any, userId: string) => {
   try {
-    const profile = await fetchUserProfileWithRetentionFallback(getAdminSupabaseClient(), userId);
+    const profile = await fetchUserProfileWithRetentionFallback(supabase, userId);
     return normalizeMaxParentMessageDays(
       profile.max_parent_message_days ?? profile.max_parent_messages
     );
@@ -1409,27 +1409,15 @@ const getParentMessageRetentionDays = async (userId: string) => {
   }
 };
 
-const getLatestParentMessagesMap = async (userId: string, kidIds: string[]) => {
+const getLatestParentMessagesMap = async (supabase: any, userId: string, kidIds: string[]) => {
   const latestByKid: Record<string, string> = {};
   if (!kidIds || kidIds.length === 0) return latestByKid;
 
-  const retentionDays = await getParentMessageRetentionDays(userId);
+  const retentionDays = await getParentMessageRetentionDays(supabase, userId);
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
-  const adminSupabase = getAdminSupabaseClient();
 
-  const { error: pruneError } = await adminSupabase
-    .from('parent_messages')
-    .delete()
-    .eq('user_id', userId)
-    .in('kid_id', kidIds)
-    .lt('created_at', cutoffDate.toISOString());
-
-  if (pruneError) {
-    console.warn('Failed to prune expired parent messages:', pruneError);
-  }
-
-  const { data, error } = await adminSupabase
+  const { data, error } = await supabase
     .from('parent_messages')
     .select('kid_id, message, created_at')
     .eq('user_id', userId)
@@ -1452,25 +1440,13 @@ const getLatestParentMessagesMap = async (userId: string, kidIds: string[]) => {
 };
 
 const pruneExpiredParentMessages = async (
-  _supabase: any,
+  supabase: any,
   userId: string,
-  kidId: string
+  _kidId: string
 ) => {
-  const retentionDays = await getParentMessageRetentionDays(userId);
+  const retentionDays = await getParentMessageRetentionDays(supabase, userId);
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
-
-  const { error: pruneError } = await getAdminSupabaseClient()
-    .from('parent_messages')
-    .delete()
-    .eq('user_id', userId)
-    .eq('kid_id', kidId)
-    .lt('created_at', cutoffDate.toISOString());
-
-  if (pruneError) {
-    console.warn('Failed to prune expired parent messages:', pruneError);
-  }
-
   return cutoffDate.toISOString();
 };
 
@@ -1543,7 +1519,7 @@ app.get('/api/kids', authenticateToken, async (req: any, res) => {
     console.log(`Fetched ${kids?.length || 0} kids for user ${userId}`);
     
     const messageKidIds = (kids || []).map(k => k.id);
-    const latestMessages = await getLatestParentMessagesMap(userId, messageKidIds);
+    const latestMessages = await getLatestParentMessagesMap(supabase, userId, messageKidIds);
 
     const processedKids = (kids || []).map(k => {
       const kid = { ...k };
@@ -1593,7 +1569,7 @@ app.get('/api/kids/:id', authenticateToken, async (req: any, res) => {
     try {
       const parentUserId = kid.user_id || req.user.userId;
       const latestMessages = parentUserId
-        ? await getLatestParentMessagesMap(parentUserId, [id])
+        ? await getLatestParentMessagesMap(supabase, parentUserId, [id])
         : {};
       if (latestMessages[id]) {
         processedKid.parent_message = latestMessages[id];

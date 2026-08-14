@@ -203,7 +203,7 @@ export default function Profile() {
                 className="h-7 text-sm"
               />
               <p className="mt-1 text-[11px] text-slate-500">
-                Messages older than this many days are automatically deleted.
+                Messages older than this many days are no longer shown.
               </p>
             </div>
 
