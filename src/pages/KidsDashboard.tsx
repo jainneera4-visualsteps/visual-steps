@@ -91,7 +91,7 @@ export default function KidsDashboard() {
   const [isAccessAllowed, setIsAccessAllowed] = useState(true);
   const [accessMessage, setAccessMessage] = useState('');
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
-  const [activeTab, setActiveTab] = useState<'todo' | 'completed' | 'rewards' | 'games'>('todo');
+  const [activeTab, setActiveTab] = useState<'todo' | 'completed' | 'rewards'>('todo');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [timezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);

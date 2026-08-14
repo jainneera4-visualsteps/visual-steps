@@ -1,6 +1,6 @@
 # Visual Steps
 
-Visual Steps is a full-stack web application that helps parents and caregivers create structured, visual routines and personalized learning experiences for children with autism. Parents manage profiles, activities, learning materials, progress, messages, and rewards; children receive a focused dashboard for completing activities, playing quizzes and learning games, chatting with a configured assistant, and redeeming earned rewards.
+Visual Steps is a full-stack web application that helps parents and caregivers create structured, visual routines and personalized learning experiences for children with autism. Parents manage profiles, activities, learning materials, progress, messages, and rewards; children receive a focused dashboard for completing activities, playing quizzes, chatting with a configured assistant, and redeeming earned rewards.
 
 ## What the application includes
 
@@ -24,7 +24,6 @@ Visual Steps is a full-stack web application that helps parents and caregivers c
 - Complete assigned quizzes and earn the configured tokens or stickers.
 - Read assigned social stories and messages from a parent.
 - Spend earned rewards in the reward shop.
-- Play built-in learning games, including Brain Quest, Memory Match, Sorting, Even/Odd, Polygons, Polygon Hunt, and Level Up.
 - Use a parent-configured AI chatbot.
 
 Real-time Socket.IO events keep the parent and child experiences synchronized when the application runs as a persistent Node server. Vercel uses a no-op Socket.IO fallback, so clients rely on subsequent API refreshes there.
@@ -47,7 +46,7 @@ src/
   constants/        Product and AI-assistant guidance
   context/          Authentication and walkthrough state
   lib/              Supabase, Gemini, and shared helpers
-  pages/            Parent pages, child dashboard, generators, reports, quizzes, and games
+  pages/            Parent pages, child dashboard, generators, reports, and quizzes
   utils/            API, authentication, date/time-zone, and reward helpers
 server.ts            Express API, authentication, data access, AI, uploads, and sockets
 setup_database.sql   Destructive clean-install Supabase schema

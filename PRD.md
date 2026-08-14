@@ -23,7 +23,7 @@ Visual Steps provides a shared system in which a parent can prepare and supervis
 ### Primary users
 
 - **Parents and caregivers:** Create child profiles, plan routines, generate content, communicate with children, and monitor progress.
-- **Children:** Complete visual activities and quizzes, view messages and stories, play learning games, use a configured chatbot, and redeem earned rewards.
+- **Children:** Complete visual activities and quizzes, view messages and stories, use a configured chatbot, and redeem earned rewards.
 
 ### Potential future users
 
@@ -92,12 +92,6 @@ Visual Steps provides a shared system in which a parent can prepare and supervis
 - Synchronize relevant changes through child-specific Socket.IO rooms on persistent Node deployments.
 - Provide a configurable child chatbot with stored conversation history.
 - Provide a parent-facing AI concierge for contextual guidance and supported application actions.
-
-### 5.8 Games
-
-- Provide a parent-facing games hub.
-- Include Level Up, Brain Quest, Memory Match, Sorting, Even/Odd, Polygons, and Polygon Hunt experiences.
-- Allow access from authenticated parent and child routes where configured.
 
 ## 6. Core user journeys
 
