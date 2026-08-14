@@ -704,6 +704,7 @@ ${historyLogText}
 
 // AI Command Endpoint
 app.post('/api/command', authenticateToken, async (req: any, res) => {
+  return res.status(410).json({ error: 'AI concierge has been removed' });
   console.log('[API] /api/command hit!', { prompt: req.body?.prompt });
   const { prompt } = req.body;
   
@@ -1392,6 +1393,7 @@ app.post('/api/auth/verify-password', authenticateToken, async (req: any, res) =
 
 // Chat History Routes
 app.get('/api/kids/:id/chat-history', authenticateToken, async (req: any, res) => {
+  return res.status(410).json({ error: 'Child chatbot has been removed' });
   const { id } = req.params;
   const userId = req.user.id;
   const supabase = getSupabaseForUser(req);
@@ -1488,6 +1490,7 @@ app.get('/api/kids/:id/chat-history', authenticateToken, async (req: any, res) =
 });
 
 app.post('/api/kids/:id/chat-history', authenticateToken, async (req: any, res) => {
+  return res.status(410).json({ error: 'Child chatbot has been removed' });
   const { id } = req.params;
   const { role, message } = req.body;
   const userId = req.user.id;
@@ -1635,6 +1638,7 @@ app.get('/api/kids/:kidId/quiz-results', authenticateToken, async (req: any, res
 
 // Chatbot Management Routes
 app.get('/api/chatbots/:kidId', authenticateToken, async (req: any, res) => {
+  return res.status(410).json({ error: 'Child chatbot has been removed' });
   const supabase = getSupabaseForUser(req);
   const { kidId } = req.params;
   const userId = req.user.id;
@@ -1666,6 +1670,7 @@ app.get('/api/chatbots/:kidId', authenticateToken, async (req: any, res) => {
 });
 
 app.put('/api/chatbots/:kidId', authenticateToken, async (req: any, res) => {
+  return res.status(410).json({ error: 'Child chatbot has been removed' });
   const supabase = getAdminSupabaseClient(); // Use admin client to bypass RLS
   const { kidId } = req.params;
   const userId = req.user.id;
@@ -1733,6 +1738,7 @@ app.put('/api/chatbots/:kidId', authenticateToken, async (req: any, res) => {
 });
 
 app.delete('/api/chatbots/:kidId', authenticateToken, async (req: any, res) => {
+  return res.status(410).json({ error: 'Child chatbot has been removed' });
   const supabase = getAdminSupabaseClient();
   const { kidId } = req.params;
   const userId = req.user.id;
@@ -1903,7 +1909,6 @@ app.post('/api/kids', authenticateToken, async (req: any, res) => {
       }
     }
 
-    // Removed automatic chatbot creation. Parents will create it via Chatbot Management app.
 
     const io = req.app.get('io');
     if (io) io.to(`kid_${id}`).emit('data_updated', { kidId: id });
@@ -2274,25 +2279,6 @@ app.get('/api/kids', authenticateToken, async (req: any, res) => {
     
     console.log(`Fetched ${kids?.length || 0} kids for user ${userId}`);
     
-    // Fetch chatbot names for these kids
-    const adminSupabase = getAdminSupabaseClient();
-    const kidIds = (kids || []).map(k => k.id);
-    let chatbotMap: Record<string, string> = {};
-    
-    if (kidIds.length > 0) {
-      const { data: chatbots, error: chatbotError } = await adminSupabase
-        .from('chatbots')
-        .select('kid_id, name')
-        .in('kid_id', kidIds);
-      
-      if (!chatbotError && chatbots) {
-        chatbotMap = chatbots.reduce((acc: any, cb: any) => {
-          acc[cb.kid_id] = cb.name;
-          return acc;
-        }, {});
-      }
-    }
-
     const messageKidIds = (kids || []).map(k => k.id);
     const latestMessages = await getLatestParentMessagesMap(supabase, messageKidIds);
 
@@ -2300,9 +2286,6 @@ app.get('/api/kids', authenticateToken, async (req: any, res) => {
       const kid = k;
       if (latestMessages[kid.id]) {
         kid.parent_message = latestMessages[kid.id];
-      }
-      if (!kid.chatbot_name && chatbotMap[kid.id]) {
-        kid.chatbot_name = chatbotMap[kid.id];
       }
       return kid;
     });
@@ -2339,22 +2322,6 @@ app.get('/api/kids/:id', authenticateToken, async (req: any, res) => {
     if (kid.user_id !== req.user.id && req.user.role !== 'kid') {
       console.warn(`Access denied for kid ${id} to user ${req.user.id}`);
       return res.status(403).json({ error: 'Forbidden' });
-    }
-
-    // Fetch chatbot settings if available
-    try {
-      const { data: chatbot } = await supabase
-        .from('chatbots')
-        .select('*')
-        .eq('kid_id', id)
-        .single();
-
-      if (chatbot && chatbot.name) {
-        kid.chatbot_name = chatbot.name;
-      }
-    } catch (cbErr) {
-      // Chatbot is optional, don't crash if it fails
-      console.warn('Chatbot settings fetch failed:', cbErr);
     }
 
     const processedKid = { ...kid };

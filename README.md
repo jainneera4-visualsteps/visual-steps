@@ -14,7 +14,6 @@ Visual Steps is a full-stack web application that helps parents and caregivers c
 - Assign quizzes and review results through progress and summary reports.
 - Configure reward-shop items and approve purchases.
 - Send messages to a child's dashboard.
-- Use the parent-facing AI concierge for contextual application guidance and actions.
 
 ### Child experience
 
@@ -24,7 +23,6 @@ Visual Steps is a full-stack web application that helps parents and caregivers c
 - Complete assigned quizzes and earn the configured tokens or stickers.
 - Read assigned social stories and messages from a parent.
 - Spend earned rewards in the reward shop.
-- Use a parent-configured AI chatbot.
 
 Real-time Socket.IO events keep the parent and child experiences synchronized when the application runs as a persistent Node server. Vercel uses a no-op Socket.IO fallback, so clients rely on subsequent API refreshes there.
 

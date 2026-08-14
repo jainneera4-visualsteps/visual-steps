@@ -23,7 +23,6 @@ interface Kid {
   avatar: string;
   reward_balance: number;
   reward_type: string;
-  chatbot_name?: string;
   parent_message?: string;
   timezone?: string;
 }

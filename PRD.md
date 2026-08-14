@@ -23,7 +23,7 @@ Visual Steps provides a shared system in which a parent can prepare and supervis
 ### Primary users
 
 - **Parents and caregivers:** Create child profiles, plan routines, generate content, communicate with children, and monitor progress.
-- **Children:** Complete visual activities and quizzes, view messages and stories, use a configured chatbot, and redeem earned rewards.
+- **Children:** Complete visual activities and quizzes, view messages and stories, and redeem earned rewards.
 
 ### Potential future users
 
@@ -53,7 +53,6 @@ Visual Steps provides a shared system in which a parent can prepare and supervis
 
 - Create, edit, view, and delete multiple child profiles.
 - Store profile details including date of birth, grade, interests, hobbies, strengths, challenges, sensory or behavioral context, therapies, notes, schedule boundaries, rules, avatar, theme, printing permission, time zone, and reward configuration.
-- Configure a child-specific chatbot name, personality, tone, response length, speaking speed, and language complexity.
 
 ### 5.3 Visual activities and scheduling
 
@@ -90,8 +89,6 @@ Visual Steps provides a shared system in which a parent can prepare and supervis
 
 - Send, list, select, and delete parent messages shown on a child's dashboard.
 - Synchronize relevant changes through child-specific Socket.IO rooms on persistent Node deployments.
-- Provide a configurable child chatbot with stored conversation history.
-- Provide a parent-facing AI concierge for contextual guidance and supported application actions.
 
 ## 6. Core user journeys
 
@@ -99,7 +96,7 @@ Visual Steps provides a shared system in which a parent can prepare and supervis
 
 1. A parent creates an account and profile.
 2. The parent adds a child and records relevant preferences and support context.
-3. The parent configures the child's schedule, theme, access code, reward system, and optional chatbot.
+3. The parent configures the child's schedule, theme, access code, and reward system.
 4. The parent creates or assigns the first visual activity.
 
 ### Daily activity completion

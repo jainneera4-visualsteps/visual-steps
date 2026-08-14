@@ -59,7 +59,6 @@ interface Kid {
   sensory_issues?: string;
   behavioral_issues?: string;
   notes?: string;
-  chatbot_name?: string;
   reward_type?: string;
   reward_quantity?: number;
   start_time?: string;

@@ -9,7 +9,6 @@ import { Card, CardContent } from '../components/Card';
 import { ActivityDetailModal } from '../components/ActivityDetailModal';
 import { getZonedTime, formatInTimezone, convertDateToTimeZone } from '../utils/dateUtils';
 import { SocialStoryModal } from '../components/SocialStoryModal';
-import { ChatbotComponent } from '../components/ChatbotComponent';
 
 interface ActivityStep {
   id?: number;
@@ -61,7 +60,6 @@ interface Kid {
   can_print?: boolean;
   timezone?: string;
   parent_message?: string;
-  chatbot_name?: string;
 }
 
 interface RewardItem {
@@ -722,7 +720,6 @@ export default function KidsDashboard() {
     if (!silent) setIsLoading(false);
   }, [kidId]);
 
-  const [showChatbot, setShowChatbot] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -1339,39 +1336,6 @@ export default function KidsDashboard() {
                       Yay! Awesome!
                   </button>
               </div>
-          </div>
-        )}
-        {showChatbot && kid && (
-          <div className="fixed bottom-4 right-4 z-[60] w-[350px] max-w-[calc(100vw-32px)]">
-            <ChatbotComponent 
-              kidId={kid.id}
-              kidName={kid.name}
-              chatbotName={kid.chatbot_name}
-              activities={activities}
-              rewardBalance={kid.reward_balance || 0}
-              rewardType={kid.reward_type || 'stars'}
-              rewardItems={rewardItems}
-              theme={kid.theme}
-              location={location}
-              timezone={kid.timezone || timezone}
-              kidProfile={{
-                dob: kid.dob,
-                gradeLevel: kid.grade_level,
-                hobbies: kid.hobbies,
-                interests: kid.interests,
-                strengths: kid.strengths,
-                weaknesses: kid.weaknesses,
-                sensoryIssues: kid.sensory_issues,
-                behavioralIssues: kid.behavioral_issues,
-                therapies: kid.therapies
-              }}
-            />
-            <button 
-              onClick={() => setShowChatbot(false)}
-              className="absolute -top-2 -right-2 h-8 w-8 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-lg border-2 border-white hover:bg-slate-700 transition-colors"
-            >
-              <X className="h-4 w-4" />
-            </button>
           </div>
         )}
       </main>
