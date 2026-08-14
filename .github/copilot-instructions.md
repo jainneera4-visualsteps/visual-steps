@@ -1,32 +1,38 @@
-# GitHub Copilot Instructions for react-example
+The project is a React 19 / Vite / TypeScript frontend with a Node.js 20 / Express / TypeScript backend, designed as an interactive educational platform for kids.
 
-This project is a full-stack web application built with a React 19 / TypeScript frontend and a Node.js (Express) backend. It leverages Tailwind CSS for styling and Vite for the frontend build process.
+**Key Technologies:**
 
-## Core Technologies & Ecosystem:
-- **Frontend:** React 19, TypeScript, Vite, React Router DOM v6, Tailwind CSS (v4), Radix UI (Tooltip), Framer Motion, Motion.
-- **Backend (`server.ts`):** Node.js 20.x, Express, TypeScript, Socket.io, Multer (file uploads), bcryptjs (password hashing), jsonwebtoken (JWTs), nodemailer (email).
-- **Database/Auth:** Supabase (`@supabase/supabase-js`) for backend services.
-- **AI Integration:** Google Gemini (`@google/genai`) for generative features, managed via `src/lib/gemini.ts`.
-- **Utilities:** `clsx`, `tailwind-merge`, `uuid`, `dotenv`.
-- **UI/UX:** `lucide-react` for icons, `recharts` for data visualization, `canvas-confetti`, `emoji-picker-react`, `html2canvas`, `jspdf` for content generation.
-- **Real-time:** `socket.io` for bidirectional communication.
+*   **Frontend:** React 19, TypeScript, Vite, Tailwind CSS (v4), `react-router-dom`, `framer-motion`, Radix UI, `lucide-react`, `recharts`, `html2canvas`, `jspdf`, `socket.io-client`. State managed via React Context API (`AuthContext`, `WalkthroughContext`).
+*   **Backend:** Node.js 20, Express, TypeScript, `socket.io`, `bcryptjs`, `jsonwebtoken`, `cookie-parser`, `multer`, `nodemailer`, `cors`, `dotenv`.
+*   **Database/Auth:** Supabase (`@supabase/supabase-js`).
+*   **AI:** Google Gemini (`@google/genai`) for content generation (quizzes, social stories).
 
-## Project Structure & Key Areas:
-- **`src/pages/`**: Top-level page components (e.g., `Dashboard`, `ActivityLibrary`, `SocialStories`, `QuizGenerator`, `WorksheetGenerator`).
-- **`src/components/`**: Reusable UI components. `src/components/ui/` specifically for Radix-based components.
-- **`src/context/`**: React Context providers for global state (e.g., `AuthContext`, `WalkthroughContext`).
-- **`src/lib/`**: Core library functions and instances (e.g., `gemini.ts`, `supabase.ts`, `utils.ts`).
-- **`src/utils/`**: Helper functions and domain-specific logic (e.g., `api.ts` for API interactions, `auth.ts`, `dateUtils.ts`, `rewardUtils.ts`).
-- **`server.ts`**: The main Express backend server, responsible for API routes, authentication, and Socket.io.
+**Core Functionality:**
 
-## General Guidelines for Copilot:
-1.  **TypeScript First:** Always prioritize type safety and explicit typing.
-2.  **React Conventions:** Favor functional components with React Hooks.
-3.  **Tailwind CSS:** Apply styling using Tailwind CSS classes, utilizing `clsx` and `tailwind-merge` where appropriate.
-4.  **Supabase & AI:** Utilize the configured Supabase client (`src/lib/supabase.ts`) and Gemini client (`src/lib/gemini.ts`) for respective operations.
-5.  **Authentication:** Adhere to existing patterns for user authentication (`AuthContext`, `jsonwebtoken`, `bcryptjs`) and route protection (`ProtectedRoute` family).
-6.  **API Communication:** Use the `src/utils/api.ts` helpers for consistent communication with the `server.ts` backend.
-7.  **Modularity:** Keep components and utility functions focused on a single responsibility.
-8.  **Error Handling:** Implement comprehensive error handling on both the client and server sides.
-9.  **Code Style:** Match the existing code style, favoring readability and maintainability.
-10. **Security:** Be mindful of security implications for all changes, especially when dealing with user data, authentication, and API endpoints.
+*   **Educational Content:** Generation and management of social stories, quizzes, and worksheets.
+*   **User Management:** Parent/guardian and kid accounts with protected routes. Authentication, profile management, password recovery.
+*   **Activities & Progress:** Assignment of activities, progress tracking, and reporting (`ProgressReport`, `SummaryReport`).
+*   **Interactive Features:** Real-time communication (`socket.io`), rewards (`canvas-confetti`), image editing (`LayeredCanvasEditor`).
+*   **AI Integration:** Leverage Gemini for dynamic educational content creation (`src/lib/gemini.ts`).
+
+**Project Structure and Patterns:**
+
+*   **`src/pages/`**: Top-level views and routes.
+*   **`src/components/`**: Reusable UI components, including custom and Radix UI (`src/components/ui`).
+*   **`src/context/`**: Global state management using React Context API.
+*   **`src/lib/`**: External service integrations (Supabase, Gemini) and core utility functions.
+*   **`src/utils/`**: Helper functions for API calls, authentication, date formatting, reward logic.
+*   **`server.ts`**: Express backend entry point, handling API routes and WebSocket communication.
+*   **Styling:** Utility-first CSS with Tailwind CSS (v4). Use `clsx` and `tailwind-merge` for conditional styling.
+
+**Instructions for Copilot:**
+
+1.  **Prioritize TypeScript:** Always provide type-safe code and interfaces.
+2.  **React Best Practices:** Generate functional components, use hooks effectively, and adhere to existing component patterns.
+3.  **Tailwind CSS:** Apply Tailwind utility classes for styling, following the project's existing design language. Avoid inline styles where possible.
+4.  **Backend Development:** When working on `server.ts` or related files, ensure Express route conventions, proper error handling, and security considerations (e.g., JWT for auth, `bcryptjs` for passwords).
+5.  **Supabase & Gemini Integration:** Understand and utilize the `src/lib/supabase.ts` and `src/lib/gemini.ts` helpers for database interactions and AI content generation, respectively.
+6.  **Context API:** Leverage `src/context/AuthContext.tsx` and `src/context/WalkthroughContext.tsx` for global state management where appropriate.
+7.  **File Organization:** Suggest or create files in their logical directories (`components`, `pages`, `utils`, `lib`, `context`).
+8.  **Conciseness:** Provide clear, concise code snippets and explanations. Focus on completing the requested task without excessive boilerplate.
+9.  **Security:** Be mindful of best practices for authentication, authorization, and data handling, especially concerning user data and AI prompts.
