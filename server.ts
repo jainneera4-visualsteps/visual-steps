@@ -1780,7 +1780,6 @@ app.post('/api/kids', authenticateToken, async (req: any, res) => {
     weaknesses, 
     sensory_issues: sensoryIssues, 
     behavioral_issues: behavioralIssues, 
-    notes, 
     avatar, 
     start_time: startTime, 
     end_time: endTime, 
@@ -1817,7 +1816,6 @@ app.post('/api/kids', authenticateToken, async (req: any, res) => {
       weaknesses,
       sensory_issues: sensoryIssues,
       behavioral_issues: behavioralIssues,
-      notes,
       can_print: canPrint,
       avatar,
       start_time: start_time,
@@ -2062,23 +2060,6 @@ app.post('/api/kids/verify-code', async (req, res) => {
   }
 });
 
-const extractParentMessage = (kid: any) => {
-  try {
-    if (kid && kid.notes && typeof kid.notes === 'string') {
-      // Find all occurrences of [Message]: (.*)
-      // This will match both direct messages and messages inside [PendingReward]
-      const matches = [...kid.notes.matchAll(/\[Message\]: (.*)/g)];
-      if (matches.length > 0) {
-        // Use the absolute last message found in the notes
-        kid.parent_message = matches[matches.length - 1][1].trim();
-      }
-    }
-  } catch (err) {
-    console.error('Error in extractParentMessage:', err);
-  }
-  return kid;
-};
-
 const normalizeMaxParentMessageDays = (value: any) => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) return 20;
@@ -2096,7 +2077,6 @@ const getLatestParentMessagesMap = async (supabase: any, kidIds: string[]) => {
     .order('created_at', { ascending: false });
 
   if (error || !data) {
-    // Fallback to notes parsing if the new table is missing/not yet migrated.
     return latestByKid;
   }
 
@@ -2317,7 +2297,7 @@ app.get('/api/kids', authenticateToken, async (req: any, res) => {
     const latestMessages = await getLatestParentMessagesMap(supabase, messageKidIds);
 
     const processedKids = (kids || []).map(k => {
-      const kid = extractParentMessage(k);
+      const kid = k;
       if (latestMessages[kid.id]) {
         kid.parent_message = latestMessages[kid.id];
       }
@@ -2377,7 +2357,7 @@ app.get('/api/kids/:id', authenticateToken, async (req: any, res) => {
       console.warn('Chatbot settings fetch failed:', cbErr);
     }
 
-    const processedKid = extractParentMessage({ ...kid });
+    const processedKid = { ...kid };
     try {
       const latestMessages = await getLatestParentMessagesMap(supabase, [id]);
       if (latestMessages[id]) {
@@ -2408,7 +2388,6 @@ app.put('/api/kids/:id', authenticateToken, async (req: any, res) => {
     weaknesses, 
     sensory_issues: sensoryIssues, 
     behavioral_issues: behavioralIssues, 
-    notes, 
     avatar, 
     start_time: startTime, 
     end_time: endTime, 
@@ -2429,7 +2408,7 @@ app.put('/api/kids/:id', authenticateToken, async (req: any, res) => {
     // Verify ownership
     const { data: kid, error: checkError } = await supabase
       .from('kids')
-      .select('id, user_id, notes, reward_balance, name, reward_type, timezone')
+      .select('id, user_id, reward_balance, name, reward_type, timezone')
       .eq('id', id)
       .single();
 
@@ -2462,7 +2441,6 @@ app.put('/api/kids/:id', authenticateToken, async (req: any, res) => {
     if (sensoryIssues !== undefined) updates.sensory_issues = sensoryIssues;
     if (behavioralIssues !== undefined) updates.behavioral_issues = behavioralIssues;
     if (therapies !== undefined) updates.therapies = therapies;
-    if (notes !== undefined) updates.notes = notes;
     if (canPrint !== undefined) updates.can_print = canPrint;
     if (avatar !== undefined) updates.avatar = avatar;
     if (startTime !== undefined) updates.start_time = startTime !== '' ? startTime : null;
@@ -3362,15 +3340,13 @@ app.put('/api/kids/:kidId/confirm-reward', authenticateToken, async (req: any, r
     try {
         const { data: kid, error: kidErr } = await adminSupabase
             .from('kids')
-            .select('notes, reward_balance')
+            .select('reward_balance')
             .eq('id', kidId)
             .single();
         if (kidErr || !kid) throw kidErr || new Error('Kid not found');
 
-        // Parse notes to find all pending rewards
-        const noteLines: string[] = kid.notes && typeof kid.notes === 'string'
-          ? kid.notes.split('\n')
-          : [];
+        // Legacy pending-reward endpoint retained for backward compatibility.
+        const noteLines: string[] = [];
         let totalPendingAmount = 0;
         let alreadyAdded = false;
         
@@ -3410,11 +3386,6 @@ app.put('/api/kids/:kidId/confirm-reward', authenticateToken, async (req: any, r
                 }
             }
         }
-        
-        // Update notes (removes the pending reward notification)
-        await adminSupabase.from('kids').update({
-            notes: newNotes
-        }).eq('id', kidId);
         
         res.status(200).json({ success: true });
     } catch (error: any) {

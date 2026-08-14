@@ -47,7 +47,6 @@ interface ChatbotComponentProps {
     weaknesses?: string;
     sensoryIssues?: string;
     behavioralIssues?: string;
-    notes?: string;
     therapies?: string;
   };
 }
@@ -332,7 +331,6 @@ export function ChatbotComponent({ kidId, kidName, chatbotName, activities, rewa
       - Sensory Issues: ${kidProfile?.sensoryIssues || 'none listed'}
       - Behavioral Issues: ${kidProfile?.behavioralIssues || 'none listed'}
       - Therapies: ${kidProfile?.therapies || 'none listed'}
-      - Parent Notes: ${kidProfile?.notes || 'none listed'}
       
       CRITICAL RULES FOR CONVERSATION:
       1. Talk to the child as their BEST FRIEND of the SAME AGE. Use a tone that is very friendly, calming, cheerful, and welcoming.

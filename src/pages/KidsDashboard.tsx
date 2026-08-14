@@ -50,7 +50,6 @@ interface Kid {
   weaknesses?: string;
   sensory_issues?: string;
   behavioral_issues?: string;
-  notes?: string;
   therapies?: string;
   start_time?: string;
   end_time?: string;
@@ -83,7 +82,7 @@ export default function KidsDashboard() {
   const [kid, setKid] = useState<Kid | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
-  const [pendingReward, setPendingReward] = useState<any>(null);
+  const [pendingReward] = useState<any>(null);
   const [showRewardModal, setShowRewardModal] = useState(false);
   const lastMessageRef = useRef<string | undefined>(undefined);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -466,7 +465,6 @@ export default function KidsDashboard() {
       if (!parsed || typeof parsed !== 'object') return null;
       const reduced = { ...parsed } as Record<string, any>;
       [
-        'notes',
         'parent_message',
         'hobbies',
         'interests',
@@ -731,35 +729,6 @@ export default function KidsDashboard() {
   }, [fetchData]);
 
   useEffect(() => {
-    // Check for pending rewards
-    if (kid && kid.notes) {
-      // More robust regex to capture the whole reward line
-      const pendingMatches = [...kid.notes.matchAll(/\[PendingReward\]: (.*?)(?: \[Message\]: (.*)|$)/g)];
-      if (pendingMatches.length > 0) {
-        try {
-          const lastMatch = pendingMatches[pendingMatches.length - 1];
-          const jsonStr = lastMatch[1].trim();
-          const reward = JSON.parse(jsonStr);
-          
-          if (!pendingReward || JSON.stringify(reward) !== JSON.stringify(pendingReward)) {
-            setPendingReward(reward);
-            if (!showRewardModal) {
-              const rewardId = reward.timestamp || Date.now();
-              const dismissedKey = `dismissed_reward_${kidId}_${rewardId}`;
-              if (!localStorage.getItem(dismissedKey)) {
-                setShowRewardModal(true);
-              }
-            }
-          }
-        } catch (e) {
-          console.error("Failed to parse pending reward", e);
-        }
-      } else {
-        setShowRewardModal(false);
-        setPendingReward(null);
-      }
-    }
-
     // Check for new parent message with persistence
     if (kid && kid.parent_message) {
       const lastSeen = localStorage.getItem(`last_seen_message_${kidId}`);
@@ -769,7 +738,7 @@ export default function KidsDashboard() {
     } else if (kid) {
       localStorage.removeItem(`last_seen_message_${kidId}`);
     }
-  }, [kid, kidId, pendingReward, showRewardModal]);
+  }, [kid, kidId]);
 
   useEffect(() => {
     // Set up socket connection
@@ -878,29 +847,7 @@ export default function KidsDashboard() {
     navigate('/?mode=kid');
   };
 
-  const confirmReward = async () => {
-    if (!kid) return;
-    try {
-        if (pendingReward) {
-          const rewardId = pendingReward.timestamp || JSON.stringify(pendingReward);
-          safeLocalStorageSet(`dismissed_reward_${kidId}_${rewardId}`, 'true');
-        }
-        const res = await apiFetch(`/api/kids/${encodeURIComponent(kid.id)}/confirm-reward`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reward_id: 'dummy' })
-        });
-        if (res.ok) {
-            setShowRewardModal(false);
-            fetchData(true); // refresh
-        } else {
-            console.error('Failed to confirm reward');
-        }
-    } catch (e) {
-        console.error('Error confirming reward', e);
-    }
-  };
-
+  const confirmReward = () => setShowRewardModal(false);
 
   if (isLoading) {
     return (
@@ -1416,7 +1363,6 @@ export default function KidsDashboard() {
                 weaknesses: kid.weaknesses,
                 sensoryIssues: kid.sensory_issues,
                 behavioralIssues: kid.behavioral_issues,
-                notes: kid.notes,
                 therapies: kid.therapies
               }}
             />
