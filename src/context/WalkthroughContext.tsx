@@ -85,7 +85,7 @@ export function WalkthroughProvider({ children }: { children: React.ReactNode })
         },
         {
           fieldName: "Hobbies & Interests",
-          description: "Enter hobbies and interests. These are used to personalize activities and learning content.",
+          description: "Enter hobbies and interests. These are used in games and activities.",
           selector: 'textarea[name*="hobby"], textarea[name*="interest"]',
         },
         {

@@ -203,7 +203,7 @@ export default function Profile() {
                 className="h-7 text-sm"
               />
               <p className="mt-1 text-[11px] text-slate-500">
-                Message expiration is currently disabled; saved messages remain visible.
+                Messages older than this many days are automatically deleted.
               </p>
             </div>
 
