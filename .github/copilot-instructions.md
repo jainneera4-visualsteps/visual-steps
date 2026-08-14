@@ -1,40 +1,25 @@
-# Project: Educational Platform (React, Node.js, Supabase, GenAI)
+# Copilot Instructions
 
-This is a full-stack educational application designed for kids and educators, featuring AI-powered content generation, interactive learning tools, and progress tracking.
+This is a full-stack educational application built with **React 19**, **TypeScript**, and **Tailwind CSS** for the frontend, and **Express.js** with **Node.js 20.x** for the backend.
 
-## Core Technologies
+**Key Technologies & Patterns:**
+*   **Frontend:** React (functional components, hooks, React Router v6), Tailwind CSS (utility-first styling), Radix UI (accessible components), Framer Motion (animations), Vite (build tool).
+*   **Backend:** Express.js (REST API), Supabase (database, authentication), Google GenAI (`@google/genai`) for AI content generation (quizzes, social stories, worksheets), JWT & bcryptjs for authentication, Multer for file uploads, Socket.io for real-time features, Nodemailer for email.
+*   **Architecture:** Client-server model, with the frontend consuming APIs from the Express backend. Supabase is used for backend storage and authentication.
+*   **State Management:** React Context API (`AuthContext`, `WalkthroughContext`).
+*   **File Structure Highlights:**
+    *   `src/components`: Reusable UI components, modals, layout, protected routes.
+    *   `src/context`: Global state management.
+    *   `src/lib`: Core integrations (Gemini, Supabase) and general utilities.
+    *   `src/pages`: Application views/screens.
+    *   `src/utils`: Application-specific utility functions (API calls, auth helpers, date, rewards).
 
-*   **Frontend**: React 19, TypeScript, Vite, Tailwind CSS (v4), Radix UI, Framer Motion, React Router DOM.
-*   **Backend**: Node.js 20, Express, TypeScript, Socket.io.
-*   **Database/Auth**: Supabase.
-*   **AI**: Google GenAI (`@google/genai`).
-*   **Utilities**: `bcryptjs`, `jsonwebtoken`, `multer`, `nodemailer`, `html2canvas`, `jspdf`, `recharts`.
-
-## Key Features & Domains
-
-*   **AI Content Generation**: Quizzes, Social Stories, Worksheets (via Google GenAI - see `src/lib/gemini.ts`).
-*   **User Management**: Authentication (parents/educators, kids), protected routes, profile management.
-*   **Interactive Tools**: Canvas editor (`LayeredCanvasEditor`), emoji picker, reporting.
-*   **Real-time**: Live interactions/updates via Socket.io.
-*   **Data Management**: Supabase integration (`src/lib/supabase.ts`), API utilities (`src/utils/api.ts`).
-
-## Codebase Structure & Conventions
-
-*   **`src/pages/`**: Primary application views (e.g., Dashboard, QuizGenerator, SocialStories).
-*   **`src/components/`**: Reusable React UI components. `src/components/ui/` for Radix-based primitives.
-*   **`src/context/`**: React Contexts for global state (`AuthContext`, `WalkthroughContext`).
-*   **`src/lib/`**: External service integrations and core utilities (`gemini.ts`, `supabase.ts`, general `utils.ts`).
-*   **`src/utils/`**: Application-specific helpers (`api.ts`, `auth.ts`, `dateUtils.ts`, `rewardUtils.ts`).
-*   **Styling**: Primarily Tailwind CSS v4. Ensure classes adhere to Tailwind conventions.
-*   **TypeScript**: All code is strictly typed. Prioritize type safety.
-*   **React**: Use functional components and hooks. Follow modern React best practices.
-
-## Copilot Guidance
-
-*   **Prioritize Type Safety**: Always infer or explicitly define types for functions, props, and state.
-*   **Tailwind CSS**: Suggest idiomatic Tailwind classes for styling based on component purpose and existing patterns.
-*   **Contextual Awareness**: Understand `AuthContext` for user roles and `WalkthroughContext` for onboarding states.
-*   **Supabase & API**: For data operations, refer to patterns in `src/lib/supabase.ts` and `src/utils/api.ts`.
-*   **AI Integration**: When working on generative features, consult `src/lib/gemini.ts` for interaction patterns.
-*   **Protected Routes**: Be aware of `ProtectedRoute`, `CommonProtectedRoute`, `KidProtectedRoute` for access control logic.
-*   **Backend/Frontend Split**: `server.ts` handles the Express backend logic and API, while `src/` is the React frontend.
+**When providing assistance:**
+1.  **Prioritize TypeScript:** Ensure type safety, provide interfaces/types where appropriate.
+2.  **Follow React best practices:** Functional components, hooks, clean JSX, `react-router-dom` for routing.
+3.  **Adhere to Tailwind CSS:** Use utility classes for styling, avoid inline styles. Suggest combining classes with `clsx` and `tailwind-merge`.
+4.  **Backend context:** Assume API endpoints are handled by Express, interacting with Supabase and Google GenAI.
+5.  **Security:** Be mindful of authentication (JWT, bcryptjs), authorization (protected routes), and data validation.
+6.  **Context awareness:** Leverage existing `AuthContext` and `WalkthroughContext` where relevant.
+7.  **Module organization:** Suggest appropriate placement for new files within `src/components`, `src/pages`, `src/utils`, or `src/lib`.
+8.  **Application Domain:** Focus on educational, child-centric features (quizzes, social stories, rewards, progress reports).
