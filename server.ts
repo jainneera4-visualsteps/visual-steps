@@ -1391,38 +1391,15 @@ app.post('/api/kids/verify-code', async (req, res) => {
   }
 });
 
-const normalizeMaxParentMessageDays = (value: any) => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0) return 20;
-  return Math.floor(parsed);
-};
-
-const getParentMessageRetentionDays = async (supabase: any, userId: string) => {
-  try {
-    const profile = await fetchUserProfileWithRetentionFallback(supabase, userId);
-    return normalizeMaxParentMessageDays(
-      profile.max_parent_message_days ?? profile.max_parent_messages
-    );
-  } catch (error) {
-    console.warn('Failed to load parent message retention preference; using 20 days:', error);
-    return 20;
-  }
-};
-
 const getLatestParentMessagesMap = async (supabase: any, userId: string, kidIds: string[]) => {
   const latestByKid: Record<string, string> = {};
   if (!kidIds || kidIds.length === 0) return latestByKid;
-
-  const retentionDays = await getParentMessageRetentionDays(supabase, userId);
-  const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
 
   const { data, error } = await supabase
     .from('parent_messages')
     .select('kid_id, message, created_at')
     .eq('user_id', userId)
     .in('kid_id', kidIds)
-    .gte('created_at', cutoffDate.toISOString())
     .order('created_at', { ascending: false });
 
   if (error || !data) {
@@ -1439,18 +1416,7 @@ const getLatestParentMessagesMap = async (supabase: any, userId: string, kidIds:
   return latestByKid;
 };
 
-const pruneExpiredParentMessages = async (
-  supabase: any,
-  userId: string,
-  _kidId: string
-) => {
-  const retentionDays = await getParentMessageRetentionDays(supabase, userId);
-  const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
-  return cutoffDate.toISOString();
-};
-
-const insertParentMessageAndPrune = async (
+const insertParentMessage = async (
   supabase: any,
   userId: string,
   kidId: string,
@@ -1469,7 +1435,6 @@ const insertParentMessageAndPrune = async (
     throw insertError;
   }
 
-  await pruneExpiredParentMessages(supabase, userId, kidId);
 };
 
 // Get Kids
@@ -1719,7 +1684,7 @@ app.put('/api/kids/:id', authenticateToken, async (req: any, res) => {
     if (timezone !== undefined) updates.timezone = timezone;
     if (kidCode !== undefined) updates.kid_code = kidCode;
     if (parentMessage !== undefined && String(parentMessage).trim()) {
-      await insertParentMessageAndPrune(supabase, userId, id, String(parentMessage));
+      await insertParentMessage(supabase, userId, id, String(parentMessage));
     }
     // timezone is removed as it does not exist in the database schema
 
@@ -2423,7 +2388,7 @@ app.post('/api/kids/:kidId/messages', authenticateToken, async (req: any, res) =
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    await insertParentMessageAndPrune(supabase, userId, kidId, String(message));
+    await insertParentMessage(supabase, userId, kidId, String(message));
 
     const io = req.app.get('io');
     if (io) {
@@ -2472,14 +2437,11 @@ app.get('/api/kids/:kidId/messages', authenticateToken, async (req: any, res) =>
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    const cutoffIso = await pruneExpiredParentMessages(supabase, userId, kidId);
-
     const { data: messages, error } = await supabase
       .from('parent_messages')
       .select('id, kid_id, message, created_at')
       .eq('kid_id', kidId)
       .eq('user_id', userId)
-      .gte('created_at', cutoffIso)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
