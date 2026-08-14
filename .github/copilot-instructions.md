@@ -1,31 +1,43 @@
-This is a full-stack educational web application built with React (Vite, TypeScript, TailwindCSS, Framer Motion, Radix UI) for the frontend and Express.js (TypeScript, Node.js 20) for the backend.
+# Copilot Instructions for `react-example`
 
-**Key Technologies & Features:**
-*   **Frontend:** React 19, Vite, TypeScript, TailwindCSS, Radix UI, Framer Motion, React Router DOM, Recharts, Canvas Confetti, Emoji Picker, html2canvas, jsPDF, React Markdown.
-*   **Backend:** Express.js, TypeScript, Node.js 20, Socket.io (real-time communication), JSON Web Tokens (JWT) for authentication, bcryptjs for password hashing, Multer for file uploads, Nodemailer for emails, CORS, Cookie Parser.
-*   **Integrations:**
-    *   **Database/Auth:** Supabase for backend services (DB, Auth).
-    *   **AI:** Google Gemini API (`@google/genai`) for AI-powered features (e.g., `AIConciergeChatbox`, quiz/worksheet generation, social stories).
-*   **Architecture:**
-    *   **Client-Side Rendering (CSR):** React application built with Vite.
-    *   **API Server:** Express.js server (`server.ts`) handling API requests, authentication, and Socket.io connections.
-    *   **Context API:** Used for global state management (e.g., `AuthContext`, `WalkthroughContext`).
-    *   **Protected Routes:** Implemented for different user roles (e.g., `ProtectedRoute`, `KidProtectedRoute`).
+This project is a full-stack educational platform for kids and parents, leveraging React for the frontend and Node.js/Express for the backend. It offers interactive learning experiences, games, content generation, and progress tracking.
 
-**Project Structure Highlights:**
-*   `src/components/`: Reusable UI components, specialized features like `AIConciergeChatbox`, `ChatbotComponent`, `LayeredCanvasEditor`, `SocialStoryModal`.
-*   `src/pages/`: Contains all application views, covering various educational games, activity libraries, content generators (quizzes, worksheets, social stories), dashboards, and user profiles.
-*   `src/context/`: Manages global state for authentication and guided walkthroughs.
-*   `src/lib/`: Houses third-party service integrations (Supabase, Gemini API) and general utilities.
-*   `src/utils/`: Contains utility functions for API calls, authentication, date formatting, and rewards.
-*   `server.ts`: The main Express.js backend server entry point.
+## Core Technologies:
+*   **Frontend:** React 19 (Vite), TypeScript, Tailwind CSS, Radix UI, Framer Motion, Recharts.
+*   **Backend:** Node.js (Express), TypeScript, Socket.IO for real-time communication.
+*   **Database/Auth/Storage:** Supabase.
+*   **Artificial Intelligence:** Google Gemini API integration.
+*   **Other:** JWT for authentication, BcryptJS for password hashing, Nodemailer for emails, HTML2Canvas/jsPDF for PDF generation, Multer for file uploads.
 
-**Copilot Focus:**
-*   **Full-stack context:** Understand interactions between React frontend and Express/Supabase/Gemini backend.
-*   **Component-based development:** Leverage existing components and create new ones following established patterns.
-*   **TypeScript:** Adhere to strict TypeScript types.
-*   **TailwindCSS:** Utilize for styling, prefer utility classes.
-*   **Authentication & Authorization:** Understand JWT, protected routes, and user roles.
-*   **AI Integration:** Be aware of how `gemini.ts` is used to generate content and assist users.
-*   **Data Flow:** Recognize how data flows between components, contexts, and API calls.
-*   **Educational Domain:** Understand the context of children's learning, games, and educational tools.
+## Key Features & Modules:
+*   **User Management:** Separate dashboards and protected routes for parents and kids.
+*   **Educational Activities & Games:** A variety of interactive games (Memory, Polygons, EvenOdd, Sorting) and an activity library.
+*   **Content Generation:** AI-powered Quiz and Worksheet generators, Social Story creation.
+*   **AI Concierge:** An AI chatbot for assistance and guidance (`src/components/AIConciergeChatbox.tsx`).
+*   **Progress Tracking:** Comprehensive progress and summary reports for activities and quizzes.
+*   **Social Stories:** Tools for creating, viewing, and managing social stories (`src/pages/CreateSocialStory.tsx`, `src/components/SocialStoryModal.tsx`).
+*   **Authentication:** User signup, login, password reset via Supabase and JWT.
+*   **Real-time Interactions:** Socket.IO is used for features that require real-time updates.
+
+## Project Structure & Conventions:
+*   **`src/`:** Contains all client-side React code and shared utilities.
+    *   **`src/components/`:** Reusable UI components (e.g., `Button`, `Card`) and feature-specific components (e.g., `ChatbotComponent`, `LayeredCanvasEditor`).
+    *   **`src/pages/`:** Top-level page components for different routes.
+    *   **`src/context/`:** React Context providers for global state management (e.g., `AuthContext`, `WalkthroughContext`).
+    *   **`src/lib/`:** Integrations with external services (e.g., `supabase.ts`, `gemini.ts`).
+    *   **`src/utils/`:** Helper functions and API clients (e.g., `auth.ts`, `api.ts`).
+    *   **`src/constants/`:** Application-wide constants and guide content.
+*   **`server.ts`:** Entry point for the Node.js/Express backend.
+*   **Styling:** Predominantly uses Tailwind CSS for utility-first styling. Prefer existing Tailwind classes over inline styles or new CSS modules.
+*   **TypeScript:** All code is written in TypeScript. Ensure strong typing and interfaces are used appropriately.
+*   **Functional Components:** React components are functional, using Hooks for state and lifecycle management.
+
+## Guidelines for Assistance:
+*   **Context Awareness:** Understand the distinction between parent and kid user roles and their respective access levels.
+*   **Authentication & Authorization:** When dealing with routes or data access, consider the authentication flow (`AuthContext`, `ProtectedRoute`, `KidProtectedRoute`) and Supabase integration.
+*   **API Interactions:** Utilize the `src/utils/api.ts` for frontend-to-backend communication and the Express routes defined in `server.ts`.
+*   **Supabase:** Many core functionalities (auth, database, storage) rely on Supabase. Be mindful of its API and data structures.
+*   **AI Integration:** When implementing or modifying AI features, refer to `src/lib/gemini.ts` and the `AIConciergeChatbox` component.
+*   **Component Reusability:** Favor reusing existing components from `src/components/` and `src/components/ui/` where applicable.
+*   **Maintain Tailwind CSS:** Ensure any new UI elements or modifications adhere to the existing Tailwind CSS conventions.
+*   **Error Handling:** Implement robust error handling for API calls, user inputs, and external service integrations.
