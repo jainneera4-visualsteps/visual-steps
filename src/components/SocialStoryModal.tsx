@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, ChevronLeft, ChevronRight, Volume2, Square, Printer, BookOpen, Lightbulb } from 'lucide-react';
 import { Button } from './Button';
-import { Card, CardContent } from './Card';
 import { apiFetch, safeJson } from '../utils/api';
 import { motion, AnimatePresence } from 'motion/react';
 

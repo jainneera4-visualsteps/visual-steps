@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import { Plus, BookOpen, Trash2, ChevronLeft, ChevronRight, MessageSquare, ArrowLeft, Eye, Pencil, Printer, Loader2, HelpCircle } from 'lucide-react';
+import { Plus, BookOpen, Trash2, ChevronLeft, ChevronRight, ArrowLeft, Eye, Pencil, Printer, Loader2, HelpCircle } from 'lucide-react';
 import { Tooltip } from '../components/ui/Tooltip';
 import { SocialStoryModal } from '../components/SocialStoryModal';
 

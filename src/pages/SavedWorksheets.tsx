@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import { ArrowLeft, FileText, Trash2, Printer, Calendar, BookOpen, Sparkles, Eye, Edit2, ChevronLeft, ChevronRight, HelpCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, FileText, Trash2, Sparkles, Eye, Edit2, ChevronLeft, ChevronRight, HelpCircle, Loader2 } from 'lucide-react';
 import { Tooltip } from '../components/ui/Tooltip';
 
 interface Worksheet {
@@ -313,4 +313,3 @@ export default function SavedWorksheets() {
     </div>
   );
 }
-

@@ -7,7 +7,7 @@ import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Input } from '../components/Input';
 import { Textarea } from '../components/Textarea';
-import { ArrowLeft, Sparkles, Save, Plus, Minus, Trash2, Image as ImageIcon, Loader2, Volume2, Square, Copy, Printer, HelpCircle } from 'lucide-react';
+import { ArrowLeft, Sparkles, Save, Plus, Minus, Trash2, Image as ImageIcon, Loader2, Volume2, Square, HelpCircle } from 'lucide-react';
 import { Tooltip } from '../components/ui/Tooltip';
 
 interface StoryPage {
@@ -35,13 +35,13 @@ export default function CreateSocialStory() {
   const [isLoading, setIsLoading] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [selectedKidId, setSelectedKidId] = useState('');
-  const [kidStrengths, setKidStrengths] = useState('');
-  const [kidWeaknesses, setKidWeaknesses] = useState('');
-  const [kidHobbies, setKidHobbies] = useState('');
-  const [kidInterests, setKidInterests] = useState('');
-  const [kidBehavioralIssues, setKidBehavioralIssues] = useState('');
-  const [kidTherapies, setKidTherapies] = useState('');
-  const [kidSensoryIssues, setKidSensoryIssues] = useState('');
+  const [, setKidStrengths] = useState('');
+  const [, setKidWeaknesses] = useState('');
+  const [, setKidHobbies] = useState('');
+  const [, setKidInterests] = useState('');
+  const [, setKidBehavioralIssues] = useState('');
+  const [, setKidTherapies] = useState('');
+  const [, setKidSensoryIssues] = useState('');
   const [tone, setTone] = useState('Calming');
   const [length, setLength] = useState('Medium');
   const [language, setLanguage] = useState('English');

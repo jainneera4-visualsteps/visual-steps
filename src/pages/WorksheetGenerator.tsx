@@ -4,9 +4,9 @@ import { isAuthError } from '../utils/auth';
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '../components/Button';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
+import { Card, CardContent } from '../components/Card';
 import { Input } from '../components/Input';
-import { ArrowLeft, Printer, Sparkles, Loader2, FileText, CheckCircle2, Save, Edit2, Lightbulb, HelpCircle } from 'lucide-react';
+import { ArrowLeft, Printer, Sparkles, Loader2, FileText, CheckCircle2, Save, Lightbulb, HelpCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Tooltip } from '../components/ui/Tooltip';
 

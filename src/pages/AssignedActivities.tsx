@@ -1,22 +1,15 @@
-import { Tooltip as ChartRechartsTooltip, Legend, ResponsiveContainer, Label, LabelList, PieChart, Pie, Cell, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Tooltip as CustomTooltip } from '../components/ui/Tooltip';
 import { io } from 'socket.io-client';
 import { apiFetch, safeJson } from '../utils/api';
 import { formatReward } from '../utils/rewardUtils';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import { ArrowLeft, Plus, Trash2, Edit2, CheckCircle, Circle, Calendar, Clock, Repeat, Image as ImageIcon, Eye, Sparkles, Loader2, LayoutList, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Activity, TrendingUp, PieChart as PieChartIcon, Award, BarChart as BarChartIcon, History, Lock, Lightbulb, HelpCircle, X } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Edit2, CheckCircle, Circle, Calendar, Clock, Image as ImageIcon, Eye, Sparkles, Loader2, LayoutList, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Activity, Award, History, Lock, HelpCircle, X } from 'lucide-react';
 import { ActivityDetailModal } from '../components/ActivityDetailModal';
 import { formatInTimezone, getZonedTime, convertDateToTimeZone } from '../utils/dateUtils';
-
-// Global Chart Tooltip helper
-const CustomChartTooltip = (props: any) => <ChartRechartsTooltip {...props} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />;
-
-
-
 
 interface ActivityStep {
   id?: number;
@@ -58,7 +51,6 @@ interface Kid {
   weaknesses?: string;
   sensory_issues?: string;
   behavioral_issues?: string;
-  notes?: string;
   reward_type?: string;
   reward_quantity?: number;
   start_time?: string;

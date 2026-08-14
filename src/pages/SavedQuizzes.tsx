@@ -3,8 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import { ArrowLeft, Gamepad2, Trash2, Plus, PlayCircle, Pencil, HelpCircle, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
-import { Input } from '../components/Input';
+import { ArrowLeft, Gamepad2, Trash2, Plus, Pencil, HelpCircle, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import { Tooltip } from '../components/ui/Tooltip';
 
 export default function SavedQuizzes() {

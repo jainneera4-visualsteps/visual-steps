@@ -6,8 +6,7 @@ import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Input } from '../components/Input';
 import { Textarea } from '../components/Textarea';
-import { ArrowLeft, Save, Plus, Trash2, CheckCircle2, Loader2, Image as ImageIcon, Layers, Sparkles } from 'lucide-react';
-import { LayeredCanvasEditor } from '../components/LayeredCanvasEditor';
+import { ArrowLeft, Save, Plus, Trash2, Loader2, Image as ImageIcon, Sparkles } from 'lucide-react';
 
 interface QuizQuestion {
   question: string;
@@ -30,7 +29,7 @@ export default function EditQuiz() {
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [topic, setTopic] = useState('');
-  const [subject, setSubject] = useState('General Knowledge');
+  const [, setSubject] = useState('General Knowledge');
   const [difficulty, setDifficulty] = useState('Medium');
   const [gradeLevel, setGradeLevel] = useState('Grade 1');
   const [description, setDescription] = useState('');
@@ -220,8 +219,6 @@ export default function EditQuiz() {
   }
 
   const difficulties = ['Very Easy', 'Easy', 'Medium', 'Hard'];
-  const targetAges = ['Under 5 years', '5-7 years', '8-10 years', '11-13 years', '14-17 years', '18+ years'];
-  const gradeLevels = ['Pre-K', 'Kindergarten', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8', 'High School', 'Adult Basic Education'];
 
   return (
     <div className="w-full space-y-6 pb-12">

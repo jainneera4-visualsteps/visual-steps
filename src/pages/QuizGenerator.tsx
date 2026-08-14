@@ -28,12 +28,12 @@ export default function QuizGenerator() {
   const location = useLocation();
   const [topic, setTopic] = useState('');
   const [difficulty, setDifficulty] = useState('Medium');
-  const [gradeLevel, setGradeLevel] = useState('Grade 1');
+  const [gradeLevel] = useState('Grade 1');
   const [subject, setSubject] = useState('General Knowledge');
   const [questionType, setQuestionType] = useState('Multiple Choice');
   const [numQuestions, setNumQuestions] = useState(5);
   const [questionScore, setQuestionScore] = useState(1);
-  const [autoGenerateImages, setAutoGenerateImages] = useState(false);
+  const [autoGenerateImages] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGeneratingImages, setIsGeneratingImages] = useState<Record<number, boolean>>({});
   const [isGeneratingAllImages, setIsGeneratingAllImages] = useState(false);
@@ -328,8 +328,6 @@ export default function QuizGenerator() {
   };
 
   const difficulties = ['Very Easy', 'Easy', 'Medium', 'Hard'];
-  const targetAges = ['Under 5 years', '5-7 years', '8-10 years', '11-13 years', '14-17 years', '18+ years'];
-  const gradeLevels = ['Pre-K', 'Kindergarten', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8', 'High School', 'Adult Basic Education'];
   const subjects = ['General Knowledge', 'Math', 'Science', 'Reading', 'History', 'Geography', 'Art', 'Music'];
   const questionTypes = ['Multiple Choice', 'True/False', 'Fill in the Blanks'];
 

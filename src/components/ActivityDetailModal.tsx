@@ -1,5 +1,4 @@
-import { X, Calendar, Clock, Repeat, CheckCircle, Circle, Trash2, Sparkles, Edit2, ArrowLeft, Printer, Lightbulb, Eye, BookOpen } from 'lucide-react';
-import { formatReward } from '../utils/rewardUtils';
+import { CheckCircle, Circle, Sparkles, Edit2, ArrowLeft, Printer, Eye } from 'lucide-react';
 import { Button } from './Button';
 import { Card, CardHeader, CardTitle, CardContent } from './Card';
 import { useRef, useState, useEffect } from 'react';
@@ -41,8 +40,6 @@ export function ActivityDetailModal({
   onToggleStatus, 
   onEdit,
   isReadOnly = false, 
-  rewardType = 'Penny', 
-  rewardQuantity = 1,
   canPrint = true,
   showToggleOnly = false,
   timezone

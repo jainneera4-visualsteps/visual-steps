@@ -2,7 +2,7 @@ import { apiFetch, safeJson } from '../utils/api';
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
-import { X, ChevronLeft, ChevronRight, BookOpen, Printer, Volume2, Square, ArrowLeft, Sparkles, Lightbulb } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, BookOpen, Printer, Volume2, Square, Sparkles, Lightbulb } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 

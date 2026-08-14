@@ -5,9 +5,9 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
+import { Card, CardContent } from '../components/Card';
 import { 
-  AlertCircle, Sparkles, CheckCircle2, Clock, Search, User, ArrowRight, Eye, EyeOff
+  AlertCircle, CheckCircle2, Search, User, Eye, EyeOff
 } from 'lucide-react';
 
 interface Kid {
@@ -29,7 +29,7 @@ export default function Home() {
   const [selectedKidId, setSelectedKidId] = useState('');
   const [kidCode, setKidCode] = useState('');
   const [isSearching, setIsSearching] = useState(false);
-  const [isInitialLoading, setIsInitialLoading] = useState(false);
+  const [isInitialLoading] = useState(false);
 
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);

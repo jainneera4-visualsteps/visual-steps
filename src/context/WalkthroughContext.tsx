@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
 
 export interface FieldGuide {
   fieldName: string;
@@ -39,7 +38,6 @@ export function WalkthroughProvider({ children }: { children: React.ReactNode })
   const [isOpen, setIsOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [hasSeenWalkthrough, setHasSeenWalkthrough] = useState(false);
-  const location = useLocation();
 
   const [steps] = useState<WalkthroughStep[]>([
     {

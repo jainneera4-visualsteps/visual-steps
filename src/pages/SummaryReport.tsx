@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Activity, Loader2, ArrowLeft, Calendar, FileText, Gamepad2, BookOpen, Star } from 'lucide-react';
+import { Activity, Loader2, ArrowLeft, FileText, Gamepad2, BookOpen, Star } from 'lucide-react';
 import { apiFetch, safeJson } from '../utils/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import { Button } from '../components/Button';
 import { formatInTimezone } from '../utils/dateUtils';
 
 interface ActivityItem {

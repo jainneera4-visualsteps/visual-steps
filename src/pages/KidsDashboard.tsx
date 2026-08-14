@@ -1,10 +1,9 @@
 import { apiFetch, safeJson } from '../utils/api';
 import { io } from 'socket.io-client';
 import { formatReward, rewardImages } from '../utils/rewardUtils';
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Calendar, Star, Lock, Lightbulb, LayoutGrid, CheckCircle, Circle, Clock, Target, Coins, LayoutList, WifiOff, Loader2, Gamepad2, PlayCircle, Sun, CloudSun, Moon, Sparkles, LogOut, Trophy, Eye, TrendingUp, MessageSquare, X } from 'lucide-react';
-import { Button } from '../components/Button';
+import { useState, useEffect, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Calendar, Star, Lightbulb, CheckCircle, Circle, Clock, LayoutList, WifiOff, Sun, CloudSun, Moon, Sparkles, LogOut, Trophy, Eye, MessageSquare } from 'lucide-react';
 import { Card, CardContent } from '../components/Card';
 import { ActivityDetailModal } from '../components/ActivityDetailModal';
 import { getZonedTime, formatInTimezone, convertDateToTimeZone } from '../utils/dateUtils';
@@ -75,15 +74,11 @@ export default function KidsDashboard() {
   const { kidId } = useParams();
   const navigate = useNavigate();
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [allActivities, setAllActivities] = useState<Activity[]>([]);
-  const [quizzes, setQuizzes] = useState<any[]>([]);
   const [kid, setKid] = useState<Kid | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
   const [pendingReward] = useState<any>(null);
   const [showRewardModal, setShowRewardModal] = useState(false);
-  const lastMessageRef = useRef<string | undefined>(undefined);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const [viewingStoryId, setViewingStoryId] = useState<string | null>(null);
   const [isAccessAllowed, setIsAccessAllowed] = useState(true);
@@ -91,37 +86,7 @@ export default function KidsDashboard() {
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [activeTab, setActiveTab] = useState<'todo' | 'completed' | 'rewards'>('todo');
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [timezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
-
-  const calculateAge = (dob: string, timezone?: string) => {
-    if (!dob) return '';
-    const birthDate = new Date(dob);
-    const zoned = getZonedTime(timezone);
-    const now = new Date(zoned.year, zoned.month - 1, zoned.day);
-    let age = now.getFullYear() - birthDate.getFullYear();
-    const m = now.getMonth() - birthDate.getMonth();
-    if (m < 0 || (m === 0 && now.getDate() < birthDate.getDate())) {
-      age--;
-    }
-    return `${age} years old`;
-  };
-
-  useEffect(() => {
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          });
-        },
-        (error) => {
-          console.error("Error getting location:", error);
-        }
-      );
-    }
-  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -648,12 +613,10 @@ export default function KidsDashboard() {
           }
         };
 
-        const [kidRes, actRes, allActRes, rewardRes, quizRes] = await Promise.all([
+        const [kidRes, actRes, rewardRes] = await Promise.all([
           fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}`), 'kid'),
           fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/activities?mode=kid&localDate=${localDate}&localTime=${localTime}&_t=${Date.now()}`), 'activities'),
-          fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/activities?mode=parent&localDate=${localDate}&localTime=${localTime}&_t=${Date.now()}`), 'all-activities'),
-          fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/reward-items?onlyActive=true`), 'rewards'),
-          fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/quizzes`), 'quizzes')
+          fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/reward-items?onlyActive=true`), 'rewards')
         ]);
 
         // Process Kid Data
@@ -680,31 +643,10 @@ export default function KidsDashboard() {
           safeLocalStorageSet(`activities_${kidId}`, JSON.stringify(normalizedActivities));
         }
 
-        // Process All Activities
-        if (allActRes.ok) {
-          const allActData = await safeJson(allActRes);
-          const allActivities = Array.isArray(allActData)
-            ? allActData
-            : allActData.activities || allActData.data?.activities || allActData.data || [];
-          if (!Array.isArray(allActivities)) {
-            console.warn('KidsDashboard: Unexpected all-activities payload shape:', allActData);
-          }
-          const normalizedAllActivities = Array.isArray(allActivities) ? allActivities : [];
-          console.log('KidsDashboard: Loaded allActivities', normalizedAllActivities.length, normalizedAllActivities);
-          setAllActivities(normalizedAllActivities);
-          safeLocalStorageSet(`all_activities_${kidId}`, JSON.stringify(normalizedAllActivities));
-        }
-
         // Process Rewards
         if (rewardRes.ok) {
           const rewardData = await safeJson(rewardRes);
           setRewardItems(rewardData.items || []);
-        }
-
-        // Process Quizzes
-        if (quizRes.ok) {
-          const quizData = await safeJson(quizRes);
-          setQuizzes(quizData.quizzes || []);
         }
 
       } catch (error: any) {

@@ -2,13 +2,12 @@ import { Tooltip } from '../components/ui/Tooltip';
 import { apiFetch, safeJson } from '../utils/api';
 import { io } from 'socket.io-client';
 import { formatReward, rewardImages } from '../utils/rewardUtils';
-import { getZonedTime, formatInTimezone } from '../utils/dateUtils';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Select } from '../components/Select';
-import { Plus, User, Calendar, BookOpen, Gamepad2, Clock, Trophy, Sparkles, Loader2, ArrowLeft, Edit2, Activity, Brain, Save, Send, HelpCircle, BookOpenText, Trash2 } from 'lucide-react';
+import { Plus, User, Loader2, ArrowLeft, Edit2, Send, HelpCircle, Trash2 } from 'lucide-react';
 
 interface Kid {
   id: string;
@@ -37,7 +36,6 @@ interface ParentMessageRecord {
 export default function Dashboard() {
   const [kids, setKids] = useState<Kid[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [currentTime, setCurrentTime] = useState(new Date());
   const safeLocalStorageSet = (key: string, value: string) => {
     try {
       localStorage.setItem(key, value);
@@ -72,11 +70,6 @@ export default function Dashboard() {
     }
   };
   
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
-    return () => clearInterval(timer);
-  }, []);
-
   const [showBuyGrid, setShowBuyGrid] = useState(false);
 
   const [selectedKid, setSelectedKid] = useState<Kid | null>(null);
@@ -123,20 +116,6 @@ export default function Dashboard() {
     }
   }, [kids]);
 
-  const fetchRewardItemsForSelectedKid = async () => {
-    if (!dashboardSelectedKidId) return;
-    try {
-      const res = await apiFetch(`/api/kids/${dashboardSelectedKidId}/reward-items?onlyActive=true`);
-      if (res.ok) {
-        const data = await safeJson(res);
-        setRewardItems(data.items || []);
-      }
-    } catch (err) {
-      console.error('Failed to fetch reward items:', err);
-      setRewardItems([]);
-    }
-  };
-
   const fetchMessagesForKid = async (kidId: string) => {
     if (!kidId) return;
     setIsMessagesLoadingByKid(prev => ({ ...prev, [kidId]: true }));
@@ -162,13 +141,6 @@ export default function Dashboard() {
     }
   };
 
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -235,19 +207,6 @@ export default function Dashboard() {
       socket.disconnect();
     };
   }, [kids.map(k => k.id).join(',')]);
-
-  const calculateAge = (dob: string, timezone?: string) => {
-    if (!dob) return 'No Age';
-    const birthDate = new Date(dob);
-    const zoned = getZonedTime(timezone);
-    const today = new Date(zoned.year, zoned.month - 1, zoned.day);
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const m = today.getMonth() - birthDate.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
-    return `${age} years old`;
-  };
 
   const handleGiveReward = async (kid: Kid, amount: number = 1) => {
     
@@ -349,32 +308,6 @@ export default function Dashboard() {
       alert('Failed to send message');
     } finally {
       setIsSendingMessage(false);
-    }
-  };
-
-  const handleDeleteMessage = async (kidId: string, messageId: string) => {
-    try {
-      const res = await apiFetch(`/api/kids/${kidId}/messages/${messageId}`, {
-        method: 'DELETE',
-      });
-
-      if (!res.ok) {
-        const data = await safeJson(res);
-        alert(data?.error || 'Failed to delete message');
-        return;
-      }
-
-      setMessagesByKid(prev => ({
-        ...prev,
-        [kidId]: (prev[kidId] || []).filter((msg) => msg.id !== messageId)
-      }));
-      setSelectedMessageIdsByKid(prev => ({
-        ...prev,
-        [kidId]: (prev[kidId] || []).filter((id) => id !== messageId)
-      }));
-    } catch (err) {
-      console.error('Delete message error:', err);
-      alert('Failed to delete message');
     }
   };
 

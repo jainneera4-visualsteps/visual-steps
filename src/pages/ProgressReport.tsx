@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { 
   TrendingUp, 
   Activity, 
@@ -11,13 +11,9 @@ import {
   ChevronRight,
   ChevronDown,
   PieChart as PieChartIcon,
-  BarChart as BarChartIcon,
   Loader2,
-  Calendar,
-  Eye,
   ArrowLeft,
   Lock,
-  HelpCircle,
   Trash2
 } from 'lucide-react';
 import { 
@@ -25,20 +21,14 @@ import {
   PieChart, 
   Pie, 
   Cell, 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
   Tooltip as ChartRechartsTooltip, 
   Legend 
 } from 'recharts';
 import { apiFetch, safeJson } from '../utils/api';
 import { formatReward } from '../utils/rewardUtils';
-import { formatInTimezone, getZonedTime } from '../utils/dateUtils';
+import { formatInTimezone } from '../utils/dateUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
-import { Tooltip as CustomTooltip } from '../components/ui/Tooltip';
 
 interface Activity {
   id: string;

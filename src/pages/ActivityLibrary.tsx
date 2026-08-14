@@ -1,7 +1,7 @@
 import { apiFetch, safeJson } from '../utils/api';
 import { generateContent, modelNames } from '../lib/gemini';
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Input } from '../components/Input';
@@ -10,10 +10,9 @@ import { Textarea } from '../components/Textarea';
 import { 
   Plus, Trash2, Edit2, Sparkles, BookOpen, 
   ArrowLeft, Search, Filter, LayoutGrid, 
-  Activity as ActivityIcon, Clock, Repeat, ImageIcon, X,
-  ChevronRight, CheckCircle2, Eye, LayoutList,
+  Activity as ActivityIcon, ImageIcon,
+  ChevronRight, Eye, LayoutList,
   Library,
-  Target,
   Wand2,
   Settings2,
   Trash,
