@@ -1,20 +1,138 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Visual Steps
 
-# Run and deploy your AI Studio app
+Visual Steps is a full-stack web application that helps parents and caregivers create structured, visual routines and personalized learning experiences for children with autism. Parents manage profiles, activities, learning materials, progress, messages, and rewards; children receive a focused dashboard for completing activities, playing assigned quizzes, and redeeming earned rewards.
 
-This contains everything you need to run your app locally.
+## What the application includes
 
-View your app in AI Studio: https://ai.studio/apps/7bbfeb8d-6285-4b5c-b537-a9b4d968993d
+### Parent experience
 
-## Run Locally
+- Create and manage profiles for multiple children.
+- Record each child's schedule, interests, strengths, support needs, therapies, rules, theme, time zone, and reward settings.
+- Create reusable activity templates and assign visual, step-by-step activities.
+- Schedule recurring activities and review completion history.
+- Generate and edit AI-assisted quizzes, worksheets, and social stories.
+- Assign quizzes and review results through progress and summary reports.
+- Configure reward-shop items and approve purchases.
+- Send messages to a child's dashboard.
 
-**Prerequisites:**  Node.js
+### Child experience
 
+- Sign in with a parent email and child access code.
+- View current and completed activities in a child-friendly dashboard.
+- Follow activity instructions with text, images, and links.
+- Complete assigned quizzes and earn the configured tokens or stickers.
+- Read assigned social stories and messages from a parent.
+- Spend earned rewards in the reward shop.
+
+Real-time Socket.IO events keep the parent and child experiences synchronized when the application runs as a persistent Node server. Vercel uses a no-op Socket.IO fallback, so clients rely on subsequent API refreshes there.
+
+## Technology
+
+- React 19, TypeScript, React Router, and Vite
+- Tailwind CSS 4, Lucide icons, Framer Motion, and Recharts
+- Express and Socket.IO
+- Supabase Auth and PostgreSQL with row-level security
+- Google Gemini through `@google/genai`
+- jsPDF and html2canvas for printable/exportable resources
+- Vercel-compatible build and routing configuration
+
+## Project structure
+
+```text
+src/
+  components/       Shared UI, layout, editors, chat, and route guards
+  constants/        Product and AI-assistant guidance
+  context/          Authentication and walkthrough state
+  lib/              Supabase, Gemini, and shared helpers
+  pages/            Parent pages, child dashboard, generators, reports, and quizzes
+  utils/            API, authentication, date/time-zone, and reward helpers
+server.ts            Express API, authentication, data access, AI, uploads, and sockets
+setup_database.sql   Destructive clean-install Supabase schema
+vercel.json          Vercel build and rewrite configuration
+```
+
+## Prerequisites
+
+- Node.js 20
+- A Supabase project
+- A Google Gemini API key
+- Optional SMTP credentials for welcome and password-related email
+
+## Local setup
 
 1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+
+   ```bash
+   npm install
+   ```
+
+2. Copy `.env.example` to `.env.local` and set at least:
+
+   ```dotenv
+   GEMINI_API_KEY=your_gemini_api_key
+   SUPABASE_URL=https://your-project.supabase.co
+   SUPABASE_KEY=your_supabase_key
+   VITE_SUPABASE_URL=https://your-project.supabase.co
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+   JWT_SECRET=replace_with_a_long_random_secret
+   ```
+
+   `SUPABASE_URL` and `VITE_SUPABASE_URL` must refer to the same project. Keep `SUPABASE_SERVICE_ROLE_KEY`, `JWT_SECRET`, Gemini credentials, and SMTP credentials server-side; never expose them through a `VITE_` variable.
+
+3. Initialize a **new or disposable** Supabase database with `setup_database.sql` using the Supabase SQL editor.
+
+   > Warning: `setup_database.sql` drops existing Visual Steps tables before recreating them. Do not run it on a database containing data you need to preserve. Existing installations should use reviewed, targeted migrations instead.
+
+4. Start the application:
+
+   ```bash
+   npm run dev
+   ```
+
+5. Open `http://localhost:3000`.
+
+The development command runs `server.ts`; Express serves the API and delegates frontend development assets to Vite.
+
+## Environment variables
+
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `GEMINI_API_KEY` | Yes | Server-side AI content generation |
+| `GOOGLE_API_KEY` | No | Fallback name for the Gemini key |
+| `SUPABASE_URL` | Yes | Server-side Supabase project URL |
+| `SUPABASE_KEY` | Yes | Server Supabase key/fallback key |
+| `VITE_SUPABASE_URL` | Yes | Browser-side Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | Yes | Browser-safe Supabase anonymous key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Recommended | Administrative operations that must bypass RLS |
+| `JWT_SECRET` | Yes in production | Signs child-session tokens; the development fallback is not production-safe |
+| `APP_URL` | Deployment-dependent | Public application URL used in generated links and emails |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Optional | Email delivery |
+
+See `.env.example` for the complete template.
+
+## Commands
+
+| Command | Description |
+| --- | --- |
+| `npm run dev` | Run the Express and Vite development server |
+| `npm run lint` | Run TypeScript checking with no emitted files |
+| `npm run build` | Build the Vite client and bundle the Express server |
+| `npm start` | Run the production server from `dist/server.cjs` |
+| `npm run preview` | Preview the Vite client build |
+
+## Authentication and data access
+
+Parents authenticate through Supabase Auth. Protected browser API requests attach the Supabase access token. Children use a separate short-lived JWT session obtained by verifying their access code. API endpoints enforce ownership and role checks, while the Supabase schema also enables row-level security.
+
+Uploaded files are stored in the local `uploads/` directory. Because ephemeral/serverless filesystems do not provide durable storage, production deployments should use persistent object storage for uploads.
+
+## Deployment
+
+`npm run build` creates the browser bundle and `dist/server.cjs`. `npm start` serves the production application on Node. The repository also contains `vercel.json`, which routes `/api/*` to `server.ts` and frontend paths to the single-page application.
+
+Configure all required environment variables in the deployment platform. Use a strong `JWT_SECRET`, keep the Supabase service-role key private, and apply database changes through reviewed migrations before deploying application changes that depend on them.
+
+## Product documentation
+
+See [PRD.md](PRD.md) for the product goals, user journeys, implemented scope, requirements, and roadmap.

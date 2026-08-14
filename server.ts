@@ -15,6 +15,7 @@ import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { APP_GUIDE } from './src/constants/appGuide';
 
 dotenv.config();
 
@@ -611,355 +612,6 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-// Helper to compile dynamic family action history log for AI instruction
-async function buildConciergeSystemInstruction(req: any): Promise<string> {
-  const userId = req.user?.id;
-  let historyLogText = "No recent system history log entries recorded yet.";
-  
-  if (userId) {
-    try {
-      const supabase = getSupabaseForUser(req);
-      
-      // Get kids
-      let { data: kids } = await supabase
-        .from('kids')
-        .select('id, name')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
-        
-      if (!kids || kids.length === 0) {
-        const { data: parentKids } = await supabase
-          .from('kids')
-          .select('id, name')
-          .eq('parent_id', userId)
-          .order('created_at', { ascending: false });
-        kids = parentKids || [];
-      }
-      
-      if (kids && kids.length > 0) {
-        const kidIds = kids.map(k => k.id);
-        const kidNamesMap = new Map(kids.map(k => [k.id, k.name]));
-        
-        // Fetch recent activities
-        const { data: recentActivities } = await supabase
-          .from('activities')
-          .select('id, activity_type, category, description, title, kid_id, created_at')
-          .in('kid_id', kidIds)
-          .order('created_at', { ascending: false })
-          .limit(3);
-          
-        // Fetch recent worksheets
-        const { data: recentWorksheets } = await supabase
-          .from('worksheets')
-          .select('id, kid_id, subject, topic, grade_level, created_at')
-          .in('kid_id', kidIds)
-          .order('created_at', { ascending: false })
-          .limit(3);
-          
-        const logLines: string[] = [];
-        
-        if (recentActivities && recentActivities.length > 0) {
-          recentActivities.forEach(act => {
-            const kidName = kidNamesMap.get(act.kid_id) || 'Student';
-            const dateStr = act.created_at ? new Date(act.created_at).toLocaleDateString() : 'recent';
-            logLines.push(`- Scheduled Activity: Created "${act.title || act.description || 'Task'}" (${act.activity_type || 'chore'}) for ${kidName} on ${dateStr}.`);
-          });
-        }
-        
-        if (recentWorksheets && recentWorksheets.length > 0) {
-          recentWorksheets.forEach(ws => {
-            const kidName = kidNamesMap.get(ws.kid_id) || 'Student';
-            const dateStr = ws.created_at ? new Date(ws.created_at).toLocaleDateString() : 'recent';
-            logLines.push(`- Worksheet Generated: Created a ${ws.subject || 'Math'} worksheet about ${ws.topic || 'practice'} for ${kidName} on ${dateStr}.`);
-          });
-        }
-        
-        if (logLines.length > 0) {
-          historyLogText = logLines.join('\n');
-        }
-      }
-    } catch (e) {
-      console.error('Error compiling user history log for system instructions:', e);
-    }
-  }
-
-  return `# ROLE
-You are an adaptive AI Assistant for our parenting platform. Your job is to help parents seamlessly navigate the website, explain available features, and dynamically configure or execute any application functionality based on the user's active context.
-
-# DYNAMIC MEMORY & LEARNING
-You have access to a live "User History Log" provided at the start of the conversation. This log updates automatically whenever the user takes any action on the website. 📈
-
-Always review the User History Log before responding. 
-- If a user wants to repeat, modify, or reference a past action, look at the most recent relevant entries in the History Log. 🕒
-- Replicate or adapt the parameters, settings, and context found in that log entry to execute the new task precisely. ⚙️
-
-# CURRENT USER HISTORY LOG
-${historyLogText}
-
-# INSTRUCTIONS
-1. Check the history log to understand the user's recent activity, preferences, and past actions across the platform. 📋
-2. If critical information is missing to repeat or perform an action, ask exactly one clarifying question. ❓
-3. Use your available function tools to execute the appropriate website action based on these learned details. 🚀`;
-}
-
-// AI Command Endpoint
-app.post('/api/command', authenticateToken, async (req: any, res) => {
-  console.log('[API] /api/command hit!', { prompt: req.body?.prompt });
-  const { prompt } = req.body;
-  
-  // Clean apiKey safely using cleanEnvVar helper and standard direct env fallback
-  let apiKey = (cleanEnvVar('GEMINI_API_KEY') || cleanEnvVar('VITE_GEMINI_API_KEY') || cleanEnvVar('GOOGLE_API_KEY') || '').trim();
-  if (!apiKey || apiKey === 'undefined' || apiKey === 'null' || apiKey.length < 10) {
-    apiKey = (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
-  }
-  
-  console.log('[API] Using API Key (DEBUG):', {
-    present: !!apiKey,
-    length: apiKey?.length,
-    start: apiKey?.substring(0, 4)
-  });
-  if (!apiKey || apiKey === 'undefined' || apiKey === 'null' || apiKey.length < 10) {
-    console.log('[API] GEMINI_API_KEY missing or invalid');
-    return res.status(500).json({ error: 'GEMINI_API_KEY is not configured or invalid' });
-  }
-
-  try {
-    const ai = new GoogleGenAI({
-      apiKey,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        }
-      }
-    });
-
-    const systemInstruction = await buildConciergeSystemInstruction(req);
-
-    // Try gemini-3.5-flash first as it is the standard and widely supported text model
-    let response;
-    try {
-      console.log('[API] Attempting model gemini-3.5-flash');
-      response = await ai.models.generateContent({
-        model: 'gemini-3.5-flash',
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        config: {
-          systemInstruction,
-          tools: [{
-            functionDeclarations: [
-              {
-                name: 'triggerOnboardingTour',
-                description: 'Triggers the onboarding walkthrough tour for the parent.',
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {}
-                }
-              },
-              {
-                name: 'openPage',
-                description: 'Navigates the parent to a specific page/route of the App Map. Path options: "/", "/worksheets", "/reports", "/planner", "/tokens".',
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {
-                    path: {
-                      type: Type.STRING,
-                      description: 'The target route, e.g. /worksheets, /reports, /planner, /tokens, /'
-                    }
-                  },
-                  required: ['path']
-                }
-              },
-              {
-                name: 'addActivity',
-                description: 'Creates a new digital chore, homework, task, or activity for a child.',
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {
-                    activityType: {
-                      type: Type.STRING,
-                      description: 'Type of activity, e.g. chore, learning, activity'
-                    },
-                    title: {
-                      type: Type.STRING,
-                      description: 'Title or name of the activity, e.g. vacuuming, reading'
-                    }
-                  },
-                  required: ['activityType', 'title']
-                }
-              },
-              {
-                name: 'distributeTokens',
-                description: 'Distributes and awards reward tokens to a kid for positive behaviors.',
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {
-                    tokens: {
-                      type: Type.INTEGER,
-                      description: 'How many tokens to distribute'
-                    }
-                  },
-                  required: ['tokens']
-                }
-              },
-              {
-                name: 'generate_custom_quiz',
-                description: 'Triggers the creation of a personalized quiz for a child based on history context.',
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {
-                    student_id: {
-                      type: Type.STRING,
-                      description: 'The unique identifier of the kid/student.'
-                    },
-                    subject: {
-                      type: Type.STRING,
-                      description: 'The educational subject of the quiz (e.g., Mathematics, Science, Reading).'
-                    },
-                    topic: {
-                      type: Type.STRING,
-                      description: 'The specific topic or concept to test (e.g., Addition, Photosynthesis, Sight Words).'
-                    },
-                    difficulty: {
-                      type: Type.STRING,
-                      description: 'The difficulty level of the quiz (e.g., easy, medium, hard).'
-                    },
-                    number_of_questions: {
-                      type: Type.INTEGER,
-                      description: 'The number of questions to generate for the quiz (default is 5).'
-                    }
-                  },
-                  required: ['student_id', 'subject', 'topic']
-                }
-              }
-            ]
-          }]
-        }
-      });
-    } catch (modelError: any) {
-      console.warn('[API] gemini-3.5-flash failed, falling back to gemini-3-flash-preview:', modelError.message || modelError);
-      response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        config: {
-          systemInstruction,
-          tools: [{
-            functionDeclarations: [
-              {
-                name: 'triggerOnboardingTour',
-                description: 'Triggers the onboarding walkthrough tour for the parent.',
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {}
-                }
-              },
-              {
-                name: 'openPage',
-                description: 'Navigates the parent to a specific page/route of the App Map. Path options: "/", "/worksheets", "/reports", "/planner", "/tokens".',
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {
-                    path: {
-                      type: Type.STRING,
-                      description: 'The target route, e.g. /worksheets, /reports, /planner, /tokens, /'
-                    }
-                  },
-                  required: ['path']
-                }
-              },
-              {
-                name: 'addActivity',
-                description: 'Creates a new digital chore, homework, task, or activity for a child.',
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {
-                    activityType: {
-                      type: Type.STRING,
-                      description: 'Type of activity, e.g. chore, learning, activity'
-                    },
-                    title: {
-                      type: Type.STRING,
-                      description: 'Title or name of the activity, e.g. vacuuming, reading'
-                    }
-                  },
-                  required: ['activityType', 'title']
-                }
-              },
-              {
-                name: 'distributeTokens',
-                description: 'Distributes and awards reward tokens to a kid for positive behaviors.',
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {
-                    tokens: {
-                      type: Type.INTEGER,
-                      description: 'How many tokens to distribute'
-                    }
-                  },
-                  required: ['tokens']
-                }
-              },
-              {
-                name: 'generate_custom_quiz',
-                description: 'Triggers the creation of a personalized quiz for a child based on history context.',
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {
-                    student_id: {
-                      type: Type.STRING,
-                      description: 'The unique identifier of the kid/student.'
-                    },
-                    subject: {
-                      type: Type.STRING,
-                      description: 'The educational subject of the quiz (e.g., Mathematics, Science, Reading).'
-                    },
-                    topic: {
-                      type: Type.STRING,
-                      description: 'The specific topic or concept to test (e.g., Addition, Photosynthesis, Sight Words).'
-                    },
-                    difficulty: {
-                      type: Type.STRING,
-                      description: 'The difficulty level of the quiz (e.g., easy, medium, hard).'
-                    },
-                    number_of_questions: {
-                      type: Type.INTEGER,
-                      description: 'The number of questions to generate for the quiz (default is 5).'
-                    }
-                  },
-                  required: ['student_id', 'subject', 'topic']
-                }
-              }
-            ]
-          }]
-        }
-      });
-    }
-
-    console.log('[API] Gemini response received');
-    
-    const functionCalls = response.functionCalls;
-    const call = functionCalls?.[0];
-
-    if (call) {
-      res.json({ 
-        functionCall: call.name, 
-        args: call.args, 
-        response: response.text || `Executed action: ${call.name}` 
-      });
-    } else {
-      const text = response.text;
-      res.json({ response: text || "The assistant didn't have a response." });
-    }
-  } catch (error: any) {
-    console.error('AI Command Error:', error);
-    const status = error.status || 500;
-    const message = error.message || (error.error && error.error.message) || error.toString();
-    res.status(status).json({
-      error: 'Failed to process AI command',
-      details: message,
-    });
-  }
-});
-
-// Upload File Endpoint
 app.post('/api/upload', authenticateToken, (req: any, res) => {
   console.log('Received upload request');
   
@@ -1368,6 +1020,7 @@ app.put('/api/user/profile', authenticateToken, async (req: any, res) => {
   }
 });
 
+
 // Verify Password
 app.post('/api/auth/verify-password', authenticateToken, async (req: any, res) => {
   const { password } = req.body;
@@ -1389,193 +1042,6 @@ app.post('/api/auth/verify-password', authenticateToken, async (req: any, res) =
 
   res.status(200).json({ message: 'Password verified' });
 });
-
-// Chat History Routes
-app.get('/api/kids/:id/chat-history', authenticateToken, async (req: any, res) => {
-  const { id } = req.params;
-  const userId = req.user.id;
-  const supabase = getSupabaseForUser(req);
-  
-  try {
-    const start = Date.now();
-    console.log(`[GET chat-history] Start - Kid ID: ${id}, User ID: ${userId}`);
-    
-    // First verify parent has access to this kid
-    const { data: kid, error: kidError } = await supabase
-      .from('kids')
-      .select('id, user_id')
-      .eq('id', id)
-      .single();
-      
-    if (kidError || !kid) {
-      console.error('[GET chat-history] Kid not found or access denied:', kidError, `Duration: ${Date.now() - start}ms`);
-      return res.status(404).json({ error: 'Kid not found' });
-    }
-
-    console.log(`[GET chat-history] Kid found. Owner ID: ${kid.user_id}, Duration: ${Date.now() - start}ms`);
-    
-    // Check if the user is the parent of this kid
-    if (kid.user_id !== userId && req.user.role !== 'kid') {
-      console.error(`[GET chat-history] Forbidden access attempt. User ${userId} is not owner ${kid.user_id}, Duration: ${Date.now() - start}ms`);
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-
-    // Use admin client to bypass RLS for chat_history
-    const adminSupabase = getAdminSupabaseClient();
-    console.log(`[GET chat-history] Fetching from chat_history for kid_id: ${id}, Duration: ${Date.now() - start}ms`);
-    
-    let { data: history, error } = await adminSupabase
-      .from('chat_history')
-      .select('*')
-      .eq('kid_id', id)
-      .order('created_at', { ascending: true });
-
-    if (error) {
-      console.warn('[GET chat-history] First fetch attempt failed:', error.message, 'Code:', error.code, `Duration: ${Date.now() - start}ms`);
-      
-      const isColumnError = error.code === '42703' || 
-                           (error.message && error.message.includes("column") && error.message.includes("not found"));
-
-      if (isColumnError) {
-        // Try fallback column name kidId
-        console.log('[GET chat-history] Retrying with fallback column name kidId...');
-        const { data: retryData, error: retryError } = await adminSupabase
-          .from('chat_history')
-          .select('*')
-          .eq('kidId', id)
-          .order('created_at', { ascending: true });
-          
-        if (retryError) {
-          console.warn('[GET chat-history] Retry with kidId failed, trying without order...');
-          const { data: finalData, error: finalError } = await adminSupabase
-            .from('chat_history')
-            .select('*')
-            .eq('kidId', id);
-            
-          if (finalError) {
-            console.error('[GET chat-history] Final fetch attempt failed:', finalError);
-            throw finalError;
-          }
-          history = finalData;
-        } else {
-          history = retryData;
-        }
-      } else {
-        console.warn('[GET chat-history] Fetch failed with error, trying without order...');
-        const { data: retryData, error: retryError } = await adminSupabase
-          .from('chat_history')
-          .select('*')
-          .eq('kid_id', id);
-          
-        if (retryError) {
-          console.error('[GET chat-history] Database error fetching history:', error);
-          throw error;
-        }
-        history = retryData;
-      }
-    }
-    
-    console.log(`[GET chat-history] Successfully fetched ${history?.length || 0} messages`);
-    if (history && history.length > 0) {
-      console.log('[GET chat-history] Sample message:', JSON.stringify(history[0]));
-    }
-    
-    res.json({ history: history || [] });
-  } catch (error: any) {
-    console.error('[GET chat-history] Unexpected error:', error?.message || error);
-    res.status(500).json({ error: 'Internal server error', details: error?.message });
-  }
-});
-
-app.post('/api/kids/:id/chat-history', authenticateToken, async (req: any, res) => {
-  const { id } = req.params;
-  const { role, message } = req.body;
-  const userId = req.user.id;
-  
-  try {
-    console.log(`[POST chat-history] Kid ID: ${id}, Role: ${role}, Message length: ${message?.length}`);
-    
-    const messageData: any = {
-      id: uuidv4(),
-      kid_id: id,
-      role,
-      message,
-      created_at: new Date().toISOString()
-    };
-    
-    const adminSupabase = getAdminSupabaseClient();
-    
-    console.log('[POST chat-history] Attempting insert into chat_history:', JSON.stringify(messageData));
-    
-    let { data: chatMessage, error } = await adminSupabase
-      .from('chat_history')
-      .insert([messageData])
-      .select()
-      .single();
-
-    if (error) {
-      console.warn('[POST chat-history] First insert attempt failed:', error.message, 'Code:', error.code);
-      
-      const isColumnError = error.code === '42703' || 
-                           (error.message && error.message.includes("column") && error.message.includes("not found"));
-
-      if (isColumnError) {
-        // Column mismatch - try fallback with different kid_id column name
-        console.log('[POST chat-history] Retrying with fallback column names...');
-        
-        // Try kidId instead of kid_id
-        const { kid_id: _kidId, ...fallbackData } = messageData;
-        (fallbackData as any).kidId = id;
-        
-        const { data: retryData, error: retryError } = await adminSupabase
-          .from('chat_history')
-          .insert([fallbackData])
-          .select()
-          .single();
-          
-        if (retryError) {
-          console.warn('[POST chat-history] Second insert attempt failed:', retryError.message);
-          
-          if (retryError.code === '42703') {
-            // Still column mismatch - try 'text' instead of 'message'
-            console.log('[POST chat-history] Retrying with fallback column name "text"...');
-            const { message: _msg, ...textFallbackData } = fallbackData;
-            (textFallbackData as any).text = message;
-            
-            const { data: textData, error: textError } = await adminSupabase
-              .from('chat_history')
-              .insert([textFallbackData])
-              .select()
-              .single();
-              
-            if (textError) {
-              console.error('[POST chat-history] Text fallback failed:', textError);
-              throw textError;
-            }
-            chatMessage = textData;
-          } else {
-            throw retryError;
-          }
-        } else {
-          chatMessage = retryData;
-        }
-      } else {
-        throw error;
-      }
-    }
-    
-    console.log('[POST chat-history] Successfully saved message:', chatMessage?.id);
-    
-    const io = req.app.get('io');
-    if (io) io.to(`kid_${id}`).emit('data_updated', { kidId: id });
-
-    res.status(201).json({ chatMessage });
-  } catch (error: any) {
-    console.error('[POST chat-history] Unexpected error:', error?.message || error);
-    res.status(500).json({ error: 'Internal server error', details: error?.message });
-  }
-});
-
 app.post('/api/quiz-results', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
   const { quizId, kidId, responses, score, totalQuestions } = req.body;
@@ -1633,140 +1099,6 @@ app.get('/api/kids/:kidId/quiz-results', authenticateToken, async (req: any, res
   }
 });
 
-// Chatbot Management Routes
-app.get('/api/chatbots/:kidId', authenticateToken, async (req: any, res) => {
-  const supabase = getSupabaseForUser(req);
-  const { kidId } = req.params;
-  const userId = req.user.id;
-
-  try {
-    // Verify kid ownership
-    const { data: kid, error: kidError } = await supabase
-      .from('kids')
-      .select('user_id')
-      .eq('id', kidId)
-      .single();
-    
-    if (kidError || !kid || kid.user_id !== userId) return res.status(403).json({ error: 'Forbidden' });
-
-    const adminSupabase = getAdminSupabaseClient();
-    const { data: chatbot, error } = await adminSupabase
-      .from('chatbots')
-      .select('*')
-      .eq('kid_id', kidId)
-      .maybeSingle();
-    
-    if (error && error.code !== 'PGRST116') return res.status(500).json({ error: 'Internal server error', details: error.message });
-
-    res.json({ chatbot: chatbot || {} });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.put('/api/chatbots/:kidId', authenticateToken, async (req: any, res) => {
-  const supabase = getAdminSupabaseClient(); // Use admin client to bypass RLS
-  const { kidId } = req.params;
-  const userId = req.user.id;
-  const { name, gender, personality, tone, speakingSpeed, maxSentences, languageComplexity } = req.body;
-
-  try {
-    // Verify kid ownership
-    const { data: kid, error: kidError } = await supabase
-      .from('kids')
-      .select('user_id')
-      .eq('id', kidId)
-      .single();
-    
-    if (kidError || !kid || kid.user_id !== userId) return res.status(403).json({ error: 'Forbidden' });
-
-    const chatbotData = { 
-      name, 
-      gender, 
-      personality, 
-      tone,
-      speaking_speed: speakingSpeed,
-      max_sentences: maxSentences,
-      language_complexity: languageComplexity
-    };
-
-    // Check if chatbot exists
-    const { data: existingChatbots, error: checkError } = await supabase
-      .from('chatbots')
-      .select('id')
-      .eq('kid_id', kidId);
-
-    console.log('Existing chatbots:', existingChatbots);
-
-    if (existingChatbots && existingChatbots.length > 0) {
-      // Update
-      const { error } = await supabase
-        .from('chatbots')
-        .update(chatbotData)
-        .eq('kid_id', kidId);
-      
-      if (error) {
-        console.error('Chatbot update error:', error);
-        throw error;
-      }
-    } else {
-      // Create
-      const { error } = await supabase
-        .from('chatbots')
-        .insert([{ kid_id: kidId, ...chatbotData }]);
-      
-      if (error) {
-        console.error('Chatbot insert error:', error);
-        throw error;
-      }
-    }
-
-    const io = req.app.get('io');
-    if (io) io.to(`kid_${kidId}`).emit('data_updated', { kidId });
-
-    res.json({ message: 'Chatbot settings updated successfully' });
-  } catch (error: any) {
-    console.error('Chatbot PUT error:', error);
-    res.status(500).json({ error: 'Internal server error', details: error.message });
-  }
-});
-
-app.delete('/api/chatbots/:kidId', authenticateToken, async (req: any, res) => {
-  const supabase = getAdminSupabaseClient();
-  const { kidId } = req.params;
-  const userId = req.user.id;
-
-  try {
-    // Verify kid ownership
-    const { data: kid, error: kidError } = await supabase
-      .from('kids')
-      .select('user_id')
-      .eq('id', kidId)
-      .single();
-    
-    if (kidError || !kid || kid.user_id !== userId) return res.status(403).json({ error: 'Forbidden' });
-
-    const { error } = await supabase
-      .from('chatbots')
-      .delete()
-      .eq('kid_id', kidId);
-    
-    if (error) {
-      console.error('Chatbot delete error:', error);
-      throw error;
-    }
-
-    const io = req.app.get('io');
-    if (io) io.to(`kid_${kidId}`).emit('data_updated', { kidId });
-
-    res.json({ message: 'Chatbot deleted successfully' });
-  } catch (error: any) {
-    console.error('Chatbot DELETE error:', error);
-    res.status(500).json({ error: 'Internal server error', details: error.message });
-  }
-});
-
 // Kid Management Routes
 app.post('/api/kids', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
@@ -1780,7 +1112,6 @@ app.post('/api/kids', authenticateToken, async (req: any, res) => {
     weaknesses, 
     sensory_issues: sensoryIssues, 
     behavioral_issues: behavioralIssues, 
-    notes, 
     avatar, 
     start_time: startTime, 
     end_time: endTime, 
@@ -1817,7 +1148,6 @@ app.post('/api/kids', authenticateToken, async (req: any, res) => {
       weaknesses,
       sensory_issues: sensoryIssues,
       behavioral_issues: behavioralIssues,
-      notes,
       can_print: canPrint,
       avatar,
       start_time: start_time,
@@ -1905,7 +1235,6 @@ app.post('/api/kids', authenticateToken, async (req: any, res) => {
       }
     }
 
-    // Removed automatic chatbot creation. Parents will create it via Chatbot Management app.
 
     const io = req.app.get('io');
     if (io) io.to(`kid_${id}`).emit('data_updated', { kidId: id });
@@ -2062,41 +1391,54 @@ app.post('/api/kids/verify-code', async (req, res) => {
   }
 });
 
-const extractParentMessage = (kid: any) => {
-  try {
-    if (kid && kid.notes && typeof kid.notes === 'string') {
-      // Find all occurrences of [Message]: (.*)
-      // This will match both direct messages and messages inside [PendingReward]
-      const matches = [...kid.notes.matchAll(/\[Message\]: (.*)/g)];
-      if (matches.length > 0) {
-        // Use the absolute last message found in the notes
-        kid.parent_message = matches[matches.length - 1][1].trim();
-      }
-    }
-  } catch (err) {
-    console.error('Error in extractParentMessage:', err);
-  }
-  return kid;
-};
-
 const normalizeMaxParentMessageDays = (value: any) => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) return 20;
   return Math.floor(parsed);
 };
 
-const getLatestParentMessagesMap = async (supabase: any, kidIds: string[]) => {
+const getParentMessageRetentionDays = async (userId: string) => {
+  try {
+    const profile = await fetchUserProfileWithRetentionFallback(getAdminSupabaseClient(), userId);
+    return normalizeMaxParentMessageDays(
+      profile.max_parent_message_days ?? profile.max_parent_messages
+    );
+  } catch (error) {
+    console.warn('Failed to load parent message retention preference; using 20 days:', error);
+    return 20;
+  }
+};
+
+const getLatestParentMessagesMap = async (userId: string, kidIds: string[]) => {
   const latestByKid: Record<string, string> = {};
   if (!kidIds || kidIds.length === 0) return latestByKid;
 
-  const { data, error } = await supabase
+  const retentionDays = await getParentMessageRetentionDays(userId);
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+  const adminSupabase = getAdminSupabaseClient();
+
+  const { error: pruneError } = await adminSupabase
+    .from('parent_messages')
+    .delete()
+    .eq('user_id', userId)
+    .in('kid_id', kidIds)
+    .lt('created_at', cutoffDate.toISOString());
+
+  if (pruneError) {
+    console.warn('Failed to prune expired parent messages:', pruneError);
+  }
+
+  const { data, error } = await adminSupabase
     .from('parent_messages')
     .select('kid_id, message, created_at')
+    .eq('user_id', userId)
     .in('kid_id', kidIds)
+    .gte('created_at', cutoffDate.toISOString())
     .order('created_at', { ascending: false });
 
   if (error || !data) {
-    // Fallback to notes parsing if the new table is missing/not yet migrated.
+    if (error) console.warn('Failed to load current parent messages:', error);
     return latestByKid;
   }
 
@@ -2110,25 +1452,15 @@ const getLatestParentMessagesMap = async (supabase: any, kidIds: string[]) => {
 };
 
 const pruneExpiredParentMessages = async (
-  supabase: any,
+  _supabase: any,
   userId: string,
   kidId: string
 ) => {
-  let retentionDays = 20;
-  const { data: userPref, error: userPrefError } = await supabase
-    .from('users')
-    .select('max_parent_message_days, max_parent_messages')
-    .eq('id', userId)
-    .single();
-
-  if (!userPrefError && userPref) {
-    retentionDays = normalizeMaxParentMessageDays(userPref.max_parent_message_days ?? userPref.max_parent_messages);
-  }
-
+  const retentionDays = await getParentMessageRetentionDays(userId);
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
 
-  const { error: pruneError } = await supabase
+  const { error: pruneError } = await getAdminSupabaseClient()
     .from('parent_messages')
     .delete()
     .eq('user_id', userId)
@@ -2138,6 +1470,8 @@ const pruneExpiredParentMessages = async (
   if (pruneError) {
     console.warn('Failed to prune expired parent messages:', pruneError);
   }
+
+  return cutoffDate.toISOString();
 };
 
 const insertParentMessageAndPrune = async (
@@ -2160,92 +1494,6 @@ const insertParentMessageAndPrune = async (
   }
 
   await pruneExpiredParentMessages(supabase, userId, kidId);
-};
-
-const aggregateRewardMessages = (currentNotes: string, newRewardAmount: number, newBehaviorName: string, rewardTypeRaw: string) => {
-  const now = Date.now();
-  const AGGREGATION_THRESHOLD = 60 * 1000; // 1 minute
-  
-  let pendingBehaviors: any[] = [];
-  const lines = currentNotes ? currentNotes.split('\n') : [];
-  
-  // Find the last [PendingReward] line to see if we can aggregate with it
-  let lastPendingIdx = -1;
-  for (let i = lines.length - 1; i >= 0; i--) {
-    if (lines[i].startsWith('[PendingReward]: ')) {
-      lastPendingIdx = i;
-      break;
-    }
-  }
-
-  let shouldAggregate = false;
-  if (lastPendingIdx !== -1) {
-    try {
-      const line = lines[lastPendingIdx];
-      const content = line.replace('[PendingReward]: ', '');
-      const msgIndex = content.indexOf(' [Message]: ');
-      const jsonPart = msgIndex !== -1 ? content.substring(0, msgIndex) : content;
-      const parsed = JSON.parse(jsonPart);
-      
-      const timestamp = parsed.timestamp || 0;
-      if (now - timestamp < AGGREGATION_THRESHOLD) {
-        shouldAggregate = true;
-        if (parsed.behaviors && Array.isArray(parsed.behaviors)) {
-            pendingBehaviors.push(...parsed.behaviors);
-        } else if (parsed.name || parsed.definition_name) {
-            pendingBehaviors.push({ amount: parsed.amount, name: parsed.name || parsed.definition_name });
-        }
-        // Remove the line we're aggregating with
-        lines.splice(lastPendingIdx, 1);
-      }
-    } catch (e) {
-      // Failed to parse, treat as non-aggregatable
-    }
-  }
-
-  // Add the new behavior
-  pendingBehaviors.push({ amount: newRewardAmount, name: newBehaviorName });
-
-  // Group by name to sum amounts for the same behavior
-  const aggregatedMap = new Map<string, number>();
-  pendingBehaviors.forEach(b => {
-      aggregatedMap.set(b.name, (aggregatedMap.get(b.name) || 0) + b.amount);
-  });
-  
-  const finalBehaviors = Array.from(aggregatedMap.entries()).map(([name, amount]) => ({ name, amount }));
-  const totalAmount = finalBehaviors.reduce((sum, b) => sum + b.amount, 0);
-  const behaviorNames = finalBehaviors.map(b => b.name);
-  
-  let behaviorListStr = '';
-  if (behaviorNames.length === 1) {
-    behaviorListStr = behaviorNames[0];
-  } else if (behaviorNames.length === 2) {
-    behaviorListStr = `${behaviorNames[0]} and ${behaviorNames[1]}`;
-  } else if (behaviorNames.length > 2) {
-    const last = behaviorNames.pop();
-    behaviorListStr = `${behaviorNames.join(', ')} and ${last}`;
-  }
-
-  const rewardType = totalAmount === 1 
-    ? (rewardTypeRaw.toLowerCase().endsWith('s') ? rewardTypeRaw.slice(0, -1) : rewardTypeRaw)
-    : (rewardTypeRaw.toLowerCase().endsWith('s') ? rewardTypeRaw : rewardTypeRaw + 's');
-
-  const goalMessage = `You have earned ${totalAmount} ${rewardType} for being ${behaviorListStr}.`;
-  
-  const aggregatedPayload = {
-    amount: totalAmount,
-    behaviors: finalBehaviors,
-    already_added: true,
-    timestamp: now
-  };
-
-  const pendingLine = `[PendingReward]: ${JSON.stringify(aggregatedPayload)} [Message]: ${goalMessage}`;
-  
-  let resultNotes = lines.join('\n').trim();
-  if (resultNotes) resultNotes += '\n\n';
-  resultNotes += pendingLine;
-  
-  return resultNotes;
 };
 
 // Get Kids
@@ -2294,35 +1542,14 @@ app.get('/api/kids', authenticateToken, async (req: any, res) => {
     
     console.log(`Fetched ${kids?.length || 0} kids for user ${userId}`);
     
-    // Fetch chatbot names for these kids
-    const adminSupabase = getAdminSupabaseClient();
-    const kidIds = (kids || []).map(k => k.id);
-    let chatbotMap: Record<string, string> = {};
-    
-    if (kidIds.length > 0) {
-      const { data: chatbots, error: chatbotError } = await adminSupabase
-        .from('chatbots')
-        .select('kid_id, name')
-        .in('kid_id', kidIds);
-      
-      if (!chatbotError && chatbots) {
-        chatbotMap = chatbots.reduce((acc: any, cb: any) => {
-          acc[cb.kid_id] = cb.name;
-          return acc;
-        }, {});
-      }
-    }
-
     const messageKidIds = (kids || []).map(k => k.id);
-    const latestMessages = await getLatestParentMessagesMap(supabase, messageKidIds);
+    const latestMessages = await getLatestParentMessagesMap(userId, messageKidIds);
 
     const processedKids = (kids || []).map(k => {
-      const kid = extractParentMessage(k);
+      const kid = { ...k };
+      delete kid.parent_message;
       if (latestMessages[kid.id]) {
         kid.parent_message = latestMessages[kid.id];
-      }
-      if (!kid.chatbot_name && chatbotMap[kid.id]) {
-        kid.chatbot_name = chatbotMap[kid.id];
       }
       return kid;
     });
@@ -2361,25 +1588,13 @@ app.get('/api/kids/:id', authenticateToken, async (req: any, res) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    // Fetch chatbot settings if available
+    const processedKid = { ...kid };
+    delete processedKid.parent_message;
     try {
-      const { data: chatbot } = await supabase
-        .from('chatbots')
-        .select('*')
-        .eq('kid_id', id)
-        .single();
-
-      if (chatbot && chatbot.name) {
-        kid.chatbot_name = chatbot.name;
-      }
-    } catch (cbErr) {
-      // Chatbot is optional, don't crash if it fails
-      console.warn('Chatbot settings fetch failed:', cbErr);
-    }
-
-    const processedKid = extractParentMessage({ ...kid });
-    try {
-      const latestMessages = await getLatestParentMessagesMap(supabase, [id]);
+      const parentUserId = kid.user_id || req.user.userId;
+      const latestMessages = parentUserId
+        ? await getLatestParentMessagesMap(parentUserId, [id])
+        : {};
       if (latestMessages[id]) {
         processedKid.parent_message = latestMessages[id];
       }
@@ -2408,7 +1623,6 @@ app.put('/api/kids/:id', authenticateToken, async (req: any, res) => {
     weaknesses, 
     sensory_issues: sensoryIssues, 
     behavioral_issues: behavioralIssues, 
-    notes, 
     avatar, 
     start_time: startTime, 
     end_time: endTime, 
@@ -2429,7 +1643,7 @@ app.put('/api/kids/:id', authenticateToken, async (req: any, res) => {
     // Verify ownership
     const { data: kid, error: checkError } = await supabase
       .from('kids')
-      .select('id, user_id, notes, reward_balance, name, reward_type, timezone')
+      .select('id, user_id, reward_balance, name, reward_type, timezone')
       .eq('id', id)
       .single();
 
@@ -2462,7 +1676,6 @@ app.put('/api/kids/:id', authenticateToken, async (req: any, res) => {
     if (sensoryIssues !== undefined) updates.sensory_issues = sensoryIssues;
     if (behavioralIssues !== undefined) updates.behavioral_issues = behavioralIssues;
     if (therapies !== undefined) updates.therapies = therapies;
-    if (notes !== undefined) updates.notes = notes;
     if (canPrint !== undefined) updates.can_print = canPrint;
     if (avatar !== undefined) updates.avatar = avatar;
     if (startTime !== undefined) updates.start_time = startTime !== '' ? startTime : null;
@@ -3283,13 +2496,14 @@ app.get('/api/kids/:kidId/messages', authenticateToken, async (req: any, res) =>
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    await pruneExpiredParentMessages(supabase, userId, kidId);
+    const cutoffIso = await pruneExpiredParentMessages(supabase, userId, kidId);
 
     const { data: messages, error } = await supabase
       .from('parent_messages')
       .select('id, kid_id, message, created_at')
       .eq('kid_id', kidId)
       .eq('user_id', userId)
+      .gte('created_at', cutoffIso)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -3362,34 +2576,14 @@ app.put('/api/kids/:kidId/confirm-reward', authenticateToken, async (req: any, r
     try {
         const { data: kid, error: kidErr } = await adminSupabase
             .from('kids')
-            .select('notes, reward_balance')
+            .select('pending_reward, reward_balance')
             .eq('id', kidId)
             .single();
         if (kidErr || !kid) throw kidErr || new Error('Kid not found');
 
-        // Parse notes to find all pending rewards
-        const noteLines: string[] = kid.notes && typeof kid.notes === 'string'
-          ? kid.notes.split('\n')
-          : [];
-        let totalPendingAmount = 0;
-        let alreadyAdded = false;
-        
-        const newNotes = noteLines.filter((line: string) => {
-            if (line.startsWith('[PendingReward]: ')) {
-                try {
-                    const content = line.replace('[PendingReward]: ', '');
-                    const msgIndex = content.indexOf(' [Message]: ');
-                    const jsonPart = msgIndex !== -1 ? content.substring(0, msgIndex) : content;
-                    const parsed = JSON.parse(jsonPart);
-                    totalPendingAmount += parsed.amount || 0;
-                    if (parsed.already_added) alreadyAdded = true;
-                } catch (e) {
-                    console.error('Error parsing pending reward in confirm-reward:', e);
-                }
-                return false; // remove
-            }
-            return true; // keep
-        }).join('\n');
+        const pendingReward = kid.pending_reward;
+        const totalPendingAmount = Number(pendingReward?.amount || 0);
+        const alreadyAdded = pendingReward?.already_added === true;
 
         if (totalPendingAmount === 0) throw new Error('No pending rewards found');
         
@@ -3411,9 +2605,9 @@ app.put('/api/kids/:kidId/confirm-reward', authenticateToken, async (req: any, r
             }
         }
         
-        // Update notes (removes the pending reward notification)
+        // Clear the dedicated pending reward notification.
         await adminSupabase.from('kids').update({
-            notes: newNotes
+            pending_reward: null
         }).eq('id', kidId);
         
         res.status(200).json({ success: true });
@@ -4376,6 +3570,11 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
     contents, 
     config, 
     prompt, 
+    kidId,
+    currentScreen,
+    route,
+    activeTab,
+    uiContext,
     systemInstruction, 
     responseMimeType, 
     responseSchema 
@@ -4417,9 +3616,192 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
         }
       }
     });
-    
-    // Format contents for SDK
-    const formattedContents = Array.isArray(contents) ? contents : [{ role: 'user', parts: [{ text: contents || prompt }] }];
+
+    const selectedKidId =
+      (typeof kidId === 'string' && kidId) ||
+      (uiContext?.currentChild?.id as string | undefined) ||
+      '';
+    const resolvedScreen = currentScreen || uiContext?.screenName || 'Parent Dashboard';
+    const resolvedRoute = route || uiContext?.route || '/dashboard';
+    const resolvedTab = activeTab || uiContext?.activeTab || 'Child Card';
+
+    const supabase = getSupabaseForUser(req);
+    const safeFetch = async (label: string, queryBuilder: any) => {
+      try {
+        const { data, error } = await queryBuilder;
+        if (error) {
+          console.warn(`[AI Generation] Failed to fetch ${label} for kid ${selectedKidId}:`, error.message || error);
+          return [];
+        }
+        return Array.isArray(data) ? data : [];
+      } catch (error: any) {
+        console.warn(`[AI Generation] Exception fetching ${label} for kid ${selectedKidId}:`, error?.message || error);
+        return [];
+      }
+    };
+
+    const executeKidTool = async (toolName: string, args: any) => {
+      const targetKidId = (args?.kidId as string) || selectedKidId;
+      const limit = Math.max(1, Math.min(Number(args?.limit || 5), 25));
+
+      if (!targetKidId) {
+        return { ok: false, error: 'kidId is required for this tool.' };
+      }
+
+      if (toolName === 'getKidProfile') {
+        const rows = await safeFetch(
+          'kid profile',
+          supabase
+            .from('kids')
+            .select('id, name, grade_level, interests, strengths, weaknesses, reward_type, reward_balance, timezone, start_time, end_time, max_incomplete_limit')
+            .eq('id', targetKidId)
+            .limit(1)
+        );
+        return { ok: true, kidId: targetKidId, rows };
+      }
+
+      if (toolName === 'getKidQuizzes') {
+        const rows = await safeFetch(
+          'quizzes',
+          supabase
+            .from('quizzes')
+            .select('id, title, topic, subject, difficulty, created_at')
+            .eq('kid_id', targetKidId)
+            .order('created_at', { ascending: false })
+            .limit(limit)
+        );
+        return { ok: true, kidId: targetKidId, count: rows.length, rows };
+      }
+
+      if (toolName === 'getKidSchedules') {
+        const rows = await safeFetch(
+          'activities',
+          supabase
+            .from('activities')
+            .select('id, activity_type, category, description, due_date, status, repeat_frequency, created_at')
+            .eq('kid_id', targetKidId)
+            .order('created_at', { ascending: false })
+            .limit(limit)
+        );
+        return { ok: true, kidId: targetKidId, count: rows.length, rows };
+      }
+
+      if (toolName === 'getKidStories') {
+        const rows = await safeFetch(
+          'social stories',
+          supabase
+            .from('social_stories')
+            .select('id, title, created_at, updated_at')
+            .eq('kid_id', targetKidId)
+            .order('updated_at', { ascending: false })
+            .limit(limit)
+        );
+        return { ok: true, kidId: targetKidId, count: rows.length, rows };
+      }
+
+      if (toolName === 'getKidWorksheets') {
+        const rows = await safeFetch(
+          'worksheets',
+          supabase
+            .from('worksheets')
+            .select('id, title, topic, subject, created_at')
+            .eq('kid_id', targetKidId)
+            .order('created_at', { ascending: false })
+            .limit(limit)
+        );
+        return { ok: true, kidId: targetKidId, count: rows.length, rows };
+      }
+
+      return { ok: false, error: `Unknown tool: ${toolName}` };
+    };
+
+    const toolDeclarations = [
+      {
+        name: 'getKidProfile',
+        description: 'Fetch the selected child profile details from Supabase for parent guidance.',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            kidId: { type: Type.STRING, description: 'The child profile ID.' }
+          },
+          required: ['kidId']
+        }
+      },
+      {
+        name: 'getKidQuizzes',
+        description: 'Fetch recent quizzes for the selected child.',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            kidId: { type: Type.STRING, description: 'The child profile ID.' },
+            limit: { type: Type.INTEGER, description: 'How many recent quiz rows to fetch.' }
+          },
+          required: ['kidId']
+        }
+      },
+      {
+        name: 'getKidSchedules',
+        description: 'Fetch recent assigned activities and schedules for the selected child.',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            kidId: { type: Type.STRING, description: 'The child profile ID.' },
+            limit: { type: Type.INTEGER, description: 'How many recent schedule rows to fetch.' }
+          },
+          required: ['kidId']
+        }
+      },
+      {
+        name: 'getKidStories',
+        description: 'Fetch recent social stories for the selected child.',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            kidId: { type: Type.STRING, description: 'The child profile ID.' },
+            limit: { type: Type.INTEGER, description: 'How many recent story rows to fetch.' }
+          },
+          required: ['kidId']
+        }
+      },
+      {
+        name: 'getKidWorksheets',
+        description: 'Fetch recent worksheets for the selected child.',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            kidId: { type: Type.STRING, description: 'The child profile ID.' },
+            limit: { type: Type.INTEGER, description: 'How many recent worksheet rows to fetch.' }
+          },
+          required: ['kidId']
+        }
+      }
+    ];
+
+    const dynamicContext = [
+      'Parent UI Context:',
+      `- Current Screen: ${resolvedScreen}`,
+      `- Route: ${resolvedRoute}`,
+      `- Active Tab: ${resolvedTab}`,
+      `- Selected Child ID: ${selectedKidId || 'Unknown'}`,
+      '',
+      'App Context:',
+      `- ${APP_GUIDE.about.description}`,
+      `- ${APP_GUIDE.knowledgeBase.parentDashboard}`,
+      `- ${APP_GUIDE.knowledgeBase.studentDashboard}`,
+      `- ${APP_GUIDE.knowledgeBase.tokenEconomy}`,
+      '',
+      `Parent Question: ${prompt || ''}`,
+      '',
+      'Use tools when needed to fetch live kid data before answering.'
+    ].join('\n');
+
+    let conversationContents = Array.isArray(contents)
+      ? [...contents]
+      : [{ role: 'user', parts: [{ text: dynamicContext }] }];
+
+    if (Array.isArray(contents)) {
+      conversationContents.push({ role: 'user', parts: [{ text: `Additional runtime context:\n${dynamicContext}` }] });
+    }
     
     // Scrub undefined/null from config to prevent SDK errors
     const generationConfig: any = { ...config };
@@ -4434,19 +3816,57 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
         }
     });
 
-    const result = await generateContentWithRetryAndFallback(ai, {
+    const requestConfig = {
+      ...generationConfig,
+      tools: [{ functionDeclarations: toolDeclarations }],
+      safetySettings: [
+        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+      ]
+    };
+
+    let result = await generateContentWithRetryAndFallback(ai, {
       model: finalModelName,
-      contents: formattedContents,
-      config: {
-        ...generationConfig,
-        safetySettings: [
-          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
-        ]
-      }
+      contents: conversationContents,
+      config: requestConfig
     });
+
+    const executedTools: Array<{ name: string; args: any }> = [];
+    const maxToolRounds = 4;
+    let round = 0;
+
+    while (round < maxToolRounds) {
+      const functionCalls = result.functionCalls || [];
+      if (!functionCalls.length) break;
+
+      for (const fnCall of functionCalls) {
+        const fnName = fnCall?.name;
+        const fnArgs = fnCall?.args || {};
+        if (!fnName) continue;
+
+        executedTools.push({ name: fnName, args: fnArgs });
+        const toolResult = await executeKidTool(fnName, fnArgs);
+
+        conversationContents.push({
+          role: 'model',
+          parts: [{ functionCall: { name: fnName, args: fnArgs } }]
+        });
+        conversationContents.push({
+          role: 'user',
+          parts: [{ functionResponse: { name: fnName, response: toolResult } }]
+        });
+      }
+
+      result = await generateContentWithRetryAndFallback(ai, {
+        model: finalModelName,
+        contents: conversationContents,
+        config: requestConfig
+      });
+
+      round++;
+    }
 
     let text = result.text;
     
@@ -4462,7 +3882,8 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
 
     res.json({
       text: text,
-      response: result
+      response: result,
+      toolCallsExecuted: executedTools
     });
 
   } catch (error: any) {

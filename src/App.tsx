@@ -25,14 +25,6 @@ import PlayQuiz from './pages/PlayQuiz';
 import EditQuiz from './pages/EditQuiz';
 import ActivityLibrary from './pages/ActivityLibrary';
 import About from './pages/About';
-import Games from './pages/Games';
-import LevelUpGame from './pages/LevelUpGame';
-import BrainQuest from './pages/BrainQuest';
-import MemoryGame from './pages/MemoryGame';
-import SortingGame from './pages/SortingGame';
-import EvenOddGame from './pages/EvenOddGame';
-import PolygonsGame from './pages/PolygonsGame';
-import PolygonHunt from './pages/PolygonHunt';
 
 export default function App() {
   return (
@@ -65,14 +57,6 @@ export default function App() {
               <Route path="play-quiz/:id" element={<PlayQuiz />} />
               <Route path="edit-quiz/:id" element={<EditQuiz />} />
               <Route path="activity-library" element={<ActivityLibrary />} />
-              <Route path="games" element={<Games />} />
-              <Route path="level-up-challenge" element={<LevelUpGame />} />
-              <Route path="brain-quest" element={<BrainQuest />} />
-              <Route path="memory-match" element={<MemoryGame />} />
-              <Route path="sorting-game" element={<SortingGame />} />
-              <Route path="even-odd" element={<EvenOddGame />} />
-              <Route path="polygons-game" element={<PolygonsGame />} />
-              <Route path="polygon-hunt" element={<PolygonHunt />} />
             </Route>
             <Route path="social-stories/view/:id" element={<ViewSocialStory />} />
           </Route>
@@ -80,13 +64,6 @@ export default function App() {
           <Route element={<KidProtectedRoute />}>
             <Route path="/kids-dashboard/:kidId" element={<KidsDashboard />} />
             <Route path="/play-quiz/:id/:kidId" element={<PlayQuiz />} />
-            <Route path="/level-up-challenge" element={<LevelUpGame />} />
-            <Route path="/brain-quest" element={<BrainQuest />} />
-            <Route path="/memory-match" element={<MemoryGame />} />
-            <Route path="/sorting-game" element={<SortingGame />} />
-            <Route path="/even-odd" element={<EvenOddGame />} />
-            <Route path="/polygons-game" element={<PolygonsGame />} />
-            <Route path="/polygon-hunt" element={<PolygonHunt />} />
           </Route>
         </Routes>
         </WalkthroughProvider>

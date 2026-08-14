@@ -3,13 +3,12 @@ import { io } from 'socket.io-client';
 import { formatReward, rewardImages } from '../utils/rewardUtils';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Calendar, Star, Lock, Lightbulb, LayoutGrid, CheckCircle, Circle, Clock, Target, Coins, LayoutList, WifiOff, Loader2, Gamepad2, PlayCircle, Sun, CloudSun, Moon, Sparkles, LogOut, Trophy, Eye, TrendingUp, MessageSquare, X } from 'lucide-react';
+import { ArrowLeft, Calendar, Star, Lock, Lightbulb, LayoutGrid, CheckCircle, Circle, Clock, Target, Coins, LayoutList, WifiOff, Loader2, Gamepad2, PlayCircle, Sun, CloudSun, Moon, Sparkles, LogOut, Trophy, Eye, TrendingUp, MessageSquare } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Card, CardContent } from '../components/Card';
 import { ActivityDetailModal } from '../components/ActivityDetailModal';
 import { getZonedTime, formatInTimezone, convertDateToTimeZone } from '../utils/dateUtils';
 import { SocialStoryModal } from '../components/SocialStoryModal';
-import { ChatbotComponent } from '../components/ChatbotComponent';
 
 interface ActivityStep {
   id?: number;
@@ -50,7 +49,12 @@ interface Kid {
   weaknesses?: string;
   sensory_issues?: string;
   behavioral_issues?: string;
-  notes?: string;
+  pending_reward?: {
+    amount?: number;
+    behaviors?: Array<{ name: string; amount: number }>;
+    already_added?: boolean;
+    timestamp?: number;
+  } | null;
   therapies?: string;
   start_time?: string;
   end_time?: string;
@@ -62,7 +66,6 @@ interface Kid {
   can_print?: boolean;
   timezone?: string;
   parent_message?: string;
-  chatbot_name?: string;
 }
 
 interface RewardItem {
@@ -92,9 +95,8 @@ export default function KidsDashboard() {
   const [isAccessAllowed, setIsAccessAllowed] = useState(true);
   const [accessMessage, setAccessMessage] = useState('');
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
-  const [activeTab, setActiveTab] = useState<'todo' | 'completed' | 'rewards' | 'games'>('todo');
+  const [activeTab, setActiveTab] = useState<'todo' | 'completed' | 'rewards'>('todo');
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [timezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
 
   const calculateAge = (dob: string, timezone?: string) => {
@@ -109,22 +111,6 @@ export default function KidsDashboard() {
     }
     return `${age} years old`;
   };
-
-  useEffect(() => {
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          });
-        },
-        (error) => {
-          console.error("Error getting location:", error);
-        }
-      );
-    }
-  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -466,7 +452,7 @@ export default function KidsDashboard() {
       if (!parsed || typeof parsed !== 'object') return null;
       const reduced = { ...parsed } as Record<string, any>;
       [
-        'notes',
+        'pending_reward',
         'parent_message',
         'hobbies',
         'interests',
@@ -724,40 +710,27 @@ export default function KidsDashboard() {
     if (!silent) setIsLoading(false);
   }, [kidId]);
 
-  const [showChatbot, setShowChatbot] = useState(false);
-
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
   useEffect(() => {
-    // Check for pending rewards
-    if (kid && kid.notes) {
-      // More robust regex to capture the whole reward line
-      const pendingMatches = [...kid.notes.matchAll(/\[PendingReward\]: (.*?)(?: \[Message\]: (.*)|$)/g)];
-      if (pendingMatches.length > 0) {
-        try {
-          const lastMatch = pendingMatches[pendingMatches.length - 1];
-          const jsonStr = lastMatch[1].trim();
-          const reward = JSON.parse(jsonStr);
-          
-          if (!pendingReward || JSON.stringify(reward) !== JSON.stringify(pendingReward)) {
-            setPendingReward(reward);
-            if (!showRewardModal) {
-              const rewardId = reward.timestamp || Date.now();
-              const dismissedKey = `dismissed_reward_${kidId}_${rewardId}`;
-              if (!localStorage.getItem(dismissedKey)) {
-                setShowRewardModal(true);
-              }
-            }
+    // Check for a pending reward notification.
+    if (kid?.pending_reward) {
+      const reward = kid.pending_reward;
+      if (!pendingReward || JSON.stringify(reward) !== JSON.stringify(pendingReward)) {
+        setPendingReward(reward);
+        if (!showRewardModal) {
+          const rewardId = reward.timestamp || Date.now();
+          const dismissedKey = `dismissed_reward_${kidId}_${rewardId}`;
+          if (!localStorage.getItem(dismissedKey)) {
+            setShowRewardModal(true);
           }
-        } catch (e) {
-          console.error("Failed to parse pending reward", e);
         }
-      } else {
-        setShowRewardModal(false);
-        setPendingReward(null);
       }
+    } else if (kid) {
+      setShowRewardModal(false);
+      setPendingReward(null);
     }
 
     // Check for new parent message with persistence
@@ -1392,40 +1365,6 @@ export default function KidsDashboard() {
                       Yay! Awesome!
                   </button>
               </div>
-          </div>
-        )}
-        {showChatbot && kid && (
-          <div className="fixed bottom-4 right-4 z-[60] w-[350px] max-w-[calc(100vw-32px)]">
-            <ChatbotComponent 
-              kidId={kid.id}
-              kidName={kid.name}
-              chatbotName={kid.chatbot_name}
-              activities={activities}
-              rewardBalance={kid.reward_balance || 0}
-              rewardType={kid.reward_type || 'stars'}
-              rewardItems={rewardItems}
-              theme={kid.theme}
-              location={location}
-              timezone={kid.timezone || timezone}
-              kidProfile={{
-                dob: kid.dob,
-                gradeLevel: kid.grade_level,
-                hobbies: kid.hobbies,
-                interests: kid.interests,
-                strengths: kid.strengths,
-                weaknesses: kid.weaknesses,
-                sensoryIssues: kid.sensory_issues,
-                behavioralIssues: kid.behavioral_issues,
-                notes: kid.notes,
-                therapies: kid.therapies
-              }}
-            />
-            <button 
-              onClick={() => setShowChatbot(false)}
-              className="absolute -top-2 -right-2 h-8 w-8 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-lg border-2 border-white hover:bg-slate-700 transition-colors"
-            >
-              <X className="h-4 w-4" />
-            </button>
           </div>
         )}
       </main>
