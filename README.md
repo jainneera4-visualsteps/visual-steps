@@ -119,6 +119,7 @@ See `.env.example` for the complete template.
 | `npm run lint` | Run TypeScript checking with no emitted files |
 | `npm test` | Run fast unit tests without external services |
 | `npm run test:integration` | Run guarded Supabase integration tests against a disposable test project |
+| `npm run test:api` | Run authenticated HTTP API tests against the disposable Supabase project |
 | `npm run test:all` | Run TypeScript checks, unit tests, and the production build |
 | `npm run build` | Build the Vite client and bundle the Express server |
 | `npm start` | Run the production server from `dist/server.cjs` |
@@ -135,7 +136,7 @@ SUPABASE_TEST_SERVICE_ROLE_KEY=your-test-service-role-key
 SUPABASE_TEST_ALLOW_WRITES=true
 ```
 
-Run `npm run test:integration`. The suite refuses to start when a credential is missing, writes have not been explicitly enabled, or the test URL matches `SUPABASE_URL`/`VITE_SUPABASE_URL`. It creates uniquely named fixtures and removes the test users afterward. Integration tests are intentionally separate from `test:all`, so normal builds do not require database secrets.
+Run `npm run test:integration` for direct database/RLS coverage or `npm run test:api` for the complete HTTP, authentication middleware, API handler, and database path. The suites refuse to start when a credential is missing, writes have not been explicitly enabled, or the test URL matches `SUPABASE_URL`/`VITE_SUPABASE_URL`. They create uniquely named fixtures and remove the test users afterward. Integration tests are intentionally separate from `test:all`, so normal builds do not require database secrets.
 
 ## Authentication and data access
 

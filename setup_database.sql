@@ -90,6 +90,8 @@ CREATE TABLE public.activities (
     activity_type TEXT,
     category TEXT,
     repeat_frequency TEXT,
+    repeat_interval INTEGER,
+    repeat_unit TEXT,
     repeats_till DATE,
     time_of_day TEXT,
     description TEXT,
@@ -157,6 +159,7 @@ CREATE TABLE public.reward_items (
     cost INTEGER NOT NULL,
     image_url TEXT,
     location TEXT,
+    is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -166,6 +169,7 @@ CREATE TABLE public.reward_purchases (
     kid_id UUID REFERENCES public.kids(id) ON DELETE CASCADE,
     item_name TEXT NOT NULL,
     cost INTEGER NOT NULL,
+    location TEXT,
     purchased_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );

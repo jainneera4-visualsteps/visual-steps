@@ -52,7 +52,7 @@ export default app;
 const server = http.createServer(app);
 let io: Server | null = null;
 
-if (!process.env.VERCEL) {
+if (!process.env.VERCEL && process.env.NODE_ENV !== 'test') {
   io = new Server(server, {
     cors: {
       origin: "*",
@@ -5044,7 +5044,7 @@ async function startServer() {
   }
 
   // Background task to process overdue activities every 5 minutes
-  if (!process.env.VERCEL) {
+  if (!process.env.VERCEL && process.env.NODE_ENV !== 'test') {
     setInterval(async () => {
       console.log('Background Task: Checking for overdue activities...');
       if (!supabaseUrl || !supabaseKey || supabaseUrl.includes('placeholder')) return;
@@ -5154,7 +5154,7 @@ process.on('unhandledRejection', (reason, promise) => {
     res.status(500).json({ error: 'Internal server error', details: err.message });
   });
 
-  if (!process.env.VERCEL) {
+  if (!process.env.VERCEL && process.env.NODE_ENV !== 'test') {
     startServer().then(() => {
       server.listen(PORT, '0.0.0.0', () => {
         console.log(`[${new Date().toISOString()}] Server listening on port ${PORT}`);
