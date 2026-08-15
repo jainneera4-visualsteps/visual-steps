@@ -53,7 +53,7 @@ vercel.json          Vercel build and rewrite configuration
 
 ## Prerequisites
 
-- Node.js 20
+- Node.js 24
 - A Supabase project
 - A Google Gemini API key
 - Optional SMTP credentials for welcome and password-related email
