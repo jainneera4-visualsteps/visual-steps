@@ -1,35 +1,34 @@
-This is a full-stack TypeScript application featuring a React 19 frontend and an Express 4 backend.
+This is a full-stack educational web application built with React 19, TypeScript, Vite, and Tailwind CSS on the frontend, and an Express.js server on Node.js 24 for the backend. It integrates with Supabase for data storage and authentication, and the Google Gemini API for AI-powered content generation.
 
-**Core Technologies:**
-*   **Frontend:** React 19, React Router v7, Tailwind CSS (with Radix UI components), Framer Motion, Recharts.
-*   **Backend:** Express 4, TypeScript (via `tsx`), Supabase SDK, `@google/genai` (Gemini API), Socket.IO, `bcryptjs`, `jsonwebtoken`, `multer`, `nodemailer`.
+**Project Goal:**
+The application facilitates parents/teachers in managing and generating educational content (quizzes, worksheets, social stories) for children. Key features include activity assignment, progress tracking, user authentication with distinct roles (parent/teacher, kid), and real-time communication.
+
+**Key Technologies & Libraries:**
+*   **Frontend:** React 19, TypeScript, Vite, Tailwind CSS, React Router DOM v7, Radix UI (Tooltip), Framer Motion, Recharts, React Markdown, Lucide React, Socket.io-client.
+*   **Backend:** Express.js, TypeScript, Node.js 24, Socket.io, Supabase SDK, Google Gemini API SDK, bcryptjs (password hashing), jsonwebtoken (authentication), multer (file uploads), nodemailer (email).
 *   **Database/Auth:** Supabase.
 
-**Project Purpose:**
-An educational platform designed for parents and kids, facilitating activity management, social story creation, quiz and worksheet generation, progress tracking, and a reward system. It leverages AI (Google Gemini) for content generation and includes real-time communication via Socket.IO.
+**Codebase Structure & Conventions:**
+*   **Client-Server Architecture:** `src/` contains both client-side React code and server-side logic (e.g., `server.ts` for Express and Socket.io).
+*   **Frontend:**
+    *   `src/pages/`: Top-level views/routes.
+    *   `src/components/`: Reusable UI components. `src/components/ui/` for Shadcn-like primitives.
+    *   `src/context/`: React Context for global state (e.g., `AuthContext`, `WalkthroughContext`).
+    *   `src/lib/`: Integrations with external services (e.g., `gemini.ts`, `supabase.ts`) and core utilities.
+    *   `src/utils/`: Utility functions (e.g., `api.ts` for client-side API calls, `auth.ts`, `rewardUtils.ts`).
+*   **Styling:** Primarily uses Tailwind CSS for utility-first styling. Refer to `tailwind.config.ts` for custom configurations.
+*   **Type Safety:** Strict TypeScript is enforced throughout the project.
+*   **User Roles:** Be aware of the `KidProtectedRoute` and `CommonProtectedRoute` components, indicating distinct user experiences and access levels for children and parents/teachers.
+*   **AI Integration:** The `src/lib/gemini.ts` module handles interactions with the Google Gemini API for generating educational content.
+*   **Build Process:** Vite for client build, esbuild for server build.
 
-**Key Features:**
-*   User authentication (parent/kid roles) with protected routes.
-*   AI-powered generation of quizzes, worksheets, and social stories (`src/lib/gemini.ts`).
-*   Activity library and assignment for kids.
-*   Progress reporting and summary.
-*   Real-time interactions via Socket.IO.
-*   File uploads (`multer`), email notifications (`nodemailer`).
-
-**Code Structure & Conventions:**
-*   **`src/`:** Contains all client-side and server-side TypeScript source code.
-*   **`src/components/`:** Reusable React UI components, including protected route wrappers (`ProtectedRoute`, `KidProtectedRoute`).
-*   **`src/pages/`:** Top-level application views and routes.
-*   **`src/context/`:** React Context API for global state management (e.g., `AuthContext`, `WalkthroughContext`).
-*   **`src/lib/`:** Integrations with external services (Gemini, Supabase) and core utility functions.
-*   **`src/utils/`:** Application-specific utility functions (e.g., `api.ts`, `auth.ts`, `rewardUtils.ts`).
-*   **Styling:** Primarily Tailwind CSS. Use `clsx` and `tailwind-merge` for conditional and combined styles.
-*   **Backend Entry:** The main backend entry is `server.ts` (used by `tsx` for dev, `esbuild` for build).
-*   **Frontend Entry:** The main frontend entry is `main.tsx`.
-
-**When providing suggestions or completing code:**
-*   Prioritize TypeScript safety and best practices.
-*   Adhere to Tailwind CSS for styling and component composition.
-*   Consider the dual parent/kid user roles and corresponding access controls.
-*   Leverage existing `src/lib/` and `src/utils/` modules for common tasks (API calls, auth, Supabase, Gemini).
-*   Assume the context of an educational application with a focus on user experience and content generation.
+**Copilot Instructions:**
+*   Prioritize TypeScript for all code generation, ensuring type correctness and explicitness.
+*   Adhere to existing React component patterns, functional components, and Hooks.
+*   Utilize Tailwind CSS classes for styling wherever possible, following existing conventions.
+*   Understand the distinction between parent/teacher and child user roles and their respective features (e.g., `QuizGenerator` vs. `PlayQuiz`).
+*   Be familiar with Supabase client interactions for data fetching and mutations.
+*   Leverage the Google Gemini API via `src/lib/gemini.ts` for AI-related tasks.
+*   For server-side changes, consider the Express framework, Socket.io, and middleware like `multer` or `jsonwebtoken`.
+*   Maintain a clear separation of concerns, especially between UI, business logic, and API interactions.
+*   Consult `package.json` for available scripts (`dev`, `build`, `start`, `test`).
