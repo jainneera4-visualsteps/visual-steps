@@ -1,34 +1,43 @@
-This is a full-stack educational web application built with React 19, TypeScript, Vite, and Tailwind CSS on the frontend, and an Express.js server on Node.js 24 for the backend. It integrates with Supabase for data storage and authentication, and the Google Gemini API for AI-powered content generation.
+```markdown
+# Project Guidelines for Copilot
 
-**Project Goal:**
-The application facilitates parents/teachers in managing and generating educational content (quizzes, worksheets, social stories) for children. Key features include activity assignment, progress tracking, user authentication with distinct roles (parent/teacher, kid), and real-time communication.
+This project is a full-stack educational application with a React frontend and an Express.js backend, both written in TypeScript.
 
-**Key Technologies & Libraries:**
-*   **Frontend:** React 19, TypeScript, Vite, Tailwind CSS, React Router DOM v7, Radix UI (Tooltip), Framer Motion, Recharts, React Markdown, Lucide React, Socket.io-client.
-*   **Backend:** Express.js, TypeScript, Node.js 24, Socket.io, Supabase SDK, Google Gemini API SDK, bcryptjs (password hashing), jsonwebtoken (authentication), multer (file uploads), nodemailer (email).
+## Core Technologies:
+*   **Frontend:** React 19, TypeScript, Vite, Tailwind CSS (v4), React Router DOM (v6+), Radix UI (`@radix-ui/react-tooltip`), Framer Motion, Recharts, Socket.io-client.
+*   **Backend:** Node.js 24.x, Express.js, TypeScript (`tsx` for dev/test, `esbuild` for build), Socket.io, Supabase client, Google Gemini AI client, bcryptjs, jsonwebtoken, multer, nodemailer, cookie-parser, cors.
 *   **Database/Auth:** Supabase.
+*   **AI:** Google Gemini.
 
-**Codebase Structure & Conventions:**
-*   **Client-Server Architecture:** `src/` contains both client-side React code and server-side logic (e.g., `server.ts` for Express and Socket.io).
-*   **Frontend:**
-    *   `src/pages/`: Top-level views/routes.
-    *   `src/components/`: Reusable UI components. `src/components/ui/` for Shadcn-like primitives.
-    *   `src/context/`: React Context for global state (e.g., `AuthContext`, `WalkthroughContext`).
-    *   `src/lib/`: Integrations with external services (e.g., `gemini.ts`, `supabase.ts`) and core utilities.
-    *   `src/utils/`: Utility functions (e.g., `api.ts` for client-side API calls, `auth.ts`, `rewardUtils.ts`).
-*   **Styling:** Primarily uses Tailwind CSS for utility-first styling. Refer to `tailwind.config.ts` for custom configurations.
-*   **Type Safety:** Strict TypeScript is enforced throughout the project.
-*   **User Roles:** Be aware of the `KidProtectedRoute` and `CommonProtectedRoute` components, indicating distinct user experiences and access levels for children and parents/teachers.
-*   **AI Integration:** The `src/lib/gemini.ts` module handles interactions with the Google Gemini API for generating educational content.
-*   **Build Process:** Vite for client build, esbuild for server build.
+## Project Structure & Conventions:
+*   **Frontend (`src/`):**
+    *   **`src/App.tsx`:** Main application entry point and routing configuration.
+    *   **`src/components/`:** Contains reusable UI components (e.g., `Button`, `Card`, `Input`), including protected route wrappers (`ProtectedRoute`, `KidProtectedRoute`, `CommonProtectedRoute`).
+    *   **`src/components/ui/`:** Specific UI primitives (e.g., `Tooltip`).
+    *   **`src/pages/`:** Top-level page components (e.g., `Dashboard`, `CreateSocialStory`, `QuizGenerator`).
+    *   **`src/context/`:** React Context APIs for global state management (`AuthContext`, `WalkthroughContext`).
+    *   **`src/lib/`:** External service integrations (`gemini.ts`, `supabase.ts`) and global utility functions (`utils.ts`).
+    *   **`src/utils/`:** Project-specific utility functions (`api.ts` for frontend API calls, `auth.ts`, `dateUtils.ts`, `rewardUtils.ts`).
+*   **Backend (`server.ts`):**
+    *   The entry point for the Express server.
+    *   Handles API routes, user authentication, file uploads, email sending, and real-time communication via Socket.io.
+    *   Interacts with the Supabase client for database operations and the Gemini client for AI tasks.
+    *   Utilizes `dotenv` for environment variable management.
 
-**Copilot Instructions:**
-*   Prioritize TypeScript for all code generation, ensuring type correctness and explicitness.
-*   Adhere to existing React component patterns, functional components, and Hooks.
-*   Utilize Tailwind CSS classes for styling wherever possible, following existing conventions.
-*   Understand the distinction between parent/teacher and child user roles and their respective features (e.g., `QuizGenerator` vs. `PlayQuiz`).
-*   Be familiar with Supabase client interactions for data fetching and mutations.
-*   Leverage the Google Gemini API via `src/lib/gemini.ts` for AI-related tasks.
-*   For server-side changes, consider the Express framework, Socket.io, and middleware like `multer` or `jsonwebtoken`.
-*   Maintain a clear separation of concerns, especially between UI, business logic, and API interactions.
-*   Consult `package.json` for available scripts (`dev`, `build`, `start`, `test`).
+## Key Instructions for Copilot:
+1.  **Language Preference:** Always prioritize TypeScript for type safety and code clarity.
+2.  **React Components:**
+    *   Develop functional React components using hooks (e.g., `useState`, `useEffect`, `useContext`).
+    *   Adhere to established component patterns found in `src/components/`.
+    *   Use `react-router-dom` (v6+) for all routing and navigation logic.
+3.  **Styling:** Apply Tailwind CSS (v4) utility classes for all styling. Use `clsx` and `tailwind-merge` for managing conditional and conflicting classes.
+4.  **Backend Development:**
+    *   Implement Express.js routes and middleware consistent with existing patterns in `server.ts`.
+    *   Handle authentication using `bcryptjs` for password hashing and `jsonwebtoken` for JWT generation/verification.
+    *   Manage file uploads securely with `multer`.
+    *   Integrate `socket.io` for real-time features as needed.
+5.  **Supabase Integration:** Interact with Supabase for database operations, user authentication, and real-time subscriptions using the `@supabase/supabase-js` client (initialized in `src/lib/supabase.ts`).
+6.  **Google Gemini AI:** Utilize the `@google/genai` client (initialized in `src/lib/gemini.ts`) for AI-powered content generation and other relevant AI tasks.
+7.  **Code Reusability:** Leverage existing utility functions in `src/utils/` and `src/lib/` to ensure consistency, reduce redundancy, and maintain the project's coding standards.
+8.  **Testing:** Unit tests are located in `tests/*.test.ts` and integration tests in `tests/integration/*.test.ts`, executed using `tsx --test`.
+```
