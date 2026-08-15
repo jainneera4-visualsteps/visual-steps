@@ -52,7 +52,7 @@ Visual Steps provides a shared system in which a parent can prepare and supervis
 ### 5.2 Child profiles
 
 - Create, edit, view, and delete multiple child profiles.
-- Store profile details including date of birth, grade, interests, hobbies, strengths, challenges, sensory or behavioral context, therapies, notes, schedule boundaries, rules, avatar, theme, printing permission, time zone, and reward configuration.
+- Store profile details including date of birth, grade, interests, hobbies, strengths, challenges, sensory or behavioral context, therapies, schedule boundaries, rules, avatar, theme, printing permission, time zone, and reward configuration.
 
 ### 5.3 Visual activities and scheduling
 

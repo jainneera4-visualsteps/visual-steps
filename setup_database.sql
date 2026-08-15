@@ -43,7 +43,6 @@ CREATE TABLE public.kids (
     weaknesses TEXT,
     sensory_issues TEXT,
     behavioral_issues TEXT,
-    notes TEXT,
     can_print BOOLEAN DEFAULT false,
     avatar TEXT,
     start_time TIME,
@@ -57,29 +56,6 @@ CREATE TABLE public.kids (
     reward_balance INTEGER DEFAULT 0,
     therapies TEXT,
     timezone TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- Create chatbots table
-CREATE TABLE public.chatbots (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    kid_id UUID REFERENCES public.kids(id) ON DELETE CASCADE,
-    name TEXT,
-    gender TEXT,
-    personality TEXT,
-    tone TEXT,
-    speaking_speed TEXT,
-    max_sentences INTEGER,
-    language_complexity TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- Create chat_history table
-CREATE TABLE public.chat_history (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    kid_id UUID REFERENCES public.kids(id) ON DELETE CASCADE,
-    role TEXT NOT NULL,
-    message TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -235,8 +211,6 @@ CREATE TABLE public.quizzes (
 -- RLS Policies
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.kids ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.chatbots ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.chat_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_template_steps ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activities ENABLE ROW LEVEL SECURITY;
@@ -260,18 +234,6 @@ CREATE POLICY "Users can view their own kids" ON public.kids FOR SELECT USING (a
 CREATE POLICY "Users can insert their own kids" ON public.kids FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can update their own kids" ON public.kids FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete their own kids" ON public.kids FOR DELETE USING (auth.uid() = user_id);
-
--- Chatbots
-CREATE POLICY "Users can view their kids chatbots" ON public.chatbots FOR SELECT USING (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
-CREATE POLICY "Users can insert their kids chatbots" ON public.chatbots FOR INSERT WITH CHECK (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
-CREATE POLICY "Users can update their kids chatbots" ON public.chatbots FOR UPDATE USING (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
-CREATE POLICY "Users can delete their kids chatbots" ON public.chatbots FOR DELETE USING (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
-
--- Chat History
-CREATE POLICY "Users can view their kids chat history" ON public.chat_history FOR SELECT USING (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
-CREATE POLICY "Users can insert their kids chat history" ON public.chat_history FOR INSERT WITH CHECK (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
-CREATE POLICY "Users can update their kids chat history" ON public.chat_history FOR UPDATE USING (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
-CREATE POLICY "Users can delete their kids chat history" ON public.chat_history FOR DELETE USING (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
 
 -- Activity Templates
 CREATE POLICY "Users can view their own activity templates" ON public.activity_templates FOR SELECT USING (auth.uid() = user_id);
@@ -351,6 +313,17 @@ RETURNS void AS $$
 BEGIN
   UPDATE public.kids
   SET reward_balance = COALESCE(reward_balance, 0) + amount
-  WHERE id = kid_id_param;
+  WHERE id = kid_id_param
+    AND (user_id = auth.uid() OR auth.role() = 'service_role');
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Not authorized to update this child reward balance'
+      USING ERRCODE = '42501';
+  END IF;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+REVOKE ALL ON FUNCTION public.increment_reward_balance(UUID, INTEGER) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.increment_reward_balance(UUID, INTEGER) FROM anon;
+GRANT EXECUTE ON FUNCTION public.increment_reward_balance(UUID, INTEGER) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.increment_reward_balance(UUID, INTEGER) TO service_role;
