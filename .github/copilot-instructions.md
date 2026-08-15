@@ -1,43 +1,45 @@
 ```markdown
-# Project Guidelines for Copilot
+The codebase is a full-stack TypeScript application for an educational platform.
 
-This project is a full-stack educational application with a React frontend and an Express.js backend, both written in TypeScript.
+**Core Technologies:**
+*   **Frontend:** React 19, Vite, React Router DOM 7, Tailwind CSS 4, Framer Motion, Radix UI, Recharts, Socket.io-client.
+*   **Backend:** Express 4, Socket.io, bcryptjs, jsonwebtoken, multer, nodemailer, cookie-parser, cors.
+*   **Database/Auth:** Supabase (@supabase/supabase-js), JWT.
+*   **AI:** Google Gemini (@google/genai) for content generation.
+*   **Language:** TypeScript.
+*   **Runtime:** Node.js 24.x.
 
-## Core Technologies:
-*   **Frontend:** React 19, TypeScript, Vite, Tailwind CSS (v4), React Router DOM (v6+), Radix UI (`@radix-ui/react-tooltip`), Framer Motion, Recharts, Socket.io-client.
-*   **Backend:** Node.js 24.x, Express.js, TypeScript (`tsx` for dev/test, `esbuild` for build), Socket.io, Supabase client, Google Gemini AI client, bcryptjs, jsonwebtoken, multer, nodemailer, cookie-parser, cors.
-*   **Database/Auth:** Supabase.
-*   **AI:** Google Gemini.
+**Project Structure & Key Responsibilities:**
+*   **`src/App.tsx`, `src/main.tsx`:** Main React application entry points and routing.
+*   **`server.ts`:** Express.js backend server, handling API routes, authentication, file uploads, email, and real-time communication via Socket.io.
+*   **`src/pages/`:** Top-level React components representing different application views (e.g., Dashboard, ActivityLibrary, QuizGenerator, SocialStories, KidsDashboard, ProgressReport).
+*   **`src/components/`:** Reusable React UI components, including protected routes (`ProtectedRoute.tsx`, `KidProtectedRoute.tsx`), modals, and basic form elements. `src/components/ui` for Radix-style components (e.g., Tooltip).
+*   **`src/context/`:** React Context API implementations for global state management (e.g., `AuthContext.tsx` for user authentication, `WalkthroughContext.tsx`).
+*   **`src/lib/`:** Integration with external services and common utilities.
+    *   `src/lib/gemini.ts`: Handles interactions with the Google Gemini AI API.
+    *   `src/lib/supabase.ts`: Manages Supabase client setup and interactions.
+    *   `src/lib/utils.ts`: General utility functions (e.g., `clsx`, `tailwind-merge`).
+*   **`src/utils/`:** Client-side utility functions.
+    *   `src/utils/api.ts`: Centralized functions for making API requests to the backend.
+    *   `src/utils/auth.ts`: Frontend-specific authentication helpers.
+    *   `src/utils/dateUtils.ts`, `src/utils/rewardUtils.ts`, `src/utils/parentMessageRetention.ts`: Domain-specific utility functions.
+*   **Styling:** Utility-first approach with Tailwind CSS 4.
+*   **Testing:** Unit and integration tests are written in TypeScript and executed with `tsx --test` (e.g., `npm test`, `npm run test:integration`, `npm run test:api`).
 
-## Project Structure & Conventions:
-*   **Frontend (`src/`):**
-    *   **`src/App.tsx`:** Main application entry point and routing configuration.
-    *   **`src/components/`:** Contains reusable UI components (e.g., `Button`, `Card`, `Input`), including protected route wrappers (`ProtectedRoute`, `KidProtectedRoute`, `CommonProtectedRoute`).
-    *   **`src/components/ui/`:** Specific UI primitives (e.g., `Tooltip`).
-    *   **`src/pages/`:** Top-level page components (e.g., `Dashboard`, `CreateSocialStory`, `QuizGenerator`).
-    *   **`src/context/`:** React Context APIs for global state management (`AuthContext`, `WalkthroughContext`).
-    *   **`src/lib/`:** External service integrations (`gemini.ts`, `supabase.ts`) and global utility functions (`utils.ts`).
-    *   **`src/utils/`:** Project-specific utility functions (`api.ts` for frontend API calls, `auth.ts`, `dateUtils.ts`, `rewardUtils.ts`).
-*   **Backend (`server.ts`):**
-    *   The entry point for the Express server.
-    *   Handles API routes, user authentication, file uploads, email sending, and real-time communication via Socket.io.
-    *   Interacts with the Supabase client for database operations and the Gemini client for AI tasks.
-    *   Utilizes `dotenv` for environment variable management.
+**Application Domain:**
+The application serves as an educational platform with features for parents/educators and children. Key functionalities include:
+*   User authentication and role-based access (parents, kids).
+*   Activity management, social story creation/viewing.
+*   AI-powered quiz and worksheet generation (via Gemini).
+*   Progress tracking and reporting for kids.
+*   Real-time interactions (implied by Socket.io).
 
-## Key Instructions for Copilot:
-1.  **Language Preference:** Always prioritize TypeScript for type safety and code clarity.
-2.  **React Components:**
-    *   Develop functional React components using hooks (e.g., `useState`, `useEffect`, `useContext`).
-    *   Adhere to established component patterns found in `src/components/`.
-    *   Use `react-router-dom` (v6+) for all routing and navigation logic.
-3.  **Styling:** Apply Tailwind CSS (v4) utility classes for all styling. Use `clsx` and `tailwind-merge` for managing conditional and conflicting classes.
-4.  **Backend Development:**
-    *   Implement Express.js routes and middleware consistent with existing patterns in `server.ts`.
-    *   Handle authentication using `bcryptjs` for password hashing and `jsonwebtoken` for JWT generation/verification.
-    *   Manage file uploads securely with `multer`.
-    *   Integrate `socket.io` for real-time features as needed.
-5.  **Supabase Integration:** Interact with Supabase for database operations, user authentication, and real-time subscriptions using the `@supabase/supabase-js` client (initialized in `src/lib/supabase.ts`).
-6.  **Google Gemini AI:** Utilize the `@google/genai` client (initialized in `src/lib/gemini.ts`) for AI-powered content generation and other relevant AI tasks.
-7.  **Code Reusability:** Leverage existing utility functions in `src/utils/` and `src/lib/` to ensure consistency, reduce redundancy, and maintain the project's coding standards.
-8.  **Testing:** Unit tests are located in `tests/*.test.ts` and integration tests in `tests/integration/*.test.ts`, executed using `tsx --test`.
+**Key Patterns:**
+*   Functional React components with hooks.
+*   Context API for global state.
+*   Centralized API interaction utilities.
+*   Protected routes for access control.
+*   Modular structure for pages and components.
+*   Express.js middleware for request processing.
+*   JWT for authentication.
 ```
