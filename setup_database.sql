@@ -183,6 +183,12 @@ CREATE TABLE public.parent_messages (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+CREATE INDEX idx_parent_messages_user_kid_created_at
+    ON public.parent_messages (user_id, kid_id, created_at DESC);
+
+CREATE INDEX idx_parent_messages_kid_created_at
+    ON public.parent_messages (kid_id, created_at DESC);
+
 -- Create worksheets table
 CREATE TABLE public.worksheets (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

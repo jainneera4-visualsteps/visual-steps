@@ -1,4 +1,5 @@
--- Add parent message retention days setting on users
+-- Non-destructive migration for existing Visual Steps databases.
+-- Add parent message retention days setting on users.
 ALTER TABLE public.users
 ADD COLUMN IF NOT EXISTS max_parent_message_days INTEGER DEFAULT 20;
 
