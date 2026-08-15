@@ -1,45 +1,47 @@
-```markdown
-The codebase is a full-stack TypeScript application for an educational platform.
+This is a full-stack educational application built with React (v19) and an Express.js backend, primarily in TypeScript. It provides tools for parents and kids, focusing on AI-powered content generation (quizzes, worksheets, social stories) using Google Gemini, activity management, progress tracking, and real-time features. Supabase serves as the backend-as-a-service.
 
-**Core Technologies:**
-*   **Frontend:** React 19, Vite, React Router DOM 7, Tailwind CSS 4, Framer Motion, Radix UI, Recharts, Socket.io-client.
-*   **Backend:** Express 4, Socket.io, bcryptjs, jsonwebtoken, multer, nodemailer, cookie-parser, cors.
-*   **Database/Auth:** Supabase (@supabase/supabase-js), JWT.
-*   **AI:** Google Gemini (@google/genai) for content generation.
-*   **Language:** TypeScript.
-*   **Runtime:** Node.js 24.x.
+## Core Technologies:
 
-**Project Structure & Key Responsibilities:**
-*   **`src/App.tsx`, `src/main.tsx`:** Main React application entry points and routing.
-*   **`server.ts`:** Express.js backend server, handling API routes, authentication, file uploads, email, and real-time communication via Socket.io.
-*   **`src/pages/`:** Top-level React components representing different application views (e.g., Dashboard, ActivityLibrary, QuizGenerator, SocialStories, KidsDashboard, ProgressReport).
-*   **`src/components/`:** Reusable React UI components, including protected routes (`ProtectedRoute.tsx`, `KidProtectedRoute.tsx`), modals, and basic form elements. `src/components/ui` for Radix-style components (e.g., Tooltip).
-*   **`src/context/`:** React Context API implementations for global state management (e.g., `AuthContext.tsx` for user authentication, `WalkthroughContext.tsx`).
-*   **`src/lib/`:** Integration with external services and common utilities.
-    *   `src/lib/gemini.ts`: Handles interactions with the Google Gemini AI API.
-    *   `src/lib/supabase.ts`: Manages Supabase client setup and interactions.
-    *   `src/lib/utils.ts`: General utility functions (e.g., `clsx`, `tailwind-merge`).
-*   **`src/utils/`:** Client-side utility functions.
-    *   `src/utils/api.ts`: Centralized functions for making API requests to the backend.
-    *   `src/utils/auth.ts`: Frontend-specific authentication helpers.
-    *   `src/utils/dateUtils.ts`, `src/utils/rewardUtils.ts`, `src/utils/parentMessageRetention.ts`: Domain-specific utility functions.
-*   **Styling:** Utility-first approach with Tailwind CSS 4.
-*   **Testing:** Unit and integration tests are written in TypeScript and executed with `tsx --test` (e.g., `npm test`, `npm run test:integration`, `npm run test:api`).
+*   **Frontend**: React 19, Vite, TypeScript, React Router DOM v7, Tailwind CSS (v4), Radix UI (Tooltip), Framer Motion, Recharts, `socket.io-client`.
+*   **Backend**: Node.js 24.x, Express.js, TypeScript (via `tsx` for dev), Socket.io, bcryptjs, jsonwebtoken, cookie-parser, multer, nodemailer.
+*   **Database/Auth**: Supabase (`@supabase/supabase-js`).
+*   **AI**: Google Gemini API (`@google/genai`).
+*   **Build Tools**: Vite (client), esbuild (server).
+*   **Testing**: `tsx --test`.
 
-**Application Domain:**
-The application serves as an educational platform with features for parents/educators and children. Key functionalities include:
-*   User authentication and role-based access (parents, kids).
-*   Activity management, social story creation/viewing.
-*   AI-powered quiz and worksheet generation (via Gemini).
-*   Progress tracking and reporting for kids.
-*   Real-time interactions (implied by Socket.io).
+## Architecture & Features:
 
-**Key Patterns:**
-*   Functional React components with hooks.
-*   Context API for global state.
-*   Centralized API interaction utilities.
-*   Protected routes for access control.
-*   Modular structure for pages and components.
-*   Express.js middleware for request processing.
-*   JWT for authentication.
-```
+1.  **Monorepo-like Structure**: A single `src/` directory houses both client-side React components and server-side logic (though `server.ts` is separate from `src`). `server.ts` is the entry point for the Express backend.
+2.  **Client-Side (`src/`)**:
+    *   **React Application**: Handles UI, routing, state management (AuthContext, WalkthroughContext), and interaction with the backend API.
+    *   **Authentication**: User login/signup, protected routes (`ProtectedRoute`, `KidProtectedRoute`, `CommonProtectedRoute`).
+    *   **AI-Powered Content**: UI for generating quizzes, worksheets, and social stories.
+    *   **Activity Management**: Assigning, managing, and tracking educational activities.
+    *   **Reporting**: Displays progress and summary reports.
+    *   **Real-time Interaction**: Uses `socket.io-client` for real-time features.
+    *   **UI/UX**: Utilizes Tailwind CSS for styling, Radix UI components, Framer Motion for animations, and Lucide React for icons.
+3.  **Server-Side (`server.ts`)**:
+    *   **Express API**: Provides RESTful endpoints for the frontend.
+    *   **Authentication**: JWT-based authentication with `bcryptjs` for password hashing and `jsonwebtoken` for token management. `cookie-parser` handles session cookies.
+    *   **Database Interaction**: Interfaces with Supabase for data persistence.
+    *   **AI Integration**: Calls Google Gemini API (`src/lib/gemini.ts`) for content generation.
+    *   **Real-time Communication**: `socket.io` for bi-directional event-based communication.
+    *   **File Uploads**: `multer` for handling multipart/form-data.
+    *   **Email Services**: `nodemailer` for sending emails (e.g., password resets).
+
+## Key Directories & Files:
+
+*   `src/pages`: Top-level components for application routes (e.g., Dashboard, QuizGenerator, SocialStories).
+*   `src/components`: Reusable UI components (e.g., Button, Card, Input, Modals). `src/components/ui` for Radix-based components.
+*   `src/context`: React Context providers for global state (AuthContext, WalkthroughContext).
+*   `src/lib`: Core utilities and client instances (Gemini API, Supabase client, general helpers).
+*   `src/utils`: Application-specific utility functions (API calls, auth logic, date handling, rewards).
+*   `server.ts`: The Express.js backend entry point.
+
+## Development Environment:
+
+*   `npm run dev`: Starts the backend server with `tsx` and the Vite client development server concurrently.
+*   `npm run build`: Compiles the client (Vite) and the server (esbuild) for production.
+*   `npm start`: Runs the built production server.
+*   `npm test`: Executes all tests using `tsx`. Specific test suites are available (`test:integration`, `test:api`).
+*   `npm run lint`: Performs TypeScript type checking.
