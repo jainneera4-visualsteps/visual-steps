@@ -1,32 +1,40 @@
-# Copilot Instructions for this React/Node.js Educational App
+```markdown
+# Copilot Instructions
 
-This is a full-stack TypeScript project for an educational application, primarily targeting children, parents, and educators. It features a React 19 frontend with Vite, Tailwind CSS (v4), and Radix UI, an Express.js backend running on Node.js 24.x, and integrates with Supabase for data management and Google Gemini for AI-generated content.
+This project is an AI-powered educational platform designed for parents and children. It features an interactive React frontend with a robust Express.js backend, leveraging generative AI to create engaging learning content.
 
-## Key Technologies & Architecture:
+## Project Overview
 
-*   **Frontend:** React 19, Vite, TypeScript, Tailwind CSS (v4), Radix UI, Framer Motion. Uses React Router DOM for navigation and React Context for global state (AuthContext, WalkthroughContext).
-*   **Backend:** Node.js 24.x, Express.js, TypeScript. Handles API requests, authentication (JWT, bcryptjs), file uploads (Multer), email (Nodemailer), and real-time communication (Socket.IO).
-*   **Database/Auth:** Supabase integration via `@supabase/supabase-js`.
-*   **AI/Generative:** Google Gemini via `@google/genai` for content generation (quizzes, social stories, worksheets).
-*   **Testing:** Playwright for browser-based UI tests, TSX for server-side unit/integration tests.
-*   **Build:** Vite for client, esbuild for server.
+*   **Purpose:** Provide an educational platform for creating, assigning, and tracking activities, quizzes, and social stories, with distinct experiences for parents and kids.
+*   **Key Features:** User authentication (parent/kid roles), AI-driven content generation (quizzes, worksheets, social stories), activity library, progress reporting, real-time communication, and content management.
 
-## Core Functionality & Domains:
+## Tech Stack
 
-*   **User Management:** Authentication (signup, login, password reset), user profiles (parents/educators) and kid profiles.
-*   **Content Generation:** AI-powered creation of quizzes, social stories, and worksheets.
-*   **Activity Management:** Assigning and tracking activities for kids.
-*   **Reporting:** Progress reports and summary reports for kids' activities.
-*   **Real-time:** Live interactions and updates using Socket.IO.
-*   **Media & Export:** File uploads, PDF generation (html2canvas, jspdf).
+*   **Frontend:** React 19, TypeScript, Vite, Tailwind CSS (v4), Framer Motion, Radix UI, Lucide React, React Router DOM, Recharts, Socket.IO Client.
+*   **Backend:** Node.js (v24.x), Express.js, TypeScript, Socket.IO, `jsonwebtoken`, `bcryptjs`, `multer`, `nodemailer`, `cookie-parser`.
+*   **Database/BaaS:** Supabase (`@supabase/supabase-js`).
+*   **AI:** Google GenAI (`@google/genai`) for content generation.
+*   **Utilities:** `clsx`, `tailwind-merge`, `uuid`, `dotenv`, `canvas-confetti`, `html2canvas`, `jspdf`, `react-markdown`.
+*   **Testing:** Playwright (E2E/Browser tests), `tsx --test` (Unit/API/Integration tests).
 
-## Guidelines for Copilot:
+## Architecture & Code Structure
 
-*   **Frontend Tasks:** When working on React components (`src/components`, `src/pages`), prioritize functional components, React Hooks, and apply Tailwind CSS for styling. Utilize Radix UI for accessible UI primitives and Framer Motion/Motion for animations.
-*   **Backend Tasks:** For server-side code (`server.ts` or related utilities), adhere to Express.js conventions, ensure type safety with TypeScript, and properly handle API routes, authentication, and database interactions (Supabase).
-*   **AI Integration:** When generating content, remember to interact with the `@google/genai` library via `src/lib/gemini.ts`.
-*   **Security:** Be mindful of security best practices, especially concerning authentication (JWT, bcryptjs), data validation, and environment variables (`dotenv`).
-*   **File Structure:** Maintain the existing logical separation between components, pages, contexts, libraries, and utilities.
-*   **Testing:** If asked to generate tests, use Playwright for browser tests and TSX with built-in Node.js test runner for unit/integration tests.
-*   **Node.js Version:** Assume Node.js v24.x runtime environment.
-*   **Conciseness:** Provide clear, concise, and idiomatic TypeScript code for both frontend and backend.
+*   **Frontend (`src/`):** Organized into `components/` (reusable UI), `pages/` (route-specific views), `context/` (global state), `lib/` (external service integrations like `gemini.ts`, `supabase.ts`), `utils/` (helper functions), `constants/`.
+*   **Backend (`server.ts`):** An Express.js server handling API routes, authentication, and Socket.IO real-time communication.
+*   **Styling:** Predominantly Tailwind CSS. Use `clsx` and `tailwind-merge` for conditional and merged class names.
+*   **Authentication:** JWT-based for parent/kid sessions, implemented via `utils/auth.ts` and Express middleware.
+*   **Generative AI:** Integrated through `lib/gemini.ts` for dynamic content creation.
+
+## Copilot Directives
+
+1.  **Adhere to TypeScript:** Ensure strong typing and leverage TypeScript features for robust code.
+2.  **Maintain Component Structure:** Follow existing React functional component patterns, prop typing, and hooks usage.
+3.  **Tailwind CSS First:** Prioritize utility-first CSS using Tailwind classes for styling. When creating new components, ensure they are styled consistently.
+4.  **Security & Best Practices:** For authentication and API interactions, prioritize secure coding practices (e.g., input validation, error handling, proper JWT usage).
+5.  **Supabase & Gemini Integration:** When interacting with Supabase or Google GenAI, use the established patterns in `lib/supabase.ts` and `lib/gemini.ts`.
+6.  **Code Consistency:** Match the existing naming conventions, file structure, and coding style (e.g., arrow functions, destructuring).
+7.  **Test Generation:** For new features or bug fixes, suggest relevant unit, integration, or Playwright tests, following existing test patterns in `tests/`.
+8.  **Explain Complex Logic:** For non-trivial logic, provide concise comments or docstrings explaining the purpose and implementation.
+9.  **Performance:** Be mindful of performance implications, especially in React components and API routes.
+10. **Accessibility:** Consider accessibility when generating UI components, especially for interactive elements.
+```
