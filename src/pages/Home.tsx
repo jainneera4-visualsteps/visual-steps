@@ -58,14 +58,19 @@ export default function Home() {
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
         password,
       });
 
       if (error) throw error;
+      if (!data.session) {
+        throw new Error('Login succeeded, but no authentication session was created. Please try again.');
+      }
 
-      navigate('/dashboard');
+      // AuthContext loads the matching parent profile after SIGNED_IN. Its user
+      // state effect above performs the navigation once the protected route is
+      // ready, avoiding a redirect race back to the login page.
     } catch (err: any) {
       setError(err.message);
     } finally {

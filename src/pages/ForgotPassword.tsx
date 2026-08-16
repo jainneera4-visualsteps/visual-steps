@@ -21,12 +21,13 @@ export default function ForgotPassword() {
     e.preventDefault();
     setError('');
     setIsLoading(true);
+    const normalizedEmail = email.trim().toLowerCase();
 
     try {
       const res = await apiFetch('/api/auth/get-secret-question', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: normalizedEmail }),
       });
 
       const data = await res.json();
@@ -45,12 +46,13 @@ export default function ForgotPassword() {
     e.preventDefault();
     setError('');
     setIsLoading(true);
+    const normalizedEmail = email.trim().toLowerCase();
 
     try {
       const res = await apiFetch('/api/auth/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, secretAnswer, newPassword }),
+        body: JSON.stringify({ email: normalizedEmail, secretAnswer, newPassword }),
       });
 
       const data = await res.json();

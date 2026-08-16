@@ -14,6 +14,7 @@ import multer from 'multer';
 import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
 import path from 'path';
+import { updateAuthenticationUser } from './server/authAdmin';
 
 dotenv.config();
 
@@ -422,7 +423,7 @@ const sendWelcomeEmail = async (email: string, name: string) => {
   console.log(`Attempting to send welcome email to: ${email} (${name})`);
   try {
     const transporter = await getTransporter();
-    if (!transporter) return;
+    if (!transporter) return false;
 
     const smtpFrom = cleanEnvVar('SMTP_FROM') || cleanEnvVar('SMTP_USER') || '"Visual Steps" <noreply@visualsteps.com>';
     const appUrl = cleanEnvVar('APP_URL') || 'http://localhost:3000';
@@ -430,28 +431,36 @@ const sendWelcomeEmail = async (email: string, name: string) => {
     const info = await transporter.sendMail({
       from: smtpFrom,
       to: email,
-      subject: 'Welcome to Visual Steps! Your Journey Begins Here',
-      text: `Hello ${name || 'User'},\n\nWelcome to Visual Steps! We are thrilled to have you join our community.\n\nVisual Steps is a comprehensive platform dedicated to helping parents and children with autism stay engaged with meaningful activities all day long. We help you motivate your kids for learning while having fun at the same time.\n\nWith your new account, you can now:\n- Create customizable quizzes to keep learning fun and engaging\n- Build customizable social stories for a smooth daily routine\n- Generate customizable worksheets for meaningful offline time\n- Send messages and emojis to motivate your child throughout the day\n- Monitor daily growth with automated progress reports\n\nAccess your dashboard here: ${appUrl}/login\nYour registered email: ${email}\n\nWe are here to support you every step of the way. If you have any questions, simply reply to this email.\n\nBest regards,\nThe Visual Steps Team`,
+      subject: 'Welcome to Visual Steps — Let’s Make Every Step Clearer',
+      text: `Hello ${name || 'User'},\n\nWelcome to Visual Steps. You have made a thoughtful choice to create more structure, clarity, and encouragement in your child’s daily routine. We are glad to support your family.\n\nVisual Steps helps parents turn everyday goals into clear, manageable actions. In one place, you can:\n- Plan visual activities and break routines into step-by-step instructions\n- Organize schedules and assign activities for each child\n- Create personalized social stories, worksheets, and quizzes\n- Encourage progress through rewards and positive parent messages\n- Review completed activities, progress reports, and learning history\n- Personalize each child’s experience, schedule, interests, and support needs\n\nStart with one small routine that would make today easier. Add the activity, divide it into simple steps, and celebrate each success along the way.\n\nOpen your Visual Steps dashboard: ${appUrl}/login\nRegistered email: ${email}\n\nYou know your child best. Visual Steps gives you practical tools to turn that knowledge into consistent, visible support—and every completed step is meaningful progress.\n\nIf you have questions, reply to this email. We are here to help.\n\nWarmly,\nThe Visual Steps Team`,
       html: `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #f0f0f0; border-radius: 12px; color: #333; line-height: 1.6;">
           <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #2563eb; margin: 0; font-size: 28px;">Welcome to Visual Steps!</h1>
-            <p style="color: #64748b; font-size: 16px; margin-top: 8px;">Meaningful engagement and daily motivation.</p>
+            <h1 style="color: #2563eb; margin: 0; font-size: 28px;">Welcome to Visual Steps</h1>
+            <p style="color: #64748b; font-size: 16px; margin-top: 8px;">Clearer routines. Encouraging progress. One step at a time.</p>
           </div>
           
           <p>Hello <strong>${name || 'User'}</strong>,</p>
           
-          <p>We are thrilled to have you join our community! <strong>Visual Steps</strong> is a comprehensive platform dedicated to helping parents and children with autism stay engaged with meaningful activities all day long. We help you motivate your kids for learning while having fun at the same time.</p>
+          <p>You have made a thoughtful choice to create more structure, clarity, and encouragement in your child’s daily routine. We are glad to support your family.</p>
+
+          <p><strong>Visual Steps</strong> helps parents turn everyday goals into clear, manageable actions. Whether you are building a morning routine, supporting learning, or encouraging greater independence, you now have one organized place to guide and celebrate progress.</p>
           
           <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 25px 0;">
-            <h3 style="margin-top: 0; color: #1e293b; font-size: 16px;">What you can do now:</h3>
+            <h3 style="margin-top: 0; color: #1e293b; font-size: 16px;">What you can do with Visual Steps:</h3>
             <ul style="margin-bottom: 0; padding-left: 20px; color: #475569;">
-              <li>Create customizable quizzes to keep learning fun and engaging</li>
-              <li>Build customizable social stories for a smooth daily routine</li>
-              <li>Generate customizable worksheets for meaningful offline time</li>
-              <li>Send messages and emojis to motivate your child throughout the day</li>
-              <li>Monitor daily growth with automated progress reports</li>
+              <li>Plan visual activities and break routines into step-by-step instructions</li>
+              <li>Organize schedules and assign activities for each child</li>
+              <li>Create personalized social stories, worksheets, and quizzes</li>
+              <li>Encourage progress through rewards and positive parent messages</li>
+              <li>Review completed activities, progress reports, and learning history</li>
+              <li>Personalize each child’s experience, schedule, interests, and support needs</li>
             </ul>
+          </div>
+
+          <div style="background-color: #eff6ff; padding: 18px 20px; border-left: 4px solid #2563eb; border-radius: 6px; margin: 25px 0;">
+            <strong style="color: #1e3a8a;">A good first step</strong>
+            <p style="margin: 6px 0 0; color: #475569;">Choose one small routine that would make today easier. Add the activity, divide it into simple steps, and celebrate each success along the way.</p>
           </div>
           
           <p><strong>Account Details:</strong></p>
@@ -466,7 +475,9 @@ const sendWelcomeEmail = async (email: string, name: string) => {
             </tr>
           </table>
           
-          <p>We are here to support you every step of the way. If you have any questions or need assistance, please don't hesitate to reach out.</p>
+          <p>You know your child best. Visual Steps gives you practical tools to turn that knowledge into consistent, visible support—and every completed step is meaningful progress.</p>
+
+          <p>If you have questions, reply to this email. We are here to help.</p>
           
           <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #f0f0f0; text-align: center;">
             <p style="margin: 0; font-weight: bold; color: #1e293b;">The Visual Steps Team</p>
@@ -480,10 +491,12 @@ const sendWelcomeEmail = async (email: string, name: string) => {
     if (info.messageId && info.messageId.includes('ethereal')) {
       console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
     }
+    return true;
   } catch (error: any) {
     console.error('Error sending welcome email:', error.message);
     if (error.code) console.error('Error code:', error.code);
     if (error.command) console.error('Error command:', error.command);
+    return false;
   }
 };
 
@@ -984,9 +997,10 @@ app.post('/api/upload', authenticateToken, (req: any, res) => {
 // Create Profile
 app.post('/api/auth/create-profile', async (req: any, res) => {
   const { id, email, name, password, secretQuestion, secretAnswer } = req.body;
+  const normalizedEmail = String(email || '').trim().toLowerCase();
   console.log('create-profile: request body:', { id, email, name, hasPassword: !!password, secretQuestion, hasAnswer: !!secretAnswer });
   
-  if (!id || !email || !secretQuestion || !secretAnswer) {
+  if (!id || !normalizedEmail || !secretQuestion || !secretAnswer) {
     console.log('create-profile: missing fields');
     return res.status(400).json({ error: 'Missing required fields' });
   }
@@ -1004,7 +1018,7 @@ app.post('/api/auth/create-profile', async (req: any, res) => {
       .insert([
         { 
           id, 
-          email, 
+          email: normalizedEmail,
           name, 
           password_hash: hashedPassword,
           secret_question: secretQuestion, 
@@ -1026,10 +1040,11 @@ app.post('/api/auth/create-profile', async (req: any, res) => {
     
     console.log('Profile created successfully for id:', id);
     
-    // Send welcome email asynchronously
-    sendWelcomeEmail(email, name).catch(err => console.error('Failed to send welcome email:', err));
+    // Complete the SMTP attempt before returning. Serverless runtimes may stop
+    // background work as soon as the response has been sent.
+    const emailSent = await sendWelcomeEmail(normalizedEmail, name);
 
-    res.status(201).json({ message: 'Profile created' });
+    res.status(201).json({ message: 'Profile created', emailSent });
   } catch (error: any) {
     console.error('Unexpected profile creation error:', error);
     res.status(500).json({ error: 'Internal server error', details: error.message });
@@ -1060,10 +1075,11 @@ app.post('/api/auth/resend-welcome-email', authenticateToken, async (req: any, r
 app.post('/api/auth/get-secret-question', async (req, res) => {
   const supabase = getAdminSupabaseClient();
   const { email } = req.body;
+  const normalizedEmail = String(email || '').trim().toLowerCase();
   const { data: user, error } = await supabase
     .from('users')
     .select('secret_question')
-    .eq('email', email)
+    .eq('email', normalizedEmail)
     .single();
   
   if (error || !user) return res.status(404).json({ error: 'User not found' });
@@ -1074,12 +1090,21 @@ app.post('/api/auth/get-secret-question', async (req, res) => {
 app.post('/api/auth/reset-password', async (req, res) => {
   const supabase = getAdminSupabaseClient();
   const { email, secretAnswer, newPassword } = req.body;
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+
+  if (!normalizedEmail || !secretAnswer || !newPassword) {
+    return res.status(400).json({ error: 'Email, security answer, and new password are required' });
+  }
+
+  if (String(newPassword).length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  }
 
   try {
     const { data: user, error } = await supabase
       .from('users')
       .select('*')
-      .eq('email', email)
+      .eq('email', normalizedEmail)
       .single();
 
     if (error || !user) return res.status(404).json({ error: 'User not found' });
@@ -1087,16 +1112,30 @@ app.post('/api/auth/reset-password', async (req, res) => {
     const isAnswerValid = await bcrypt.compare(secretAnswer.toLowerCase().trim(), user.secret_answer_hash);
     if (!isAnswerValid) return res.status(401).json({ error: 'Incorrect answer to secret question' });
 
+    const authUpdateError = await updateAuthenticationUser(supabase, user.id, {
+      email: normalizedEmail,
+      password: newPassword,
+    });
+
+    if (authUpdateError) {
+      console.error('Supabase Auth password reset failed:', authUpdateError);
+      return res.status(500).json({ error: 'Failed to update authentication password' });
+    }
+
+    // Keep the legacy profile hash synchronized. Authentication itself uses auth.users.
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     const { error: updateError } = await supabase
       .from('users')
       .update({ password_hash: hashedPassword })
       .eq('id', user.id);
 
-    if (updateError) throw updateError;
+    if (updateError) {
+      console.warn('Authentication password changed, but legacy profile hash synchronization failed:', updateError);
+    }
 
-    // Send password change confirmation email
-    sendPasswordChangeEmail(email, user.name).catch(err => console.error('Failed to send password change email:', err));
+    // Complete the SMTP attempt before returning so it also works reliably in
+    // serverless deployments.
+    await sendPasswordChangeEmail(normalizedEmail, user.name);
 
     res.json({ message: 'Password reset successfully' });
   } catch (error) {
@@ -1185,10 +1224,6 @@ app.put('/api/user/profile', authenticateToken, async (req: any, res) => {
     if (name) baseUpdates.name = name;
     if (email) baseUpdates.email = email;
 
-    if (newPassword) {
-      baseUpdates.password_hash = await bcrypt.hash(newPassword, 10);
-    }
-
     if (secretQuestion) {
       baseUpdates.secret_question = secretQuestion;
     }
@@ -1206,6 +1241,30 @@ app.put('/api/user/profile', authenticateToken, async (req: any, res) => {
       } else {
         return res.status(400).json({ error: 'Retention days must be a positive number' });
       }
+    }
+
+    if (newPassword && String(newPassword).length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    if (email || newPassword) {
+      const authUpdates: { email?: string; password?: string } = {};
+      if (email && email !== req.user.email) authUpdates.email = email;
+      if (newPassword) authUpdates.password = newPassword;
+
+      if (Object.keys(authUpdates).length > 0) {
+        const adminSupabase = getAdminSupabaseClient();
+        const authUpdateError = await updateAuthenticationUser(adminSupabase, userId, authUpdates);
+        if (authUpdateError) {
+          console.error('Supabase Auth profile update failed:', authUpdateError);
+          return res.status(400).json({ error: 'Failed to update authentication details', details: authUpdateError.message });
+        }
+      }
+    }
+
+    if (newPassword) {
+      // Retain the legacy hash for compatibility; login uses Supabase Auth.
+      baseUpdates.password_hash = await bcrypt.hash(newPassword, 10);
     }
 
     if (Object.keys(baseUpdates).length === 0 && parsedRetentionDays === undefined) {
@@ -1348,7 +1407,9 @@ app.put('/api/user/profile', authenticateToken, async (req: any, res) => {
 
     // If password was changed, send confirmation email
     if (newPassword) {
-      sendPasswordChangeEmail(email || req.user.email, name || req.user.name).catch(err => console.error('Failed to send password change email:', err));
+      // Complete the SMTP attempt before returning so Vercel cannot terminate
+      // the function while the email is still being sent.
+      await sendPasswordChangeEmail(email || req.user.email, name || req.user.name);
     }
 
     if (parsedRetentionDays !== undefined) {

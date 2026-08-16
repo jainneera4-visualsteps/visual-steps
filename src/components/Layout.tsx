@@ -232,9 +232,10 @@ export function Layout() {
             )}
           </div>
 
-          {user && (
           <button
             className="md:hidden p-1 text-slate-600"
+            aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={isMenuOpen}
             onClick={() => {
               setIsMenuOpen(!isMenuOpen);
               if (!isMenuOpen) {
@@ -244,7 +245,6 @@ export function Layout() {
           >
             {isMenuOpen ? <X size={18} /> : <Menu size={18} />}
           </button>
-          )}
         </div>
 
         {/* Mobile Menu */}

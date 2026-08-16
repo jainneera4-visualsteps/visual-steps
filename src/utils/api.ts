@@ -47,7 +47,12 @@ export const safeJson = async (response: Response) => {
   throw new Error(`Unexpected response from server (Status: ${status}).`);
 };
 
-export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit, retries = 30): Promise<Response> => {
+export const apiFetch = async (
+  input: RequestInfo | URL,
+  init?: RequestInit,
+  retries = 30,
+  retryAuthentication = true,
+): Promise<Response> => {
   let token = null;
   let isKidSession = false;
   try {
@@ -118,7 +123,7 @@ export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit, ret
       console.warn('Redirected to cookie check page, retrying...');
       if (retries > 0) {
         await new Promise(resolve => setTimeout(resolve, 1500));
-        return apiFetch(input, init, retries - 1);
+        return apiFetch(input, init, retries - 1, retryAuthentication);
       }
       throw new Error('Redirected to cookie check page and retries exhausted. Please refresh the page.');
     }
@@ -144,7 +149,7 @@ export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit, ret
       
       console.warn(`${statusText} for ${url}, retrying in ${backoff}ms... (${retries} left)`);
       await new Promise(resolve => setTimeout(resolve, backoff));
-      return apiFetch(input, init, retries - 1);
+      return apiFetch(input, init, retries - 1, retryAuthentication);
     }
 
     if (response.status === 401 || response.status === 403 || response.status === 500) {
@@ -163,30 +168,17 @@ export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit, ret
           }
           
           if (data.error === 'Forbidden' || data.error === 'Unauthorized' || data.error === 'Supabase Project Mismatch' || data.error === 'Invalid Session') {
-            const wasKid = isKidSession;
-            
-            // Only redirect if we are NOT on a standalone view page
-            const isStandaloneView = window.location.pathname.includes('/social-stories/view/');
-            
-            if (!isStandaloneView) {
-              localStorage.removeItem('token');
-              localStorage.removeItem('kid_session');
-              // Manually clear local storage as a fallback
-              for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key && (key.startsWith('sb-') || key.includes('auth-token'))) {
-                  localStorage.removeItem(key);
-                }
+            if (!isKidSession && retryAuthentication && data.error !== 'Supabase Project Mismatch') {
+              const { data: refreshedData, error: refreshError } = await supabase.auth.refreshSession();
+              if (!refreshError && refreshedData.session) {
+                console.warn(`Authentication was rejected for ${url}; refreshed the session and retrying once.`);
+                return apiFetch(input, init, retries, false);
               }
-              // Crucial: Actually sign out of Supabase to clear the invalid session from local storage
-              supabase.auth.signOut().catch(() => {});
-              
-              if (window.location.pathname !== '/' && window.location.pathname !== '/signup') {
-                window.location.href = wasKid ? '/?mode=kid' : '/';
-              }
-            } else {
-              console.warn('Auth error on standalone view, but skipping redirect to allow component to handle it.');
             }
+            // Do not destroy the browser session or force a page reload here.
+            // The caller needs the original response to show a useful error, and
+            // Supabase's auth listener remains responsible for genuine sign-outs.
+            console.error(`API authentication rejected for ${url}:`, data);
           }
         } catch (e) {
           // Not JSON or other error
@@ -209,7 +201,7 @@ export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit, ret
     if (retries > 0) {
       console.warn(`apiFetch failed for ${url}, retrying... (${retries} left)`, error);
       await new Promise(resolve => setTimeout(resolve, 2000));
-      return apiFetch(input, init, retries - 1);
+      return apiFetch(input, init, retries - 1, retryAuthentication);
     }
     console.error(`apiFetch network error for ${url} after exhausted retries:`, error);
     const networkMessage = error instanceof Error ? error.message : String(error);

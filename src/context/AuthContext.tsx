@@ -106,21 +106,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initSession();
 
     // Listen for auth changes
+    const pendingAuthTasks = new Set<ReturnType<typeof setTimeout>>();
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       console.log('Auth event:', _event);
-      if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED') {
-        // If we already have the user, don't show loading spinner
-        if (!userRef.current || userRef.current.id !== session?.user?.id) {
-          setIsLoading(true);
+      // Supabase recommends keeping this callback synchronous. Defer profile
+      // queries until its internal auth lock has been released.
+      const task = setTimeout(() => {
+        pendingAuthTasks.delete(task);
+        if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED') {
+          if (!userRef.current || userRef.current.id !== session?.user?.id) {
+            setIsLoading(true);
+          }
+          void fetchProfile(session?.user || null);
+        } else if (_event === 'SIGNED_OUT') {
+          setUser(null);
+          setIsLoading(false);
         }
-        fetchProfile(session?.user || null);
-      } else if (_event === 'SIGNED_OUT') {
-        setUser(null);
-        setIsLoading(false);
-      }
+      }, 0);
+      pendingAuthTasks.add(task);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      pendingAuthTasks.forEach(task => clearTimeout(task));
+      pendingAuthTasks.clear();
+    };
   }, []);
 
   const logout = async () => {

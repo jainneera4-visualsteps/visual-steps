@@ -113,8 +113,15 @@ export default function Dashboard() {
       if (!dashboardSelectedKidId || !kids.some(k => k.id === dashboardSelectedKidId)) {
         setDashboardSelectedKidId(kids[0].id);
       }
+    } else if (!isLoading && dashboardSelectedKidId) {
+      setDashboardSelectedKidId('');
+      try {
+        localStorage.removeItem('dashboard_selected_kid_id');
+      } catch {
+        // Storage is optional; the in-memory selection is already cleared.
+      }
     }
-  }, [kids]);
+  }, [kids, isLoading, dashboardSelectedKidId]);
 
   const fetchMessagesForKid = async (kidId: string) => {
     if (!kidId) return;
@@ -153,7 +160,6 @@ export default function Dashboard() {
         // Sort kids by age descending (oldest to youngest) -> dob ascending
         kidsList.sort((a: Kid, b: Kid) => new Date(a.dob).getTime() - new Date(b.dob).getTime());
         setKids(kidsList);
-        safeLocalStorageSet('kids_list', JSON.stringify(kidsList));
       } catch (err: any) {
         console.error('Dashboard: Failed to fetch kids', { error: err, message: err?.message });
       } finally {
@@ -165,10 +171,10 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (dashboardSelectedKidId) {
+    if (dashboardSelectedKidId && kids.some(kid => kid.id === dashboardSelectedKidId)) {
       fetchMessagesForKid(dashboardSelectedKidId);
     }
-  }, [dashboardSelectedKidId]);
+  }, [dashboardSelectedKidId, kids]);
 
   // Join rooms when kids are loaded
   useEffect(() => {
@@ -190,7 +196,6 @@ export default function Dashboard() {
             if (kidsData && Array.isArray(kidsData.kids)) {
               const sortedKids = [...kidsData.kids].sort((a: Kid, b: Kid) => new Date(a.dob).getTime() - new Date(b.dob).getTime());
               setKids(sortedKids);
-              safeLocalStorageSet('kids_list', JSON.stringify(sortedKids));
             }
           });
 

@@ -1,12 +1,12 @@
 import { supabase } from '../lib/supabase';
 import { apiFetch } from '../utils/api';
-import { useState, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../components/Card';
-import { AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react';
 
 export default function Signup() {
   const [name, setName] = useState('');
@@ -16,24 +16,34 @@ export default function Signup() {
   const [secretQuestion, setSecretQuestion] = useState('');
   const [secretAnswer, setSecretAnswer] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [welcomeEmailSent, setWelcomeEmailSent] = useState<boolean | null>(null);
+  const [createdAccountEmail, setCreatedAccountEmail] = useState('');
+  const [signupCreatedSession, setSignupCreatedSession] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { user } = useAuth();
+  const signupInProgressRef = useRef(false);
+  const { user, refreshProfile } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user) {
+    if (user && !signupInProgressRef.current && !success) {
       navigate('/dashboard');
     }
-  }, [user, navigate]);
+  }, [user, success, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
+    setWelcomeEmailSent(null);
+    setCreatedAccountEmail('');
     setIsLoading(true);
+    signupInProgressRef.current = true;
+    const normalizedEmail = email.trim().toLowerCase();
 
     try {
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: normalizedEmail,
         password,
         options: {
           data: {
@@ -51,7 +61,7 @@ export default function Signup() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             id: data.user.id,
-            email,
+            email: normalizedEmail,
             name,
             password,
             secretQuestion,
@@ -59,15 +69,36 @@ export default function Signup() {
           }),
         });
 
+        const profileResult = await res.json();
         if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || 'Failed to create profile');
+          throw new Error(profileResult.error || 'Failed to create profile');
         }
+        setWelcomeEmailSent(profileResult.emailSent === true);
       }
 
-      navigate('/dashboard');
+      setSignupCreatedSession(Boolean(data.session));
+      setCreatedAccountEmail(normalizedEmail);
+      setSuccess(data.session
+        ? 'Your account was created successfully.'
+        : 'Your account was created successfully. Confirm your email before signing in.');
     } catch (err: any) {
+      signupInProgressRef.current = false;
       setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleContinue = async () => {
+    if (!signupCreatedSession) {
+      navigate('/login');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await refreshProfile();
+      navigate('/dashboard');
     } finally {
       setIsLoading(false);
     }
@@ -83,6 +114,28 @@ export default function Signup() {
           </p>
         </CardHeader>
         <CardContent className="pb-3 px-5">
+          {success ? (
+            <div className="space-y-4 py-4 text-center">
+              <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
+              <div>
+                <p className="text-lg font-bold text-slate-900">Account created!</p>
+                <p className="mt-1 text-sm text-slate-600">{success}</p>
+              </div>
+              <div className={`rounded-md p-3 text-sm ${welcomeEmailSent ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-800'}`}>
+                {welcomeEmailSent
+                  ? <>A welcome email was sent to <strong>{createdAccountEmail}</strong>.</>
+                  : <>Your account is ready, but the welcome email to <strong>{createdAccountEmail}</strong> could not be sent. You can resend it later from Profile.</>}
+              </div>
+              <Button
+                type="button"
+                className="w-full"
+                onClick={handleContinue}
+                isLoading={isLoading}
+              >
+                {signupCreatedSession ? 'Continue to Dashboard' : 'Continue to Sign In'}
+              </Button>
+            </div>
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-2.5">
             {error && (
               <div className="flex items-center gap-2 rounded bg-red-50 p-1.5 text-[12px] text-red-600">
@@ -183,6 +236,7 @@ export default function Signup() {
               Sign Up
             </Button>
           </form>
+          )}
         </CardContent>
         <CardFooter className="justify-center border-t py-2 px-4">
           <p className="text-[12px] text-slate-600">

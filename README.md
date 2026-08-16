@@ -120,6 +120,9 @@ See `.env.example` for the complete template.
 | `npm test` | Run fast unit tests without external services |
 | `npm run test:integration` | Run guarded Supabase integration tests against a disposable test project |
 | `npm run test:api` | Run authenticated HTTP API tests against the disposable Supabase project |
+| `npm run test:browser` | Run headless Phase 1 Playwright browser tests with mocked API responses |
+| `npm run test:browser:mobile` | Run PWA and responsive-layout tests using iPhone and iPad WebKit emulation |
+| `npm run test:browser:ui` | Open Playwright's interactive browser-test runner |
 | `npm run test:all` | Run TypeScript checks, unit tests, and the production build |
 | `npm run build` | Build the Vite client and bundle the Express server |
 | `npm start` | Run the production server from `dist/server.cjs` |
@@ -137,6 +140,14 @@ SUPABASE_TEST_ALLOW_WRITES=true
 ```
 
 Run `npm run test:integration` for direct database/RLS coverage or `npm run test:api` for the complete HTTP, authentication middleware, API handler, and database path. The suites refuse to start when a credential is missing, writes have not been explicitly enabled, or the test URL matches `SUPABASE_URL`/`VITE_SUPABASE_URL`. They create uniquely named fixtures and remove the test users afterward. Integration tests are intentionally separate from `test:all`, so normal builds do not require database secrets.
+
+Phase 1 browser tests do not require Supabase. Run `npm run test:browser` to start an isolated Vite server and exercise public navigation, login and signup forms, protected-route redirects, mocked kid lookup and password recovery, responsive layout, and browser console health. Playwright stores failure screenshots, videos, and traces in ignored local report directories.
+
+## Install on iPhone or iPad
+
+Visual Steps is configured as a Progressive Web App (PWA). After deploying over HTTPS, open the site in Safari, tap **Share**, choose **Add to Home Screen**, and confirm **Add**. The installed icon launches Visual Steps in a standalone app-style window. API and Supabase operations still require a network connection; the service worker only provides the application shell and static assets during a temporary outage.
+
+Run `npm run test:browser:mobile` to check install metadata, icons, public-page overflow, and phone navigation with iPhone and iPad WebKit emulation. These tests approximate Safari layouts but do not replace a final check on physical Apple devices.
 
 ## Authentication and data access
 
