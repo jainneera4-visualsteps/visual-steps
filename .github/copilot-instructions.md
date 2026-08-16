@@ -1,47 +1,32 @@
-This is a full-stack educational application built with React (v19) and an Express.js backend, primarily in TypeScript. It provides tools for parents and kids, focusing on AI-powered content generation (quizzes, worksheets, social stories) using Google Gemini, activity management, progress tracking, and real-time features. Supabase serves as the backend-as-a-service.
+# Copilot Instructions for this React/Node.js Educational App
 
-## Core Technologies:
+This is a full-stack TypeScript project for an educational application, primarily targeting children, parents, and educators. It features a React 19 frontend with Vite, Tailwind CSS (v4), and Radix UI, an Express.js backend running on Node.js 24.x, and integrates with Supabase for data management and Google Gemini for AI-generated content.
 
-*   **Frontend**: React 19, Vite, TypeScript, React Router DOM v7, Tailwind CSS (v4), Radix UI (Tooltip), Framer Motion, Recharts, `socket.io-client`.
-*   **Backend**: Node.js 24.x, Express.js, TypeScript (via `tsx` for dev), Socket.io, bcryptjs, jsonwebtoken, cookie-parser, multer, nodemailer.
-*   **Database/Auth**: Supabase (`@supabase/supabase-js`).
-*   **AI**: Google Gemini API (`@google/genai`).
-*   **Build Tools**: Vite (client), esbuild (server).
-*   **Testing**: `tsx --test`.
+## Key Technologies & Architecture:
 
-## Architecture & Features:
+*   **Frontend:** React 19, Vite, TypeScript, Tailwind CSS (v4), Radix UI, Framer Motion. Uses React Router DOM for navigation and React Context for global state (AuthContext, WalkthroughContext).
+*   **Backend:** Node.js 24.x, Express.js, TypeScript. Handles API requests, authentication (JWT, bcryptjs), file uploads (Multer), email (Nodemailer), and real-time communication (Socket.IO).
+*   **Database/Auth:** Supabase integration via `@supabase/supabase-js`.
+*   **AI/Generative:** Google Gemini via `@google/genai` for content generation (quizzes, social stories, worksheets).
+*   **Testing:** Playwright for browser-based UI tests, TSX for server-side unit/integration tests.
+*   **Build:** Vite for client, esbuild for server.
 
-1.  **Monorepo-like Structure**: A single `src/` directory houses both client-side React components and server-side logic (though `server.ts` is separate from `src`). `server.ts` is the entry point for the Express backend.
-2.  **Client-Side (`src/`)**:
-    *   **React Application**: Handles UI, routing, state management (AuthContext, WalkthroughContext), and interaction with the backend API.
-    *   **Authentication**: User login/signup, protected routes (`ProtectedRoute`, `KidProtectedRoute`, `CommonProtectedRoute`).
-    *   **AI-Powered Content**: UI for generating quizzes, worksheets, and social stories.
-    *   **Activity Management**: Assigning, managing, and tracking educational activities.
-    *   **Reporting**: Displays progress and summary reports.
-    *   **Real-time Interaction**: Uses `socket.io-client` for real-time features.
-    *   **UI/UX**: Utilizes Tailwind CSS for styling, Radix UI components, Framer Motion for animations, and Lucide React for icons.
-3.  **Server-Side (`server.ts`)**:
-    *   **Express API**: Provides RESTful endpoints for the frontend.
-    *   **Authentication**: JWT-based authentication with `bcryptjs` for password hashing and `jsonwebtoken` for token management. `cookie-parser` handles session cookies.
-    *   **Database Interaction**: Interfaces with Supabase for data persistence.
-    *   **AI Integration**: Calls Google Gemini API (`src/lib/gemini.ts`) for content generation.
-    *   **Real-time Communication**: `socket.io` for bi-directional event-based communication.
-    *   **File Uploads**: `multer` for handling multipart/form-data.
-    *   **Email Services**: `nodemailer` for sending emails (e.g., password resets).
+## Core Functionality & Domains:
 
-## Key Directories & Files:
+*   **User Management:** Authentication (signup, login, password reset), user profiles (parents/educators) and kid profiles.
+*   **Content Generation:** AI-powered creation of quizzes, social stories, and worksheets.
+*   **Activity Management:** Assigning and tracking activities for kids.
+*   **Reporting:** Progress reports and summary reports for kids' activities.
+*   **Real-time:** Live interactions and updates using Socket.IO.
+*   **Media & Export:** File uploads, PDF generation (html2canvas, jspdf).
 
-*   `src/pages`: Top-level components for application routes (e.g., Dashboard, QuizGenerator, SocialStories).
-*   `src/components`: Reusable UI components (e.g., Button, Card, Input, Modals). `src/components/ui` for Radix-based components.
-*   `src/context`: React Context providers for global state (AuthContext, WalkthroughContext).
-*   `src/lib`: Core utilities and client instances (Gemini API, Supabase client, general helpers).
-*   `src/utils`: Application-specific utility functions (API calls, auth logic, date handling, rewards).
-*   `server.ts`: The Express.js backend entry point.
+## Guidelines for Copilot:
 
-## Development Environment:
-
-*   `npm run dev`: Starts the backend server with `tsx` and the Vite client development server concurrently.
-*   `npm run build`: Compiles the client (Vite) and the server (esbuild) for production.
-*   `npm start`: Runs the built production server.
-*   `npm test`: Executes all tests using `tsx`. Specific test suites are available (`test:integration`, `test:api`).
-*   `npm run lint`: Performs TypeScript type checking.
+*   **Frontend Tasks:** When working on React components (`src/components`, `src/pages`), prioritize functional components, React Hooks, and apply Tailwind CSS for styling. Utilize Radix UI for accessible UI primitives and Framer Motion/Motion for animations.
+*   **Backend Tasks:** For server-side code (`server.ts` or related utilities), adhere to Express.js conventions, ensure type safety with TypeScript, and properly handle API routes, authentication, and database interactions (Supabase).
+*   **AI Integration:** When generating content, remember to interact with the `@google/genai` library via `src/lib/gemini.ts`.
+*   **Security:** Be mindful of security best practices, especially concerning authentication (JWT, bcryptjs), data validation, and environment variables (`dotenv`).
+*   **File Structure:** Maintain the existing logical separation between components, pages, contexts, libraries, and utilities.
+*   **Testing:** If asked to generate tests, use Playwright for browser tests and TSX with built-in Node.js test runner for unit/integration tests.
+*   **Node.js Version:** Assume Node.js v24.x runtime environment.
+*   **Conciseness:** Provide clear, concise, and idiomatic TypeScript code for both frontend and backend.
