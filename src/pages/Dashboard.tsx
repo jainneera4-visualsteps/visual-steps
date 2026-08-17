@@ -561,7 +561,7 @@ export default function Dashboard() {
                     </div>
                   </div>
                 </div>
-                <div className="absolute -bottom-8 left-6 h-16 w-16 rounded-full bg-white flex items-center justify-center text-2xl overflow-hidden border-4 border-white shadow-md z-10">
+                <div className="absolute -bottom-10 sm:-bottom-12 left-6 h-20 w-20 sm:h-24 sm:w-24 rounded-full bg-white flex items-center justify-center text-3xl sm:text-4xl overflow-hidden border-4 border-white shadow-md z-10">
                     {kid.avatar && (kid.avatar.startsWith('http') || kid.avatar.startsWith('data:')) ? (
                       <img src={kid.avatar} alt={kid.name} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                     ) : (
@@ -574,7 +574,7 @@ export default function Dashboard() {
                       </Link>
                     </Tooltip>
                 </CardHeader>
-              <CardContent className="pt-6">
+              <CardContent className="pt-12 sm:pt-14">
                 <div className="flex flex-col gap-4">
                   {/* Parent Message Input */}
                   <div className="space-y-2">
