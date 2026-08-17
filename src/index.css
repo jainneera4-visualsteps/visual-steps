@@ -6,17 +6,31 @@
   --font-display: 'Outfit', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
 
-  --color-brand-50: #eff6ff;
-  --color-brand-100: #dbeafe;
-  --color-brand-200: #bfdbfe;
-  --color-brand-300: #93c5fd;
-  --color-brand-400: #60a5fa;
-  --color-brand-500: #3b82f6;
-  --color-brand-600: #2563eb;
-  --color-brand-700: #1d4ed8;
-  --color-brand-800: #1e40af;
-  --color-brand-900: #1e3a8a;
-  --color-brand-950: #172554;
+  /* Visual Steps: calm ocean blue with soft, low-glare surfaces. */
+  --color-brand-50: #eef8ff;
+  --color-brand-100: #d9efff;
+  --color-brand-200: #bce3ff;
+  --color-brand-300: #8ed2ff;
+  --color-brand-400: #59b7f5;
+  --color-brand-500: #3298df;
+  --color-brand-600: #247abd;
+  --color-brand-700: #21639a;
+  --color-brand-800: #20547f;
+  --color-brand-900: #1f476a;
+  --color-brand-950: #152e46;
+
+  /* A softer slate scale keeps existing pages visually consistent. */
+  --color-slate-50: #f7f9f8;
+  --color-slate-100: #eef3f1;
+  --color-slate-200: #dce6e2;
+  --color-slate-300: #c3d1cc;
+  --color-slate-400: #91a59e;
+  --color-slate-500: #667b75;
+  --color-slate-600: #4c615b;
+  --color-slate-700: #3b4d48;
+  --color-slate-800: #293a36;
+  --color-slate-900: #1b2a27;
+  --color-slate-950: #0d1816;
 
   --radius-xl: 12px;
   --radius-2xl: 16px;
@@ -30,10 +44,25 @@
 
   body {
     @apply bg-slate-50 text-slate-900 selection:bg-brand-100 selection:text-brand-900 antialiased;
+    background-image:
+      radial-gradient(circle at 8% 4%, rgb(217 239 255 / 0.55), transparent 30rem),
+      radial-gradient(circle at 92% 8%, rgb(220 238 230 / 0.6), transparent 28rem),
+      linear-gradient(180deg, #fbfdfc 0%, #f4f8f6 100%);
+    background-attachment: fixed;
+    line-height: 1.55;
   }
   
   h1, h2, h3, h4, h5, h6 {
     @apply font-display tracking-tight font-semibold text-slate-900;
+  }
+
+  button, a, input, select, textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  :focus-visible {
+    outline: 3px solid rgb(50 152 223 / 0.28);
+    outline-offset: 2px;
   }
 
   /* Custom Scrollbar */
@@ -50,11 +79,40 @@
 
 @layer utilities {
   .glass {
-    @apply bg-white/70 backdrop-blur-md border border-white/20 shadow-xl shadow-slate-200/50;
+    @apply bg-white/80 backdrop-blur-xl border border-white/70 shadow-xl shadow-slate-300/30;
   }
   
   .glass-dark {
     @apply bg-slate-900/70 backdrop-blur-md border border-slate-800 shadow-xl shadow-black/20;
+  }
+
+  /* Reusable foundations for new pages. */
+  .page-shell {
+    @apply min-h-full px-4 py-6 sm:px-6 lg:px-8 lg:py-8;
+  }
+
+  .page-container {
+    @apply mx-auto w-full max-w-7xl;
+  }
+
+  .page-header {
+    @apply mb-6 flex flex-col gap-2 sm:mb-8;
+  }
+
+  .page-title {
+    @apply text-3xl font-bold text-slate-900 sm:text-4xl;
+  }
+
+  .page-description {
+    @apply max-w-3xl text-sm leading-6 text-slate-500 sm:text-base;
+  }
+
+  .surface {
+    @apply rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm shadow-slate-300/25;
+  }
+
+  .surface-interactive {
+    @apply transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-lg hover:shadow-slate-300/25;
   }
 
   .scrollbar-hide {
@@ -125,4 +183,13 @@ body {
   padding-right: env(safe-area-inset-right);
   padding-bottom: env(safe-area-inset-bottom);
   padding-left: env(safe-area-inset-left);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

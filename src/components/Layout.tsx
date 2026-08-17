@@ -54,8 +54,8 @@ export function Layout() {
   }, [location.pathname]);
 
   return (
-    <div className="h-dvh w-full bg-slate-50 font-sans text-slate-900 flex flex-col overflow-hidden print:overflow-visible print:h-auto print:block">
-      <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/80 backdrop-blur-md no-print">
+    <div className="h-dvh w-full bg-transparent font-sans text-slate-900 flex flex-col overflow-hidden print:overflow-visible print:h-auto print:block">
+      <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/85 shadow-sm shadow-slate-200/30 backdrop-blur-xl no-print">
         <div className="w-full flex h-16 items-center justify-between px-4 lg:px-8">
           <div className="flex items-center gap-8">
             <Link to="/" className="flex items-center gap-2.5 group transition-all">
