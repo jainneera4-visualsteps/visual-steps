@@ -84,7 +84,7 @@ export default function Profile() {
     try {
       const res = await apiFetch('/api/auth/resend-welcome-email', {
         method: 'POST',
-      });
+      }, 0);
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to resend email');
@@ -102,7 +102,9 @@ export default function Profile() {
     setMessage({ type: '', text: '' });
 
     try {
-      const res = await apiFetch('/api/email-health');
+      // SMTP failures are diagnostic results, not transient API failures. Do
+      // not apply the shared 30-attempt retry policy here.
+      const res = await apiFetch('/api/email-health', undefined, 0);
       const data = await res.json();
 
       if (!res.ok) {
