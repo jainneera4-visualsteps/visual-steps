@@ -1,47 +1,41 @@
-```markdown
-# Copilot Instructions for react-example
+This project is a full-stack educational platform for children, built with React 19, TypeScript, and Vite for the frontend, and Node.js with Express for the backend. It integrates Supabase for database and authentication, and the Google Gemini API for AI-powered content generation (quizzes, social stories, worksheets).
 
-This is a full-stack educational platform designed for children and parents, built with React 19, Vite 6, TypeScript, Node.js 24, and Express.js.
+**Key Technologies & Libraries:**
 
-## Key Technologies & Libraries:
+*   **Frontend:** React 19, TypeScript, Vite, React Router DOM v7, Tailwind CSS (v4), Radix UI (Tooltip), Framer Motion, Recharts.
+*   **Backend:** Node.js 24, Express.js, TypeScript (running with `tsx`), Socket.io (real-time communication), bcryptjs (password hashing), jsonwebtoken (JWT auth), multer (file uploads), nodemailer (email).
+*   **Database/Auth:** Supabase.
+*   **AI:** Google Gemini API (`@google/genai`).
+*   **Testing:** Playwright (browser E2E), TSX (unit/integration/API tests).
+*   **Utilities:** `clsx`, `tailwind-merge`, `uuid`.
 
-*   **Frontend**: React 19, Vite 6, TypeScript, React Router DOM v7, Tailwind CSS 4, Framer Motion, Radix UI (Tooltip), Lucide React, Recharts.
-*   **Backend**: Node.js 24, Express.js, TypeScript, Supabase client (`@supabase/supabase-js`), Google Generative AI client (`@google/genai`), Socket.io, Multer (file uploads), bcryptjs (password hashing), jsonwebtoken (JWT auth), cookie-parser, nodemailer (email).
-*   **Database**: Supabase (PostgreSQL).
-*   **Authentication**: JWT-based, bcryptjs for password hashing, protected routes.
-*   **AI Integration**: Utilizes Google Generative AI (Gemini) for content generation (quizzes, social stories).
-*   **Real-time Features**: Socket.io for interactive elements.
-*   **Styling**: Tailwind CSS 4, PostCSS, clsx, tailwind-merge.
-*   **Testing**: Playwright for end-to-end browser tests, `tsx --test` for unit/integration tests.
+**Project Structure & Core Functionality:**
 
-## Project Structure & Conventions:
+*   **`src/pages`**: Top-level components for different routes (e.g., Dashboard, Activity Library, Social Stories, Quiz/Worksheet Generators, Auth flows).
+*   **`src/components`**: Reusable UI components, including protected routes (`ProtectedRoute`, `KidProtectedRoute`) and common elements.
+*   **`src/context`**: Global state management (AuthContext, WalkthroughContext).
+*   **`src/lib`**: Integrations with external services (Gemini API, Supabase).
+*   **`src/utils`**: Helper functions for API calls, authentication, date formatting, rewards, etc.
+*   **Backend (`server.ts`)**: Manages API endpoints, authentication, real-time events via Socket.io.
+*   **Features:** User authentication (parents & kids), personalized dashboards, activity library, AI-generated social stories, quizzes, and worksheets, progress tracking, reward systems, real-time features.
 
-*   **`src/pages`**: Top-level views and application routes.
-*   **`src/components`**: Reusable UI components. `src/components/ui` for specific UI library integrations.
-*   **`src/context`**: React Context API for global state management (Auth, Walkthrough).
-*   **`src/lib`**: Integrations with external services (Gemini, Supabase) and core utility functions.
-*   **`src/utils`**: Application-specific utilities (API calls, authentication helpers, date formatting, rewards).
-*   **`src/constants`**: Application-wide constants.
-*   **Backend (server.ts)**: Handles API endpoints, authentication, database interactions, AI requests, and real-time communication.
+**Copilot Focus Areas:**
 
-## Development Guidelines:
+*   **React Components:** Generate new components following existing patterns (TypeScript, Tailwind CSS, Radix UI where applicable). Ensure prop types are well-defined.
+*   **API Interactions:** Assist in creating and modifying API calls using `src/utils/api.ts` patterns, handling request/response types.
+*   **State Management:** Help with `AuthContext` and `WalkthroughContext` usage, or suggest local state management with React hooks.
+*   **Backend Endpoints:** Develop new Express routes in `server.ts` for data retrieval, updates, and AI interactions, including authentication and validation.
+*   **Supabase Operations:** Generate code for interacting with Supabase (CRUD operations, authentication flows).
+*   **Gemini API Usage:** Create functions to interact with the Gemini API for content generation, adhering to prompt engineering best practices.
+*   **Testing:** Generate Playwright E2E tests for new features and unit/integration tests using `tsx --test`.
+*   **TypeScript Types:** Maintain strong typing across the codebase, especially for API payloads, component props, and state.
+*   **Styling:** Leverage Tailwind CSS for utility-first styling. Prefer `clsx` and `tailwind-merge` for conditional styling.
 
-*   **TypeScript**: Prioritize type safety throughout the codebase.
-*   **Component-based**: Follow React's component-based architecture for UI.
-*   **Styling**: Use Tailwind CSS for all styling, leveraging utility classes.
-*   **API Interactions**: Centralize API calls via `src/utils/api.ts`.
-*   **Security**: Be mindful of security best practices, especially around authentication, input validation, and data handling.
-*   **Code Quality**: Write clean, readable, and maintainable code with appropriate comments where necessary.
-*   **Testing**: When adding new features, consider adding relevant unit/integration tests (`tsx --test`) or end-to-end tests (`playwright test`).
+**Guidelines:**
 
-## Focus Areas for Assistance:
-
-*   **Full-stack development**: Both React frontend and Express backend.
-*   **AI integration**: Working with the Google Generative AI API for content generation.
-*   **Supabase interactions**: Data storage, retrieval, and real-time subscriptions.
-*   **Authentication & Authorization**: Implementing and managing user sessions and access controls.
-*   **Real-time features**: Enhancing or debugging Socket.io implementations.
-*   **UI/UX**: Creating interactive and responsive user interfaces using React, Tailwind CSS, and Framer Motion.
-*   **Performance**: Optimizing both client-side and server-side performance.
-*   **Testing**: Assisting with writing or debugging Playwright or `tsx` tests.
-```
+*   **TypeScript First:** Always prioritize explicit types.
+*   **Functional Components:** Prefer functional React components with hooks.
+*   **Tailwind CSS:** Use Tailwind for styling; avoid inline styles or custom CSS files unless necessary.
+*   **Security:** Be mindful of authentication, authorization, and data validation, especially in backend code.
+*   **Readability:** Write clear, concise, and well-commented code.
+*   **Error Handling:** Implement robust error handling in both frontend and backend.
