@@ -4431,7 +4431,7 @@ type GeminiImageResponse = {
   }>;
 };
 
-const extractInlineImageDataUrl = (response: GeminiImageResponse): string | null => {
+export const extractInlineImageDataUrl = (response: GeminiImageResponse): string | null => {
   const parts = response.candidates?.[0]?.content?.parts || [];
 
   for (const part of parts) {
@@ -4450,14 +4450,16 @@ const extractInlineImageDataUrl = (response: GeminiImageResponse): string | null
  * Executes a Gemini API call with automatic retry on transient (503, 429, 500) errors,
  * and falls back to alternative models if the primary model fails.
  */
-async function generateContentWithRetryAndFallback(
+export async function generateContentWithRetryAndFallback(
   ai: any,
   params: {
     model: string;
     contents: any;
     config?: any;
   },
-  maxRetries = 2
+  maxRetries = 2,
+  wait: (milliseconds: number) => Promise<void> = milliseconds =>
+    new Promise(resolve => setTimeout(resolve, milliseconds)),
 ): Promise<any> {
   const modelNameInput = params.model;
   const modelLower = (modelNameInput || '').toLowerCase();
@@ -4496,16 +4498,21 @@ async function generateContentWithRetryAndFallback(
         
         console.error(`[AI SDK Engine] Model ${model} failed with code ${errCode}: ${errMsg}`);
         
-        // If it's a non-transient user error or invalid key, propagate immediately
+        // Authentication and invalid-request failures cannot be fixed by retrying.
         if (errCode === 400 || errCode === 403 || errMsg.includes('API key not valid') || errMsg.includes('API_KEY_INVALID')) {
           throw err;
         }
 
-        // If it's 503, 500, or 429, wait and retry before failing/moving to next fallback
+        // A missing/unavailable model should move directly to the next fallback.
+        if (errCode === 404) break;
+
+        const isTransient = errCode === 429 || errCode === 500 || errCode === 503;
+        if (!isTransient) throw err;
+
         if (attempts <= maxRetries) {
           const delayTime = Math.min(2000, 500 * Math.pow(2, attempts));
           console.log(`[AI SDK Engine] Transient error, retrying in ${delayTime}ms...`);
-          await new Promise(resolve => setTimeout(resolve, delayTime));
+          await wait(delayTime);
         }
       }
     }
@@ -4514,6 +4521,20 @@ async function generateContentWithRetryAndFallback(
 
   throw lastError;
 }
+
+const allowedAiModels = new Set([
+  'gemini-3-flash-preview',
+  'gemini-3.1-pro-preview',
+  'gemini-2.5-flash-image',
+]);
+
+export const resolveRequestedAiModel = (requestedModel: unknown): string | null => {
+  const model = typeof requestedModel === 'string' && requestedModel.trim()
+    ? requestedModel.trim()
+    : 'gemini-3-flash-preview';
+
+  return allowedAiModels.has(model) ? model : null;
+};
 
 // --- AI Generation API ---
 app.post('/api/generate', authenticateToken, async (req: any, res) => {
@@ -4528,7 +4549,7 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
     responseSchema 
   } = req.body;
   
-    const modelNameInput = model_body || model_name_body || 'gemini-3-flash-preview';
+    const modelNameInput = resolveRequestedAiModel(model_body || model_name_body);
     const apiKey = (cleanEnvVar('GEMINI_API_KEY') || cleanEnvVar('GOOGLE_API_KEY')).trim();
     let finalModelName = 'gemini-3-flash-preview';
     
@@ -4539,12 +4560,7 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
       });
     }
 
-    const allowedModels = new Set([
-      'gemini-3-flash-preview',
-      'gemini-3.1-pro-preview',
-      'gemini-2.5-flash-image',
-    ]);
-    if (!allowedModels.has(modelNameInput)) {
+    if (!modelNameInput) {
       return res.status(400).json({ error: 'Unsupported AI model requested' });
     }
     finalModelName = modelNameInput;

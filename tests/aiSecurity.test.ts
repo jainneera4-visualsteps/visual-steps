@@ -22,7 +22,7 @@ test('AI generation remains authenticated and uses active safety filters', () =>
   assert.doesNotMatch(server, /threshold:\s*["']BLOCK_NONE["']/);
   assert.match(server, /threshold:\s*["']BLOCK_MEDIUM_AND_ABOVE["']/);
   assert.match(server, /Unsupported AI model requested/);
-  assert.match(server, /const extractInlineImageDataUrl/);
+  assert.match(server, /export const extractInlineImageDataUrl/);
   assert.match(server, /finalModelName\.includes\('image'\)\s*\? extractInlineImageDataUrl\(result\)/);
 });
 
