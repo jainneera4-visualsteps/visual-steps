@@ -1,36 +1,47 @@
-# Project Overview
+```markdown
+# Copilot Instructions for react-example
 
-This project is a full-stack web application built with React 19, TypeScript, and Node.js 24 (Express backend). It leverages Vite for the frontend build and Tailwind CSS 4 for styling.
+This is a full-stack educational platform designed for children and parents, built with React 19, Vite 6, TypeScript, Node.js 24, and Express.js.
 
-# Key Technologies & Libraries
+## Key Technologies & Libraries:
 
-*   **Frontend**: React 19 (functional components, hooks), React Router DOM v7, Framer Motion (animations), Radix UI (accessible components), Recharts (data visualization), Socket.io-client.
-*   **Backend**: Node.js 24, Express, `jsonwebtoken` (JWT auth), `bcryptjs` (password hashing), `cookie-parser`, `multer` (file uploads), `nodemailer` (email), Socket.io.
-*   **Database/Auth**: Supabase SDK (`@supabase/supabase-js`).
-*   **AI/Content Generation**: Google Gemini API (`@google/genai`).
-*   **Styling**: Tailwind CSS 4, `clsx`, `tailwind-merge`.
-*   **Utilities**: `uuid`, `dotenv`, `html2canvas`, `jspdf` (PDF generation), `canvas-confetti`, `emoji-picker-react`, `react-markdown`, `lucide-react`.
-*   **Testing**: Playwright (browser E2E), `tsx` (unit/integration tests).
+*   **Frontend**: React 19, Vite 6, TypeScript, React Router DOM v7, Tailwind CSS 4, Framer Motion, Radix UI (Tooltip), Lucide React, Recharts.
+*   **Backend**: Node.js 24, Express.js, TypeScript, Supabase client (`@supabase/supabase-js`), Google Generative AI client (`@google/genai`), Socket.io, Multer (file uploads), bcryptjs (password hashing), jsonwebtoken (JWT auth), cookie-parser, nodemailer (email).
+*   **Database**: Supabase (PostgreSQL).
+*   **Authentication**: JWT-based, bcryptjs for password hashing, protected routes.
+*   **AI Integration**: Utilizes Google Generative AI (Gemini) for content generation (quizzes, social stories).
+*   **Real-time Features**: Socket.io for interactive elements.
+*   **Styling**: Tailwind CSS 4, PostCSS, clsx, tailwind-merge.
+*   **Testing**: Playwright for end-to-end browser tests, `tsx --test` for unit/integration tests.
 
-# Architecture & Structure
+## Project Structure & Conventions:
 
-*   **`src/pages`**: Top-level views/routes for user interfaces (e.g., Dashboard, KidsDashboard, ActivityLibrary, SocialStories, QuizGenerator, Auth).
-*   **`src/components`**: Reusable React UI components (e.g., Button, Input, Card, Modals, ProtectedRoutes). `src/components/ui` contains Shadcn/Radix-style components.
-*   **`src/context`**: Global state management using React Context API (`AuthContext`, `WalkthroughContext`).
-*   **`src/lib`**: Integrations with external services or core utilities (`gemini.ts`, `supabase.ts`, `utils.ts`).
-*   **`src/utils`**: Helper functions for various domains (`api.ts`, `auth.ts`, `dateUtils.ts`, `rewardUtils.ts`).
-*   **`server.ts`**: The entry point for the Node.js Express backend.
+*   **`src/pages`**: Top-level views and application routes.
+*   **`src/components`**: Reusable UI components. `src/components/ui` for specific UI library integrations.
+*   **`src/context`**: React Context API for global state management (Auth, Walkthrough).
+*   **`src/lib`**: Integrations with external services (Gemini, Supabase) and core utility functions.
+*   **`src/utils`**: Application-specific utilities (API calls, authentication helpers, date formatting, rewards).
+*   **`src/constants`**: Application-wide constants.
+*   **Backend (server.ts)**: Handles API endpoints, authentication, database interactions, AI requests, and real-time communication.
 
-# Development Guidelines
+## Development Guidelines:
 
-*   **React Components**: Prefer functional components with hooks.
-*   **TypeScript**: Adhere strictly to TypeScript types for better maintainability and error checking.
-*   **Styling**: Use Tailwind CSS classes. Apply `clsx` and `tailwind-merge` for conditional or dynamic class composition.
-*   **API Interaction**: Use `src/utils/api.ts` for consistent backend communication.
-*   **Authentication**: Leverage JWTs and existing `AuthContext` and `src/utils/auth.ts` utilities.
-*   **Code Style**: Maintain existing code patterns and best practices, focusing on readability and modularity.
-*   **Testing**: When adding new features, consider adding or updating unit/integration tests with `tsx` and E2E tests with Playwright where applicable.
+*   **TypeScript**: Prioritize type safety throughout the codebase.
+*   **Component-based**: Follow React's component-based architecture for UI.
+*   **Styling**: Use Tailwind CSS for all styling, leveraging utility classes.
+*   **API Interactions**: Centralize API calls via `src/utils/api.ts`.
+*   **Security**: Be mindful of security best practices, especially around authentication, input validation, and data handling.
+*   **Code Quality**: Write clean, readable, and maintainable code with appropriate comments where necessary.
+*   **Testing**: When adding new features, consider adding relevant unit/integration tests (`tsx --test`) or end-to-end tests (`playwright test`).
 
-# Project Goal
+## Focus Areas for Assistance:
 
-This application appears to be an educational platform, likely for parents and children, featuring activity management, social stories, quizzes, worksheets, progress tracking, and AI-powered content generation. Focus on secure, user-friendly, and maintainable code.
+*   **Full-stack development**: Both React frontend and Express backend.
+*   **AI integration**: Working with the Google Generative AI API for content generation.
+*   **Supabase interactions**: Data storage, retrieval, and real-time subscriptions.
+*   **Authentication & Authorization**: Implementing and managing user sessions and access controls.
+*   **Real-time features**: Enhancing or debugging Socket.io implementations.
+*   **UI/UX**: Creating interactive and responsive user interfaces using React, Tailwind CSS, and Framer Motion.
+*   **Performance**: Optimizing both client-side and server-side performance.
+*   **Testing**: Assisting with writing or debugging Playwright or `tsx` tests.
+```
