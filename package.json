@@ -16,10 +16,11 @@
     "test": "tsx --test tests/*.test.ts",
     "test:integration": "tsx --test tests/integration/*.test.ts",
     "test:api": "tsx --test tests/api/*.test.ts",
+    "test:api:mocked": "tsx --test tests/api-mocked/*.test.ts",
     "test:browser": "playwright test",
     "test:browser:mobile": "playwright test tests/browser/pwa-mobile.spec.ts --project=iphone-webkit --project=ipad-webkit",
     "test:browser:ui": "playwright test --ui",
-    "test:all": "npm run lint && npm test && npm run build"
+    "test:all": "npm run lint && npm test && npm run test:api:mocked && npm run build"
   },
   "dependencies": {
     "@google/genai": "^1.48.0",

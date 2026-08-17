@@ -4536,6 +4536,27 @@ export const resolveRequestedAiModel = (requestedModel: unknown): string | null 
   return allowedAiModels.has(model) ? model : null;
 };
 
+type AiClientFactory = (apiKey: string) => any;
+
+const defaultAiClientFactory: AiClientFactory = apiKey => new GoogleGenAI({
+  apiKey,
+  httpOptions: {
+    headers: {
+      'User-Agent': 'aistudio-build',
+    },
+  },
+});
+
+let aiClientFactory: AiClientFactory = defaultAiClientFactory;
+
+/** Replaces the AI transport in isolated tests; passing null restores production behavior. */
+export const setAiClientFactoryForTests = (factory: AiClientFactory | null): void => {
+  if (process.env.NODE_ENV !== 'test') {
+    throw new Error('AI client replacement is only available in the test environment');
+  }
+  aiClientFactory = factory || defaultAiClientFactory;
+};
+
 // --- AI Generation API ---
 app.post('/api/generate', authenticateToken, async (req: any, res) => {
   const { 
@@ -4567,14 +4588,7 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
 
     console.log(`[AI Generation] Using SDK with model: ${finalModelName}`);
 
-    const ai = new GoogleGenAI({
-      apiKey,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        }
-      }
-    });
+    const ai = aiClientFactory(apiKey);
     
     // Format contents for SDK
     const formattedContents = Array.isArray(contents) ? contents : [{ role: 'user', parts: [{ text: contents || prompt }] }];

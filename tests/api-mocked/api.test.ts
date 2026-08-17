@@ -1,0 +1,171 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import type { AddressInfo } from 'node:net';
+import jwt from 'jsonwebtoken';
+
+process.env.NODE_ENV = 'test';
+process.env.JWT_SECRET = 'visual-steps-mocked-api-test-secret';
+process.env.GEMINI_API_KEY = 'mocked-gemini-key-never-sent';
+
+const { default: app, setAiClientFactoryForTests } = await import('../../server');
+
+const server = app.listen(0, '127.0.0.1');
+await new Promise<void>((resolve, reject) => {
+  server.once('listening', resolve);
+  server.once('error', reject);
+});
+
+const { port } = server.address() as AddressInfo;
+const baseUrl = `http://127.0.0.1:${port}`;
+const token = jwt.sign(
+  { userId: 'mock-parent-id', kidId: 'mock-kid-id', role: 'kid' },
+  process.env.JWT_SECRET,
+  { expiresIn: '5m' },
+);
+
+const api = async (
+  path: string,
+  options: { method?: string; authenticated?: boolean; body?: unknown } = {},
+) => {
+  const response = await fetch(`${baseUrl}${path}`, {
+    method: options.method ?? 'GET',
+    headers: {
+      ...(options.authenticated ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' }),
+    },
+    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+  });
+  return { response, body: await response.json() };
+};
+
+test.after(() => {
+  setAiClientFactoryForTests(null);
+  server.close();
+});
+
+test('public health API responds with the expected JSON shape', async () => {
+  const { response, body } = await api('/api/ping');
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('content-type')?.includes('application/json'), true);
+  assert.equal(body.status, 'ok');
+  assert.equal(body.env, 'test');
+  assert.equal(typeof body.time, 'string');
+});
+
+test('protected APIs reject requests without authentication', async () => {
+  const { response, body } = await api('/api/kids');
+
+  assert.equal(response.status, 401);
+  assert.deepEqual(body, { error: 'Unauthorized' });
+});
+
+test('child and parent-message APIs validate input before database access', async () => {
+  const missingName = await api('/api/kids', {
+    method: 'POST', authenticated: true, body: {},
+  });
+  assert.equal(missingName.response.status, 400);
+  assert.deepEqual(missingName.body, { error: 'Name is required' });
+
+  const missingMessage = await api('/api/kids/mock-kid-id/messages', {
+    method: 'POST', authenticated: true, body: { message: '   ' },
+  });
+  assert.equal(missingMessage.response.status, 400);
+  assert.deepEqual(missingMessage.body, { error: 'Message is required' });
+});
+
+test('AI API rejects models outside the server allowlist without calling Gemini', async () => {
+  let factoryCalls = 0;
+  setAiClientFactoryForTests(() => {
+    factoryCalls += 1;
+    return { models: { generateContent: async () => ({ text: 'should not run' }) } };
+  });
+
+  const { response, body } = await api('/api/generate', {
+    method: 'POST',
+    authenticated: true,
+    body: { model: 'unapproved-model', prompt: 'test' },
+  });
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(body, { error: 'Unsupported AI model requested' });
+  assert.equal(factoryCalls, 0);
+});
+
+test('AI text API passes normalized input and safety settings to the mocked client', async () => {
+  const calls: any[] = [];
+  setAiClientFactoryForTests(apiKey => ({
+    models: {
+      generateContent: async (params: any) => {
+        calls.push({ apiKey, params });
+        return { text: 'Mocked worksheet content' };
+      },
+    },
+  }));
+
+  const { response, body } = await api('/api/generate', {
+    method: 'POST',
+    authenticated: true,
+    body: { model: 'gemini-3-flash-preview', prompt: 'Create a worksheet' },
+  });
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(body, { text: 'Mocked worksheet content' });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].apiKey, 'mocked-gemini-key-never-sent');
+  assert.equal(calls[0].params.model, 'gemini-3-flash-preview');
+  assert.deepEqual(calls[0].params.contents, [
+    { role: 'user', parts: [{ text: 'Create a worksheet' }] },
+  ]);
+  assert.equal(calls[0].params.config.safetySettings.length, 4);
+  assert.ok(calls[0].params.config.safetySettings.every(
+    (setting: { threshold: string }) => setting.threshold === 'BLOCK_MEDIUM_AND_ABOVE',
+  ));
+});
+
+test('AI image API converts mocked inline image bytes into a browser data URL', async () => {
+  setAiClientFactoryForTests(() => ({
+    models: {
+      generateContent: async () => ({
+        candidates: [{ content: { parts: [
+          { text: 'Generated illustration' },
+          { inlineData: { mimeType: 'image/png', data: 'aW1hZ2U=' } },
+        ] } }],
+      }),
+    },
+  }));
+
+  const { response, body } = await api('/api/generate', {
+    method: 'POST',
+    authenticated: true,
+    body: { model: 'gemini-2.5-flash-image', prompt: 'Draw a calm morning routine' },
+  });
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(body, { text: 'data:image/png;base64,aW1hZ2U=' });
+});
+
+test('AI API returns a status error without exposing a stack or SDK response', async () => {
+  setAiClientFactoryForTests(() => ({
+    models: {
+      generateContent: async () => {
+        throw Object.assign(new Error('API key not valid'), {
+          status: 403,
+          stack: 'SECRET SERVER STACK',
+          response: { privateSdkData: true },
+        });
+      },
+    },
+  }));
+
+  const { response, body } = await api('/api/generate', {
+    method: 'POST',
+    authenticated: true,
+    body: { model: 'gemini-3-flash-preview', prompt: 'Create a quiz' },
+  });
+
+  assert.equal(response.status, 403);
+  assert.match(body.error, /API Key Invalid/);
+  assert.equal(body.stack, undefined);
+  assert.equal(body.response, undefined);
+});
