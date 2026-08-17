@@ -1,40 +1,52 @@
 ```markdown
-# Copilot Instructions
+As an expert React/TypeScript full-stack developer, assist with this project.
 
-This project is an AI-powered educational platform designed for parents and children. It features an interactive React frontend with a robust Express.js backend, leveraging generative AI to create engaging learning content.
+**Project Overview:**
+This is a full-stack web application built with React 19, TypeScript, and Vite for the frontend, and an Express.js server on Node.js 24 for the backend. It leverages Supabase for authentication and database management, Google Gemini AI for content generation, and Socket.IO for real-time features. Styling is handled with Tailwind CSS and Radix UI components.
 
-## Project Overview
+**Key Technologies & Libraries:**
 
-*   **Purpose:** Provide an educational platform for creating, assigning, and tracking activities, quizzes, and social stories, with distinct experiences for parents and kids.
-*   **Key Features:** User authentication (parent/kid roles), AI-driven content generation (quizzes, worksheets, social stories), activity library, progress reporting, real-time communication, and content management.
+*   **Frontend:** React 19, TypeScript, Vite, React Router DOM v7, Tailwind CSS (v4), Radix UI (Tooltip), Framer Motion, Lucide React, Recharts, Socket.IO-Client.
+*   **Backend:** Node.js 24, Express.js, TypeScript, bcryptjs, jsonwebtoken, cookie-parser, multer (file uploads), nodemailer, Socket.IO.
+*   **Database/Auth:** Supabase (@supabase/supabase-js).
+*   **AI:** Google Gemini API (@google/genai).
+*   **Utilities:** clsx, uuid, html2canvas, jspdf, canvas-confetti, emoji-picker-react.
+*   **Testing:** Playwright (browser tests), tsx --test (unit/integration/API tests).
 
-## Tech Stack
+**Codebase Structure & Conventions:**
 
-*   **Frontend:** React 19, TypeScript, Vite, Tailwind CSS (v4), Framer Motion, Radix UI, Lucide React, React Router DOM, Recharts, Socket.IO Client.
-*   **Backend:** Node.js (v24.x), Express.js, TypeScript, Socket.IO, `jsonwebtoken`, `bcryptjs`, `multer`, `nodemailer`, `cookie-parser`.
-*   **Database/BaaS:** Supabase (`@supabase/supabase-js`).
-*   **AI:** Google GenAI (`@google/genai`) for content generation.
-*   **Utilities:** `clsx`, `tailwind-merge`, `uuid`, `dotenv`, `canvas-confetti`, `html2canvas`, `jspdf`, `react-markdown`.
-*   **Testing:** Playwright (E2E/Browser tests), `tsx --test` (Unit/API/Integration tests).
+*   **`src/`:** Contains all client-side React application code.
+    *   **`src/pages/`**: Top-level views and routes.
+    *   **`src/components/`**: Reusable UI components. Includes `src/components/ui/` for styled primitive components (e.g., Radix Tooltip).
+    *   **`src/context/`**: React Context API for global state management (e.g., `AuthContext`, `WalkthroughContext`).
+    *   **`src/lib/`**: External service integrations (`gemini.ts`, `supabase.ts`) and core utilities (`utils.ts`).
+    *   **`src/utils/`**: Application-specific utility functions (e.g., `api.ts` for API calls, `auth.ts` for client-side auth logic, `dateUtils.ts`, `rewardUtils.ts`).
+    *   **`src/constants/`**: Application-wide constants.
+*   **`server.ts`**: The main Express.js backend server entry point.
+*   **TypeScript:** Strict TypeScript usage is enforced. Prioritize type safety and create interfaces/types as needed.
+*   **Styling:** Use Tailwind CSS classes for styling components. Refer to `tailwind.config.ts` for custom configurations.
+*   **API Communication:** Use `src/utils/api.ts` for centralized API calls to the Express backend.
+*   **Authentication:** Leverage `AuthContext` on the frontend and JWT-based authentication on the backend with `jsonwebtoken` and `bcryptjs`. Supabase handles the actual user management.
+*   **File Naming:** Components and pages follow PascalCase (e.g., `ActivityDetailModal.tsx`, `Dashboard.tsx`). Utilities and libs follow camelCase (e.g., `dateUtils.ts`).
 
-## Architecture & Code Structure
+**When generating code:**
 
-*   **Frontend (`src/`):** Organized into `components/` (reusable UI), `pages/` (route-specific views), `context/` (global state), `lib/` (external service integrations like `gemini.ts`, `supabase.ts`), `utils/` (helper functions), `constants/`.
-*   **Backend (`server.ts`):** An Express.js server handling API routes, authentication, and Socket.IO real-time communication.
-*   **Styling:** Predominantly Tailwind CSS. Use `clsx` and `tailwind-merge` for conditional and merged class names.
-*   **Authentication:** JWT-based for parent/kid sessions, implemented via `utils/auth.ts` and Express middleware.
-*   **Generative AI:** Integrated through `lib/gemini.ts` for dynamic content creation.
+*   **Prioritize existing patterns:** Look at surrounding code and similar files to understand the architectural patterns, component structure, and coding style.
+*   **Type Safety:** Always aim for explicit types and interfaces for props, state, and function arguments/returns.
+*   **Modularity:** Create small, focused components and utility functions.
+*   **Performance:** Consider performance implications, especially for large lists or frequent updates.
+*   **Testing:** Suggest or include basic test structures using Playwright for browser tests or `tsx --test` for unit/integration tests when appropriate.
+*   **User Experience:** Keep the user flow and experience in mind, especially when suggesting UI components or interactions.
 
-## Copilot Directives
+**Specific Areas of Focus:**
 
-1.  **Adhere to TypeScript:** Ensure strong typing and leverage TypeScript features for robust code.
-2.  **Maintain Component Structure:** Follow existing React functional component patterns, prop typing, and hooks usage.
-3.  **Tailwind CSS First:** Prioritize utility-first CSS using Tailwind classes for styling. When creating new components, ensure they are styled consistently.
-4.  **Security & Best Practices:** For authentication and API interactions, prioritize secure coding practices (e.g., input validation, error handling, proper JWT usage).
-5.  **Supabase & Gemini Integration:** When interacting with Supabase or Google GenAI, use the established patterns in `lib/supabase.ts` and `lib/gemini.ts`.
-6.  **Code Consistency:** Match the existing naming conventions, file structure, and coding style (e.g., arrow functions, destructuring).
-7.  **Test Generation:** For new features or bug fixes, suggest relevant unit, integration, or Playwright tests, following existing test patterns in `tests/`.
-8.  **Explain Complex Logic:** For non-trivial logic, provide concise comments or docstrings explaining the purpose and implementation.
-9.  **Performance:** Be mindful of performance implications, especially in React components and API routes.
-10. **Accessibility:** Consider accessibility when generating UI components, especially for interactive elements.
+*   Developing new React components or pages.
+*   Implementing new API endpoints or modifying existing ones in `server.ts`.
+*   Integrating with Supabase for data operations or authentication.
+*   Using Gemini AI for content generation tasks (e.g., `QuizGenerator`, `CreateSocialStory`).
+*   Adding real-time features using Socket.IO.
+*   Writing or updating tests.
+*   Refactoring code for clarity, performance, or maintainability.
+*   Ensuring consistent Tailwind CSS styling and responsiveness.
+*   Working with state management via React hooks and Context API.
 ```
