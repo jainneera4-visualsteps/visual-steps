@@ -106,10 +106,12 @@ The development command runs `server.ts`; Express serves the API and delegates f
 | `VITE_SUPABASE_ANON_KEY` | Yes | Browser-safe Supabase anonymous key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Recommended | Administrative operations that must bypass RLS |
 | `JWT_SECRET` | Yes in production | Signs child-session tokens; the development fallback is not production-safe |
-| `APP_URL` | Deployment-dependent | Public application URL used in generated links and emails |
+| `APP_URL` | Deployment-dependent | Public application URL used in generated links and emails; production uses `https://visual-steps-six.vercel.app` |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Optional | Email delivery |
 
 See `.env.example` for the complete template.
+
+For the Vercel Production environment, set `APP_URL` to `https://visual-steps-six.vercel.app`. Local development can use `http://localhost:3000`. When the production domain changes, update `APP_URL` in Vercel and the Supabase Authentication Site URL/redirect allow list, then redeploy.
 
 ## Commands
 

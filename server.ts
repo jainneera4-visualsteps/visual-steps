@@ -127,6 +127,7 @@ const cleanEnvVar = (name: string): string => {
 };
 
 const PORT = 3000;
+const PRODUCTION_APP_URL = 'https://visual-steps-six.vercel.app';
 const JWT_SECRET = cleanEnvVar('JWT_SECRET') || 'dev-secret-key-change-in-prod';
 
 // Supabase setup
@@ -473,7 +474,9 @@ const sendWelcomeEmail = async (email: string, name: string) => {
     if (!transporter) return false;
 
     const smtpFrom = cleanEnvVar('SMTP_FROM') || cleanEnvVar('SMTP_USER') || '"Visual Steps" <noreply@visualsteps.com>';
-    const appUrl = cleanEnvVar('APP_URL') || 'http://localhost:3000';
+    const appUrl = cleanEnvVar('APP_URL') || (process.env.NODE_ENV === 'production'
+      ? PRODUCTION_APP_URL
+      : 'http://localhost:3000');
     
     const info = await transporter.sendMail({
       from: smtpFrom,
