@@ -14,7 +14,6 @@ import multer from 'multer';
 import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
 import path from 'path';
-import { extractInlineImageDataUrl } from './src/utils/aiResponse';
 
 dotenv.config();
 
@@ -4418,6 +4417,34 @@ app.get('/api/kids/:kidId/purchases', authenticateToken, async (req: any, res) =
 });
 
 // --- AI Helpers ---
+
+type GeminiImageResponse = {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{
+        inlineData?: {
+          data?: string;
+          mimeType?: string;
+        };
+      }>;
+    };
+  }>;
+};
+
+const extractInlineImageDataUrl = (response: GeminiImageResponse): string | null => {
+  const parts = response.candidates?.[0]?.content?.parts || [];
+
+  for (const part of parts) {
+    const data = part.inlineData?.data;
+    if (!data) continue;
+
+    if (data.startsWith('data:image/')) return data;
+    const mimeType = part.inlineData?.mimeType || 'image/png';
+    return `data:${mimeType};base64,${data}`;
+  }
+
+  return null;
+};
 
 /**
  * Executes a Gemini API call with automatic retry on transient (503, 429, 500) errors,
