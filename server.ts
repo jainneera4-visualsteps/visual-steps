@@ -14,6 +14,7 @@ import multer from 'multer';
 import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
 import path from 'path';
+import { extractInlineImageDataUrl } from './src/utils/aiResponse';
 
 dotenv.config();
 
@@ -803,15 +804,14 @@ app.post('/api/command', authenticateToken, async (req: any, res) => {
   const { prompt } = req.body;
   
   // Clean apiKey safely using cleanEnvVar helper and standard direct env fallback
-  let apiKey = (cleanEnvVar('GEMINI_API_KEY') || cleanEnvVar('VITE_GEMINI_API_KEY') || cleanEnvVar('GOOGLE_API_KEY') || '').trim();
+  let apiKey = (cleanEnvVar('GEMINI_API_KEY') || cleanEnvVar('GOOGLE_API_KEY') || '').trim();
   if (!apiKey || apiKey === 'undefined' || apiKey === 'null' || apiKey.length < 10) {
-    apiKey = (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
+    apiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
   }
   
   console.log('[API] Using API Key (DEBUG):', {
     present: !!apiKey,
     length: apiKey?.length,
-    start: apiKey?.substring(0, 4)
   });
   if (!apiKey || apiKey === 'undefined' || apiKey === 'null' || apiKey.length < 10) {
     console.log('[API] GEMINI_API_KEY missing or invalid');
@@ -4502,7 +4502,7 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
   } = req.body;
   
     const modelNameInput = model_body || model_name_body || 'gemini-3-flash-preview';
-    const apiKey = (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "").trim();
+    const apiKey = (cleanEnvVar('GEMINI_API_KEY') || cleanEnvVar('GOOGLE_API_KEY')).trim();
     let finalModelName = 'gemini-3-flash-preview';
     
     try {
@@ -4512,20 +4512,15 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
       });
     }
 
-    const modelLower = (modelNameInput || '').toLowerCase();
-    finalModelName = 'gemini-3-flash-preview';
-
-    if (modelLower.includes('pro-image')) {
-      finalModelName = 'gemini-3-pro-image-preview';
-    } else if (modelLower.includes('pro')) {
-      finalModelName = 'gemini-3.1-pro-preview';
-    } else if (modelLower.includes('image')) {
-      finalModelName = 'gemini-2.5-flash-image';
-    } else if (modelLower.includes('flash') || modelLower === '') {
-      finalModelName = 'gemini-3-flash-preview';
-    } else if (modelNameInput) {
-      finalModelName = modelNameInput;
+    const allowedModels = new Set([
+      'gemini-3-flash-preview',
+      'gemini-3.1-pro-preview',
+      'gemini-2.5-flash-image',
+    ]);
+    if (!allowedModels.has(modelNameInput)) {
+      return res.status(400).json({ error: 'Unsupported AI model requested' });
     }
+    finalModelName = modelNameInput;
 
     console.log(`[AI Generation] Using SDK with model: ${finalModelName}`);
 
@@ -4560,30 +4555,27 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
       config: {
         ...generationConfig,
         safetySettings: [
-          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" }
         ]
       }
     });
 
-    let text = result.text;
-    
-    // Handle image-only responses
-    if (!text && result.candidates?.[0]?.content?.parts) {
-      for (const part of result.candidates[0].content.parts) {
-        if (part.inlineData) {
-          text = part.inlineData.data; // Base64 string
-          break;
-        }
-      }
+    // Image models can return a text part and an image part together. Always
+    // prioritize inline image data for image requests instead of result.text.
+    let text = finalModelName.includes('image')
+      ? extractInlineImageDataUrl(result)
+      : result.text;
+
+    if (!text && !finalModelName.includes('image')) text = result.text;
+
+    if (!text && finalModelName.includes('image')) {
+      return res.status(502).json({ error: 'AI image response did not contain image data' });
     }
 
-    res.json({
-      text: text,
-      response: result
-    });
+    res.json({ text });
 
   } catch (error: any) {
     console.error('[AI Generation] SDK Exception:', error);
@@ -4625,7 +4617,6 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
     res.status(errorStatus).json({ 
       error: errorMessage,
       message: errorMessage,
-      details: error.stack
     });
   }
 });

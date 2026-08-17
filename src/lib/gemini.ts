@@ -1,138 +1,62 @@
-import { GoogleGenAI } from "@google/genai";
-
-// Initialization according to skill guidelines
-// The platform injects GEMINI_API_KEY into process.env for the frontend
-const apiKey = (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || "").trim();
-const isKeyPlaceholder = !apiKey || apiKey === 'undefined' || apiKey === 'null' || apiKey.length < 10;
-
-// Lazy initialization of the SDK
-let genAI: any = null;
-function getGenAI() {
-  if (!genAI) {
-    genAI = new GoogleGenAI({ apiKey: isKeyPlaceholder ? 'unused-key' : apiKey });
-  }
-  return genAI;
-}
+import { apiFetch, safeJson } from '../utils/api';
+import { normalizeImageSource } from '../utils/imageSource';
 
 export const modelNames = {
   flash: 'gemini-3-flash-preview',
   pro: 'gemini-3.1-pro-preview',
   image: 'gemini-2.5-flash-image',
-};
+} as const;
 
-export async function generateContent(options: {
+type GenerateContentOptions = {
   model?: string;
   systemInstruction?: string;
-  prompt: string | any[];
+  prompt: string | unknown[];
   responseMimeType?: string;
-  responseSchema?: any;
-  tools?: any[];
-}) {
-  try {
-    if (isKeyPlaceholder) {
-      throw new Error("No valid API key in frontend");
-    }
+  responseSchema?: unknown;
+  tools?: unknown[];
+};
 
-    const modelName = options.model || modelNames.flash;
-    const ai = getGenAI();
-    
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: Array.isArray(options.prompt) ? options.prompt : [{ role: 'user', parts: [{ text: options.prompt }] }],
-      config: {
-        systemInstruction: options.systemInstruction as any,
-        responseMimeType: options.responseMimeType,
-        responseSchema: options.responseSchema,
-        safetySettings: [
-          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
-        ],
-      },
-    });
+const requestGeneration = async (body: Record<string, unknown>) => {
+  const response = await apiFetch('/api/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await safeJson(response);
 
-    return {
-      text: response.text,
-      response: response
-    };
-  } catch (error: any) {
-    console.warn("Gemini Frontend SDK failed or bypassed:", error.message);
-    
-    try {
-        console.log("Attempting proxy fallback...");
-        const { apiFetch } = await import("../utils/api");
-        const proxyResponse = await apiFetch('/api/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(options),
-        });
-
-        const data = await proxyResponse.json();
-        if (!proxyResponse.ok) {
-          throw new Error(data.error || 'AI generation failed');
-        }
-
-        return data;
-    } catch (proxyError: any) {
-        const isFrontendKeyError = error.message === "No valid API key in frontend";
-        const finalMessage = isFrontendKeyError ? (proxyError.message || error.message) : (error.message || proxyError.message);
-        throw new Error(finalMessage || 'AI generation failed');
-    }
+  if (!response.ok) {
+    throw new Error(data?.error || 'AI generation failed');
   }
-}
 
-export async function generateImage(prompt: string) {
-  try {
-    if (isKeyPlaceholder) {
-      throw new Error("No valid API key in frontend");
-    }
+  return data;
+};
 
-    const ai = getGenAI();
-    const response = await ai.models.generateContent({
-      model: modelNames.image,
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    });
+export const generateContent = async (options: GenerateContentOptions) => {
+  return requestGeneration({
+    ...options,
+    model: options.model || modelNames.flash,
+  });
+};
 
-    for (const part of response.candidates?.[0]?.content?.parts || []) {
-      if (part.inlineData) {
-        return `data:image/png;base64,${part.inlineData.data}`;
-      }
-    }
-    
-    const text = response.text;
-    if (text && text.length > 100 && !text.includes(' ')) {
-        return `data:image/png;base64,${text}`;
-    }
+export const generateImage = async (prompt: string): Promise<string | null> => {
+  const data = await requestGeneration({
+    model: modelNames.image,
+    prompt,
+  });
 
-    return null;
-  } catch (error: any) {
-    console.warn("Gemini Image SDK failed or bypassed:", error.message);
-    try {
-        const { apiFetch } = await import("../utils/api");
-        const proxyResponse = await apiFetch('/api/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: modelNames.image,
-            prompt: prompt
-          }),
-        });
-
-        if (proxyResponse.ok) {
-            const data = await proxyResponse.json();
-            return data.text;
-        }
-    } catch (e) {}
-    throw error;
+  if (typeof data?.text !== 'string' || data.text.length === 0) return null;
+  const imageSource = normalizeImageSource(data.text);
+  if (imageSource.startsWith('data:image/') || imageSource.startsWith('http')) {
+    return imageSource;
   }
-}
+
+  throw new Error('AI image response was not a valid image');
+};
 
 const gemini = {
-    models: {
-        generateContent: async (options: any) => generateContent(options)
-    }
+  models: {
+    generateContent: async (options: GenerateContentOptions) => generateContent(options),
+  },
 };
 
 export default gemini;
-

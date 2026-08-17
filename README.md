@@ -98,7 +98,7 @@ The development command runs `server.ts`; Express serves the API and delegates f
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `GEMINI_API_KEY` | Yes | Server-side AI content generation |
+| `GEMINI_API_KEY` | Yes | Server-only AI content generation; never expose this value with a `VITE_` prefix |
 | `GOOGLE_API_KEY` | No | Fallback name for the Gemini key |
 | `SUPABASE_URL` | Yes | Server-side Supabase project URL |
 | `SUPABASE_KEY` | Yes | Server Supabase key/fallback key |

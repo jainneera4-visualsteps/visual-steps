@@ -1,5 +1,6 @@
 import { apiFetch } from '../utils/api';
 import { generateImage } from '../lib/gemini';
+import { normalizeImageSource } from '../utils/imageSource';
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
@@ -359,7 +360,7 @@ export default function EditQuiz() {
                     >
                       {q.imageUrl ? (
                         <>
-                          <img src={q.imageUrl} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          <img src={normalizeImageSource(q.imageUrl)} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                             <span className="text-white text-[10px] font-bold uppercase tracking-widest">Change Image</span>
                           </div>

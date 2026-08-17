@@ -477,9 +477,9 @@ export default function CreateSocialStory() {
       } else {
         alert('Failed to generate image. Please try again.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to generate image', error);
-      alert('An error occurred while generating the image.');
+      alert(`Failed to generate image: ${error?.message || 'Unknown AI image error'}`);
     } finally {
       setIsGeneratingImages(prev => ({ ...prev, [index]: false }));
     }

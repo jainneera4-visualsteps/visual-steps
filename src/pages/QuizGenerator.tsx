@@ -1,5 +1,6 @@
 import { apiFetch } from '../utils/api';
 import { generateContent, generateImage, modelNames } from '../lib/gemini';
+import { normalizeImageSource } from '../utils/imageSource';
 import { isAuthError } from '../utils/auth';
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
@@ -537,7 +538,7 @@ export default function QuizGenerator() {
                     {q.imageUrl && (
                       <div className="lg:w-1/3 flex-shrink-0 bg-slate-50 rounded-xl overflow-hidden flex items-center justify-center border border-slate-100 shadow-inner">
                         <img 
-                          src={q.imageUrl} 
+                          src={normalizeImageSource(q.imageUrl)}
                           alt="Question illustration"
                           className="w-full h-auto object-cover aspect-video"
                           referrerPolicy="no-referrer"

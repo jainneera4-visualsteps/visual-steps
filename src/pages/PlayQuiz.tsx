@@ -1,4 +1,5 @@
 import { apiFetch } from '../utils/api';
+import { normalizeImageSource } from '../utils/imageSource';
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
@@ -481,7 +482,7 @@ export default function PlayQuiz() {
               {currentQuestion.imageUrl && (
                 <div className="flex items-center justify-center py-1.5 bg-slate-50/50 rounded-xl border border-slate-100">
                   <img 
-                    src={currentQuestion.imageUrl} 
+                    src={normalizeImageSource(currentQuestion.imageUrl)}
                     alt="Question illustration"
                     className="max-w-full max-h-[35vh] object-contain rounded-lg"
                     referrerPolicy="no-referrer"
