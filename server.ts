@@ -407,6 +407,23 @@ const authenticateToken = async (req: any, res: any, next: any) => {
 };
 
 // Helper Functions
+type SafeSmtpError = {
+  code: string;
+  command?: string;
+  responseCode?: number;
+};
+
+const getSafeSmtpError = (error: any): SafeSmtpError => ({
+  code: String(error?.code || 'SMTP_ERROR').slice(0, 80),
+  ...(error?.command ? { command: String(error.command).slice(0, 40) } : {}),
+  ...(Number.isFinite(error?.responseCode) ? { responseCode: Number(error.responseCode) } : {}),
+});
+
+const getMissingSmtpVariables = () => {
+  const requiredVariables = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM'];
+  return requiredVariables.filter((name) => !cleanEnvVar(name));
+};
+
 const getTransporter = async () => {
   const smtpUser = cleanEnvVar('SMTP_USER');
   const smtpPass = cleanEnvVar('SMTP_PASS');
@@ -421,12 +438,17 @@ const getTransporter = async () => {
       user: smtpUser,
       pass: smtpPass,
     },
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 20_000,
   });
 
   // If no credentials are provided, try to create a test account for development
-  if (!smtpUser) {
+  if (!smtpUser || !smtpPass) {
     if (process.env.NODE_ENV === 'production') {
-      console.warn('Skipping email: No SMTP_USER provided in production environment.');
+      console.warn('Skipping email: SMTP credentials are incomplete in production.', {
+        missingVariables: getMissingSmtpVariables(),
+      });
       return null;
     }
     console.log('No SMTP_USER provided. Creating Ethereal test account...');
@@ -518,18 +540,16 @@ const sendWelcomeEmail = async (email: string, name: string) => {
     }
     return true;
   } catch (error: any) {
-    console.error('Error sending welcome email:', error.message);
-    if (error.code) console.error('Error code:', error.code);
-    if (error.command) console.error('Error command:', error.command);
+    console.error('Error sending welcome email:', getSafeSmtpError(error));
     return false;
   }
 };
 
-const sendPasswordChangeEmail = async (email: string, name: string) => {
+const sendPasswordChangeEmail = async (email: string, name: string): Promise<boolean> => {
   console.log(`Attempting to send password change confirmation to: ${email}`);
   try {
     const transporter = await getTransporter();
-    if (!transporter) return;
+    if (!transporter) return false;
 
     const smtpFrom = cleanEnvVar('SMTP_FROM') || cleanEnvVar('SMTP_USER') || '"Visual Steps" <noreply@visualsteps.com>';
     
@@ -557,10 +577,44 @@ const sendPasswordChangeEmail = async (email: string, name: string) => {
     if (info.messageId && info.messageId.includes('ethereal')) {
       console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
     }
+    return true;
   } catch (error: any) {
-    console.error('Error sending password change email:', error.message);
+    console.error('Error sending password change email:', getSafeSmtpError(error));
+    return false;
   }
 };
+
+// Authenticated, non-secret SMTP diagnostic. This verifies the connection but
+// does not send an email or return credential values.
+app.get('/api/email-health', authenticateToken, async (_req: any, res) => {
+  const missingVariables = getMissingSmtpVariables();
+  if (missingVariables.length > 0) {
+    return res.status(503).json({
+      status: 'misconfigured',
+      configured: false,
+      missingVariables,
+    });
+  }
+
+  try {
+    const transporter = await getTransporter();
+    if (!transporter) {
+      return res.status(503).json({ status: 'misconfigured', configured: false });
+    }
+
+    await transporter.verify();
+    return res.json({ status: 'ready', configured: true, connection: true });
+  } catch (error: any) {
+    const smtpError = getSafeSmtpError(error);
+    console.error('SMTP health check failed:', smtpError);
+    return res.status(502).json({
+      status: 'connection_failed',
+      configured: true,
+      connection: false,
+      smtpError,
+    });
+  }
+});
 
 const moveOverdueActivities = async (supabase: any, kidId: string, kid: any, today: string, currentTime: number) => {
   let isPastEndTime = false;
@@ -1086,7 +1140,13 @@ app.post('/api/auth/resend-welcome-email', authenticateToken, async (req: any, r
 
   try {
     console.log('Resending welcome email to:', email);
-    await sendWelcomeEmail(email, name);
+    const emailSent = await sendWelcomeEmail(email, name);
+    if (!emailSent) {
+      return res.status(502).json({
+        error: 'Welcome email could not be sent',
+        details: 'Check Email Delivery in Profile for the SMTP status.',
+      });
+    }
     res.json({ message: 'Welcome email resent successfully' });
   } catch (error: any) {
     console.error('Resend welcome email error:', error);

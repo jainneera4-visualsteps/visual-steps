@@ -19,6 +19,7 @@ export default function Profile() {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
 
   const securityQuestions = [
     "What was the name of your first pet?",
@@ -93,6 +94,32 @@ export default function Profile() {
       setMessage({ type: 'error', text: err.message });
     } finally {
       setIsResending(false);
+    }
+  };
+
+  const handleCheckEmailDelivery = async () => {
+    setIsCheckingEmail(true);
+    setMessage({ type: '', text: '' });
+
+    try {
+      const res = await apiFetch('/api/email-health');
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (Array.isArray(data?.missingVariables) && data.missingVariables.length > 0) {
+          throw new Error(`Missing Vercel variables: ${data.missingVariables.join(', ')}`);
+        }
+
+        const errorCode = data?.smtpError?.code || 'SMTP_CONNECTION_FAILED';
+        const responseCode = data?.smtpError?.responseCode ? ` (${data.smtpError.responseCode})` : '';
+        throw new Error(`Email connection failed: ${errorCode}${responseCode}`);
+      }
+
+      setMessage({ type: 'success', text: 'Email delivery is configured and Gmail accepted the connection.' });
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || 'Unable to check email delivery' });
+    } finally {
+      setIsCheckingEmail(false);
     }
   };
 
@@ -207,17 +234,29 @@ export default function Profile() {
               </p>
             </div>
 
-            <div className="flex justify-between items-center pt-1.5">
-              <Button 
-                type="button" 
-                variant="outline" 
-                size="xs" 
-                className="h-7 text-[11px] border-slate-200 text-slate-500 hover:text-slate-700"
-                onClick={handleResendEmail}
-                isLoading={isResending}
-              >
-                Resend Welcome Email
-              </Button>
+            <div className="flex flex-wrap justify-between gap-2 pt-1.5">
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  className="h-7 text-[11px] border-slate-200 text-slate-500 hover:text-slate-700"
+                  onClick={handleCheckEmailDelivery}
+                  isLoading={isCheckingEmail}
+                >
+                  Check Email Delivery
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  className="h-7 text-[11px] border-slate-200 text-slate-500 hover:text-slate-700"
+                  onClick={handleResendEmail}
+                  isLoading={isResending}
+                >
+                  Resend Welcome Email
+                </Button>
+              </div>
               <Button type="submit" size="xs" className="h-7 text-sm" isLoading={isLoading}>
                 Save Changes
               </Button>
