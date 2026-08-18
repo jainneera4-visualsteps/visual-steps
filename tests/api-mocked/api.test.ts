@@ -48,14 +48,21 @@ test.after(() => {
   server.close();
 });
 
-test('public health API responds with the expected JSON shape', async () => {
-  const { response, body } = await api('/api/ping');
+test('public diagnostic APIs are not exposed', async () => {
+  const diagnosticPaths = [
+    '/api/ping',
+    '/api/test-no-auth',
+    '/api/backend-health',
+    '/api/health',
+    '/api/debug/quizzes-schema',
+    '/api/check-columns',
+  ];
 
-  assert.equal(response.status, 200);
-  assert.equal(response.headers.get('content-type')?.includes('application/json'), true);
-  assert.equal(body.status, 'ok');
-  assert.equal(body.env, 'test');
-  assert.equal(typeof body.time, 'string');
+  for (const path of diagnosticPaths) {
+    const { response, body } = await api(path);
+    assert.equal(response.status, 404, path);
+    assert.equal(body.error, 'API route not found', path);
+  }
 });
 
 test('protected APIs reject requests without authentication', async () => {

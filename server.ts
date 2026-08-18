@@ -270,13 +270,6 @@ const upload = multer({ storage: storage });
 
 app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
-app.get('/api/ping', (_req, res) => {
-  res.json({ status: 'ok', time: new Date().toISOString(), env: process.env.NODE_ENV || 'development' });
-});
-
-app.get('/api/test-no-auth', (_req, res) => {
-  res.json({ message: 'API is working without auth', timestamp: new Date().toISOString() });
-});
 app.use((req, _res, next) => {
   console.log('Request URL:', req.url);
   next();
@@ -284,27 +277,6 @@ app.use((req, _res, next) => {
 
 // Serve uploaded files statically
 app.use('/uploads', express.static(uploadDir));
-
-app.get('/api/backend-health', async (_req, res) => {
-  const url = supabaseUrl;
-  const key = supabaseKey || supabaseServiceKey;
-  const geminiKey = cleanEnvVar('GEMINI_API_KEY') || cleanEnvVar('GOOGLE_API_KEY') || '';
-  
-  const health = {
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    env: {
-      hasSupabaseUrl: !!url && !url.includes('placeholder'),
-      supabaseUrlPrefix: url ? url.substring(0, 15) : 'none',
-      hasSupabaseKey: !!key && !key.includes('placeholder'),
-      keyLength: key ? key.length : 0,
-      hasGeminiKey: !!geminiKey && !geminiKey.includes('placeholder'),
-      nodeEnv: process.env.NODE_ENV
-    }
-  };
-  
-  res.json(health);
-});
 
 // Auth Middleware
 export const isKidApiRequestAllowed = (method: string, pathName: string, kidId: string): boolean => {
@@ -758,11 +730,6 @@ const moveOverdueActivities = async (supabase: any, kidId: string, kid: any, tod
 };
 
 // API Routes
-
-// Health Check
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok' });
-});
 
 // Helper to compile dynamic family action history log for AI instruction
 async function buildConciergeSystemInstruction(req: any): Promise<string> {
@@ -2141,28 +2108,6 @@ app.post('/api/kids', authenticateToken, async (req: any, res) => {
   }
 });
 
-
-// Debug endpoint to check quizzes table schema
-app.get('/api/debug/quizzes-schema', async (req, res) => {
-  try {
-    const supabase = getAdminSupabaseClient();
-    const { data, error } = await supabase.from('quizzes').select('*').limit(1);
-    if (error) {
-      return res.status(500).json({ error: error.message, details: error.details, code: error.code });
-    }
-    const columns = data && data.length > 0 ? Object.keys(data[0]) : 'No data to infer columns';
-    res.json({ columns, sample: data?.[0] });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Temp endpoint to check columns
-app.get('/api/check-columns', async (req, res) => {
-  const supabase = createClient(supabaseUrl || '', supabaseKey || '');
-  const { data, error } = await supabase.from('messages').select('*').limit(1);
-  res.json({ data, error });
-});
 
 // Get Kids by Parent Email
 app.post('/api/kids/by-parent-email', async (req, res) => {

@@ -120,11 +120,10 @@ test('Visual Steps authenticated API integration', async t => {
       return { response, body };
     };
 
-    await t.test('health endpoint responds without authentication', async () => {
+    await t.test('public diagnostic endpoints are not exposed', async () => {
       const { response, body } = await api('/api/ping');
-      assert.equal(response.status, 200);
-      assert.equal(body.status, 'ok');
-      assert.equal(body.env, 'test');
+      assert.equal(response.status, 404);
+      assert.equal(body.error, 'API route not found');
     });
 
     await t.test('protected endpoint rejects missing and invalid tokens', async () => {
