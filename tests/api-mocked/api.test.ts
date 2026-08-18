@@ -17,20 +17,25 @@ await new Promise<void>((resolve, reject) => {
 
 const { port } = server.address() as AddressInfo;
 const baseUrl = `http://127.0.0.1:${port}`;
-const token = jwt.sign(
+const childToken = jwt.sign(
   { userId: 'mock-parent-id', kidId: 'mock-kid-id', role: 'kid' },
+  process.env.JWT_SECRET,
+  { expiresIn: '5m' },
+);
+const parentToken = jwt.sign(
+  { userId: 'mock-parent-id', email: 'parent@example.com', role: 'test-parent' },
   process.env.JWT_SECRET,
   { expiresIn: '5m' },
 );
 
 const api = async (
   path: string,
-  options: { method?: string; authenticated?: boolean; body?: unknown } = {},
+  options: { method?: string; authenticated?: boolean; child?: boolean; body?: unknown } = {},
 ) => {
   const response = await fetch(`${baseUrl}${path}`, {
     method: options.method ?? 'GET',
     headers: {
-      ...(options.authenticated ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.authenticated ? { Authorization: `Bearer ${options.child ? childToken : parentToken}` } : {}),
       ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' }),
     },
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
@@ -72,6 +77,24 @@ test('child and parent-message APIs validate input before database access', asyn
   });
   assert.equal(missingMessage.response.status, 400);
   assert.deepEqual(missingMessage.body, { error: 'Message is required' });
+});
+
+test('child sessions cannot call parent APIs or target a sibling', async () => {
+  for (const request of [
+    { path: '/api/kids', method: 'POST', body: {} },
+    { path: '/api/kids/mock-kid-id/messages', method: 'POST', body: { message: 'test' } },
+    { path: '/api/generate', method: 'POST', body: { prompt: 'test' } },
+    { path: '/api/kids/sibling-kid-id', method: 'GET' },
+  ]) {
+    const result = await api(request.path, {
+      method: request.method,
+      authenticated: true,
+      child: true,
+      body: request.body,
+    });
+    assert.equal(result.response.status, 403, `${request.method} ${request.path}`);
+    assert.deepEqual(result.body, { error: 'Parent access required' });
+  }
 });
 
 test('AI API rejects models outside the server allowlist without calling Gemini', async () => {

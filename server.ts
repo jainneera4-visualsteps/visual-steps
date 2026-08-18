@@ -274,6 +274,21 @@ app.get('/api/backend-health', async (_req, res) => {
 });
 
 // Auth Middleware
+export const isKidApiRequestAllowed = (method: string, pathName: string, kidId: string): boolean => {
+  const methodUpper = method.toUpperCase();
+  const encodedKidId = encodeURIComponent(kidId);
+  const ownKidBase = `/api/kids/${encodedKidId}`;
+
+  if (methodUpper === 'GET' && pathName === ownKidBase) return true;
+  if (methodUpper === 'GET' && pathName === `${ownKidBase}/activities`) return true;
+  if (methodUpper === 'GET' && pathName === `${ownKidBase}/reward-items`) return true;
+  if (methodUpper === 'PUT' && /^\/api\/activities\/[^/]+$/.test(pathName)) return true;
+  if (methodUpper === 'GET' && /^\/api\/quizzes\/[^/]+$/.test(pathName)) return true;
+  if (methodUpper === 'POST' && pathName === '/api/quiz-results') return true;
+
+  return false;
+};
+
 const authenticateToken = async (req: any, res: any, next: any) => {
   console.log(`[AUTH_DEBUG] Request: ${req.method} ${req.url}`);
   const authHeader = req.headers['authorization'];
@@ -289,7 +304,18 @@ const authenticateToken = async (req: any, res: any, next: any) => {
     try {
       const decoded = jwt.verify(token, JWT_SECRET) as any;
       if (decoded && decoded.role === 'kid') {
+        if (!decoded.kidId || !decoded.userId) {
+          return res.status(401).json({ error: 'Invalid child session' });
+        }
+        if (!isKidApiRequestAllowed(req.method, req.path, decoded.kidId)) {
+          return res.status(403).json({ error: 'Parent access required' });
+        }
         req.user = { id: decoded.userId, role: 'kid', kidId: decoded.kidId };
+        req.token = token;
+        return next();
+      }
+      if (process.env.NODE_ENV === 'test' && decoded?.role === 'test-parent') {
+        req.user = { id: decoded.userId, role: 'parent', email: decoded.email };
         req.token = token;
         return next();
       }
@@ -1740,6 +1766,10 @@ app.post('/api/quiz-results', authenticateToken, async (req: any, res) => {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
+  if (req.user.role === 'kid' && req.user.kidId !== kidId) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
   const { data, error } = await supabase
     .from('quiz_results')
     .insert([{ 
@@ -2474,6 +2504,9 @@ app.get('/api/kids', authenticateToken, async (req: any, res) => {
 // Get Single Kid
 app.get('/api/kids/:id', authenticateToken, async (req: any, res) => {
   const { id } = req.params;
+  if (req.user.role === 'kid' && req.user.kidId !== id) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
   console.log(`[${new Date().toISOString()}] GET /api/kids/${id} - Request by ${req.user.id}`);
   
   try {
@@ -3057,6 +3090,10 @@ app.get('/api/kids/:kidId/activities', authenticateToken, async (req: any, res) 
   const { mode, localDate, localTime } = req.query;
   const userId = req.user.id;
 
+  if (req.user.role === 'kid' && req.user.kidId !== kidId) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
   try {
     // Verify kid belongs to user
     console.log('API: Querying kid table for id:', kidId);
@@ -3544,7 +3581,7 @@ app.put('/api/kids/:kidId/confirm-reward', authenticateToken, async (req: any, r
 app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
   const { id } = req.params;
-  const { activityType, category, repeatFrequency, repeatsTill, timeOfDay, description, link, imageUrl, status, dueDate, steps, repeat_interval, repeat_unit } = req.body;
+  let { activityType, category, repeatFrequency, repeatsTill, timeOfDay, description, link, imageUrl, status, dueDate, steps, repeat_interval, repeat_unit } = req.body;
   const userId = req.user.id;
 
   try {
@@ -3580,6 +3617,30 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
       }
       activity = { ...historyActivity, status: 'completed' as any };
       isHistory = true;
+    }
+
+    if (req.user.role === 'kid' && activity.kid_id !== req.user.kidId) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    // Children may complete their own pending activity, but cannot edit its
+    // content, schedule, recurrence, ownership, or restore history records.
+    if (req.user.role === 'kid') {
+      if (isHistory || status !== 'completed') {
+        return res.status(403).json({ error: 'Children may only complete pending activities' });
+      }
+      activityType = activity.activity_type;
+      category = activity.category;
+      repeatFrequency = activity.repeat_frequency;
+      repeatsTill = activity.repeats_till;
+      timeOfDay = activity.time_of_day;
+      description = activity.description;
+      link = activity.link;
+      imageUrl = activity.image_url;
+      dueDate = activity.due_date;
+      repeat_interval = activity.repeat_interval;
+      repeat_unit = activity.repeat_unit;
+      steps = undefined;
     }
 
     if (isHistory) {
@@ -4171,6 +4232,9 @@ app.delete('/api/social-stories/:id', authenticateToken, async (req: any, res) =
 app.get('/api/kids/:kidId/reward-items', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
   const { kidId } = req.params;
+  if (req.user.role === 'kid' && req.user.kidId !== kidId) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
   const onlyActive = req.query.onlyActive === 'true';
 
   try {
@@ -4933,6 +4997,13 @@ app.get('/api/quizzes/:id', authenticateToken, async (req: any, res) => {
       .single();
 
     if (error || !quiz) return res.status(404).json({ error: 'Quiz not found' });
+    if (req.user.role === 'kid') {
+      const belongsToParent = quiz.user_id === req.user.id;
+      const assignedToChild = !quiz.kid_id || quiz.kid_id === req.user.kidId;
+      if (!belongsToParent || !assignedToChild) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+    }
     res.json({ quiz });
   } catch (error) {
     console.error(error);
