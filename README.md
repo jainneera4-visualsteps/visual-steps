@@ -124,6 +124,7 @@ For the Vercel Production environment, set `APP_URL` to `https://visual-steps-si
 | `npm run test:api` | Run authenticated HTTP API tests against the disposable Supabase project |
 | `npm run test:api:mocked` | Run local HTTP API tests with mocked external AI calls and no database writes |
 | `npm run test:browser:ai` | Run the quiz and AI-image browser flow with mocked authentication and AI responses |
+| `npm run test:gemini:smoke` | Run the optional, explicitly enabled one-request Gemini text smoke test |
 | `npm run test:browser` | Run headless Phase 1 Playwright browser tests with mocked API responses |
 | `npm run test:browser:mobile` | Run PWA and responsive-layout tests using iPhone and iPad WebKit emulation |
 | `npm run test:browser:ui` | Open Playwright's interactive browser-test runner |
@@ -148,6 +149,16 @@ Run `npm run test:integration` for direct database/RLS coverage or `npm run test
 Run `npm run test:api:mocked` for the safe default API checks. This suite starts the real Express application on a temporary local port, uses in-memory AI responses, and never writes to Supabase or calls Gemini. It is included in `npm run test:all`.
 
 Phase 1 browser tests do not require Supabase. Run `npm run test:browser` to start an isolated Vite server and exercise public navigation, login and signup forms, protected-route redirects, mocked kid lookup and password recovery, responsive layout, and browser console health. Playwright stores failure screenshots, videos, and traces in ignored local report directories.
+
+### Optional Gemini smoke test
+
+The real Gemini smoke test is excluded from `npm test` and `npm run test:all`. It makes exactly one short text-generation request, does not generate an image, and never prints the API key or full model response. With `GEMINI_API_KEY` configured in `.env`, run it only when you intentionally want to verify the live Gemini connection:
+
+```bash
+RUN_GEMINI_SMOKE_TEST=true npm run test:gemini:smoke
+```
+
+Without `RUN_GEMINI_SMOKE_TEST=true`, the test is safely skipped.
 
 ## Install on iPhone or iPad
 

@@ -19,6 +19,7 @@
     "test:api:mocked": "tsx --test tests/api-mocked/*.test.ts",
     "test:browser": "playwright test",
     "test:browser:ai": "playwright test tests/browser/ai-mocked.spec.ts --project=desktop-chromium",
+    "test:gemini:smoke": "tsx --test tests/smoke/gemini.test.ts",
     "test:browser:mobile": "playwright test tests/browser/pwa-mobile.spec.ts --project=iphone-webkit --project=ipad-webkit",
     "test:browser:ui": "playwright test --ui",
     "test:all": "npm run lint && npm test && npm run test:api:mocked && npm run build"
