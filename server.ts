@@ -14,15 +14,42 @@ import multer from 'multer';
 import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
 import path from 'path';
-import {
-  MAX_UPLOAD_BYTES,
-  UPLOAD_BUCKET,
-  detectImageType,
-  getImageExtension,
-  isSupportedImageMimeType,
-} from './src/utils/uploadSecurity';
 
 dotenv.config();
+
+// Keep the Vercel function entry self-contained. Local imports from src/ can
+// be omitted by Vercel's serverless file tracer even though esbuild succeeds.
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+const UPLOAD_BUCKET = 'visual-steps-uploads';
+type SupportedUploadImageType = 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
+const uploadExtensionByType: Record<SupportedUploadImageType, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+};
+const isSupportedImageMimeType = (mimeType: string): mimeType is SupportedUploadImageType => (
+  Object.hasOwn(uploadExtensionByType, mimeType)
+);
+const getImageExtension = (mimeType: SupportedUploadImageType): string => uploadExtensionByType[mimeType];
+const detectImageType = (bytes: Uint8Array): SupportedUploadImageType | null => {
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg';
+  if (
+    bytes.length >= 8
+    && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47
+    && bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a
+  ) return 'image/png';
+  if (bytes.length >= 6) {
+    const signature = String.fromCharCode(...bytes.slice(0, 6));
+    if (signature === 'GIF87a' || signature === 'GIF89a') return 'image/gif';
+  }
+  if (bytes.length >= 12) {
+    const riff = String.fromCharCode(...bytes.slice(0, 4));
+    const webp = String.fromCharCode(...bytes.slice(8, 12));
+    if (riff === 'RIFF' && webp === 'WEBP') return 'image/webp';
+  }
+  return null;
+};
 
 type ActivityCompletionRecord = {
   status?: string | null;
