@@ -123,6 +123,7 @@ For the Vercel Production environment, set `APP_URL` to `https://visual-steps-si
 | `npm run test:integration` | Run guarded Supabase integration tests against a disposable test project |
 | `npm run test:api` | Run authenticated HTTP API tests against the disposable Supabase project |
 | `npm run test:api:mocked` | Run local HTTP API tests with mocked external AI calls and no database writes |
+| `npm run test:browser:ai` | Run the quiz and AI-image browser flow with mocked authentication and AI responses |
 | `npm run test:browser` | Run headless Phase 1 Playwright browser tests with mocked API responses |
 | `npm run test:browser:mobile` | Run PWA and responsive-layout tests using iPhone and iPad WebKit emulation |
 | `npm run test:browser:ui` | Open Playwright's interactive browser-test runner |
