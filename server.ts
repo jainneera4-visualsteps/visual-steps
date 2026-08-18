@@ -14,9 +14,41 @@ import multer from 'multer';
 import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
 import path from 'path';
-import { countActivitiesCompletedOnDate, getDateInTimeZone } from './src/utils/activityCompletion';
 
 dotenv.config();
+
+type ActivityCompletionRecord = {
+  status?: string | null;
+  completion_date?: string | null;
+};
+
+const getActivityDateInTimeZone = (value: string, timeZone?: string | null): string | null => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: timeZone || 'UTC',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(date);
+    const part = (type: string) => parts.find(item => item.type === type)?.value || '';
+    return `${part('year')}-${part('month')}-${part('day')}`;
+  } catch {
+    return null;
+  }
+};
+
+const countAssignedActivitiesCompletedOnDate = (
+  activities: ActivityCompletionRecord[],
+  targetDate: string,
+  timeZone?: string | null,
+): number => activities.filter(activity => (
+  activity.status === 'completed'
+  && Boolean(activity.completion_date)
+  && getActivityDateInTimeZone(activity.completion_date as string, timeZone) === targetDate
+)).length;
 
 interface AuthenticationUserUpdates {
   email?: string;
@@ -3199,11 +3231,11 @@ app.get('/api/kids/:kidId/activities', authenticateToken, async (req: any, res) 
     // Each repeated/reassigned occurrence is a separate activity row. Count
     // completion timestamps on those assignments instead of inferring them
     // from created_at or report history.
-    const completionTargetDate = getDateInTimeZone(
+    const completionTargetDate = getActivityDateInTimeZone(
       new Date().toISOString(),
       kid.timezone || 'UTC',
     ) || today;
-    const completedTodayCount = countActivitiesCompletedOnDate(
+    const completedTodayCount = countAssignedActivitiesCompletedOnDate(
       activities || [],
       completionTargetDate,
       kid.timezone || 'UTC',
