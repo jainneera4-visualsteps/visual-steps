@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { clearAuthSession, isAuthError } from './auth';
+import { DEFAULT_API_RETRIES, getApiRetryDelayMs, isRetryableApiMethod } from './apiRetry';
 
 export const safeJson = async (response: Response) => {
   const text = await response.text();
@@ -50,8 +51,9 @@ export const safeJson = async (response: Response) => {
 export const apiFetch = async (
   input: RequestInfo | URL,
   init?: RequestInit,
-  retries = 30,
+  retries = DEFAULT_API_RETRIES,
   retryAuthentication = true,
+  retryAttempt = 0,
 ): Promise<Response> => {
   let token = null;
   let isKidSession = false;
@@ -94,6 +96,8 @@ export const apiFetch = async (
   }
 
   const url = input instanceof Request ? input.url : input.toString();
+  const method = (init?.method || (input instanceof Request ? input.method : 'GET')).toUpperCase();
+  const canRetryRequest = isRetryableApiMethod(method);
 
   if (token && typeof token === 'string' && token !== 'undefined' && token !== 'null' && (url.includes('/api/') || url.startsWith('/api/'))) {
     try {
@@ -120,12 +124,13 @@ export const apiFetch = async (
 
     // Check if we were redirected to the cookie check page
     if (response.url.includes('__cookie_check.html') || (contentType && contentType.includes('text/html') && response.status === 200 && (await response.clone().text().catch(() => '')).includes('__cookie_check.html'))) {
-      console.warn('Redirected to cookie check page, retrying...');
-      if (retries > 0) {
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        return apiFetch(input, init, retries - 1, retryAuthentication);
+      if (canRetryRequest && retries > 0) {
+        const delay = getApiRetryDelayMs(retryAttempt);
+        console.warn(`Redirected to cookie check page, retrying in ${delay}ms... (${retries} left)`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return apiFetch(input, init, retries - 1, retryAuthentication, retryAttempt + 1);
       }
-      throw new Error('Redirected to cookie check page and retries exhausted. Please refresh the page.');
+      throw new Error('Redirected to cookie check page. Please refresh the page.');
     }
 
     // Check for AI Studio fallback page
@@ -142,14 +147,13 @@ export const apiFetch = async (
     }
 
     const retriableStatuses = [408, 429, 502, 503, 504];
-    if (retriableStatuses.includes(response.status) && retries > 0) {
+    if (canRetryRequest && retriableStatuses.includes(response.status) && retries > 0) {
       const statusText = `Server error (${response.status})`;
-      const attemptNum = 30 - retries + 1;
-      const backoff = Math.min(10000, attemptNum * 1000); // 1s, 2s, 3s... up to 10s
+      const backoff = getApiRetryDelayMs(retryAttempt);
       
       console.warn(`${statusText} for ${url}, retrying in ${backoff}ms... (${retries} left)`);
       await new Promise(resolve => setTimeout(resolve, backoff));
-      return apiFetch(input, init, retries - 1, retryAuthentication);
+      return apiFetch(input, init, retries - 1, retryAuthentication, retryAttempt + 1);
     }
 
     if (response.status === 401 || response.status === 403 || response.status === 500) {
@@ -172,7 +176,7 @@ export const apiFetch = async (
               const { data: refreshedData, error: refreshError } = await supabase.auth.refreshSession();
               if (!refreshError && refreshedData.session) {
                 console.warn(`Authentication was rejected for ${url}; refreshed the session and retrying once.`);
-                return apiFetch(input, init, retries, false);
+                return apiFetch(input, init, retries, false, retryAttempt);
               }
             }
             // Do not destroy the browser session or force a page reload here.
@@ -198,12 +202,13 @@ export const apiFetch = async (
     }
     return response;
   } catch (error) {
-    if (retries > 0) {
-      console.warn(`apiFetch failed for ${url}, retrying... (${retries} left)`, error);
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      return apiFetch(input, init, retries - 1, retryAuthentication);
+    if (canRetryRequest && retries > 0) {
+      const backoff = getApiRetryDelayMs(retryAttempt);
+      console.warn(`apiFetch failed for ${url}, retrying in ${backoff}ms... (${retries} left)`, error);
+      await new Promise(resolve => setTimeout(resolve, backoff));
+      return apiFetch(input, init, retries - 1, retryAuthentication, retryAttempt + 1);
     }
-    console.error(`apiFetch network error for ${url} after exhausted retries:`, error);
+    console.error(`apiFetch network error for ${url}:`, error);
     const networkMessage = error instanceof Error ? error.message : String(error);
     const networkError = new Error(`Network failure: ${networkMessage} (URL: ${url}). Please check your connection.`);
     

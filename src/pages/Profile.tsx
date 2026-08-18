@@ -88,7 +88,7 @@ export default function Profile() {
 
     try {
       // SMTP failures are diagnostic results, not transient API failures. Do
-      // not apply the shared 30-attempt retry policy here.
+      // Do not retry this diagnostic request; it should report its result promptly.
       const res = await apiFetch('/api/email-health', undefined, 0);
       const data = await res.json();
 
