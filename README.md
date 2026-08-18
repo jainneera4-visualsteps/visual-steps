@@ -94,6 +94,16 @@ vercel.json          Vercel build and rewrite configuration
 
 The development command runs `server.ts`; Express serves the API and delegates frontend development assets to Vite.
 
+### Password recovery configuration
+
+Parent password recovery uses Supabase Auth email links instead of security questions. In Supabase, open **Authentication → URL Configuration** and configure:
+
+- Site URL: your production Visual Steps URL.
+- Redirect URL: `https://visual-steps-six.vercel.app/forgot-password?mode=recovery`.
+- Local redirect URL: `http://localhost:3000/forgot-password?mode=recovery` while testing locally.
+
+Supabase sends the reset-link email, so configure Supabase Auth SMTP for reliable production delivery. The application SMTP variables continue to send Visual Steps welcome and password-change confirmation messages.
+
 ## Environment variables
 
 | Variable | Required | Purpose |

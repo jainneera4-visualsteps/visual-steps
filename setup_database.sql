@@ -23,8 +23,6 @@ CREATE TABLE public.users (
     email TEXT UNIQUE NOT NULL,
     name TEXT,
     password_hash TEXT,
-    secret_question TEXT,
-    secret_answer_hash TEXT,
     max_parent_message_days INTEGER DEFAULT 20,
     max_parent_messages INTEGER DEFAULT 20,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL

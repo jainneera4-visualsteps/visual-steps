@@ -88,17 +88,16 @@ test('signup and forgot-password pages support public form flows', async ({ page
   await expect(page.getByPlaceholder('John Doe')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Sign Up' })).toBeVisible();
 
-  await page.goto('/forgot-password');
-  await page.route('**/api/auth/get-secret-question', route => route.fulfill({
+  await page.route('**/auth/v1/recover*', route => route.fulfill({
     status: 200,
     contentType: 'application/json',
-    body: JSON.stringify({ secretQuestion: 'What is your favorite book?' }),
+    body: JSON.stringify({}),
   }));
+  await page.goto('/forgot-password');
   await expect(page).toHaveTitle('Forgot Password | Visual Steps');
   await page.getByPlaceholder('name@example.com').fill('parent@example.com');
-  await page.getByRole('button', { name: 'Next' }).click();
-  await expect(page.getByText('What is your favorite book?')).toBeVisible();
-  await expect(page.getByPlaceholder('Your answer')).toBeVisible();
+  await page.getByRole('button', { name: 'Send Reset Link' }).click();
+  await expect(page.getByText(/If an account exists for parent@example.com/)).toBeVisible();
 });
 
 test('signup with email confirmation displays the correct success state', async ({ page }) => {
@@ -126,8 +125,6 @@ test('signup with email confirmation displays the correct success state', async 
   await page.getByPlaceholder('John Doe').fill('New Parent');
   await page.getByPlaceholder('name@example.com').fill('new-parent@example.com');
   await form.locator('input[type="password"]').fill('secure-password');
-  await form.locator('select').selectOption('What is your favorite book?');
-  await page.getByPlaceholder('Your answer').fill('A favorite book');
   await form.getByRole('button', { name: 'Sign Up' }).click();
 
   await expect(page.getByText('Account created!')).toBeVisible();

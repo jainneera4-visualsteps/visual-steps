@@ -7,7 +7,6 @@ interface User {
   id: string;
   email: string;
   name: string;
-  secret_question?: string;
   max_parent_message_days?: number;
   max_parent_messages?: number;
 }

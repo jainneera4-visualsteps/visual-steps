@@ -72,6 +72,14 @@ test('protected APIs reject requests without authentication', async () => {
   assert.deepEqual(body, { error: 'Unauthorized' });
 });
 
+test('legacy public security-question recovery APIs are removed', async () => {
+  for (const path of ['/api/auth/get-secret-question', '/api/auth/reset-password']) {
+    const { response, body } = await api(path, { method: 'POST', body: {} });
+    assert.equal(response.status, 404, path);
+    assert.equal(body.error, 'API route not found', path);
+  }
+});
+
 test('child and parent-message APIs validate input before database access', async () => {
   const missingName = await api('/api/kids', {
     method: 'POST', authenticated: true, body: {},

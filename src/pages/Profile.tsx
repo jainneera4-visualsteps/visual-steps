@@ -13,29 +13,16 @@ export default function Profile() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [secretQuestion, setSecretQuestion] = useState('');
-  const [secretAnswer, setSecretAnswer] = useState('');
   const [maxParentMessageDays, setMaxParentMessageDays] = useState('20');
   const [message, setMessage] = useState({ type: '', text: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
 
-  const securityQuestions = [
-    "What was the name of your first pet?",
-    "What is your mother's maiden name?",
-    "What was the name of your elementary school?",
-    "In what city were you born?",
-    "What was your first car?",
-    "What is your favorite book?",
-    "What is the name of the street you grew up on?"
-  ];
-
   useEffect(() => {
     if (user) {
       setName(user.name);
       setEmail(user.email);
-      setSecretQuestion(user.secret_question || '');
       setMaxParentMessageDays(String(user.max_parent_message_days || user.max_parent_messages || 20));
     }
   }, [user]);
@@ -49,7 +36,7 @@ export default function Profile() {
       const res = await apiFetch('/api/user/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, newPassword, secretQuestion, secretAnswer, maxParentMessageDays }),
+        body: JSON.stringify({ name, email, newPassword, maxParentMessageDays }),
       });
 
       const data = await res.json();
@@ -61,7 +48,6 @@ export default function Profile() {
       if (data?.profile) {
         setName(data.profile.name || '');
         setEmail(data.profile.email || '');
-        setSecretQuestion(data.profile.secret_question || '');
         setMaxParentMessageDays(String(data.profile.max_parent_message_days || data.profile.max_parent_messages || 20));
       }
 
@@ -69,7 +55,6 @@ export default function Profile() {
 
       setMessage({ type: 'success', text: 'Profile updated successfully' });
       setNewPassword(''); // Clear password field
-      setSecretAnswer(''); // Clear answer field
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
     } finally {
@@ -168,44 +153,6 @@ export default function Profile() {
                 onChange={(e) => setEmail(e.target.value)}
                 className="h-7 text-sm"
               />
-            </div>
-
-            <div className="pt-1.5 border-t border-slate-100 space-y-2">
-              <h3 className="text-[12px] font-bold uppercase tracking-wider text-slate-400">Security Question</h3>
-              <div className="grid gap-2.5 md:grid-cols-2">
-                <div className="space-y-0.5">
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Select a Question</label>
-                  <select
-                    className="flex h-7 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
-                    value={securityQuestions.includes(secretQuestion) ? secretQuestion : (secretQuestion ? 'custom' : '')}
-                    onChange={(e) => setSecretQuestion(e.target.value)}
-                  >
-                    <option value="" disabled>Select a security question</option>
-                    {securityQuestions.map(q => <option key={q} value={q}>{q}</option>)}
-                    <option value="custom">-- Write my own question --</option>
-                  </select>
-                </div>
-
-                <Input
-                  label="Answer"
-                  type="text"
-                  placeholder="Keep current answer"
-                  value={secretAnswer}
-                  onChange={(e) => setSecretAnswer(e.target.value)}
-                  className="h-7 text-sm"
-                />
-              </div>
-
-              {(secretQuestion === 'custom' || (secretQuestion && !securityQuestions.includes(secretQuestion))) && (
-                <Input
-                  label="Your Custom Question"
-                  type="text"
-                  placeholder="Enter your own security question"
-                  value={secretQuestion === 'custom' ? '' : secretQuestion}
-                  onChange={(e) => setSecretQuestion(e.target.value)}
-                  className="h-7 text-sm"
-                />
-              )}
             </div>
 
             <div className="pt-1.5 border-t border-slate-100">

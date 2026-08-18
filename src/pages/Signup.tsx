@@ -13,8 +13,6 @@ export default function Signup() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [secretQuestion, setSecretQuestion] = useState('');
-  const [secretAnswer, setSecretAnswer] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [welcomeEmailSent, setWelcomeEmailSent] = useState<boolean | null>(null);
@@ -64,8 +62,6 @@ export default function Signup() {
             email: normalizedEmail,
             name,
             password,
-            secretQuestion,
-            secretAnswer,
           }),
         });
 
@@ -184,54 +180,6 @@ export default function Signup() {
                 </button>
               }
             />
-            
-            <div className="space-y-1.5 pt-1.5 border-t border-slate-100">
-              <p className="text-[12px] font-bold text-slate-400 uppercase tracking-wider">Security Question (for recovery)</p>
-              <div className="grid grid-cols-1 gap-2">
-                <div className="space-y-0.5">
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Select a Question</label>
-                  <select
-                    className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-transparent"
-                    value={secretQuestion}
-                    onChange={(e) => setSecretQuestion(e.target.value)}
-                    required
-                  >
-                    <option value="" disabled>Select a security question</option>
-                    <option value="What was the name of your first pet?">What was the name of your first pet?</option>
-                    <option value="What is your mother's maiden name?">What is your mother's maiden name?</option>
-                    <option value="What was the name of your elementary school?">What was the name of your elementary school?</option>
-                    <option value="In what city were you born?">In what city were you born?</option>
-                    <option value="What was your first car?">What was your first car?</option>
-                    <option value="What is your favorite book?">What is your favorite book?</option>
-                    <option value="What is the name of the street you grew up on?">What is the name of the street you grew up on?</option>
-                    <option value="custom">-- Write my own question --</option>
-                  </select>
-                </div>
-
-                {secretQuestion === 'custom' || (secretQuestion && !["What was the name of your first pet?", "What is your mother's maiden name?", "What was the name of your elementary school?", "In what city were you born?", "What was your first car?", "What is your favorite book?", "What is the name of the street you grew up on?"].includes(secretQuestion)) ? (
-                  <Input
-                    label="Your Custom Question"
-                    type="text"
-                    placeholder="Enter your own security question"
-                    value={secretQuestion === 'custom' ? '' : secretQuestion}
-                    onChange={(e) => setSecretQuestion(e.target.value)}
-                    required
-                    className="h-8 text-sm"
-                  />
-                ) : null}
-
-                <Input
-                  label="Answer"
-                  type="text"
-                  placeholder="Your answer"
-                  value={secretAnswer}
-                  onChange={(e) => setSecretAnswer(e.target.value)}
-                  required
-                  className="h-8 text-sm"
-                />
-              </div>
-            </div>
-
             <Button type="submit" size="xs" className="w-full mt-1 h-8 text-sm" isLoading={isLoading}>
               Sign Up
             </Button>

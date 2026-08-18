@@ -137,6 +137,7 @@ Visual Steps provides a shared system in which a parent can prepare and supervis
 ### Privacy and security
 
 - Use Supabase Auth for parent identity and strong, deployment-specific secrets for child JWTs.
+- Recover parent passwords through single-use Supabase email links; do not use knowledge-based security questions.
 - Keep service-role, Gemini, JWT, and SMTP credentials on the server.
 - Enforce ownership in the API and row-level security in Supabase.
 - Avoid placing sensitive child information in logs, generated public URLs, or browser-exposed environment variables.

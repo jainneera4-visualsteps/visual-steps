@@ -591,14 +591,14 @@ const sendPasswordChangeEmail = async (email: string, name: string): Promise<boo
       from: smtpFrom,
       to: email,
       subject: 'Security Alert: Your Visual Steps Password Was Changed',
-      text: `Hello ${name || 'User'},\n\nThis is a confirmation that the password for your Visual Steps account (${email}) has been successfully changed.\n\nIf you did not perform this action, please contact our support team immediately or reset your password using your security question.\n\nBest regards,\nThe Visual Steps Team`,
+      text: `Hello ${name || 'User'},\n\nThis is a confirmation that the password for your Visual Steps account (${email}) has been successfully changed.\n\nIf you did not perform this action, please request a secure password reset link from the Visual Steps sign-in page and contact our support team immediately.\n\nBest regards,\nThe Visual Steps Team`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
           <h2 style="color: #d9534f;">Security Alert: Password Changed</h2>
           <p>Hello ${name || 'User'},</p>
           <p>This is a confirmation that the password for your Visual Steps account (<strong>${email}</strong>) has been successfully changed.</p>
           <p style="background-color: #fcf8e3; padding: 15px; border: 1px solid #faebcc; border-radius: 4px; color: #8a6d3b;">
-            <strong>Important:</strong> If you did not perform this action, please contact our support team immediately or reset your password using your security question.
+            <strong>Important:</strong> If you did not perform this action, request a secure password reset link from the Visual Steps sign-in page and contact our support team immediately.
           </p>
           <br/>
           <p>Best regards,</p>
@@ -1103,17 +1103,16 @@ app.post('/api/upload', authenticateToken, (req: any, res) => {
 
 // Create Profile
 app.post('/api/auth/create-profile', async (req: any, res) => {
-  const { id, email, name, password, secretQuestion, secretAnswer } = req.body;
+  const { id, email, name, password } = req.body;
   const normalizedEmail = String(email || '').trim().toLowerCase();
-  console.log('create-profile: request body:', { id, email, name, hasPassword: !!password, secretQuestion, hasAnswer: !!secretAnswer });
+  console.log('create-profile: request body:', { id, email, name, hasPassword: !!password });
   
-  if (!id || !normalizedEmail || !secretQuestion || !secretAnswer) {
+  if (!id || !normalizedEmail) {
     console.log('create-profile: missing fields');
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
   try {
-    const hashedAnswer = await bcrypt.hash(secretAnswer.toLowerCase().trim(), 10);
     const hashedPassword = password ? await bcrypt.hash(password, 10) : null;
 
     // Use admin client to bypass RLS during profile creation
@@ -1127,9 +1126,7 @@ app.post('/api/auth/create-profile', async (req: any, res) => {
           id, 
           email: normalizedEmail,
           name, 
-          password_hash: hashedPassword,
-          secret_question: secretQuestion, 
-          secret_answer_hash: hashedAnswer 
+          password_hash: hashedPassword
         }
       ]);
 
@@ -1182,79 +1179,11 @@ app.post('/api/auth/resend-welcome-email', authenticateToken, async (req: any, r
   }
 });
 
-// Kid Management Routes
-
-// Get Secret Question for Password Reset
-app.post('/api/auth/get-secret-question', async (req, res) => {
-  const supabase = getAdminSupabaseClient();
-  const { email } = req.body;
-  const normalizedEmail = String(email || '').trim().toLowerCase();
-  const { data: user, error } = await supabase
-    .from('users')
-    .select('secret_question')
-    .eq('email', normalizedEmail)
-    .single();
-  
-  if (error || !user) return res.status(404).json({ error: 'User not found' });
-  res.json({ secretQuestion: user.secret_question });
-});
-
-// Verify Secret Answer and Reset Password
-app.post('/api/auth/reset-password', async (req, res) => {
-  const supabase = getAdminSupabaseClient();
-  const { email, secretAnswer, newPassword } = req.body;
-  const normalizedEmail = String(email || '').trim().toLowerCase();
-
-  if (!normalizedEmail || !secretAnswer || !newPassword) {
-    return res.status(400).json({ error: 'Email, security answer, and new password are required' });
-  }
-
-  if (String(newPassword).length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters' });
-  }
-
-  try {
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', normalizedEmail)
-      .single();
-
-    if (error || !user) return res.status(404).json({ error: 'User not found' });
-
-    const isAnswerValid = await bcrypt.compare(secretAnswer.toLowerCase().trim(), user.secret_answer_hash);
-    if (!isAnswerValid) return res.status(401).json({ error: 'Incorrect answer to secret question' });
-
-    const authUpdateError = await updateAuthenticationUser(supabase, user.id, {
-      email: normalizedEmail,
-      password: newPassword,
-    });
-
-    if (authUpdateError) {
-      console.error('Supabase Auth password reset failed:', authUpdateError);
-      return res.status(500).json({ error: 'Failed to update authentication password' });
-    }
-
-    // Keep the legacy profile hash synchronized. Authentication itself uses auth.users.
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    const { error: updateError } = await supabase
-      .from('users')
-      .update({ password_hash: hashedPassword })
-      .eq('id', user.id);
-
-    if (updateError) {
-      console.warn('Authentication password changed, but legacy profile hash synchronization failed:', updateError);
-    }
-
-    // Complete the SMTP attempt before returning so it also works reliably in
-    // serverless deployments.
-    await sendPasswordChangeEmail(normalizedEmail, user.name);
-
-    res.json({ message: 'Password reset successfully' });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
+// Send the existing Visual Steps confirmation after Supabase has securely
+// completed an email-link password recovery.
+app.post('/api/auth/password-change-confirmation', authenticateToken, async (req: any, res) => {
+  const emailSent = await sendPasswordChangeEmail(req.user.email, req.user.name);
+  res.json({ emailSent });
 });
 
 const isMissingColumnError = (error: any) => {
@@ -1266,9 +1195,9 @@ const isMissingColumnError = (error: any) => {
 
 const fetchUserProfileWithRetentionFallback = async (supabase: any, userId: string) => {
   const projections = [
-    'id, name, email, secret_question, max_parent_message_days',
-    'id, name, email, secret_question, max_parent_messages',
-    'id, name, email, secret_question',
+    'id, name, email, max_parent_message_days',
+    'id, name, email, max_parent_messages',
+    'id, name, email',
   ];
 
   let lastMissingColumnError: any = null;
@@ -1328,7 +1257,7 @@ app.get('/api/user/profile', authenticateToken, async (req: any, res) => {
 
 app.put('/api/user/profile', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
-  const { name, email, newPassword, secretQuestion, secretAnswer, maxParentMessageDays, maxParentMessages } = req.body;
+  const { name, email, newPassword, maxParentMessageDays, maxParentMessages } = req.body;
   const userId = req.user.id;
 
   try {
@@ -1336,14 +1265,6 @@ app.put('/api/user/profile', authenticateToken, async (req: any, res) => {
 
     if (name) baseUpdates.name = name;
     if (email) baseUpdates.email = email;
-
-    if (secretQuestion) {
-      baseUpdates.secret_question = secretQuestion;
-    }
-
-    if (secretAnswer) {
-      baseUpdates.secret_answer_hash = await bcrypt.hash(secretAnswer.toLowerCase().trim(), 10);
-    }
 
     const incomingRetentionDays = maxParentMessageDays !== undefined ? maxParentMessageDays : maxParentMessages;
     let parsedRetentionDays: number | undefined;
@@ -1384,71 +1305,9 @@ app.put('/api/user/profile', authenticateToken, async (req: any, res) => {
       return res.json({ message: 'No changes made' });
     }
 
-    const basePayloadVariants: any[] = [];
-    const withAllOptional = { ...baseUpdates };
-    basePayloadVariants.push(withAllOptional);
-
-    if ('secret_answer_hash' in withAllOptional) {
-      const withoutSecretAnswer = { ...withAllOptional };
-      delete withoutSecretAnswer.secret_answer_hash;
-      basePayloadVariants.push(withoutSecretAnswer);
-    }
-
-    if ('secret_question' in withAllOptional) {
-      const withoutSecretQuestion = { ...withAllOptional };
-      delete withoutSecretQuestion.secret_question;
-      basePayloadVariants.push(withoutSecretQuestion);
-    }
-
-    if ('secret_question' in withAllOptional && 'secret_answer_hash' in withAllOptional) {
-      const withoutSecurityFields = { ...withAllOptional };
-      delete withoutSecurityFields.secret_question;
-      delete withoutSecurityFields.secret_answer_hash;
-      basePayloadVariants.push(withoutSecurityFields);
-    }
-
-    // De-duplicate payloads created by variant expansion.
-    const seenPayloads = new Set<string>();
-    const dedupedBaseUpdates = basePayloadVariants.filter((payload) => {
-      const key = JSON.stringify(Object.keys(payload).sort().reduce((acc: any, k) => {
-        acc[k] = payload[k];
-        return acc;
-      }, {}));
-      if (seenPayloads.has(key)) return false;
-      seenPayloads.add(key);
-      return true;
-    });
-
     const attemptBaseProfileUpdate = async (client: any) => {
-      let lastError: any = null;
-
-      for (const updatePayload of dedupedBaseUpdates) {
-        if (Object.keys(updatePayload).length === 0) {
-          continue;
-        }
-
-        const { error } = await client
-          .from('users')
-          .update(updatePayload)
-          .eq('id', userId);
-
-        if (!error) {
-          return true;
-        }
-
-        if (isMissingColumnError(error)) {
-          lastError = error;
-          continue;
-        }
-
-        throw error;
-      }
-
-      if (lastError) {
-        throw lastError;
-      }
-
-      throw new Error('Failed to update profile');
+      const { error } = await client.from('users').update(baseUpdates).eq('id', userId);
+      if (error) throw error;
     };
 
     const attemptRetentionUpdate = async (client: any) => {
@@ -1512,7 +1371,6 @@ app.put('/api/user/profile', authenticateToken, async (req: any, res) => {
           id: userId,
           name: name ?? req.user?.name,
           email: email ?? req.user?.email,
-          secret_question: secretQuestion ?? null,
           max_parent_message_days: parsedRetentionDays,
         };
       }
