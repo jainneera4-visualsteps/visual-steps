@@ -8,6 +8,7 @@ import { Card, CardContent } from '../components/Card';
 import { ActivityDetailModal } from '../components/ActivityDetailModal';
 import { getZonedTime, formatInTimezone, convertDateToTimeZone } from '../utils/dateUtils';
 import { SocialStoryModal } from '../components/SocialStoryModal';
+import { countActivitiesCompletedOnDate } from '../utils/activityCompletion';
 
 interface ActivityStep {
   id?: number;
@@ -87,6 +88,7 @@ export default function KidsDashboard() {
   const [activeTab, setActiveTab] = useState<'todo' | 'completed' | 'rewards'>('todo');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [timezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
+  const [completedTodayCount, setCompletedTodayCount] = useState(0);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -104,14 +106,6 @@ export default function KidsDashboard() {
   }, [kid]);
 
   const [today, setToday] = useState<string | null>(null);
-  const completedTodayCount = activities.filter(a => {
-    if (a.status !== 'completed') return false;
-    const effectiveToday = today || getZonedTime(kid?.timezone).isoDate;
-    const dateToUse = a.completion_date || a.created_at;
-    if (!dateToUse) return a.due_date === effectiveToday;
-    return getZonedTime(kid?.timezone, new Date(dateToUse)).isoDate === effectiveToday;
-  }).length;
-  
   const rewardIcon = kid?.reward_type ? (rewardImages[kid.reward_type] || rewardImages['Penny']) : rewardImages['Penny'];
   
   const themes: Record<string, any> = {
@@ -568,17 +562,25 @@ export default function KidsDashboard() {
     // Load from cache first
     const cachedKid = safeLocalStorageGet(`kid_${kidId}`);
     const cachedActivities = safeLocalStorageGet(`activities_${kidId}`);
+    let cachedKidData: Kid | null = null;
     
     if (cachedKid) {
       try {
-        setKid(JSON.parse(cachedKid));
+        cachedKidData = JSON.parse(cachedKid);
+        setKid(cachedKidData);
       } catch (error) {
         console.warn('KidsDashboard: Failed to parse cached kid data', error, cachedKid);
       }
     }
     if (cachedActivities) {
       try {
-        setActivities(JSON.parse(cachedActivities));
+        const parsedActivities = JSON.parse(cachedActivities);
+        setActivities(parsedActivities);
+        setCompletedTodayCount(countActivitiesCompletedOnDate(
+          parsedActivities,
+          getZonedTime(cachedKidData?.timezone).isoDate,
+          cachedKidData?.timezone,
+        ));
       } catch (error) {
         console.warn('KidsDashboard: Failed to parse cached activities', error, cachedActivities);
       }
@@ -640,6 +642,16 @@ export default function KidsDashboard() {
           const normalizedActivities = Array.isArray(allActivities) ? allActivities : [];
           console.log('KidsDashboard: Loaded activities', normalizedActivities.length, normalizedActivities);
           setActivities(normalizedActivities);
+          if (typeof actData.completedTodayCount === 'number') {
+            setCompletedTodayCount(actData.completedTodayCount);
+          } else {
+            const fallbackCount = countActivitiesCompletedOnDate(
+              normalizedActivities,
+              localDate,
+              kid?.timezone,
+            );
+            setCompletedTodayCount(fallbackCount);
+          }
           safeLocalStorageSet(`activities_${kidId}`, JSON.stringify(normalizedActivities));
         }
 
@@ -731,6 +743,7 @@ export default function KidsDashboard() {
       a.id === activity.id ? { ...a, status: newStatus, completion_date: now } : a
     );
     setActivities(updatedActivities);
+    setCompletedTodayCount(count => count + 1);
     safeLocalStorageSet(`activities_${kidId}`, JSON.stringify(updatedActivities));
     
     // Optimistic update for kid's reward balance

@@ -99,6 +99,7 @@ CREATE TABLE public.activities (
     image_url TEXT,
     status TEXT DEFAULT 'pending',
     due_date DATE,
+    completion_date TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 

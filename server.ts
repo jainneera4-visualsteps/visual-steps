@@ -14,6 +14,7 @@ import multer from 'multer';
 import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
 import path from 'path';
+import { countActivitiesCompletedOnDate, getDateInTimeZone } from './src/utils/activityCompletion';
 
 dotenv.config();
 
@@ -3195,7 +3196,20 @@ app.get('/api/kids/:kidId/activities', authenticateToken, async (req: any, res) 
       return { ...activity, steps };
     });
 
-    res.json({ activities: activitiesWithSteps });
+    // Each repeated/reassigned occurrence is a separate activity row. Count
+    // completion timestamps on those assignments instead of inferring them
+    // from created_at or report history.
+    const completionTargetDate = getDateInTimeZone(
+      new Date().toISOString(),
+      kid.timezone || 'UTC',
+    ) || today;
+    const completedTodayCount = countActivitiesCompletedOnDate(
+      activities || [],
+      completionTargetDate,
+      kid.timezone || 'UTC',
+    );
+
+    res.json({ activities: activitiesWithSteps, completedTodayCount });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Internal server error' });
@@ -3693,6 +3707,13 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
       return res.json({ message: 'Activity history updated' });
     }
 
+    const isNewCompletion = status === 'completed' && activity.status !== 'completed';
+    const assignedCompletionDate = isNewCompletion
+      ? new Date().toISOString()
+      : status === 'pending'
+        ? null
+        : activity.completion_date;
+
     const { error: updateError } = await supabase
       .from('activities')
       .update({
@@ -3705,6 +3726,7 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
         link,
         image_url: imageUrl,
         status,
+        completion_date: assignedCompletionDate,
         due_date: dueDate,
         repeat_interval: repeat_interval || null,
         repeat_unit: repeat_unit || null
@@ -3717,7 +3739,7 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
     }
 
     // If status changed to completed, increment kid's reward balance
-    if (status === 'completed' && activity.status !== 'completed') {
+    if (isNewCompletion) {
       const kidsData = activity.kids as any;
       const rewardQty = (Array.isArray(kidsData) ? kidsData[0]?.reward_quantity : kidsData?.reward_quantity) || 0;
       
