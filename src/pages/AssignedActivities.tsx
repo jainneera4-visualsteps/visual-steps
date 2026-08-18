@@ -2949,7 +2949,7 @@ export default function AssignedActivities() {
                   <div className="flex items-center gap-2">
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
                       className="hidden"
                       id="reward-image-upload"
                       onChange={async (e) => {
@@ -3456,7 +3456,7 @@ export default function AssignedActivities() {
                     <div className="flex items-center gap-2">
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/jpeg,image/png,image/webp,image/gif"
                         className="hidden"
                         id="activity-image-upload"
                         onChange={async (e) => {
@@ -3535,7 +3535,7 @@ export default function AssignedActivities() {
                           <div className="flex items-center gap-1.5">
                             <input
                               type="file"
-                              accept="image/*"
+                              accept="image/jpeg,image/png,image/webp,image/gif"
                               className="hidden"
                               id={`step-image-${index}`}
                               onChange={(e) => {

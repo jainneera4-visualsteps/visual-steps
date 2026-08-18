@@ -14,6 +14,13 @@ import multer from 'multer';
 import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
 import path from 'path';
+import {
+  MAX_UPLOAD_BYTES,
+  UPLOAD_BUCKET,
+  detectImageType,
+  getImageExtension,
+  isSupportedImageMimeType,
+} from './src/utils/uploadSecurity';
 
 dotenv.config();
 
@@ -241,32 +248,15 @@ const getSupabaseForUser = (req: any) => {
   return getSupabaseClient(req.token);
 };
 
-// Ensure uploads directory exists
-const rootDir = currentDirname.endsWith('dist') ? path.dirname(currentDirname) : currentDirname;
-const uploadDir = path.join(rootDir, 'uploads');
-
-if (!fs.existsSync(uploadDir)) {
-  try {
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-  } catch (err) {
-    console.warn(`Could not create upload directory at ${uploadDir}:`, err);
-  }
-}
-
-// Configure Multer for file uploads
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, uploadDir);
+// Keep uploads in memory only long enough to validate and transfer them to
+// persistent Supabase Storage. Never trust the browser-provided extension.
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 },
+  fileFilter: (_req, file, callback) => {
+    callback(null, isSupportedImageMimeType(file.mimetype));
   },
-  filename: (_req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
 });
-
-const upload = multer({ storage: storage });
 
 app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
@@ -274,9 +264,6 @@ app.use((req, _res, next) => {
   console.log('Request URL:', req.url);
   next();
 });
-
-// Serve uploaded files statically
-app.use('/uploads', express.static(uploadDir));
 
 // Auth Middleware
 export const isKidApiRequestAllowed = (method: string, pathName: string, kidId: string): boolean => {
@@ -1081,23 +1068,41 @@ app.post('/api/command', authenticateToken, async (req: any, res) => {
 
 // Upload File Endpoint
 app.post('/api/upload', authenticateToken, (req: any, res) => {
-  console.log('Received upload request');
-  
-  upload.single('image')(req, res, (err: any) => {
+  upload.single('image')(req, res, async (err: any) => {
     if (err) {
-      console.error('Multer error:', err);
-      return res.status(500).json({ error: err.message });
+      if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(413).json({ error: 'Image must be 5 MB or smaller' });
+      }
+      console.error('Upload parser error:', err);
+      return res.status(400).json({ error: 'Invalid image upload' });
     }
-    
-    console.log('File processed by multer');
+
     if (!req.file) {
-      console.error('No file in request');
-      return res.status(400).json({ error: 'No file uploaded' });
+      return res.status(400).json({ error: 'Choose a JPEG, PNG, WebP, or GIF image' });
     }
-    
-    console.log('File uploaded:', req.file.filename);
-    const imageUrl = `/uploads/${req.file.filename}`;
-    res.json({ imageUrl });
+
+    const detectedType = detectImageType(req.file.buffer);
+    if (!detectedType || detectedType !== req.file.mimetype) {
+      return res.status(400).json({ error: 'The file content does not match a supported image type' });
+    }
+
+    const objectPath = `${req.user.id}/${uuidv4()}.${getImageExtension(detectedType)}`;
+    const storageClient = getSupabaseClient(req.token);
+    const { error: storageError } = await storageClient.storage
+      .from(UPLOAD_BUCKET)
+      .upload(objectPath, req.file.buffer, {
+        contentType: detectedType,
+        cacheControl: '31536000',
+        upsert: false,
+      });
+
+    if (storageError) {
+      console.error('Supabase image upload failed:', storageError.message);
+      return res.status(500).json({ error: 'Image storage is unavailable. Please try again.' });
+    }
+
+    const { data } = storageClient.storage.from(UPLOAD_BUCKET).getPublicUrl(objectPath);
+    return res.status(201).json({ imageUrl: data.publicUrl });
   });
 });
 

@@ -221,9 +221,15 @@ export default function AddEditKid() {
                   type="file"
                   id="avatar-upload"
                   className="hidden"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {
+                      if (file.size > 2 * 1024 * 1024) {
+                        alert('Avatar size is too large. Please select an image under 2 MB.');
+                        e.target.value = '';
+                        return;
+                      }
                       const reader = new FileReader();
                       reader.onloadend = () => setFormData(prev => ({ ...prev, avatar: reader.result as string }));
                       reader.readAsDataURL(file);

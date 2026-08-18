@@ -488,7 +488,7 @@ export default function ActivityLibrary() {
                         </div>
                         <input
                           type="file"
-                          accept="image/*"
+                          accept="image/jpeg,image/png,image/webp,image/gif"
                           className="hidden"
                           id="template-image-upload"
                           onChange={async (e) => {
@@ -560,7 +560,7 @@ export default function ActivityLibrary() {
                             <div className="flex items-center gap-4">
                               <input
                                 type="file"
-                                accept="image/*"
+                                accept="image/jpeg,image/png,image/webp,image/gif"
                                 className="hidden"
                                 id={`step-image-${index}`}
                                 onChange={(e) => {

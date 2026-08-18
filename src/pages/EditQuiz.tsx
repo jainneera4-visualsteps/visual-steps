@@ -389,7 +389,7 @@ export default function EditQuiz() {
                           type="file" 
                           id={`image-upload-${qIdx}`}
                           className="hidden" 
-                          accept="image/*"
+                          accept="image/jpeg,image/png,image/webp,image/gif"
                           onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) handleImageUpload(qIdx, file);

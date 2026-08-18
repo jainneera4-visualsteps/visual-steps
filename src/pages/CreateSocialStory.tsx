@@ -955,7 +955,7 @@ export default function CreateSocialStory() {
             type="file" 
             ref={fileInputRef} 
             className="hidden" 
-            accept="image/*" 
+            accept="image/jpeg,image/png,image/webp,image/gif"
             onChange={handleImageUpload} 
           />
 
