@@ -61,6 +61,7 @@ export default function App() {
               <Route path="activity-library" element={<ActivityLibrary />} />
             </Route>
             <Route path="social-stories/view/:id" element={<ViewSocialStory />} />
+            <Route path="social-stories/shared/:shareToken" element={<ViewSocialStory />} />
           </Route>
           
           <Route element={<KidProtectedRoute />}>

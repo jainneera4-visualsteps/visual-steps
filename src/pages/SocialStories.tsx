@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import { Plus, BookOpen, Trash2, ChevronLeft, ChevronRight, ArrowLeft, Eye, Pencil, Printer, Loader2, HelpCircle } from 'lucide-react';
+import { Plus, BookOpen, Trash2, ChevronLeft, ChevronRight, ArrowLeft, Eye, Pencil, Printer, Loader2, HelpCircle, Share2, Copy, Link2Off } from 'lucide-react';
 import { Tooltip } from '../components/ui/Tooltip';
 import { SocialStoryModal } from '../components/SocialStoryModal';
 
@@ -29,6 +29,13 @@ export default function SocialStories() {
   const [storyToDelete, setStoryToDelete] = useState<string | null>(null);
   const [viewingStoryId, setViewingStoryId] = useState<string | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [storyToShare, setStoryToShare] = useState<SocialStory | null>(null);
+  const [shareDays, setShareDays] = useState(7);
+  const [shareUrl, setShareUrl] = useState('');
+  const [shareExpiresAt, setShareExpiresAt] = useState<string | null>(null);
+  const [hasActiveShare, setHasActiveShare] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
 
   useEffect(() => {
     fetchStories();
@@ -82,6 +89,62 @@ export default function SocialStories() {
       setError(err.message || 'Failed to fetch stories');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const openShareDialog = async (story: SocialStory) => {
+    setStoryToShare(story);
+    setShareUrl('');
+    setShareExpiresAt(null);
+    setShareCopied(false);
+    setHasActiveShare(false);
+    try {
+      const response = await apiFetch(`/api/social-stories/${encodeURIComponent(story.id)}/share`);
+      if (response.ok) {
+        const data = await response.json();
+        setHasActiveShare(Boolean(data.active));
+        setShareExpiresAt(data.expiresAt || null);
+      }
+    } catch (error) {
+      console.error('Failed to load sharing status', error);
+    }
+  };
+
+  const createShareLink = async () => {
+    if (!storyToShare) return;
+    setIsSharing(true);
+    try {
+      const response = await apiFetch(`/api/social-stories/${encodeURIComponent(storyToShare.id)}/share`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expiresInDays: shareDays }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Could not create sharing link');
+      setShareUrl(data.shareUrl);
+      setShareCopied(false);
+      setShareExpiresAt(data.expiresAt);
+      setHasActiveShare(true);
+    } catch (error: any) {
+      alert(error.message || 'Could not create sharing link');
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  const revokeShareLink = async () => {
+    if (!storyToShare) return;
+    setIsSharing(true);
+    try {
+      const response = await apiFetch(`/api/social-stories/${encodeURIComponent(storyToShare.id)}/share`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Could not stop sharing');
+      setShareUrl('');
+      setShareExpiresAt(null);
+      setHasActiveShare(false);
+    } catch (error: any) {
+      alert(error.message || 'Could not stop sharing');
+    } finally {
+      setIsSharing(false);
     }
   };
 
@@ -484,6 +547,13 @@ export default function SocialStories() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-3">
+                            <button
+                              className="text-slate-400 hover:text-blue-500 transition-colors"
+                              title="Share securely"
+                              onClick={() => openShareDialog(story)}
+                            >
+                              <Share2 className="h-5 w-5" />
+                            </button>
                             <button 
                               className="text-slate-400 hover:text-blue-500 transition-colors" 
                               title="View"
@@ -523,6 +593,66 @@ export default function SocialStories() {
         )}
 
       {/* Story Delete Confirmation Modal */}
+      {storyToShare && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <Card className="w-full max-w-lg shadow-xl">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Share2 className="h-5 w-5 text-blue-600" /> Share Story</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-slate-600">
+                Create a private link for <strong>{storyToShare.title}</strong>. Anyone with the link can view this story until it expires or you revoke it.
+              </p>
+              {hasActiveShare && !shareUrl && (
+                <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+                  An active link exists{shareExpiresAt ? ` until ${new Date(shareExpiresAt).toLocaleString()}` : ''}. Create a new link to replace it, or stop sharing.
+                </div>
+              )}
+              <label className="block text-sm font-bold text-slate-700">
+                Link expires after
+                <select value={shareDays} onChange={event => setShareDays(Number(event.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2">
+                  <option value={1}>1 day</option>
+                  <option value={7}>7 days</option>
+                  <option value={30}>30 days</option>
+                </select>
+              </label>
+              {shareUrl && (
+                <div className="space-y-2">
+                  <div className="break-all rounded-lg bg-slate-100 p-3 text-sm text-slate-700">{shareUrl}</div>
+                  {/^https?:\/\/(localhost|127\.0\.0\.1)(:|\/)/.test(shareUrl) && (
+                    <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
+                      This local link works only on this computer. To open it on a phone or another device, create the link from the deployed Vercel website.
+                    </p>
+                  )}
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={async () => {
+                      await navigator.clipboard.writeText(shareUrl);
+                      setShareCopied(true);
+                    }}
+                  >
+                    <Copy className="mr-2 h-4 w-4" /> {shareCopied ? 'Link Copied' : 'Copy Link'}
+                  </Button>
+                </div>
+              )}
+              <div className="flex flex-wrap justify-end gap-2">
+                {hasActiveShare && (
+                  <Button variant="outline" onClick={revokeShareLink} disabled={isSharing} className="text-red-600">
+                    <Link2Off className="mr-2 h-4 w-4" /> Stop Sharing
+                  </Button>
+                )}
+                <Button variant="outline" onClick={() => setStoryToShare(null)}>Close</Button>
+                <Button onClick={createShareLink} disabled={isSharing}>
+                  {isSharing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Share2 className="mr-2 h-4 w-4" />}
+                  {hasActiveShare ? 'Replace Link' : 'Create Link'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {storyToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm no-print-area">
           <Card className="w-full max-w-sm shadow-xl">

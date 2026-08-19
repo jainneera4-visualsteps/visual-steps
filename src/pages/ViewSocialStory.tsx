@@ -35,7 +35,7 @@ interface NarratorSettings {
 }
 
 export default function ViewSocialStory() {
-  const { id } = useParams();
+  const { id, shareToken } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [story, setStory] = useState<SocialStory | null>(null);
@@ -56,11 +56,12 @@ export default function ViewSocialStory() {
   const [currentWordLength, setCurrentWordLength] = useState<number>(0);
   const [isPrinting, setIsPrinting] = useState(false);
   const [storyLanguage, setStoryLanguage] = useState('English');
+  const [loadError, setLoadError] = useState('Story Not Found');
 
   useEffect(() => {
     fetchStory();
     setIsKidMode(!!localStorage.getItem('kid_session'));
-  }, [id]);
+  }, [id, shareToken]);
 
   useEffect(() => {
     const loadVoices = () => setVoices(window.speechSynthesis.getVoices());
@@ -74,7 +75,10 @@ export default function ViewSocialStory() {
 
   const fetchStory = async () => {
     try {
-      const res = await apiFetch(`/api/social-stories/${id}`);
+      const endpoint = shareToken
+        ? `/api/shared/social-stories/${encodeURIComponent(shareToken)}`
+        : `/api/social-stories/${encodeURIComponent(id || '')}`;
+      const res = await apiFetch(endpoint, undefined, 0, false);
       if (res.ok) {
         const data = await safeJson(res);
         setStory(data.story);
@@ -91,6 +95,8 @@ export default function ViewSocialStory() {
         } catch (e) {
           console.error('Failed to parse story content', e);
         }
+      } else if (shareToken) {
+        setLoadError('This sharing link is invalid, expired, or was revoked.');
       }
     } catch (error) {
       console.error('Failed to fetch story', error);
@@ -375,7 +381,7 @@ export default function ViewSocialStory() {
     return (
       <div className="flex flex-col items-center justify-center h-screen text-center p-4">
         <BookOpen className="h-16 w-16 text-slate-300 mb-4" />
-        <h2 className="text-2xl font-bold text-slate-800 mb-2">Story Not Found</h2>
+        <h2 className="text-2xl font-bold text-slate-800 mb-2">{loadError}</h2>
         <Button onClick={handleClose}>Go Back</Button>
       </div>
     );

@@ -14,6 +14,7 @@ import multer from 'multer';
 import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
 import path from 'path';
+import { createHash, randomBytes } from 'crypto';
 
 dotenv.config();
 
@@ -253,8 +254,29 @@ const cleanEnvVar = (name: string): string => {
     cleaned = cleaned.substring(1, cleaned.length - 1);
   }
   cleaned = cleaned.trim();
+  // Vercel's value field must contain only the value, but defensively recover
+  // when a full NAME=value line was pasted there.
+  while (cleaned.startsWith(`${name}=`)) {
+    cleaned = cleaned.slice(name.length + 1).trim();
+  }
+  if ((cleaned.startsWith('"') && cleaned.endsWith('"')) || (cleaned.startsWith("'") && cleaned.endsWith("'"))) {
+    cleaned = cleaned.substring(1, cleaned.length - 1).trim();
+  }
   if (cleaned === 'undefined' || cleaned === 'null') return '';
   return cleaned;
+};
+
+const getPublicAppOrigin = (req: any): string => {
+  const configuredOrigin = cleanEnvVar('APP_URL');
+  const requestOrigin = String(req.get('origin') || `${req.protocol}://${req.get('host')}`);
+  const candidate = configuredOrigin || requestOrigin || (isProduction ? PRODUCTION_APP_URL : 'http://localhost:3000');
+  try {
+    const parsed = new URL(candidate);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') throw new Error('Unsupported URL protocol');
+    return parsed.origin;
+  } catch {
+    return isProduction ? PRODUCTION_APP_URL : requestOrigin.replace(/\/$/, '');
+  }
 };
 
 const PORT = 3000;
@@ -367,6 +389,7 @@ export const isKidApiRequestAllowed = (method: string, pathName: string, kidId: 
   if (methodUpper === 'GET' && pathName === `${ownKidBase}/reward-items`) return true;
   if (methodUpper === 'PUT' && /^\/api\/activities\/[^/]+$/.test(pathName)) return true;
   if (methodUpper === 'GET' && /^\/api\/quizzes\/[^/]+$/.test(pathName)) return true;
+  if (methodUpper === 'GET' && /^\/api\/social-stories\/[^/]+$/.test(pathName)) return true;
   if (methodUpper === 'POST' && pathName === '/api/quiz-results') return true;
 
   return false;
@@ -3355,6 +3378,9 @@ app.delete('/api/activities/:id', authenticateToken, async (req: any, res) => {
 
 // --- Social Stories API ---
 
+const SOCIAL_STORY_SHARE_DAYS = new Set([1, 7, 30]);
+const hashSocialStoryShareToken = (token: string) => createHash('sha256').update(token).digest('hex');
+
 // Get all social stories for a user
 app.get('/api/social-stories', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
@@ -3374,9 +3400,36 @@ app.get('/api/social-stories', authenticateToken, async (req: any, res) => {
   }
 });
 
-// Get a single social story
-// Get a single social story - Publicly accessible via link
-app.get('/api/social-stories/:id', async (req: any, res) => {
+// Shared stories are accessible only through an unguessable, expiring,
+// revocable token. Raw tokens are never stored in the database.
+app.get('/api/shared/social-stories/:token', async (req: any, res) => {
+  const token = String(req.params.token || '');
+  if (!/^[A-Za-z0-9_-]{40,80}$/.test(token)) return res.status(404).json({ error: 'Shared story not found' });
+
+  const adminSupabase = getAdminSupabaseClient();
+  const { data: share, error: shareError } = await adminSupabase
+    .from('social_story_shares')
+    .select('id, story_id, expires_at, revoked_at')
+    .eq('token_hash', hashSocialStoryShareToken(token))
+    .single();
+
+  if (shareError || !share || share.revoked_at || new Date(share.expires_at).getTime() <= Date.now()) {
+    return res.status(404).json({ error: 'This sharing link is invalid or has expired' });
+  }
+
+  const { data: story, error: storyError } = await adminSupabase
+    .from('social_stories')
+    .select('id, title, content, created_at, updated_at')
+    .eq('id', share.story_id)
+    .single();
+
+  if (storyError || !story) return res.status(404).json({ error: 'Shared story not found' });
+  res.setHeader('Cache-Control', 'no-store, private');
+  res.json({ story, shared: true, expiresAt: share.expires_at });
+});
+
+// Get a single story for its owning parent or assigned child.
+app.get('/api/social-stories/:id', authenticateToken, async (req: any, res) => {
   const { id } = req.params;
   const adminSupabase = getAdminSupabaseClient();
   
@@ -3388,9 +3441,79 @@ app.get('/api/social-stories/:id', async (req: any, res) => {
       .single();
 
     if (error || !story) return res.status(404).json({ error: 'Story not found' });
+    const canView = req.user.role === 'kid'
+      ? story.kid_id === req.user.kidId
+      : story.user_id === req.user.id;
+    if (!canView) return res.status(403).json({ error: 'Forbidden' });
     res.json({ story });
   } catch (error) {
     console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/api/social-stories/:id/share', authenticateToken, async (req: any, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const supabase = getSupabaseForUser(req);
+    const { data: story } = await supabase.from('social_stories').select('id').eq('id', id).eq('user_id', userId).single();
+    if (!story) return res.status(404).json({ error: 'Story not found' });
+
+    const { data: share, error } = await supabase
+      .from('social_story_shares')
+      .select('expires_at, created_at')
+      .eq('story_id', id).eq('user_id', userId).is('revoked_at', null)
+      .gt('expires_at', new Date().toISOString()).order('created_at', { ascending: false }).limit(1).maybeSingle();
+    if (error) throw error;
+    res.json({ active: !!share, expiresAt: share?.expires_at || null });
+  } catch (error) {
+    console.error('Social story share status error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/social-stories/:id/share', authenticateToken, async (req: any, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const expiresInDays = Number(req.body?.expiresInDays);
+    if (!SOCIAL_STORY_SHARE_DAYS.has(expiresInDays)) {
+      return res.status(400).json({ error: 'Sharing duration must be 1, 7, or 30 days' });
+    }
+
+    const supabase = getSupabaseForUser(req);
+    const { data: story } = await supabase.from('social_stories').select('id').eq('id', id).eq('user_id', userId).single();
+    if (!story) return res.status(404).json({ error: 'Story not found' });
+
+    const { error: revokeError } = await supabase.from('social_story_shares').update({ revoked_at: new Date().toISOString() })
+      .eq('story_id', id).eq('user_id', userId).is('revoked_at', null);
+    if (revokeError) throw revokeError;
+
+    const token = randomBytes(32).toString('base64url');
+    const expiresAt = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000).toISOString();
+    const { error } = await supabase.from('social_story_shares').insert({
+      story_id: id, user_id: userId, token_hash: hashSocialStoryShareToken(token), expires_at: expiresAt,
+    });
+    if (error) throw error;
+
+    const origin = getPublicAppOrigin(req);
+    res.status(201).json({ shareUrl: `${origin}/social-stories/shared/${token}`, expiresAt });
+  } catch (error) {
+    console.error('Social story share creation error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.delete('/api/social-stories/:id/share', authenticateToken, async (req: any, res) => {
+  try {
+    const supabase = getSupabaseForUser(req);
+    const { error } = await supabase.from('social_story_shares').update({ revoked_at: new Date().toISOString() })
+      .eq('story_id', req.params.id).eq('user_id', req.user.id).is('revoked_at', null);
+    if (error) throw error;
+    res.json({ message: 'Sharing link revoked' });
+  } catch (error) {
+    console.error('Social story share revoke error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

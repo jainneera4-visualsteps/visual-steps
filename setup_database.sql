@@ -10,6 +10,7 @@ DROP TABLE IF EXISTS public.chat_history CASCADE;
 DROP TABLE IF EXISTS public.chatbots CASCADE;
 DROP TABLE IF EXISTS public.reward_purchases CASCADE;
 DROP TABLE IF EXISTS public.reward_items CASCADE;
+DROP TABLE IF EXISTS public.social_story_shares CASCADE;
 DROP TABLE IF EXISTS public.social_stories CASCADE;
 DROP TABLE IF EXISTS public.worksheets CASCADE;
 DROP TABLE IF EXISTS public.quizzes CASCADE;
@@ -150,6 +151,16 @@ CREATE TABLE public.social_stories (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+CREATE TABLE public.social_story_shares (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    story_id UUID NOT NULL REFERENCES public.social_stories(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    token_hash TEXT NOT NULL UNIQUE,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    revoked_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- Create reward_items table
 CREATE TABLE public.reward_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -227,6 +238,7 @@ ALTER TABLE public.activity_steps ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_history_steps ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.social_stories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.social_story_shares ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reward_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reward_purchases ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.parent_messages ENABLE ROW LEVEL SECURITY;
@@ -285,6 +297,12 @@ CREATE POLICY "Users can view their own social stories" ON public.social_stories
 CREATE POLICY "Users can insert their own social stories" ON public.social_stories FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can update their own social stories" ON public.social_stories FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete their own social stories" ON public.social_stories FOR DELETE USING (auth.uid() = user_id);
+
+-- Social Story Shares
+CREATE POLICY "Users can view their own social story shares" ON public.social_story_shares FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can create their own social story shares" ON public.social_story_shares FOR INSERT WITH CHECK (auth.uid() = user_id AND story_id IN (SELECT id FROM public.social_stories WHERE user_id = auth.uid()));
+CREATE POLICY "Users can update their own social story shares" ON public.social_story_shares FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete their own social story shares" ON public.social_story_shares FOR DELETE USING (auth.uid() = user_id);
 
 -- Reward Items
 CREATE POLICY "Users can view their kids reward items" ON public.reward_items FOR SELECT USING (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));

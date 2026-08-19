@@ -91,6 +91,16 @@ test('protected APIs reject requests without authentication', async () => {
   assert.deepEqual(body, { error: 'Unauthorized' });
 });
 
+test('social stories are private unless accessed with a valid sharing token', async () => {
+  const privateStory = await api('/api/social-stories/story-id');
+  assert.equal(privateStory.response.status, 401);
+  assert.deepEqual(privateStory.body, { error: 'Unauthorized' });
+
+  const invalidShare = await api('/api/shared/social-stories/not-a-valid-token');
+  assert.equal(invalidShare.response.status, 404);
+  assert.deepEqual(invalidShare.body, { error: 'Shared story not found' });
+});
+
 test('legacy public security-question recovery APIs are removed', async () => {
   for (const path of ['/api/auth/get-secret-question', '/api/auth/reset-password']) {
     const { response, body } = await api(path, { method: 'POST', body: {} });

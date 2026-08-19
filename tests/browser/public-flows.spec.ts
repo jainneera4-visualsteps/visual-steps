@@ -36,6 +36,28 @@ test('offline status is clearly shown and clears after reconnecting', async ({ p
   await expect(page.getByRole('status')).toHaveCount(0);
 });
 
+test('a valid controlled sharing link opens only the shared social story', async ({ page }) => {
+  const token = 'a'.repeat(43);
+  await page.route(`**/api/shared/social-stories/${token}`, route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      shared: true,
+      expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+      story: {
+        id: 'story-1',
+        title: 'Visiting the Library',
+        content: JSON.stringify({ pages: [{ text: 'I can use a quiet voice.', imageUrl: '' }] }),
+        created_at: new Date().toISOString(),
+      },
+    }),
+  }));
+
+  await page.goto(`/social-stories/shared/${token}`);
+  await expect(page.getByRole('heading', { name: 'Visiting the Library' })).toBeVisible();
+  await expect(page.getByText('I can use a quiet voice.')).toBeVisible();
+});
+
 test('parent login fields enforce browser validation and password visibility', async ({ page }) => {
   await page.goto('/login');
 
