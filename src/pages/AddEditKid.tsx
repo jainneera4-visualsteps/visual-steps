@@ -6,11 +6,54 @@ import { Input } from '../components/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { AlertCircle, ArrowLeft, HelpCircle } from 'lucide-react';
 
+const prepareAvatarForUpload = (file: File): Promise<File> => new Promise((resolve, reject) => {
+  const image = new Image();
+  const objectUrl = URL.createObjectURL(file);
+
+  const cleanup = () => URL.revokeObjectURL(objectUrl);
+  image.onerror = () => {
+    cleanup();
+    reject(new Error('This photo format could not be read. Please choose a JPEG, PNG, WebP, GIF, or another photo supported by your browser.'));
+  };
+  image.onload = () => {
+    try {
+      const maxDimension = 1200;
+      const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
+      const width = Math.max(1, Math.round(image.naturalWidth * scale));
+      const height = Math.max(1, Math.round(image.naturalHeight * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('Your browser could not prepare this photo');
+
+      // Avatars do not need transparency. A solid background prevents a PNG
+      // with transparency from becoming black when converted to JPEG.
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, width, height);
+      context.drawImage(image, 0, 0, width, height);
+      canvas.toBlob((blob) => {
+        cleanup();
+        if (!blob) {
+          reject(new Error('Your browser could not prepare this photo'));
+          return;
+        }
+        resolve(new File([blob], 'avatar.jpg', { type: 'image/jpeg' }));
+      }, 'image/jpeg', 0.85);
+    } catch (avatarError) {
+      cleanup();
+      reject(avatarError);
+    }
+  };
+  image.src = objectUrl;
+});
+
 export default function AddEditKid() {
   const { id } = useParams();
   const isEditing = !!id;
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [isAvatarUploading, setIsAvatarUploading] = useState(false);
   const [error, setError] = useState('');
 
   const [formData, setFormData] = useState({
@@ -80,6 +123,33 @@ export default function AddEditKid() {
       setFormData((prev) => ({ ...prev, [name]: (e.target as HTMLInputElement).checked }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
+    }
+  };
+
+  const handleAvatarUpload = async (file: File) => {
+    setIsAvatarUploading(true);
+    setError('');
+    const uploadData = new FormData();
+
+    try {
+      const preparedAvatar = await prepareAvatarForUpload(file);
+      if (preparedAvatar.size > 5 * 1024 * 1024) {
+        throw new Error('This photo is still too large after optimization. Please choose a smaller photo.');
+      }
+      uploadData.append('image', preparedAvatar);
+      const response = await apiFetch('/api/upload', {
+        method: 'POST',
+        body: uploadData,
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.imageUrl) {
+        throw new Error(data.error || 'Failed to upload avatar');
+      }
+      setFormData(prev => ({ ...prev, avatar: data.imageUrl }));
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : 'Failed to upload avatar');
+    } finally {
+      setIsAvatarUploading(false);
     }
   };
 
@@ -190,7 +260,7 @@ export default function AddEditKid() {
                 </div>
               </div>
               <p className="text-[11px] text-slate-500 font-medium leading-tight mb-1">
-                Personalize your child's profile by choosing an avatar they love or uploading a custom photo.
+                Choose an avatar or upload a custom photo. Large photos are optimized automatically.
               </p>
               <div className="flex items-center gap-2">
                 {formData.avatar && (
@@ -221,22 +291,22 @@ export default function AddEditKid() {
                   type="file"
                   id="avatar-upload"
                   className="hidden"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  onChange={(e) => {
+                  accept="image/*"
+                  disabled={isAvatarUploading}
+                  onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (file) {
-                      if (file.size > 2 * 1024 * 1024) {
-                        alert('Avatar size is too large. Please select an image under 2 MB.');
-                        e.target.value = '';
-                        return;
-                      }
-                      const reader = new FileReader();
-                      reader.onloadend = () => setFormData(prev => ({ ...prev, avatar: reader.result as string }));
-                      reader.readAsDataURL(file);
+                      await handleAvatarUpload(file);
                     }
+                    e.target.value = '';
                   }}
                 />
-                <label htmlFor="avatar-upload" className="text-[12px] font-bold text-blue-600 cursor-pointer hover:underline">Upload</label>
+                <label
+                  htmlFor="avatar-upload"
+                  className={`text-[12px] font-bold text-blue-600 hover:underline ${isAvatarUploading ? 'cursor-wait opacity-60 pointer-events-none' : 'cursor-pointer'}`}
+                >
+                  {isAvatarUploading ? 'Uploading…' : 'Upload'}
+                </label>
               </div>
             </div>
 
@@ -791,7 +861,7 @@ export default function AddEditKid() {
               <Button type="button" variant="ghost" size="xs" onClick={() => navigate('/dashboard')} className="h-7 text-[12px] font-bold uppercase">
                 Cancel
               </Button>
-              <Button type="submit" size="xs" className="h-7 text-[12px] font-bold uppercase" isLoading={isLoading}>
+              <Button type="submit" size="xs" className="h-7 text-[12px] font-bold uppercase" isLoading={isLoading} disabled={isAvatarUploading}>
                 {isEditing ? 'Save Changes' : 'Create Profile'}
               </Button>
             </div>

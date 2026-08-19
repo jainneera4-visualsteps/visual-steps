@@ -1097,7 +1097,7 @@ app.post('/api/command', authenticateToken, async (req: any, res) => {
 app.post('/api/upload', authenticateToken, (req: any, res) => {
   upload.single('image')(req, res, async (err: any) => {
     if (err) {
-      if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+      if (err.code === 'LIMIT_FILE_SIZE') {
         return res.status(413).json({ error: 'Image must be 5 MB or smaller' });
       }
       console.error('Upload parser error:', err);
