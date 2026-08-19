@@ -80,6 +80,25 @@ test('legacy public security-question recovery APIs are removed', async () => {
   }
 });
 
+test('removed chatbot and concierge APIs are not exposed', async () => {
+  for (const request of [
+    { path: '/api/command', method: 'POST' },
+    { path: '/api/kids/mock-kid-id/chat-history', method: 'GET' },
+    { path: '/api/kids/mock-kid-id/chat-history', method: 'POST' },
+    { path: '/api/chatbots/mock-kid-id', method: 'GET' },
+    { path: '/api/chatbots/mock-kid-id', method: 'PUT' },
+    { path: '/api/chatbots/mock-kid-id', method: 'DELETE' },
+  ]) {
+    const { response, body } = await api(request.path, {
+      method: request.method,
+      authenticated: true,
+      body: request.method === 'GET' ? undefined : {},
+    });
+    assert.equal(response.status, 404, `${request.method} ${request.path}`);
+    assert.equal(body.error, 'API route not found', `${request.method} ${request.path}`);
+  }
+});
+
 test('child and parent-message APIs validate input before database access', async () => {
   const missingName = await api('/api/kids', {
     method: 'POST', authenticated: true, body: {},
