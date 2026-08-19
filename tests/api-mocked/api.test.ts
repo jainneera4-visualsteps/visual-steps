@@ -7,7 +7,7 @@ process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'visual-steps-mocked-api-test-secret';
 process.env.GEMINI_API_KEY = 'mocked-gemini-key-never-sent';
 
-const { default: app, setAiClientFactoryForTests } = await import('../../server');
+const { default: app, sanitizeApiErrorResponse, setAiClientFactoryForTests } = await import('../../server');
 
 const server = app.listen(0, '127.0.0.1');
 await new Promise<void>((resolve, reject) => {
@@ -46,6 +46,25 @@ const api = async (
 test.after(() => {
   setAiClientFactoryForTests(null);
   server.close();
+});
+
+test('API error sanitizer removes internal details and gives server errors a reference', () => {
+  assert.deepEqual(
+    sanitizeApiErrorResponse(500, {
+      error: 'database connection failed',
+      details: { table: 'users', privateData: true },
+      stack: 'SECRET STACK',
+    }, 'request-123'),
+    { error: 'Internal server error', requestId: 'request-123' },
+  );
+  assert.deepEqual(
+    sanitizeApiErrorResponse(400, {
+      error: 'Name is required',
+      details: 'internal database detail',
+      stack: 'SECRET STACK',
+    }, 'request-456'),
+    { error: 'Name is required' },
+  );
 });
 
 test('public diagnostic APIs are not exposed', async () => {

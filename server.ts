@@ -17,6 +17,50 @@ import path from 'path';
 
 dotenv.config();
 
+const isProduction = process.env.NODE_ENV === 'production';
+const productionErrorOutput = console.error.bind(console);
+
+if (isProduction) {
+  const safeLogLabel = (value: unknown): string => {
+    if (typeof value !== 'string') return 'Unexpected server error';
+    return value
+      .split('\n')[0]
+      .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[email]')
+      .replace(/[0-9a-f]{8}-[0-9a-f-]{27,}/gi, '[id]')
+      .replace(/https?:\/\/\S+/gi, '[url]')
+      .slice(0, 180);
+  };
+
+  console.log = () => undefined;
+  console.info = () => undefined;
+  console.debug = () => undefined;
+  console.warn = () => undefined;
+  console.error = (first?: unknown) => productionErrorOutput('[SERVER_ERROR]', safeLogLabel(first));
+}
+
+export const sanitizeApiErrorResponse = (
+  status: number,
+  payload: unknown,
+  requestId: string,
+): unknown => {
+  if (status < 400 || !payload || typeof payload !== 'object') return payload;
+
+  if (status >= 500) {
+    return {
+      error: [502, 503, 504].includes(status) ? 'Service temporarily unavailable' : 'Internal server error',
+      requestId,
+    };
+  }
+
+  const source = payload as Record<string, unknown>;
+  const sanitized: Record<string, unknown> = {
+    error: typeof source.error === 'string' ? source.error.slice(0, 240) : 'Request could not be completed',
+  };
+  if (typeof source.message === 'string') sanitized.message = source.message.slice(0, 300);
+  if (typeof source.code === 'number') sanitized.code = source.code;
+  return sanitized;
+};
+
 // Keep the Vercel function entry self-contained. Local imports from src/ can
 // be omitted by Vercel's serverless file tracer even though esbuild succeeds.
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
@@ -114,6 +158,26 @@ const updateAuthenticationUser = async (
 const currentDirname = process.cwd();
 
 const app = express();
+
+// Give every API failure a support reference and centrally remove internal
+// database, SDK, and stack-trace fields from the response body.
+app.use((req, res, next) => {
+  const isApiRequest = req.url.startsWith('/api/') || (Boolean(process.env.VERCEL) && !req.url.includes('.'));
+  if (!isApiRequest) return next();
+
+  const requestId = uuidv4();
+  res.setHeader('X-Request-ID', requestId);
+  const originalJson = res.json.bind(res);
+  res.json = ((payload: unknown) => originalJson(
+    sanitizeApiErrorResponse(res.statusCode, payload, requestId),
+  )) as typeof res.json;
+  res.on('finish', () => {
+    if (isProduction && res.statusCode >= 500) {
+      productionErrorOutput(`[API_ERROR] ${requestId} ${req.method} ${req.path} ${res.statusCode}`);
+    }
+  });
+  next();
+});
 
 // Set default headers for API responses
 app.use((req, res, next) => {

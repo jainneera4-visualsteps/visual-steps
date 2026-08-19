@@ -162,15 +162,6 @@ export const apiFetch = async (
         try {
           const data = await clone.json();
           
-          // Only alert for critical configuration errors, not transient ones or known auth errors
-          const isKnownAuthError = isAuthError(data.error) || isAuthError(data.details) || isAuthError(data.message);
-          
-          if (!isKnownAuthError && (data.error === 'Supabase Project Mismatch' || data.error === 'Supabase Connection Error' || (data.error && data.error.includes('API key is not configured')))) {
-            const msg = `DEBUG INFO (Status ${response.status}):\n\nError: ${data.error}\n\nDetails: ${data.details || JSON.stringify(data)}\n\nURL: ${url}`;
-            console.error('API_FETCH_DEBUG_JSON:', msg);
-            alert(msg);
-          }
-          
           if (data.error === 'Forbidden' || data.error === 'Unauthorized' || data.error === 'Supabase Project Mismatch' || data.error === 'Invalid Session') {
             if (!isKidSession && retryAuthentication && data.error !== 'Supabase Project Mismatch') {
               const { data: refreshedData, error: refreshError } = await supabase.auth.refreshSession();
@@ -187,17 +178,6 @@ export const apiFetch = async (
         } catch (e) {
           // Not JSON or other error
         }
-      } else if (response.status === 500) {
-        try {
-          const text = await response.clone().text();
-          if (!isAuthError(text)) {
-            const msg = `DEBUG INFO (Status 500, Non-JSON):\n\nURL: ${url}\n\nResponse: ${text.substring(0, 500)}`;
-            console.error('API_FETCH_DEBUG_TEXT:', msg);
-            alert(msg);
-          }
-        } catch (e) {
-          console.error('Failed to read status 500 response body');
-        }
       }
     }
     return response;
@@ -211,11 +191,6 @@ export const apiFetch = async (
     console.error(`apiFetch network error for ${url}:`, error);
     const networkMessage = error instanceof Error ? error.message : String(error);
     const networkError = new Error(`Network failure: ${networkMessage} (URL: ${url}). Please check your connection.`);
-    
-    // Add alert for critical network failures to help debug
-    if (url.includes('/api/')) {
-      alert(`NETWORK FAILURE:\n\nURL: ${url}\n\nError: ${networkMessage}\n\nThis usually means the browser cannot reach the backend server. Ensure the development server is running and you are not in an offline state.`);
-    }
     
     (networkError as any).originalError = error;
     (networkError as any).url = url;
