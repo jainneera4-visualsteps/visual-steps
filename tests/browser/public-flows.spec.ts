@@ -26,6 +26,16 @@ test('home page renders parent login and public navigation', async ({ page }) =>
   await expect(page.getByRole('link', { name: 'About' })).toBeVisible();
 });
 
+test('offline status is clearly shown and clears after reconnecting', async ({ page, context }) => {
+  await page.goto('/');
+
+  await context.setOffline(true);
+  await expect(page.getByRole('status')).toContainText('You are offline');
+
+  await context.setOffline(false);
+  await expect(page.getByRole('status')).toHaveCount(0);
+});
+
 test('parent login fields enforce browser validation and password visibility', async ({ page }) => {
   await page.goto('/login');
 

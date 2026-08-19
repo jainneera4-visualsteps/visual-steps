@@ -1,6 +1,11 @@
 import { supabase } from '../lib/supabase';
 import { clearAuthSession, isAuthError } from './auth';
-import { DEFAULT_API_RETRIES, getApiRetryDelayMs, isRetryableApiMethod } from './apiRetry';
+import {
+  DEFAULT_API_RETRIES,
+  getApiRetryDelayMs,
+  isBrowserOffline,
+  isRetryableApiMethod,
+} from './apiRetry';
 
 export const safeJson = async (response: Response) => {
   const text = await response.text();
@@ -55,6 +60,11 @@ export const apiFetch = async (
   retryAuthentication = true,
   retryAttempt = 0,
 ): Promise<Response> => {
+  const requestedUrl = input instanceof Request ? input.url : input.toString();
+  if (isBrowserOffline()) {
+    throw new Error(`You are offline. Reconnect to the internet and try again. (URL: ${requestedUrl})`);
+  }
+
   let token = null;
   let isKidSession = false;
   try {
@@ -95,7 +105,7 @@ export const apiFetch = async (
     headers = new Headers(input.headers);
   }
 
-  const url = input instanceof Request ? input.url : input.toString();
+  const url = requestedUrl;
   const method = (init?.method || (input instanceof Request ? input.method : 'GET')).toUpperCase();
   const canRetryRequest = isRetryableApiMethod(method);
 
@@ -182,7 +192,7 @@ export const apiFetch = async (
     }
     return response;
   } catch (error) {
-    if (canRetryRequest && retries > 0) {
+    if (canRetryRequest && retries > 0 && !isBrowserOffline()) {
       const backoff = getApiRetryDelayMs(retryAttempt);
       console.warn(`apiFetch failed for ${url}, retrying in ${backoff}ms... (${retries} left)`, error);
       await new Promise(resolve => setTimeout(resolve, backoff));

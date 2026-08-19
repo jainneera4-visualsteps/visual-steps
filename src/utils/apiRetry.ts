@@ -1,5 +1,9 @@
 export const DEFAULT_API_RETRIES = 2;
 
+export const isBrowserOffline = (): boolean => (
+  typeof navigator !== 'undefined' && navigator.onLine === false
+);
+
 export const isRetryableApiMethod = (method?: string): boolean => {
   const normalizedMethod = (method || 'GET').toUpperCase();
   return normalizedMethod === 'GET' || normalizedMethod === 'HEAD';

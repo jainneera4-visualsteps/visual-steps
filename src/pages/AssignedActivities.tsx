@@ -7,7 +7,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import { ArrowLeft, Plus, Trash2, Edit2, CheckCircle, Circle, Calendar, Clock, Image as ImageIcon, Eye, Sparkles, Loader2, LayoutList, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Activity, Award, History, Lock, HelpCircle, X } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Edit2, CheckCircle, Circle, Calendar, Clock, Image as ImageIcon, Eye, Sparkles, Loader2, LayoutList, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Activity, Award, History, Lock, HelpCircle, X, WifiOff } from 'lucide-react';
 import { ActivityDetailModal } from '../components/ActivityDetailModal';
 import { formatInTimezone, getZonedTime, convertDateToTimeZone } from '../utils/dateUtils';
 
@@ -99,6 +99,7 @@ export default function AssignedActivities() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [activitiesLoadError, setActivitiesLoadError] = useState<string | null>(null);
   
   const [historyActivities, setHistoryActivities] = useState<Activity[]>([]);
   const [kid, setKid] = useState<Kid | null>(null);
@@ -627,7 +628,10 @@ export default function AssignedActivities() {
     
     if (!kidId) return;
     
-    if (!silent) setIsLoading(true);
+    if (!silent) {
+      setIsLoading(true);
+      setActivitiesLoadError(null);
+    }
     try {
       // Fetch kid details for the header
       const kidRes = await apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}`);
@@ -669,7 +673,9 @@ export default function AssignedActivities() {
           });
         }
         setActivities(currentActivities);
+        setActivitiesLoadError(null);
       } else {
+        setActivitiesLoadError('Activities could not be loaded. Please try again.');
         console.error('AssignedActivities: Failed to fetch activities:', actRes.status, actRes.statusText);
       }
 
@@ -704,6 +710,11 @@ export default function AssignedActivities() {
         console.error('Failed to fetch purchases:', redRes.status, errorData);
       }
     } catch (error: any) {
+      setActivitiesLoadError(
+        navigator.onLine === false
+          ? 'You are offline. Reconnect to load activities.'
+          : 'Activities could not be loaded. Please try again.'
+      );
       console.error('AssignedActivities: Failed to fetch data', {
         error,
         message: error?.message,
@@ -1900,7 +1911,23 @@ export default function AssignedActivities() {
               </CardContent>
             </Card>
           ) : activeTab === 'activities' ? (
-            activities.length === 0 ? (
+            activitiesLoadError && activities.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-amber-300 bg-amber-50 py-8 text-center">
+                <div className="rounded-full bg-amber-100 p-3">
+                  <WifiOff className="h-6 w-6 text-amber-700" />
+                </div>
+                <h3 className="mt-3 text-base font-bold text-slate-900">Activities unavailable</h3>
+                <p className="mt-1 text-[12px] text-slate-600">{activitiesLoadError}</p>
+                <Button
+                  size="xs"
+                  onClick={() => fetchData()}
+                  disabled={navigator.onLine === false}
+                  className="mt-4"
+                >
+                  Try Again
+                </Button>
+              </div>
+            ) : activities.length === 0 ? (
               <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 py-8 text-center">
                 <div className="rounded-full bg-slate-100 p-3">
                   <Calendar className="h-6 w-6 text-slate-400" />

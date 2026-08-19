@@ -25,12 +25,14 @@ import PlayQuiz from './pages/PlayQuiz';
 import EditQuiz from './pages/EditQuiz';
 import ActivityLibrary from './pages/ActivityLibrary';
 import About from './pages/About';
+import { NetworkStatusBanner } from './components/NetworkStatusBanner';
 
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <WalkthroughProvider>
+          <NetworkStatusBanner />
           <Routes>
           <Route path="/" element={<Layout />}>
             <Route index element={<Home />} />

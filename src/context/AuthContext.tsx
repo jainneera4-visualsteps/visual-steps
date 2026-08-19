@@ -49,6 +49,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   useEffect(() => {
+    const pauseAuthRefresh = () => {
+      supabase.auth.stopAutoRefresh();
+    };
+    const resumeAuthRefresh = () => {
+      supabase.auth.startAutoRefresh();
+    };
+
+    window.addEventListener('offline', pauseAuthRefresh);
+    window.addEventListener('online', resumeAuthRefresh);
+    if (navigator.onLine === false) pauseAuthRefresh();
+
     const fetchProfile = async (sessionUser: SupabaseUser | null) => {
       if (sessionUser) {
         // Only set loading if we don't already have this user
@@ -127,6 +138,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       subscription.unsubscribe();
+      window.removeEventListener('offline', pauseAuthRefresh);
+      window.removeEventListener('online', resumeAuthRefresh);
       pendingAuthTasks.forEach(task => clearTimeout(task));
       pendingAuthTasks.clear();
     };
