@@ -27,6 +27,7 @@ CREATE TABLE public.users (
     password_hash TEXT,
     max_parent_message_days INTEGER DEFAULT 20,
     max_parent_messages INTEGER DEFAULT 20,
+    onboarding_completed BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 

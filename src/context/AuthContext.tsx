@@ -9,6 +9,7 @@ interface User {
   name: string;
   max_parent_message_days?: number;
   max_parent_messages?: number;
+  onboarding_completed?: boolean;
 }
 
 interface AuthContextType {

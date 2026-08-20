@@ -59,6 +59,7 @@ Visual Steps provides a shared system in which a parent can prepare and supervis
 - Create activities with a type, category, description, image, link, due date, time of day, and recurrence settings.
 - Break activities into ordered text-and-image steps.
 - Create reusable activity templates and assign them to children.
+- Automatically introduce new parents to the core workflow and let every parent replay onboarding from the dashboard.
 - Display pending and completed work in the child dashboard.
 - Let parents optionally require verification for an individual activity.
 - Display submitted activities in parent and child waiting-for-verification queues.

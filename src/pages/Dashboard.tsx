@@ -8,6 +8,8 @@ import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Select } from '../components/Select';
 import { Plus, User, Loader2, ArrowLeft, Edit2, Send, HelpCircle, Trash2 } from 'lucide-react';
+import { ParentOnboarding } from '../components/ParentOnboarding';
+import { useAuth } from '../context/AuthContext';
 
 interface Kid {
   id: string;
@@ -34,7 +36,9 @@ interface ParentMessageRecord {
 }
 
 export default function Dashboard() {
+  const { user, refreshProfile } = useAuth();
   const [kids, setKids] = useState<Kid[]>([]);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const safeLocalStorageSet = (key: string, value: string) => {
     try {
@@ -89,6 +93,26 @@ export default function Dashboard() {
   const [messagesByKid, setMessagesByKid] = useState<Record<string, ParentMessageRecord[]>>({});
   const [isMessagesLoadingByKid, setIsMessagesLoadingByKid] = useState<Record<string, boolean>>({});
   const [selectedMessageIdsByKid, setSelectedMessageIdsByKid] = useState<Record<string, string[]>>({});
+
+  useEffect(() => {
+    if (user?.onboarding_completed === false) setShowOnboarding(true);
+  }, [user?.id, user?.onboarding_completed]);
+
+  const completeOnboarding = async () => {
+    setShowOnboarding(false);
+    if (user?.onboarding_completed === true) return;
+    try {
+      const response = await apiFetch('/api/user/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ onboardingCompleted: true }),
+      });
+      if (!response.ok) throw new Error('Unable to save onboarding preference');
+      await refreshProfile();
+    } catch (error) {
+      console.error('Dashboard: failed to save onboarding completion', error);
+    }
+  };
   
   useEffect(() => {
     if (rewardItems.length > 0) {
@@ -709,7 +733,11 @@ export default function Dashboard() {
             Climb together. Effortless tools for certain steps and positive growth.
           </p>
         </div>
-        <div className="flex items-end gap-3">
+        <div className="flex flex-wrap items-end gap-3">
+          <Button type="button" variant="outline" size="md" className="h-11" onClick={() => setShowOnboarding(true)}>
+            <HelpCircle className="mr-2 h-4 w-4" />
+            Start tour
+          </Button>
           {kids.length > 0 && !showBuyGrid && (
             <div className="w-44">
               <Select
@@ -735,6 +763,7 @@ export default function Dashboard() {
       </div>
 
       {renderContent()}
+      {showOnboarding && <ParentOnboarding onClose={completeOnboarding} />}
     </div>
   );
 }

@@ -967,6 +967,7 @@ const isMissingColumnError = (error: any) => {
 
 const fetchUserProfileWithRetentionFallback = async (supabase: any, userId: string) => {
   const projections = [
+    'id, name, email, max_parent_message_days, onboarding_completed',
     'id, name, email, max_parent_message_days',
     'id, name, email, max_parent_messages',
     'id, name, email',
@@ -1029,7 +1030,7 @@ app.get('/api/user/profile', authenticateToken, async (req: any, res) => {
 
 app.put('/api/user/profile', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
-  const { name, email, newPassword, maxParentMessageDays, maxParentMessages } = req.body;
+  const { name, email, newPassword, maxParentMessageDays, maxParentMessages, onboardingCompleted } = req.body;
   const userId = req.user.id;
 
   try {
@@ -1037,6 +1038,7 @@ app.put('/api/user/profile', authenticateToken, async (req: any, res) => {
 
     if (name) baseUpdates.name = name;
     if (email) baseUpdates.email = email;
+    if (typeof onboardingCompleted === 'boolean') baseUpdates.onboarding_completed = onboardingCompleted;
 
     const incomingRetentionDays = maxParentMessageDays !== undefined ? maxParentMessageDays : maxParentMessages;
     let parsedRetentionDays: number | undefined;

@@ -9,6 +9,7 @@ Visual Steps is a full-stack web application that helps parents and caregivers c
 - Create and manage profiles for multiple children.
 - Record each child's schedule, interests, strengths, support needs, therapies, rules, theme, time zone, and reward settings.
 - Create reusable activity templates and assign visual, step-by-step activities.
+- Follow a friendly first-time parent onboarding tour or replay it anytime from the dashboard.
 - Schedule recurring activities, optionally require parent verification, and review completion history.
 - Generate and edit AI-assisted quizzes, worksheets, and social stories.
 - Assign quizzes for one attempt per activity occurrence and review results through progress and summary reports. A deliberate reassignment unlocks one new attempt without deleting earlier results.
