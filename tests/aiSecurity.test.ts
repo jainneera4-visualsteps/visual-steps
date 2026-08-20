@@ -36,3 +36,22 @@ test('AI API responses do not expose SDK objects or server stack traces', () => 
   assert.doesNotMatch(aiRoute, /response:\s*result/);
   assert.doesNotMatch(aiRoute, /details:\s*error\.stack/);
 });
+
+test('parent assistant is authenticated, parent-only, and does not request child access codes', () => {
+  const server = readProjectFile('server.ts');
+  const routeStart = server.indexOf("app.post('/api/parent-assistant'");
+  const generationStart = server.indexOf('// --- AI Generation API ---', routeStart);
+  const route = server.slice(routeStart, generationStart);
+
+  assert.ok(routeStart >= 0 && generationStart > routeStart);
+  assert.match(route, /authenticateToken/);
+  assert.match(route, /req\.user\.role !== 'parent'/);
+  assert.match(route, /\.eq\('user_id', userId\)/);
+  assert.doesNotMatch(route, /kid_code|password_hash|secret_answer|service_role/);
+  assert.match(route, /isParentAssistantRateLimited/);
+  assert.match(route, /consume_parent_ai_question/);
+  assert.match(server, /app\.get\('\/api\/parent-assistant\/usage', authenticateToken/);
+  assert.match(server, /app\.get\('\/api\/parent-assistant\/capabilities', authenticateToken/);
+  assert.match(server, /app\.post\('\/api\/parent-assistant\/feedback', authenticateToken/);
+  assert.match(server, /parent_ai_knowledge_gaps/);
+});

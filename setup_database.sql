@@ -16,6 +16,8 @@ DROP TABLE IF EXISTS public.worksheets CASCADE;
 DROP TABLE IF EXISTS public.quiz_results CASCADE;
 DROP TABLE IF EXISTS public.quizzes CASCADE;
 DROP TABLE IF EXISTS public.parent_messages CASCADE;
+DROP TABLE IF EXISTS public.parent_ai_usage CASCADE;
+DROP TABLE IF EXISTS public.parent_ai_knowledge_gaps CASCADE;
 DROP TABLE IF EXISTS public.kids CASCADE;
 DROP TABLE IF EXISTS public.users CASCADE;
 
@@ -204,6 +206,26 @@ CREATE TABLE public.parent_messages (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+CREATE TABLE public.parent_ai_usage (
+    user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    usage_date DATE NOT NULL,
+    question_count INTEGER NOT NULL DEFAULT 0 CHECK (question_count >= 0),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    PRIMARY KEY (user_id, usage_date)
+);
+
+CREATE TABLE public.parent_ai_knowledge_gaps (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    question TEXT NOT NULL,
+    assistant_response TEXT,
+    page_path TEXT,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'reviewed', 'resolved', 'dismissed')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX parent_ai_knowledge_gaps_status_created_idx ON public.parent_ai_knowledge_gaps(status, created_at DESC);
+
 CREATE INDEX idx_parent_messages_user_kid_created_at
     ON public.parent_messages (user_id, kid_id, created_at DESC);
 
@@ -271,6 +293,8 @@ ALTER TABLE public.social_story_shares ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reward_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reward_purchases ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.parent_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.parent_ai_usage ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.parent_ai_knowledge_gaps ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.worksheets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.quizzes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.quiz_results ENABLE ROW LEVEL SECURITY;
@@ -352,6 +376,10 @@ CREATE POLICY "Users can insert their kids parent messages" ON public.parent_mes
 CREATE POLICY "Users can update their kids parent messages" ON public.parent_messages FOR UPDATE USING (kid_id IN (SELECT id FROM public.kids k WHERE k.user_id = auth.uid() OR (to_jsonb(k)->>'parent_id')::uuid = auth.uid()) AND user_id = auth.uid());
 CREATE POLICY "Users can delete their kids parent messages" ON public.parent_messages FOR DELETE USING (kid_id IN (SELECT id FROM public.kids k WHERE k.user_id = auth.uid() OR (to_jsonb(k)->>'parent_id')::uuid = auth.uid()) AND user_id = auth.uid());
 
+CREATE POLICY "Parents can view their own AI usage" ON public.parent_ai_usage FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Parents can submit their own AI knowledge gaps" ON public.parent_ai_knowledge_gaps FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Parents can view their own AI knowledge gaps" ON public.parent_ai_knowledge_gaps FOR SELECT USING (auth.uid() = user_id);
+
 -- Worksheets
 CREATE POLICY "Users can view their own worksheets" ON public.worksheets FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can insert their own worksheets" ON public.worksheets FOR INSERT WITH CHECK (auth.uid() = user_id);
@@ -370,6 +398,35 @@ CREATE POLICY "Users can insert their kids quiz results" ON public.quiz_results 
 CREATE POLICY "Users can delete their kids quiz results" ON public.quiz_results FOR DELETE USING (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
 
 -- Functions
+CREATE OR REPLACE FUNCTION public.consume_parent_ai_question()
+RETURNS TABLE (allowed BOOLEAN, used INTEGER, remaining INTEGER, daily_limit INTEGER, resets_at TIMESTAMP WITH TIME ZONE) AS $$
+DECLARE
+  requesting_user UUID := auth.uid();
+  current_day DATE := (timezone('utc'::text, now()))::date;
+  current_count INTEGER;
+  was_consumed BOOLEAN := false;
+  limit_value CONSTANT INTEGER := 30;
+BEGIN
+  IF requesting_user IS NULL THEN RAISE EXCEPTION 'Authentication required' USING ERRCODE = '42501'; END IF;
+  INSERT INTO public.parent_ai_usage (user_id, usage_date, question_count, updated_at)
+  VALUES (requesting_user, current_day, 1, timezone('utc'::text, now()))
+  ON CONFLICT (user_id, usage_date) DO UPDATE
+    SET question_count = public.parent_ai_usage.question_count + 1, updated_at = timezone('utc'::text, now())
+    WHERE public.parent_ai_usage.question_count < limit_value
+  RETURNING question_count INTO current_count;
+  IF current_count IS NOT NULL THEN
+    was_consumed := true;
+  ELSE
+    SELECT question_count INTO current_count FROM public.parent_ai_usage WHERE user_id = requesting_user AND usage_date = current_day;
+  END IF;
+  RETURN QUERY SELECT was_consumed, COALESCE(current_count, 0), GREATEST(limit_value - COALESCE(current_count, 0), 0), limit_value, ((current_day + 1)::timestamp AT TIME ZONE 'UTC');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+REVOKE ALL ON FUNCTION public.consume_parent_ai_question() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.consume_parent_ai_question() FROM anon;
+GRANT EXECUTE ON FUNCTION public.consume_parent_ai_question() TO authenticated;
+
 CREATE OR REPLACE FUNCTION public.increment_reward_balance(kid_id_param UUID, amount INTEGER)
 RETURNS void AS $$
 BEGIN

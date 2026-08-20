@@ -4,6 +4,7 @@ import { Button } from './Button';
 import { LogOut, Menu, X, Lightbulb, ChevronDown, BookOpen, FileText, Gamepad2, Activity, TrendingUp } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Tooltip } from './ui/Tooltip';
+import { ParentAssistant } from './ParentAssistant';
 
 export function Layout() {
   const { user, logout } = useAuth();
@@ -331,6 +332,7 @@ export function Layout() {
         </div>
 
       </footer>
+      {user && <ParentAssistant />}
     </div>
   );
 }

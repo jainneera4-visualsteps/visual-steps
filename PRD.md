@@ -60,6 +60,8 @@ Visual Steps provides a shared system in which a parent can prepare and supervis
 - Break activities into ordered text-and-image steps.
 - Create reusable activity templates and assign them to children.
 - Automatically introduce new parents to the core workflow and let every parent replay onboarding from the dashboard.
+- Provide a parent-only AI assistant for app guidance, owned-child progress summaries, and contextual activity suggestions while refusing unrelated requests. Maintain a verified catalog for every registered route, show parents the covered areas, and collect missing-information reports for deliberate review rather than unsafe automatic self-training.
+- Show and enforce a database-backed allowance of 30 parent-assistant questions per UTC day to make AI spending predictable.
 - Display pending and completed work in the child dashboard.
 - Let parents optionally require verification for an individual activity.
 - Display submitted activities in parent and child waiting-for-verification queues.
