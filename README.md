@@ -1,6 +1,6 @@
 # Visual Steps
 
-Visual Steps is a full-stack web application that helps parents and caregivers create structured, visual routines and personalized learning experiences for children with autism. Parents manage profiles, activities, learning materials, progress, messages, and rewards; children receive a focused dashboard for completing activities, playing quizzes, chatting with a configured assistant, and redeeming earned rewards.
+Visual Steps is a full-stack web application that helps parents and caregivers create structured, visual routines and personalized learning experiences for children with autism. Parents manage profiles, activities, learning materials, progress, messages, and rewards; children receive a focused dashboard for completing activities, playing assigned quizzes, and redeeming earned rewards.
 
 ## What the application includes
 
@@ -11,7 +11,7 @@ Visual Steps is a full-stack web application that helps parents and caregivers c
 - Create reusable activity templates and assign visual, step-by-step activities.
 - Schedule recurring activities, optionally require parent verification, and review completion history.
 - Generate and edit AI-assisted quizzes, worksheets, and social stories.
-- Assign quizzes and review results through progress and summary reports.
+- Assign quizzes for one attempt per activity occurrence and review results through progress and summary reports. A deliberate reassignment unlocks one new attempt without deleting earlier results.
 - Configure reward-shop items and approve purchases.
 - Send messages to a child's dashboard.
 
@@ -20,6 +20,7 @@ Visual Steps is a full-stack web application that helps parents and caregivers c
 - Sign in with a parent email and child access code.
 - View current, waiting-for-verification, and completed activities in a child-friendly dashboard.
 - Follow activity instructions with text, images, and links.
+- Receive small, reduced-motion-aware celebrations for correct quiz answers and meaningful completions.
 - Submit assigned work and earn configured tokens or stickers only after the completion requirements are satisfied.
 
 For activities marked **Parent verification required**, a child submission moves to a waiting queue. It does not update completion totals or rewards until the parent selects **Verify & complete**. A parent can instead reassign it to pending without granting a reward. Existing activities default to immediate completion.

@@ -69,7 +69,9 @@ Visual Steps provides a shared system in which a parent can prepare and supervis
 ### 5.4 Learning materials
 
 - Generate, save, edit, assign, play, and delete quizzes.
+- Limit a child to one submitted quiz attempt per assigned activity occurrence; parent reassignment permits one new attempt while preserving prior results.
 - Record quiz results and include them in child reporting.
+- Celebrate correct answers and meaningful completions with accessible animations that respect reduced-motion preferences.
 - Generate, save, edit, print, and delete worksheets.
 - Generate, edit, assign, view, and delete personalized social stories.
 - Allow parents to review and modify AI-generated material before use.

@@ -13,6 +13,7 @@ test('child API allowlist includes only required self-service routes', () => {
     ['GET', `/api/kids/${kidId}/reward-items`],
     ['PUT', '/api/activities/activity-123'],
     ['GET', '/api/quizzes/quiz-123'],
+    ['GET', '/api/quiz-attempts/activity-123'],
     ['GET', '/api/social-stories/story-123'],
     ['POST', '/api/quiz-results'],
   ];

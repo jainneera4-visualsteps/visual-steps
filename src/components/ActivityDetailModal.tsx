@@ -2,7 +2,7 @@ import { CheckCircle, Circle, Sparkles, Edit2, ArrowLeft, Printer, Eye } from 'l
 import { Button } from './Button';
 import { Card, CardHeader, CardTitle, CardContent } from './Card';
 import { useRef, useState, useEffect } from 'react';
-import confetti from 'canvas-confetti';
+import { celebrate } from '../utils/celebration';
 import { SocialStoryModal } from './SocialStoryModal';
 import { Link } from 'react-router-dom';
 import { Tooltip } from './ui/Tooltip';
@@ -42,7 +42,8 @@ export function ActivityDetailModal({
   isReadOnly = false, 
   canPrint = true,
   showToggleOnly = false,
-  timezone
+  timezone,
+  includeAssignmentContext = false
 }: {
   activity: Activity | null;
   onClose: () => void;
@@ -54,6 +55,7 @@ export function ActivityDetailModal({
   canPrint?: boolean;
   showToggleOnly?: boolean;
   timezone?: string;
+  includeAssignmentContext?: boolean;
 }) {
   if (!activity) return null;
 
@@ -71,13 +73,7 @@ export function ActivityDetailModal({
 
   useEffect(() => {
     if (showPraise) {
-      confetti({
-        particleCount: 200,
-        spread: 100,
-        origin: { y: 0.6 },
-        shapes: ['circle', 'square'],
-        colors: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF']
-      });
+      celebrate('achievement');
       const timer = setTimeout(() => {
         setShowPraise(false);
         onCloseRef.current();
@@ -200,6 +196,13 @@ export function ActivityDetailModal({
   };
 
   const isSocialStoryLink = activity.link?.includes('/social-stories/view/');
+  const childAwareLink = includeAssignmentContext
+    && /^\/play-quiz\/[^/?#]+\/?$/.test(activity.link || '')
+      ? `${activity.link.replace(/\/$/, '')}/${encodeURIComponent(activity.kid_id)}`
+      : activity.link;
+  const activityLink = includeAssignmentContext && childAwareLink?.startsWith('/')
+    ? `${childAwareLink}${childAwareLink.includes('?') ? '&' : '?'}activityId=${encodeURIComponent(activity.id)}`
+    : childAwareLink;
   
   return (
     <div className="w-full" ref={printRef}>
@@ -332,7 +335,7 @@ export function ActivityDetailModal({
                       </button>
                     ) : activity.link.startsWith('/') ? (
                       <Link 
-                        to={activity.link} 
+                        to={activityLink}
                         className="text-lg text-blue-600 hover:underline font-bold leading-relaxed block"
                       >
                         {activity.description}

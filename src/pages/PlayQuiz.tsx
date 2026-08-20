@@ -1,12 +1,12 @@
 import { apiFetch } from '../utils/api';
 import { normalizeImageSource } from '../utils/imageSource';
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Card, CardContent } from '../components/Card';
 import { Input } from '../components/Input';
 import { ArrowLeft, CheckCircle2, XCircle, Trophy, Star, RefreshCcw, Volume2, Square } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { celebrate } from '../utils/celebration';
 
 interface QuizContent {
   title: string;
@@ -25,6 +25,8 @@ interface QuizContent {
 export default function PlayQuiz() {
   const { id, kidId } = useParams<{ id: string, kidId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const activityId = searchParams.get('activityId');
   const [quiz, setQuiz] = useState<QuizContent | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -37,10 +39,12 @@ export default function PlayQuiz() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isFeedbackPlaying, setIsFeedbackPlaying] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [isAttemptLocked, setIsAttemptLocked] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   useEffect(() => {
     fetchQuiz();
-  }, [id]);
+  }, [id, activityId]);
 
   useEffect(() => {
     if (quiz) {
@@ -169,6 +173,15 @@ export default function PlayQuiz() {
 
   const fetchQuiz = async () => {
     try {
+      if (activityId) {
+        const attemptResponse = await apiFetch(`/api/quiz-attempts/${encodeURIComponent(activityId)}`);
+        if (!attemptResponse.ok) throw new Error('Unable to verify this quiz assignment');
+        const attempt = await attemptResponse.json();
+        if (attempt.locked) {
+          setIsAttemptLocked(true);
+          return;
+        }
+      }
       const res = await apiFetch(`/api/quizzes/${id}`);
       if (res.ok) {
         const data = await res.json();
@@ -266,20 +279,15 @@ export default function PlayQuiz() {
 
     if (isCorrect) {
       setScore(prev => prev + 1);
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#10B981', '#3B82F6', '#F59E0B']
-      });
+      celebrate('small');
     }
   };
 
-  const saveResult = async (finalScore: number) => {
+  const saveResult = async (finalScore: number): Promise<boolean> => {
     console.log('PlayQuiz: saveResult called, kidId:', kidId, 'score:', finalScore);
     if (!kidId) {
       console.log('PlayQuiz: saveResult skipped, no kidId');
-      return;
+      return true;
     }
     try {
       const res = await apiFetch('/api/quiz-results', {
@@ -288,6 +296,7 @@ export default function PlayQuiz() {
         body: JSON.stringify({
           quizId: id,
           kidId: kidId,
+          activityId,
           responses: userResponses,
           score: finalScore,
           totalQuestions: quiz!.questions.length,
@@ -295,12 +304,20 @@ export default function PlayQuiz() {
         })
       });
       console.log('PlayQuiz: saveResult response status:', res.status);
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}));
+        setSaveError(payload.error || 'Your quiz result could not be saved. Please try again.');
+        return false;
+      }
+      return true;
     } catch (err) {
       console.error('Failed to save quiz result', err);
+      setSaveError('Your quiz result could not be saved. Please check your connection and try again.');
+      return false;
     }
   };
 
-  const handleNextQuestion = () => {
+  const handleNextQuestion = async () => {
     if (!quiz || !quiz.questions || isFinished) return;
     
     window.speechSynthesis.cancel();
@@ -313,19 +330,11 @@ export default function PlayQuiz() {
       setTypedAnswer('');
       setIsAnswerChecked(false);
     } else {
+      setSaveError('');
+      const saved = await saveResult(score);
+      if (!saved) return;
       setIsFinished(true);
-      setScore(prevScore => {
-        saveResult(prevScore);
-        return prevScore;
-      });
-      if (score === quiz.questions.length) {
-        confetti({
-          particleCount: 300,
-          spread: 100,
-          origin: { y: 0.5 },
-          colors: ['#F59E0B', '#EF4444', '#3B82F6', '#10B981']
-        });
-      }
+      celebrate('achievement');
     }
   };
 
@@ -357,6 +366,20 @@ export default function PlayQuiz() {
   }
 
   if (!quiz) {
+    if (isAttemptLocked) {
+      return (
+        <div className="child-theme child-page min-h-screen flex items-center justify-center p-4">
+          <Card className="child-surface w-full max-w-md">
+            <CardContent className="space-y-5 p-8 text-center" aria-live="polite">
+              <CheckCircle2 className="mx-auto h-16 w-16 text-emerald-500" />
+              <h1 className="text-2xl font-black text-slate-900">Quiz already completed</h1>
+              <p className="text-slate-600">You completed this assigned quiz once. Ask your parent to reassign it if another attempt is needed.</p>
+              <Button onClick={handleGoBack} className="child-primary-action w-full">Back to activities</Button>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
     console.log('PlayQuiz: quiz is null');
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -413,15 +436,17 @@ export default function PlayQuiz() {
               ))}
             </div>
 
-            <div className="grid grid-cols-2 gap-4 pt-4">
+            <div className={`${activityId ? '' : 'grid grid-cols-2'} gap-4 pt-4`}>
               <Button variant="outline" onClick={handleGoBack} className="w-full font-bold">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Go Back
               </Button>
-              <Button onClick={handleRestart} className="child-primary-action w-full font-bold border-0">
-                <RefreshCcw className="w-4 h-4 mr-2" />
-                Play Again
-              </Button>
+              {!activityId && (
+                <Button onClick={handleRestart} className="child-primary-action w-full font-bold border-0">
+                  <RefreshCcw className="w-4 h-4 mr-2" />
+                  Play Again
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -568,6 +593,11 @@ export default function PlayQuiz() {
             <div className="p-4 md:p-6 flex flex-col">
               {/* Primary Action at Top */}
               <div className="pb-3">
+                {saveError && (
+                  <p role="alert" className="mb-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">
+                    {saveError}
+                  </p>
+                )}
                 {!isAnswerChecked ? (
                   <Button 
                     size="lg" 

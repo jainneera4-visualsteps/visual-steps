@@ -389,6 +389,7 @@ export const isKidApiRequestAllowed = (method: string, pathName: string, kidId: 
   if (methodUpper === 'GET' && pathName === `${ownKidBase}/reward-items`) return true;
   if (methodUpper === 'PUT' && /^\/api\/activities\/[^/]+$/.test(pathName)) return true;
   if (methodUpper === 'GET' && /^\/api\/quizzes\/[^/]+$/.test(pathName)) return true;
+  if (methodUpper === 'GET' && /^\/api\/quiz-attempts\/[^/]+$/.test(pathName)) return true;
   if (methodUpper === 'GET' && /^\/api\/social-stories\/[^/]+$/.test(pathName)) return true;
   if (methodUpper === 'POST' && pathName === '/api/quiz-results') return true;
 
@@ -1199,7 +1200,7 @@ app.post('/api/auth/verify-password', authenticateToken, async (req: any, res) =
 
 app.post('/api/quiz-results', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
-  const { quizId, kidId, responses, score, totalQuestions } = req.body;
+  const { quizId, kidId, activityId, responses, score, totalQuestions } = req.body;
   console.log('[POST /api/quiz-results] Request body:', req.body);
 
   if (!quizId || !kidId || score === undefined || !responses || totalQuestions === undefined) {
@@ -1211,11 +1212,47 @@ app.post('/api/quiz-results', authenticateToken, async (req: any, res) => {
     return res.status(403).json({ error: 'Forbidden' });
   }
 
+  if (req.user.role === 'kid' && !activityId) {
+    return res.status(400).json({ error: 'Assigned quiz context is required' });
+  }
+
+  let attemptGeneration: number | null = null;
+  if (activityId) {
+    const { data: activity, error: activityError } = await supabase
+      .from('activities')
+      .select('id, kid_id, link, attempt_generation, kids!inner(user_id)')
+      .eq('id', activityId)
+      .eq('kid_id', kidId)
+      .eq('kids.user_id', req.user.id)
+      .single();
+
+    if (activityError || !activity) return res.status(403).json({ error: 'Quiz assignment not found' });
+    const linkedQuizId = typeof activity.link === 'string'
+      ? activity.link.match(/\/play-quiz\/([^/?#]+)/)?.[1]
+      : undefined;
+    if (linkedQuizId && decodeURIComponent(linkedQuizId) !== quizId) {
+      return res.status(400).json({ error: 'Quiz does not match this assignment' });
+    }
+
+    attemptGeneration = Math.max(1, Number(activity.attempt_generation) || 1);
+    const { data: existingResult } = await supabase
+      .from('quiz_results')
+      .select('id')
+      .eq('activity_id', activityId)
+      .eq('attempt_generation', attemptGeneration)
+      .maybeSingle();
+    if (existingResult) {
+      return res.status(409).json({ error: 'This assigned quiz has already been completed', code: 'QUIZ_ATTEMPT_LOCKED' });
+    }
+  }
+
   const { data, error } = await supabase
     .from('quiz_results')
     .insert([{ 
         quiz_id: quizId, 
         kid_id: kidId, 
+        activity_id: activityId || null,
+        attempt_generation: attemptGeneration,
         responses, 
         score, 
         total_questions: totalQuestions,
@@ -1225,9 +1262,38 @@ app.post('/api/quiz-results', authenticateToken, async (req: any, res) => {
 
   if (error) {
     console.error('[POST /api/quiz-results] Supabase error:', JSON.stringify(error, null, 2));
-    return res.status(500).json({ error: error.message, details: error });
+    if (error.code === '23505') {
+      return res.status(409).json({ error: 'This assigned quiz has already been completed', code: 'QUIZ_ATTEMPT_LOCKED' });
+    }
+    return res.status(500).json({ error: error.message });
   }
   res.status(201).json(data);
+});
+
+app.get('/api/quiz-attempts/:activityId', authenticateToken, async (req: any, res) => {
+  const supabase = getSupabaseForUser(req);
+  const { activityId } = req.params;
+  const { data: activity, error: activityError } = await supabase
+    .from('activities')
+    .select('id, kid_id, attempt_generation, kids!inner(user_id)')
+    .eq('id', activityId)
+    .eq('kids.user_id', req.user.id)
+    .single();
+
+  if (activityError || !activity || (req.user.role === 'kid' && activity.kid_id !== req.user.kidId)) {
+    return res.status(403).json({ error: 'Quiz assignment not found' });
+  }
+
+  const attemptGeneration = Math.max(1, Number(activity.attempt_generation) || 1);
+  const { data: result, error: resultError } = await supabase
+    .from('quiz_results')
+    .select('id, score, total_questions, completed_at')
+    .eq('activity_id', activityId)
+    .eq('attempt_generation', attemptGeneration)
+    .maybeSingle();
+  if (resultError) return res.status(500).json({ error: 'Unable to check quiz attempt' });
+
+  res.json({ locked: Boolean(result), attemptGeneration, result: result || null });
 });
 
 app.get('/api/kids/:kidId/quiz-results', authenticateToken, async (req: any, res) => {
@@ -2996,7 +3062,7 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
 
     const isNewCompletion = status === 'completed' && activity.status !== 'completed';
     const isNewSubmission = status === 'awaiting_verification' && activity.status === 'pending';
-    const isReassignment = status === 'pending' && activity.status === 'awaiting_verification';
+    const isReassignment = status === 'pending' && activity.status !== 'pending';
     const assignedCompletionDate = isNewCompletion
       ? new Date().toISOString()
       : status === 'pending'
@@ -3029,6 +3095,9 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
         verified_at: verifiedAt,
         verified_by: verifiedBy,
         completion_date: assignedCompletionDate,
+        attempt_generation: isReassignment
+          ? Math.max(1, Number(activity.attempt_generation) || 1) + 1
+          : Math.max(1, Number(activity.attempt_generation) || 1),
         due_date: dueDate,
         repeat_interval: repeat_interval || null,
         repeat_unit: repeat_unit || null

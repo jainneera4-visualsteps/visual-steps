@@ -875,6 +875,7 @@ export default function KidsDashboard() {
             canPrint={kid?.can_print}
             showToggleOnly={true}
             timezone={kid?.timezone}
+            includeAssignmentContext={true}
           />
         ) : viewingStoryId && isAccessAllowed ? (
           <SocialStoryModal 

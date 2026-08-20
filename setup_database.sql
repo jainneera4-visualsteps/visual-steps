@@ -13,6 +13,7 @@ DROP TABLE IF EXISTS public.reward_items CASCADE;
 DROP TABLE IF EXISTS public.social_story_shares CASCADE;
 DROP TABLE IF EXISTS public.social_stories CASCADE;
 DROP TABLE IF EXISTS public.worksheets CASCADE;
+DROP TABLE IF EXISTS public.quiz_results CASCADE;
 DROP TABLE IF EXISTS public.quizzes CASCADE;
 DROP TABLE IF EXISTS public.parent_messages CASCADE;
 DROP TABLE IF EXISTS public.kids CASCADE;
@@ -103,6 +104,7 @@ CREATE TABLE public.activities (
     verified_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
     due_date DATE,
     completion_date TIMESTAMP WITH TIME ZONE,
+    attempt_generation INTEGER NOT NULL DEFAULT 1,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -236,6 +238,24 @@ CREATE TABLE public.quizzes (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+CREATE TABLE public.quiz_results (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    quiz_id UUID NOT NULL REFERENCES public.quizzes(id) ON DELETE CASCADE,
+    kid_id UUID NOT NULL REFERENCES public.kids(id) ON DELETE CASCADE,
+    activity_id UUID REFERENCES public.activities(id) ON DELETE SET NULL,
+    attempt_generation INTEGER,
+    responses JSONB NOT NULL,
+    questions JSONB,
+    score INTEGER NOT NULL,
+    total_questions INTEGER NOT NULL,
+    completed_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE UNIQUE INDEX quiz_results_assignment_attempt_unique
+  ON public.quiz_results(activity_id, attempt_generation)
+  WHERE activity_id IS NOT NULL AND attempt_generation IS NOT NULL;
+
 -- RLS Policies
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.kids ENABLE ROW LEVEL SECURITY;
@@ -252,6 +272,7 @@ ALTER TABLE public.reward_purchases ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.parent_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.worksheets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.quizzes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.quiz_results ENABLE ROW LEVEL SECURITY;
 
 -- Users
 CREATE POLICY "Users can view their own profile" ON public.users FOR SELECT USING (auth.uid() = id);
@@ -341,6 +362,11 @@ CREATE POLICY "Users can view their own quizzes" ON public.quizzes FOR SELECT US
 CREATE POLICY "Users can insert their own quizzes" ON public.quizzes FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can update their own quizzes" ON public.quizzes FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete their own quizzes" ON public.quizzes FOR DELETE USING (auth.uid() = user_id);
+
+-- Quiz Results
+CREATE POLICY "Users can view their kids quiz results" ON public.quiz_results FOR SELECT USING (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
+CREATE POLICY "Users can insert their kids quiz results" ON public.quiz_results FOR INSERT WITH CHECK (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
+CREATE POLICY "Users can delete their kids quiz results" ON public.quiz_results FOR DELETE USING (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
 
 -- Functions
 CREATE OR REPLACE FUNCTION public.increment_reward_balance(kid_id_param UUID, amount INTEGER)
