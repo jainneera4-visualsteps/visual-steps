@@ -97,10 +97,18 @@ CREATE TABLE public.activities (
     link TEXT,
     image_url TEXT,
     status TEXT DEFAULT 'pending',
+    requires_verification BOOLEAN NOT NULL DEFAULT false,
+    submitted_at TIMESTAMP WITH TIME ZONE,
+    verified_at TIMESTAMP WITH TIME ZONE,
+    verified_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
     due_date DATE,
     completion_date TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+ALTER TABLE public.activities
+  ADD CONSTRAINT activities_status_check
+  CHECK (status IN ('pending', 'awaiting_verification', 'completed'));
 
 -- Create activity_steps table
 CREATE TABLE public.activity_steps (

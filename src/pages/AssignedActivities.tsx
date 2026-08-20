@@ -7,7 +7,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import { ArrowLeft, Plus, Trash2, Edit2, CheckCircle, Circle, Calendar, Clock, Image as ImageIcon, Eye, Sparkles, Loader2, LayoutList, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Activity, Award, History, Lock, HelpCircle, X, WifiOff } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Edit2, CheckCircle, Circle, Calendar, Clock, Image as ImageIcon, Eye, Sparkles, Loader2, LayoutList, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Activity, Award, History, Lock, HelpCircle, X, WifiOff, ShieldCheck, RotateCcw } from 'lucide-react';
 import { ActivityDetailModal } from '../components/ActivityDetailModal';
 import { formatInTimezone, getZonedTime, convertDateToTimeZone } from '../utils/dateUtils';
 
@@ -29,7 +29,10 @@ interface Activity {
   description: string;
   link: string;
   image_url: string;
-  status: 'pending' | 'completed';
+  status: 'pending' | 'awaiting_verification' | 'completed';
+  requires_verification?: boolean;
+  submitted_at?: string;
+  verified_at?: string;
   due_date: string;
   repeat_interval?: number;
   repeat_unit?: string;
@@ -125,7 +128,7 @@ export default function AssignedActivities() {
     return new Date(zoned.year, zoned.month - 1, 1);
   });
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'activities' | 'completed' | 'history' | 'rewards'>((searchParams.get('tab') as any) || 'activities');
+  const [activeTab, setActiveTab] = useState<'activities' | 'verification' | 'completed' | 'history' | 'rewards'>((searchParams.get('tab') as any) || 'activities');
 
   const [templates, setTemplates] = useState<ActivityTemplate[]>([]);
   const [socialStories, setSocialStories] = useState<any[]>([]);
@@ -229,6 +232,8 @@ export default function AssignedActivities() {
 
   const activitiesToRender = activeTab === 'activities' 
     ? activities.filter(a => a.status === 'pending' || !a.status) 
+    : activeTab === 'verification'
+      ? activities.filter(a => a.status === 'awaiting_verification')
     : activeTab === 'completed' 
       ? activities.filter(a => a.status === 'completed')
       : historyActivities;
@@ -619,6 +624,7 @@ export default function AssignedActivities() {
     imageUrl: '',
     dueDate: '',
     status: 'pending',
+    requiresVerification: false,
     steps: [] as ActivityStep[],
   });
   const [formError, setFormError] = useState<string | null>(null);
@@ -914,6 +920,7 @@ export default function AssignedActivities() {
         imageUrl: activity.image_url || '',
         dueDate: activity.due_date || '',
         status: activity.status,
+        requiresVerification: activity.requires_verification === true,
         steps: activity.steps || [],
       });
     } else {
@@ -952,6 +959,7 @@ export default function AssignedActivities() {
         imageUrl: '',
         dueDate: localDateString,
         status: 'pending',
+        requiresVerification: false,
         steps: [],
       });
     }
@@ -1283,6 +1291,121 @@ export default function AssignedActivities() {
     } catch (error) {
       console.error('Failed to update status', error);
     }
+  };
+
+  const reviewActivity = async (activity: Activity, decision: 'complete' | 'reassign') => {
+    try {
+      const res = await apiFetch(`/api/activities/${encodeURIComponent(activity.id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          activityType: activity.activity_type,
+          category: activity.category,
+          repeatFrequency: activity.repeat_frequency,
+          repeatsTill: activity.repeats_till,
+          timeOfDay: activity.time_of_day,
+          description: activity.description,
+          link: activity.link,
+          imageUrl: activity.image_url,
+          dueDate: activity.due_date,
+          repeat_interval: activity.repeat_interval,
+          repeat_unit: activity.repeat_unit,
+          requiresVerification: activity.requires_verification === true,
+          status: decision === 'complete' ? 'completed' : 'pending',
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await safeJson(res);
+        throw new Error(data.error || 'Activity review could not be saved');
+      }
+      await fetchData();
+    } catch (error: any) {
+      alert(error.message || 'Activity review could not be saved');
+    }
+  };
+
+  const renderVerificationTab = () => {
+    const waiting = activities.filter(activity => activity.status === 'awaiting_verification');
+
+    return (
+      <Card className="border-none ring-1 ring-amber-200 shadow-sm">
+        <CardContent className="p-0">
+          <div className="border-b border-amber-100 bg-amber-50 px-5 py-4">
+            <p className="font-bold text-amber-950">Waiting for your review</p>
+            <p className="mt-1 text-sm text-amber-800">
+              Rewards are not added until you verify an activity as completed.
+            </p>
+          </div>
+          {waiting.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-14 text-center">
+              <ShieldCheck className="h-10 w-10 text-emerald-400" />
+              <p className="mt-3 font-bold text-slate-700">Nothing is waiting for verification</p>
+              <p className="mt-1 text-sm text-slate-500">Submitted activities will appear here.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] text-left text-sm">
+                <thead className="border-y border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3 font-bold">Status</th>
+                    <th className="px-4 py-3 font-bold">Activity</th>
+                    <th className="px-4 py-3 font-bold">Category</th>
+                    <th className="px-4 py-3 font-bold">Due date</th>
+                    <th className="px-4 py-3 font-bold">Submitted</th>
+                    <th className="px-4 py-3 text-right font-bold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {waiting.map(activity => (
+                    <tr key={activity.id} className="bg-white transition-colors hover:bg-amber-50/40">
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-bold text-amber-800">
+                          <ShieldCheck className="h-3.5 w-3.5" /> Waiting
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          {activity.image_url && (
+                            <div className="h-9 w-9 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                              <img src={activity.image_url} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="truncate font-bold text-slate-900">{activity.activity_type}</p>
+                            {activity.description && <p className="max-w-xs truncate text-xs text-slate-500">{activity.description}</p>}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-slate-600">{activity.category || 'Uncategorized'}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-slate-600">{formatSimpleDate(activity.due_date)}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                        {activity.submitted_at ? formatKidDate(activity.submitted_at) : 'Submitted'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <CustomTooltip content="Review activity details">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPreviewActivity(activity)}>
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </CustomTooltip>
+                          <Button variant="outline" size="xs" onClick={() => reviewActivity(activity, 'reassign')}>
+                            <RotateCcw className="mr-1 h-3.5 w-3.5" /> Reassign
+                          </Button>
+                          <Button size="xs" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => reviewActivity(activity, 'complete')}>
+                            <CheckCircle className="mr-1 h-3.5 w-3.5" /> Verify &amp; complete
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
   };
 
   const renderCalendar = (activitiesToRender: Activity[]) => {
@@ -1764,6 +1887,8 @@ export default function AssignedActivities() {
                 <h1 className="text-5xl font-normal text-slate-900 tracking-tight leading-none">
                   {activeTab === 'activities' 
                     ? <div className="flex items-center gap-4"><LayoutList className="h-12 w-12 text-blue-600" /> {kid?.name ? `${kid.name}'s ` : ''}Assigned Activities</div>
+                    : activeTab === 'verification'
+                      ? <div className="flex items-center gap-4"><ShieldCheck className="h-12 w-12 text-amber-500" /> Waiting for Verification</div>
                     : activeTab === 'completed' 
                         ? <div className="flex items-center gap-4"><CheckCircle className="h-12 w-12 text-emerald-600" /> {kid?.name ? `${kid.name}'s ` : ''}Completed Activities</div>
                         : activeTab === 'history'
@@ -1789,6 +1914,8 @@ export default function AssignedActivities() {
                 <p className="text-lg font-normal text-slate-500 mt-3">
                   {activeTab === 'activities' 
                     ? 'Organize daily tasks and track learning progress' 
+                    : activeTab === 'verification'
+                      ? `Review activities ${kid?.name || 'your child'} submitted before rewards are granted.`
                     : activeTab === 'completed' 
                         ? 'Activities that have been marked as completed. You can repeat them if you want.' 
                         : activeTab === 'history'
@@ -1808,6 +1935,17 @@ export default function AssignedActivities() {
                     >
                       <LayoutList className="h-3 w-3" />
                       Activities
+                    </button>
+                  </CustomTooltip>
+                  <CustomTooltip content="Review activities submitted by your child">
+                    <button
+                      onClick={() => setActiveTab('verification')}
+                      className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
+                        activeTab === 'verification' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+                      }`}
+                    >
+                      <ShieldCheck className="h-3 w-3" />
+                      Verify ({activities.filter(activity => activity.status === 'awaiting_verification').length})
                     </button>
                   </CustomTooltip>
                   <CustomTooltip content="View completed activities">
@@ -1910,6 +2048,8 @@ export default function AssignedActivities() {
                 {renderCalendar(activitiesToRender)}
               </CardContent>
             </Card>
+          ) : activeTab === 'verification' ? (
+            renderVerificationTab()
           ) : activeTab === 'activities' ? (
             activitiesLoadError && activities.length === 0 ? (
               <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-amber-300 bg-amber-50 py-8 text-center">
@@ -2248,7 +2388,7 @@ export default function AssignedActivities() {
                   </tbody>
                 </table>
               </div>
-            {selectedDate && activities.filter(a => a.status !== 'completed').filter(a => a.due_date === selectedDate).length === 0 && (
+            {selectedDate && activitiesToRender.filter(a => a.due_date === selectedDate).length === 0 && (
               <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 py-8 text-center">
                 <p className="text-sm font-medium text-slate-500">No activities scheduled for this day.</p>
                 <CustomTooltip content="Add New Activity">
@@ -2266,7 +2406,7 @@ export default function AssignedActivities() {
                 </CustomTooltip>
               </div>
             )}
-            {!selectedDate && activities.filter(a => a.status !== 'completed').length === 0 && (
+            {!selectedDate && activitiesToRender.length === 0 && (
               <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 py-12 text-center">
                 <div className="rounded-full bg-slate-100 p-3 mb-3">
                   <LayoutList className="h-6 w-6 text-slate-400" />
@@ -3180,6 +3320,23 @@ export default function AssignedActivities() {
                     {formError}
                   </div>
                 )}
+
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                  <label className="flex cursor-pointer items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={formData.requiresVerification}
+                      onChange={(event) => setFormData({ ...formData, requiresVerification: event.target.checked })}
+                      className="mt-0.5 h-4 w-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                    />
+                    <span>
+                      <span className="block text-sm font-bold text-amber-950">Parent verification required</span>
+                      <span className="mt-0.5 block text-xs leading-5 text-amber-800">
+                        When selected, your child can submit this activity, but rewards are added only after you verify it.
+                      </span>
+                    </span>
+                  </label>
+                </div>
 
                 {editingActivity && editingActivity.status === 'completed' && (
                   <div className="flex items-center gap-2 p-2 bg-blue-50 rounded border border-blue-100 mb-2">

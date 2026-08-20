@@ -2,7 +2,7 @@
 
 **Status:** Active product, reflecting the current repository
 
-**Last updated:** August 14, 2026
+**Last updated:** August 20, 2026
 
 ## 1. Product summary
 
@@ -60,6 +60,9 @@ Visual Steps provides a shared system in which a parent can prepare and supervis
 - Break activities into ordered text-and-image steps.
 - Create reusable activity templates and assign them to children.
 - Display pending and completed work in the child dashboard.
+- Let parents optionally require verification for an individual activity.
+- Display submitted activities in parent and child waiting-for-verification queues.
+- Grant completion credit and rewards only after final completion; allow a parent to reassign an unverified submission without granting rewards.
 - Preserve completion history and use time-zone-aware dates.
 - Support offline awareness and cached dashboard data for graceful degradation.
 
@@ -104,7 +107,9 @@ Visual Steps provides a shared system in which a parent can prepare and supervis
 1. A child signs in with the parent email and child code.
 2. The child sees the activities relevant to the current day and time.
 3. The child opens an activity and follows its ordered visual steps.
-4. Completion is recorded, the reward balance is updated when applicable, and the parent view receives an update.
+4. An activity without verification completes immediately. An activity requiring verification moves to a waiting queue.
+5. The parent verifies and completes it, or reassigns it to pending for another attempt.
+6. Completion totals and rewards update only when the activity reaches the completed state.
 
 ### Personalized content creation
 
@@ -127,6 +132,7 @@ Visual Steps provides a shared system in which a parent can prepare and supervis
 - Activity ordering, recurrence, due dates, and completion history must remain consistent across parent and child views.
 - Date-sensitive behavior must use the child's configured time zone when available.
 - Reward balances must not become inconsistent during completion or purchase operations.
+- A child submission awaiting verification must not grant rewards or increase completion totals.
 - AI output must be treated as an editable draft and stored only after the relevant user action.
 - Protected API requests must carry a valid parent or child token.
 - The application must give understandable feedback for authentication, API, and AI-generation failures.

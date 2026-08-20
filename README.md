@@ -9,7 +9,7 @@ Visual Steps is a full-stack web application that helps parents and caregivers c
 - Create and manage profiles for multiple children.
 - Record each child's schedule, interests, strengths, support needs, therapies, rules, theme, time zone, and reward settings.
 - Create reusable activity templates and assign visual, step-by-step activities.
-- Schedule recurring activities and review completion history.
+- Schedule recurring activities, optionally require parent verification, and review completion history.
 - Generate and edit AI-assisted quizzes, worksheets, and social stories.
 - Assign quizzes and review results through progress and summary reports.
 - Configure reward-shop items and approve purchases.
@@ -18,9 +18,11 @@ Visual Steps is a full-stack web application that helps parents and caregivers c
 ### Child experience
 
 - Sign in with a parent email and child access code.
-- View current and completed activities in a child-friendly dashboard.
+- View current, waiting-for-verification, and completed activities in a child-friendly dashboard.
 - Follow activity instructions with text, images, and links.
-- Complete assigned quizzes and earn the configured tokens or stickers.
+- Submit assigned work and earn configured tokens or stickers only after the completion requirements are satisfied.
+
+For activities marked **Parent verification required**, a child submission moves to a waiting queue. It does not update completion totals or rewards until the parent selects **Verify & complete**. A parent can instead reassign it to pending without granting a reward. Existing activities default to immediate completion.
 - Read assigned social stories and messages from a parent.
 - Spend earned rewards in the reward shop.
 

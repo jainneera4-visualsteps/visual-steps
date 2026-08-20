@@ -2446,6 +2446,7 @@ app.get('/api/kids/:kidId/activities', authenticateToken, async (req: any, res) 
     // Apply max incomplete limit if set
     if (mode === 'kid' && kid.max_incomplete_limit && kid.max_incomplete_limit > 0) {
       const incompleteActivities = filteredActivities.filter((a: any) => a.status === 'pending');
+      const awaitingVerificationActivities = filteredActivities.filter((a: any) => a.status === 'awaiting_verification');
       const completedActivities = filteredActivities.filter((a: any) => a.status === 'completed');
       
       incompleteActivities.sort((a: any, b: any) => {
@@ -2456,7 +2457,9 @@ app.get('/api/kids/:kidId/activities', authenticateToken, async (req: any, res) 
       });
 
       const limitedIncomplete = incompleteActivities.slice(0, kid.max_incomplete_limit);
-      filteredActivities = [...limitedIncomplete, ...completedActivities];
+      // Waiting submissions are never hidden by the incomplete-activity limit;
+      // children need to see that those activities were already submitted.
+      filteredActivities = [...limitedIncomplete, ...awaitingVerificationActivities, ...completedActivities];
     }
 
     // Fetch steps for each activity
@@ -2579,7 +2582,7 @@ app.get('/api/activity-categories', authenticateToken, async (req: any, res) => 
 // Create Activity
 app.post('/api/activities', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
-  const { kidId, activityType, category, repeatFrequency, repeatsTill, timeOfDay, description, link, imageUrl, status, dueDate, steps, repeat_interval, repeat_unit } = req.body;
+  const { kidId, activityType, category, repeatFrequency, repeatsTill, timeOfDay, description, link, imageUrl, status, dueDate, steps, repeat_interval, repeat_unit, requiresVerification } = req.body;
   const userId = req.user.id;
 
   try {
@@ -2609,6 +2612,7 @@ app.post('/api/activities', authenticateToken, async (req: any, res) => {
           link,
           image_url: imageUrl,
           status: status || 'pending',
+          requires_verification: requiresVerification === true,
           due_date: dueDate,
           repeat_interval: repeat_interval || null,
           repeat_unit: repeat_unit || null
@@ -2876,7 +2880,7 @@ app.put('/api/kids/:kidId/confirm-reward', authenticateToken, async (req: any, r
 app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
   const { id } = req.params;
-  let { activityType, category, repeatFrequency, repeatsTill, timeOfDay, description, link, imageUrl, status, dueDate, steps, repeat_interval, repeat_unit } = req.body;
+  let { activityType, category, repeatFrequency, repeatsTill, timeOfDay, description, link, imageUrl, status, dueDate, steps, repeat_interval, repeat_unit, requiresVerification } = req.body;
   const userId = req.user.id;
 
   try {
@@ -2918,12 +2922,13 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    // Children may complete their own pending activity, but cannot edit its
+    // Children may submit their own pending activity, but cannot edit its
     // content, schedule, recurrence, ownership, or restore history records.
     if (req.user.role === 'kid') {
-      if (isHistory || status !== 'completed') {
-        return res.status(403).json({ error: 'Children may only complete pending activities' });
+      if (isHistory || status !== 'completed' || activity.status !== 'pending') {
+        return res.status(403).json({ error: 'Children may only submit pending activities' });
       }
+      status = activity.requires_verification ? 'awaiting_verification' : 'completed';
       activityType = activity.activity_type;
       category = activity.category;
       repeatFrequency = activity.repeat_frequency;
@@ -2935,6 +2940,7 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
       dueDate = activity.due_date;
       repeat_interval = activity.repeat_interval;
       repeat_unit = activity.repeat_unit;
+      requiresVerification = activity.requires_verification;
       steps = undefined;
     }
 
@@ -2989,11 +2995,20 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
     }
 
     const isNewCompletion = status === 'completed' && activity.status !== 'completed';
+    const isNewSubmission = status === 'awaiting_verification' && activity.status === 'pending';
+    const isReassignment = status === 'pending' && activity.status === 'awaiting_verification';
     const assignedCompletionDate = isNewCompletion
       ? new Date().toISOString()
       : status === 'pending'
         ? null
         : activity.completion_date;
+    const submittedAt = isNewSubmission
+      ? new Date().toISOString()
+      : isReassignment
+        ? null
+        : activity.submitted_at;
+    const verifiedAt = isNewCompletion ? new Date().toISOString() : status === 'pending' ? null : activity.verified_at;
+    const verifiedBy = isNewCompletion && req.user.role !== 'kid' ? userId : status === 'pending' ? null : activity.verified_by;
 
     const { error: updateError } = await supabase
       .from('activities')
@@ -3007,6 +3022,12 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
         link,
         image_url: imageUrl,
         status,
+        requires_verification: requiresVerification === undefined
+          ? Boolean(activity.requires_verification)
+          : requiresVerification === true,
+        submitted_at: submittedAt,
+        verified_at: verifiedAt,
+        verified_by: verifiedBy,
         completion_date: assignedCompletionDate,
         due_date: dueDate,
         repeat_interval: repeat_interval || null,
@@ -3107,6 +3128,7 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
             link: activity.link,
             image_url: activity.image_url,
             status: 'pending',
+            requires_verification: Boolean(activity.requires_verification),
             due_date: nextDueDateStr,
             repeat_interval: activity.repeat_interval || null,
             repeat_unit: activity.repeat_unit || null
@@ -3276,7 +3298,15 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
     const io = req.app.get('io');
     if (io) io.to(`kid_${activity.kid_id}`).emit('data_updated', { kidId: activity.kid_id });
 
-    res.json({ message: 'Activity updated' });
+    res.json({
+      message: status === 'awaiting_verification'
+        ? 'Activity submitted for parent verification'
+        : status === 'completed'
+          ? 'Activity completed'
+          : 'Activity updated',
+      status,
+      rewardGranted: isNewCompletion,
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Internal server error' });

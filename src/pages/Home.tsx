@@ -201,7 +201,7 @@ export default function Home() {
                     </div>
                     <div className="flex flex-col">
                       <strong className="text-slate-900 font-bold text-lg">A focused dashboard for kids</strong>
-                      <p className="text-sm text-slate-600 leading-relaxed">Children use their own simple code to open a friendly daily view, follow steps and mark activities complete without entering the parent area.</p>
+                      <p className="text-sm text-slate-600 leading-relaxed">Children use their own simple code to follow daily steps and submit finished activities. Parents can optionally review selected activities before completion is confirmed.</p>
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
@@ -210,7 +210,7 @@ export default function Home() {
                     </div>
                     <div className="flex flex-col">
                       <strong className="text-slate-900 font-bold text-lg">Encouragement that children can see</strong>
-                      <p className="text-sm text-slate-600 leading-relaxed">Completed activities build a reward balance children can use for parent-created rewards, connecting effort with positive recognition.</p>
+                      <p className="text-sm text-slate-600 leading-relaxed">Verified completions build a reward balance children can use for parent-created rewards, connecting demonstrated effort with positive recognition.</p>
                     </div>
                   </li>
                   <li className="flex items-start gap-3">

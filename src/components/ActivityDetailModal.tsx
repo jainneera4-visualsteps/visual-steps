@@ -24,7 +24,7 @@ interface Activity {
   description: string;
   link: string;
   image_url: string;
-  status: 'pending' | 'completed';
+  status: 'pending' | 'awaiting_verification' | 'completed';
   due_date: string;
   repeat_interval?: number;
   repeat_unit?: string;

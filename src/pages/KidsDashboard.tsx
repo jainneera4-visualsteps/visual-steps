@@ -3,12 +3,13 @@ import { io } from 'socket.io-client';
 import { formatReward, rewardImages } from '../utils/rewardUtils';
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Calendar, Star, Lightbulb, CheckCircle, Circle, Clock, LayoutList, WifiOff, Sun, CloudSun, Moon, Sparkles, LogOut, Trophy, Eye, MessageSquare } from 'lucide-react';
+import { Calendar, Star, Lightbulb, CheckCircle, Circle, Clock, LayoutList, WifiOff, Sun, CloudSun, Moon, Sparkles, LogOut, Trophy, Eye, MessageSquare, ShieldCheck } from 'lucide-react';
 import { Card, CardContent } from '../components/Card';
 import { ActivityDetailModal } from '../components/ActivityDetailModal';
 import { getZonedTime, formatInTimezone, convertDateToTimeZone } from '../utils/dateUtils';
 import { SocialStoryModal } from '../components/SocialStoryModal';
 import { countActivitiesCompletedOnDate } from '../utils/activityCompletion';
+import { getChildSubmissionStatus } from '../utils/activityVerification';
 
 interface ActivityStep {
   id?: number;
@@ -27,7 +28,9 @@ interface Activity {
   description: string;
   link: string;
   image_url: string;
-  status: 'pending' | 'completed';
+  status: 'pending' | 'awaiting_verification' | 'completed';
+  requires_verification?: boolean;
+  submitted_at?: string;
   due_date: string;
   repeat_interval?: number;
   repeat_unit?: string;
@@ -85,7 +88,7 @@ export default function KidsDashboard() {
   const [isAccessAllowed, setIsAccessAllowed] = useState(true);
   const [accessMessage, setAccessMessage] = useState('');
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
-  const [activeTab, setActiveTab] = useState<'todo' | 'completed' | 'rewards'>('todo');
+  const [activeTab, setActiveTab] = useState<'todo' | 'verification' | 'completed' | 'rewards'>('todo');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [timezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [completedTodayCount, setCompletedTodayCount] = useState(0);
@@ -737,15 +740,22 @@ export default function KidsDashboard() {
     // Kids cannot uncheck completed activities
     if (activity.status === 'completed') return;
 
-    const newStatus: 'completed' = 'completed';
+    const newStatus = getChildSubmissionStatus(activity.requires_verification === true);
     
     // Optimistic update for activities
     const now = new Date().toISOString();
     const updatedActivities = activities.map(a => 
-      a.id === activity.id ? { ...a, status: newStatus, completion_date: now } : a
+      a.id === activity.id
+        ? {
+            ...a,
+            status: newStatus,
+            completion_date: newStatus === 'completed' ? now : undefined,
+            submitted_at: newStatus === 'awaiting_verification' ? now : a.submitted_at,
+          }
+        : a
     );
     setActivities(updatedActivities);
-    setCompletedTodayCount(count => count + 1);
+    if (newStatus === 'completed') setCompletedTodayCount(count => count + 1);
     safeLocalStorageSet(`activities_${kidId}`, JSON.stringify(updatedActivities));
     
     // Optimistic update for kid's reward balance
@@ -757,7 +767,12 @@ export default function KidsDashboard() {
     }
 
     if (selectedActivity && selectedActivity.id === activity.id) {
-      setSelectedActivity({ ...selectedActivity, status: newStatus, completion_date: now });
+      setSelectedActivity({
+        ...selectedActivity,
+        status: newStatus,
+        completion_date: newStatus === 'completed' ? now : undefined,
+        submitted_at: newStatus === 'awaiting_verification' ? now : selectedActivity.submitted_at,
+      });
     }
 
     if (navigator.onLine) {
@@ -773,7 +788,7 @@ export default function KidsDashboard() {
             timeOfDay: activity.time_of_day,
             imageUrl: activity.image_url,
             dueDate: activity.due_date,
-            status: newStatus,
+            status: 'completed',
             completedAt: convertDateToTimeZone(new Date(), targetTimezone),
             createdAt: convertDateToTimeZone(activity.created_at || new Date(), targetTimezone),
           }),
@@ -962,6 +977,18 @@ export default function KidsDashboard() {
                       📝 To Be Done
                     </button>
                     <button
+                      onClick={() => setActiveTab('verification')}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                        activeTab === 'verification'
+                          ? 'bg-amber-500 text-white shadow-sm'
+                          : `${isDarkTheme ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-500 hover:bg-slate-50'}`
+                      }`}
+                      title="Activities waiting for your parent"
+                    >
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      ⏳ Waiting
+                    </button>
+                    <button
                       onClick={() => setActiveTab('completed')}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
                         activeTab === 'completed' 
@@ -1075,7 +1102,10 @@ export default function KidsDashboard() {
                           const effectiveToday = today || getZonedTime(kid?.timezone).isoDate;
                           const filtered = activities.filter(a => {
                             if (activeTab === 'todo') {
-                              return a.status !== 'completed' && a.due_date === effectiveToday;
+                              return a.status === 'pending' && a.due_date === effectiveToday;
+                            }
+                            if (activeTab === 'verification') {
+                              return a.status === 'awaiting_verification';
                             }
                             if (activeTab === 'completed') {
                               return a.status === 'completed' && a.due_date === effectiveToday;
@@ -1086,8 +1116,14 @@ export default function KidsDashboard() {
                           if (filtered.length === 0) {
                             return (
                               <div className={`py-12 text-center rounded-xl border-2 border-dashed ${isDarkTheme ? 'border-slate-700 text-slate-300 bg-slate-900/70' : 'border-slate-200 text-slate-400'}`}>
-                                <p className="font-bold">No activities yet!</p>
-                                <p className="text-sm mt-1">Check back later for more fun things to do.</p>
+                                <p className="font-bold">
+                                  {activeTab === 'verification' ? 'Nothing is waiting right now!' : 'No activities yet!'}
+                                </p>
+                                <p className="text-sm mt-1">
+                                  {activeTab === 'verification'
+                                    ? 'Activities that need a parent check will appear here.'
+                                    : 'Check back later for more fun things to do.'}
+                                </p>
                               </div>
                             );
                           }
@@ -1130,9 +1166,9 @@ export default function KidsDashboard() {
                                     {group.items.map((activity) => (
                                       <Card 
                                         key={activity.id} 
-                                        className={`kid-activity-card transition-all border-none ring-1 ${currentTheme.card} ${activity.status === 'completed' ? (isDarkTheme ? 'kid-activity-card--completed bg-slate-900/75' : 'bg-slate-50') + ' opacity-75 cursor-default' : (isDarkTheme ? 'bg-slate-900' : 'bg-white') + ' cursor-pointer hover:shadow-sm'}`}
+                                        className={`kid-activity-card transition-all border-none ring-1 ${currentTheme.card} ${activity.status === 'completed' ? (isDarkTheme ? 'kid-activity-card--completed bg-slate-900/75' : 'bg-slate-50') + ' opacity-75 cursor-default' : activity.status === 'awaiting_verification' ? (isDarkTheme ? 'bg-slate-900' : 'bg-amber-50') + ' cursor-default' : (isDarkTheme ? 'bg-slate-900' : 'bg-white') + ' cursor-pointer hover:shadow-sm'}`}
                                         onClick={() => {
-                                          if (activity.status !== 'completed') {
+                                          if (activity.status === 'pending') {
                                             setSelectedActivity(activity);
                                           }
                                         }}
@@ -1140,11 +1176,17 @@ export default function KidsDashboard() {
                                         <CardContent className="p-2.5 flex items-start gap-2.5">
                                           <div 
                                             className={`mt-0.5 flex-shrink-0 rounded-full transition-colors ${
-                                              activity.status === 'completed' ? 'text-emerald-500' : isDarkTheme ? 'text-sky-300' : 'text-slate-300'
+                                              activity.status === 'completed'
+                                                ? 'text-emerald-500'
+                                                : activity.status === 'awaiting_verification'
+                                                  ? 'text-amber-500'
+                                                  : isDarkTheme ? 'text-sky-300' : 'text-slate-300'
                                             }`}
                                           >
                                             {activity.status === 'completed' ? (
                                               <CheckCircle className="h-6 w-6" />
+                                            ) : activity.status === 'awaiting_verification' ? (
+                                              <ShieldCheck className="h-6 w-6" />
                                             ) : (
                                               <Circle className="h-6 w-6" />
                                             )}
@@ -1166,6 +1208,13 @@ export default function KidsDashboard() {
                                               <p className={`mt-0.5 text-sm font-medium ${currentTheme.cardSubtext} line-clamp-2 leading-tight`}>
                                                 {activity.description}
                                               </p>
+                                            )}
+
+                                            {activity.status === 'awaiting_verification' && (
+                                              <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">
+                                                <ShieldCheck className="h-3.5 w-3.5" />
+                                                Great work—wait for your parent to check it. Your reward will be added after approval.
+                                              </div>
                                             )}
 
                                             <div className={`mt-2 flex items-center gap-3 text-[11px] font-bold ${currentTheme.bannerSubtext} uppercase tracking-wider`}>
