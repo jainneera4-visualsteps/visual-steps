@@ -3,8 +3,9 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import { ArrowLeft, FileText, Trash2, Sparkles, Eye, Edit2, ChevronLeft, ChevronRight, HelpCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, FileText, Trash2, Sparkles, Eye, Edit2, HelpCircle, Loader2 } from 'lucide-react';
 import { Tooltip } from '../components/ui/Tooltip';
+import { Pagination } from '../components/Pagination';
 
 interface Worksheet {
   id: string;
@@ -123,50 +124,7 @@ export default function SavedWorksheets() {
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-          <div className="px-6 py-4 flex items-center justify-between border-b border-slate-100 bg-white">
-            <div className="flex items-center gap-3">
-              <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">PER PAGE:</span>
-              <div className="relative">
-                <select 
-                  value={itemsPerPage}
-                  onChange={(e) => {
-                    setItemsPerPage(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="appearance-none bg-white border border-slate-200 rounded-lg pl-3 pr-8 py-1.5 text-[13px] font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer min-w-[70px] shadow-sm transition-all hover:border-slate-300"
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
-                  <ChevronLeft className="h-3 w-3 rotate-[270deg]" strokeWidth={3} />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-3">
-                <button 
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                  disabled={currentPage === 1}
-                  className="p-1.5 hover:bg-slate-50 rounded-md transition-colors text-slate-400 disabled:opacity-20 disabled:cursor-not-allowed group"
-                >
-                  <ChevronLeft className="h-5 w-5 group-hover:text-slate-600 transition-colors" strokeWidth={2} />
-                </button>
-                <span className="text-[14px] font-bold text-slate-700 whitespace-nowrap">
-                  Page <span className="text-slate-900">{currentPage}</span> of <span className="text-slate-900">{totalPages}</span>
-                </span>
-                <button 
-                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                  disabled={currentPage === totalPages}
-                  className="p-1.5 hover:bg-slate-50 rounded-md transition-colors text-slate-400 disabled:opacity-20 disabled:cursor-not-allowed group"
-                >
-                  <ChevronRight className="h-5 w-5 group-hover:text-slate-600 transition-colors" strokeWidth={2} />
-                </button>
-              </div>
-            </div>
-          </div>
+          <Pagination currentPage={currentPage} totalPages={totalPages} pageSize={itemsPerPage} onPageChange={setCurrentPage} onPageSizeChange={(size) => { setItemsPerPage(size); setCurrentPage(1); }} />
 
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">

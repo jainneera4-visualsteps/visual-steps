@@ -31,5 +31,5 @@ export function KidProtectedRoute() {
     return <Navigate to="/?mode=kid" replace />;
   }
 
-  return <Outlet />;
+  return <div className="child-theme"><Outlet /></div>;
 }

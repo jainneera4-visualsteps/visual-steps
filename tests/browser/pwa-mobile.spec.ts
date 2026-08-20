@@ -30,7 +30,7 @@ test('publishes valid installable PWA metadata', async ({ page, request }) => {
 });
 
 test('core public screens fit phone and tablet viewports', async ({ page }) => {
-  for (const path of ['/', '/signup', '/forgot-password', '/about']) {
+  for (const path of ['/', '/signup', '/forgot-password', '/about', '/pricing']) {
     await page.goto(path);
     const dimensions = await page.evaluate(() => ({
       scrollWidth: document.documentElement.scrollWidth,
@@ -46,6 +46,7 @@ test('phone navigation exposes primary public destinations', async ({ page }) =>
   await page.goto('/');
   await page.getByRole('button', { name: 'Open menu' }).click();
   await expect(page.getByRole('link', { name: 'About' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Plans' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Join now' })).toBeVisible();
 });

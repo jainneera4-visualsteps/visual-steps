@@ -49,17 +49,19 @@ export function Layout() {
     else if (path === '/signup') title = 'Sign Up | Visual Steps';
     else if (path === '/forgot-password') title = 'Forgot Password | Visual Steps';
     else if (path === '/about') title = 'About | Visual Steps';
+    else if (path === '/pricing') title = 'Plans & Pricing | Visual Steps';
 
     document.title = title;
   }, [location.pathname]);
 
   return (
-    <div className="h-dvh w-full bg-transparent font-sans text-slate-900 flex flex-col overflow-hidden print:overflow-visible print:h-auto print:block">
-      <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/85 shadow-sm shadow-slate-200/30 backdrop-blur-xl no-print">
+    <div className="parent-theme h-dvh w-full font-sans text-slate-900 flex flex-col overflow-hidden print:overflow-visible print:h-auto print:block">
+      <header className="parent-nav sticky top-0 z-50 w-full border-b no-print">
+        <div className="parent-accent-line h-0.5 w-full" />
         <div className="w-full flex h-16 items-center justify-between px-4 lg:px-8">
           <div className="flex items-center gap-8">
             <Link to="/" className="flex items-center gap-2.5 group transition-all">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-600 text-white shadow-lg shadow-brand-200 group-hover:scale-105 transition-transform">
+              <div className="parent-brand-mark flex h-10 w-10 items-center justify-center rounded-xl text-white group-hover:scale-105 transition-transform">
                 <Lightbulb className="h-6 w-6" />
               </div>
               <span className="text-xl font-display font-bold tracking-tight text-slate-900">Visual Steps</span>
@@ -100,11 +102,11 @@ export function Layout() {
                       <div 
                         onMouseEnter={() => setIsActivitiesOpen(true)}
                         onMouseLeave={() => setIsActivitiesOpen(false)}
-                        className="absolute left-0 mt-0 w-56 rounded-2xl bg-white shadow-2xl shadow-slate-200 ring-1 ring-slate-200 p-2 z-[60] animate-in fade-in zoom-in-95 duration-100"
+                        className="app-menu absolute left-0 z-[60] mt-0 w-56 animate-in fade-in zoom-in-95 duration-100"
                       >
                         <Link
                           to="/saved-quizzes"
-                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-brand-600 transition-all leading-tight"
+                          className="app-menu-item"
                           onClick={() => setIsActivitiesOpen(false)}
                         >
                           <div className="h-8 w-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-500">
@@ -114,7 +116,7 @@ export function Layout() {
                         </Link>
                         <Link
                           to="/social-stories"
-                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-brand-600 transition-all leading-tight"
+                          className="app-menu-item"
                           onClick={() => setIsActivitiesOpen(false)}
                         >
                           <div className="h-8 w-8 rounded-lg bg-pink-50 flex items-center justify-center text-pink-500">
@@ -124,7 +126,7 @@ export function Layout() {
                         </Link>
                         <Link
                           to="/saved-worksheets"
-                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-brand-600 transition-all leading-tight"
+                          className="app-menu-item"
                           onClick={() => setIsActivitiesOpen(false)}
                         >
                           <div className="h-8 w-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-500">
@@ -163,7 +165,7 @@ export function Layout() {
                       <div 
                         onMouseEnter={() => setIsAnalyticsOpen(true)}
                         onMouseLeave={() => setIsAnalyticsOpen(false)}
-                        className="absolute left-0 mt-0 w-56 rounded-2xl bg-white shadow-2xl shadow-slate-200 ring-1 ring-slate-200 p-2 z-[60] animate-in fade-in zoom-in-95 duration-100"
+                        className="app-menu absolute left-0 z-[60] mt-0 w-56 animate-in fade-in zoom-in-95 duration-100"
                       >
                         {selectedKidId && (
                           <>
@@ -202,6 +204,11 @@ export function Layout() {
           </div>
 
           <div className="hidden md:flex items-center gap-4">
+            <Tooltip content="Plans and future premium features">
+              <Link to="/pricing" className="text-sm font-semibold text-slate-600 hover:text-brand-600 transition-all">
+                Plans
+              </Link>
+            </Tooltip>
             <Tooltip content="About Visual Steps">
               <Link to="/about" className="text-sm font-semibold text-slate-600 hover:text-brand-600 transition-all">
                 About
@@ -285,11 +292,17 @@ export function Layout() {
                   <button onClick={() => { logout(); setIsMenuOpen(false); }} className="text-left text-[12px] font-bold text-slate-600 uppercase">
                     Sign out
                   </button>
+                  <Link to="/pricing" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>
+                    Plans
+                  </Link>
                 </>
               ) : (
                 <>
                   <Link to="/about" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>
                     About
+                  </Link>
+                  <Link to="/pricing" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>
+                    Plans
                   </Link>
                   <Link to="/login" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>
                     Sign in

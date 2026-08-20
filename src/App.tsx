@@ -25,6 +25,7 @@ import PlayQuiz from './pages/PlayQuiz';
 import EditQuiz from './pages/EditQuiz';
 import ActivityLibrary from './pages/ActivityLibrary';
 import About from './pages/About';
+import Pricing from './pages/Pricing';
 import { NetworkStatusBanner } from './components/NetworkStatusBanner';
 
 export default function App() {
@@ -40,6 +41,7 @@ export default function App() {
             <Route path="signup" element={<Signup />} />
             <Route path="forgot-password" element={<ForgotPassword />} />
             <Route path="about" element={<About />} />
+            <Route path="pricing" element={<Pricing />} />
             
             <Route element={<ProtectedRoute />}>
               <Route path="dashboard" element={<Dashboard />} />

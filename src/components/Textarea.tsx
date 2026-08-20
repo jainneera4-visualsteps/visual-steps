@@ -11,12 +11,12 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     return (
       <div className="w-full space-y-2">
         {label && (
-          <label className="text-[12px] font-black text-slate-400 uppercase tracking-widest pl-1">
+          <label className="app-label">
             {label}
           </label>
         )}
         <textarea
-          className={`flex min-h-[120px] w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3 text-sm text-slate-800 shadow-sm shadow-slate-200/30 transition-all hover:border-slate-300 focus:outline-none focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 placeholder:text-slate-400 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-50 ring-offset-white resize-y ${className || ''} ${error ? 'border-red-500 focus:ring-red-500/10 focus:border-red-500' : ''}`}
+          className={`app-control flex min-h-[120px] resize-y py-3 ${className || ''} ${error ? 'border-red-500 focus:ring-red-500/10 focus:border-red-500' : ''}`}
           ref={ref}
           {...props}
         />

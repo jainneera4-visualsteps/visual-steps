@@ -1,94 +1,81 @@
-import { Card, CardContent } from '../components/Card';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { BarChart3, BookOpen, CalendarDays, Gift, Heart, ListChecks, LockKeyhole, Sparkles } from 'lucide-react';
+import { Button } from '../components/Button';
+import { PageHeader } from '../components/PageHeader';
+
+const capabilities = [
+  { icon: ListChecks, title: 'Clear visual activities', text: 'Parents can turn a routine or responsibility into smaller steps with descriptions, links and images that make the next action easier to understand.', color: 'bg-brand-50 text-brand-700' },
+  { icon: CalendarDays, title: 'Plans that can change', text: 'Activities can be scheduled once or repeated. If something was only partly finished, a parent can return it to pending so the family’s record matches reality.', color: 'bg-emerald-50 text-emerald-700' },
+  { icon: Gift, title: 'Positive, visible encouragement', text: 'Children earn the family’s chosen reward currency for completed activities and can use that balance for rewards created by their parent.', color: 'bg-amber-50 text-amber-700' },
+  { icon: BarChart3, title: 'Progress with useful context', text: 'Daily completion counts, activity history and reports give parents a practical view of what is working without turning childhood into a scoreboard.', color: 'bg-indigo-50 text-indigo-700' },
+  { icon: Sparkles, title: 'AI-assisted, parent-reviewed resources', text: 'Visual Steps can draft quizzes, worksheets and social stories. Parents remain the editor and decision-maker before a resource is saved, printed or shared.', color: 'bg-violet-50 text-violet-700' },
+  { icon: LockKeyhole, title: 'Safer family access and sharing', text: 'Children use a separate kid code, uploads are validated, and social stories can be shared through links that expire and can be revoked.', color: 'bg-rose-50 text-rose-700' },
+];
 
 export default function About() {
   const navigate = useNavigate();
 
   return (
-    <div className="space-y-4 pb-12 w-full">
-      <div className="mb-6 no-print">
-        <button onClick={() => navigate(-1)} className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1 mb-2 transition-colors">
-          <ArrowLeft className="h-4 w-4" /> Back
-        </button>
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+    <div className="page-shell">
+      <div className="page-container space-y-10">
+        <PageHeader title="About Visual Steps" description="A family planning and learning companion designed to make everyday expectations clearer, calmer and easier to celebrate." backLabel="Back" onBack={() => navigate(-1)} />
+
+        <section className="public-hero bg-gradient-to-br from-brand-50 via-white to-emerald-50/70 p-7 sm:p-10 lg:p-14">
+          <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
+            <div>
+              <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-brand-800 shadow-sm"><Heart className="h-4 w-4" /> Built with families in mind</span>
+              <h2 className="mt-6 text-3xl font-bold leading-tight sm:text-5xl">Less uncertainty. More shared wins.</h2>
+              <p className="mt-5 max-w-2xl text-base leading-8 text-slate-600 sm:text-lg">Visual Steps gives parents one place to prepare routines, create personalized learning resources and recognize progress. Children receive a simpler experience focused on what to do now, what comes next and what they have accomplished.</p>
+            </div>
+            <figure className="overflow-hidden rounded-3xl border border-white/90 bg-white shadow-lg shadow-slate-300/25">
+              <img
+                src="/illustrations/about-shared-win.webp"
+                alt="A parent and child celebrating progress beside a picture checklist and learning cards"
+                className="aspect-[3/2] w-full object-cover"
+                width="1440"
+                height="960"
+                loading="lazy"
+              />
+              <figcaption className="flex items-center gap-2 px-5 py-4 text-sm font-semibold text-slate-700"><Heart className="h-4 w-4 text-rose-500" /> Small steps deserve to be celebrated.</figcaption>
+            </figure>
+          </div>
+        </section>
+
+        <section className="app-callout flex items-start gap-4">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-brand-700 shadow-sm"><BookOpen className="h-5 w-5" /></span>
           <div>
-            <h1 className="text-5xl font-normal text-slate-900 tracking-tight leading-none">About Visual Steps</h1>
-            <p className="mt-2 text-lg text-slate-500 font-medium">Empowering parents and children with autism through meaningful daily engagement and motivation.</p>
+            <h2 className="text-lg font-bold">Supportive—not clinical</h2>
+            <p className="mt-1 text-sm leading-7 text-brand-900/75">Visual Steps is an organizational and educational tool for families. It does not diagnose conditions, replace professional advice or prescribe a behavioral treatment.</p>
           </div>
-        </div>
+        </section>
+
+        <section>
+          <div className="mb-6 max-w-2xl">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-700">What families can do today</p>
+            <h2 className="mt-2 text-3xl font-bold">Practical tools for everyday life</h2>
+          </div>
+          <div className="app-grid">
+            {capabilities.map(({ icon: Icon, title, text, color }) => (
+              <article key={title} className="feature-card">
+                <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${color}`}><Icon className="h-5 w-5" /></div>
+                <h3 className="mt-4 text-lg font-bold">{title}</h3>
+                <p className="mt-2 text-sm leading-7 text-slate-600">{text}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="surface flex flex-col items-start gap-5 bg-slate-900 p-7 text-white sm:flex-row sm:items-center sm:justify-between sm:p-10">
+          <div>
+            <h2 className="text-2xl font-bold text-white">Ready to make the next step clearer?</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-300">Create a free account, or review the plans for future premium features.</p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Link to="/pricing"><Button variant="outline" className="border-slate-600 bg-slate-800 text-white hover:bg-slate-700">View plans</Button></Link>
+            <Link to="/signup"><Button>Get started free</Button></Link>
+          </div>
+        </section>
       </div>
-
-      <Card className="overflow-hidden shadow-sm border-none ring-1 ring-slate-200">
-        <CardContent className="p-8 md:p-12 space-y-10">
-          <div className="prose prose-slate max-w-none space-y-8">
-            <section className="space-y-3">
-              <h2 className="text-2xl font-bold text-black font-['Arial']">Parental Planning Tools</h2>
-              <p className="text-black leading-relaxed text-justify font-['Arial']">
-                Empower parents with intuitive tools to plan daily activities and manage schedules effectively. 
-                Take total control over organizing every detail of your child's day with ease and precision. Our platform provides a comprehensive calendar and task management suite designed specifically for busy families. Parents can quickly map out routines, track commitments, and ensure every day is structured for success. This clarity reduces stress for both parents and children, creating a harmonious environment in the home.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h2 className="text-2xl font-bold text-black font-['Arial']">Visual Step-by-Step Learning</h2>
-              <p className="text-black leading-relaxed text-justify font-['Arial']">
-                Make it easy for kids to follow activities visually with clear links, images, and broken-down tasks. 
-                Every activity is divided into the smallest, most manageable steps for absolute clarity. This approach simplifies complex instructions, allowing children to understand what is expected in each phase. By breaking down goals into achievable parts, we foster confidence and reduce frustration during learning. It turns potentially overwhelming tasks into engaging, structured movements, helping kids navigate their day with confidence.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h2 className="text-2xl font-bold text-black font-['Arial']">Flexible Scheduling & History</h2>
-              <p className="text-black leading-relaxed text-justify font-['Arial']">
-                Set up recurring activities that adapt to your routine and can be updated at any moment. 
-                Completed tasks move to history, giving parents a clear view of long-term development over time. This dynamic scheduling system understands that routines fluctuate; therefore, it allows for easy adjustments without disrupting progress. Parents can easily review past activities to identify patterns and refine the structure of future days. Seeing this historical data helps families celebrate growth and maintain a record of significant achievements.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h2 className="text-2xl font-bold text-black font-['Arial']">Engagement & Progress Tracking</h2>
-              <p className="text-black leading-relaxed text-justify font-['Arial']">
-                Keep your children motivated through an interactive environment crafted specifically for high engagement levels. 
-                Real-time tracking ensures you always have a window into their daily achievements and effort. When kids see their immediate progress, it builds a sense of accomplishment that carries them forward to the next task. Parents get immediate feedback, enabling them to provide timely praise for every step of success. This continuous feedback loop is essential for maintaining momentum and keeping the learning journey vibrant and active.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h2 className="text-2xl font-bold text-black font-['Arial']">Positive Behavioral Support & Rewards</h2>
-              <p className="text-black leading-relaxed text-justify font-['Arial']">
-                Boost development by rewarding positive behaviors while purposefully ignoring negative ones, 
-                turning tracked behaviors into earned rewards. Kids can "buy" reward items available there as choices by trading their earned stickers / tokens. This system focuses heavily on encouraging good choices, teaching kids that hard work and perseverance lead to tangible results. By celebrating achievements, we create a positive reinforcement cycle that consistently encourages more desirable interactions. This method shifts the focus away from friction and places it firmly on shared success and enjoyment.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h2 className="text-2xl font-bold text-black font-['Arial']">Clarity, Certainty & Motivation</h2>
-              <p className="text-black leading-relaxed text-justify font-['Arial']">
-                Provide the structure and certainty kids need to feel confident and ready to tackle completely new concepts. 
-                Foster a genuine drive for learning through clear-cut goals and consistent, motivating reinforcement. When children know exactly what to anticipate, their anxiety decreases, allowing their minds to open up to new opportunities. Certainty in their daily path is a foundational element that supports their ability to absorb new information efficiently. This environment of clarity naturally leads to increased motivation and a stronger desire to explore the world around them.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h2 className="text-2xl font-bold text-black font-['Arial']">AI-Powered Personalization</h2>
-              <p className="text-black leading-relaxed text-justify font-['Arial']">
-                Instantly generate custom quizzes, social stories, and worksheets using advanced, smart AI technology. 
-                Parents can easily edit and customize every single resource to perfectly match their child's specific, personalized needs. Because no two learners are exactly the same, this flexibility allows for learning materials that truly resonate with individual interests. AI takes the heavy lifting out of creating content, ensuring that it is tailored to fit the precise skill level of the child. This ensures every educational tool provided is effective, relevant, and directly supportive of their unique development path.
-              </p>
-            </section>
-          </div>
-
-          <footer className="pt-8 border-t border-slate-100 text-center">
-            <button 
-              onClick={() => navigate('/')} 
-              className="inline-flex items-center justify-center rounded-lg font-bold uppercase tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 h-12 px-8 text-sm bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
-            >
-              Get Started Today
-            </button>
-          </footer>
-        </CardContent>
-      </Card>
     </div>
   );
 }

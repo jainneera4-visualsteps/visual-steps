@@ -350,8 +350,8 @@ export default function PlayQuiz() {
   if (isLoading) {
     console.log('PlayQuiz: isLoading is true');
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-50">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+      <div className="child-theme flex h-screen items-center justify-center">
+        <div className="h-14 w-14 animate-spin rounded-full border-4 border-violet-500 border-t-amber-400" />
       </div>
     );
   }
@@ -391,9 +391,9 @@ export default function PlayQuiz() {
     else if (percentage >= 60) message = "Well Done!";
 
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-        <Card className="w-full max-w-md border-none ring-1 ring-slate-200 shadow-xl overflow-hidden">
-          <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-8 text-center text-white">
+      <div className="child-theme child-page min-h-screen flex flex-col items-center justify-center p-4">
+        <Card className="child-surface w-full max-w-md overflow-hidden border-none">
+          <div className="bg-gradient-to-br from-sky-500 via-blue-500 to-violet-600 p-8 text-center text-white">
             <Trophy className="w-20 h-20 mx-auto mb-4 text-yellow-300 drop-shadow-md" />
             <h1 className="text-3xl font-black uppercase tracking-tight mb-2">{message}</h1>
             <p className="text-blue-50 font-bold text-xl drop-shadow-sm">You completed: {quiz.title}</p>
@@ -418,7 +418,7 @@ export default function PlayQuiz() {
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Go Back
               </Button>
-              <Button onClick={handleRestart} className="w-full font-bold bg-blue-600 hover:bg-blue-700">
+              <Button onClick={handleRestart} className="child-primary-action w-full font-bold border-0">
                 <RefreshCcw className="w-4 h-4 mr-2" />
                 Play Again
               </Button>
@@ -433,24 +433,24 @@ export default function PlayQuiz() {
   const progress = ((currentQuestionIndex) / quiz.questions.length) * 100;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="child-theme child-page min-h-screen flex flex-col">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200 px-4 h-[60px] flex items-center shrink-0 z-10 shadow-sm sticky top-0">
+      <div className="child-header px-4 h-[64px] flex items-center shrink-0 z-10 sticky top-0">
         <div className="w-full flex items-center gap-4">
-          <button onClick={handleGoBack} className="p-2 hover:bg-slate-100 rounded-full transition-colors shrink-0">
-            <ArrowLeft className="h-5 w-5 text-slate-600" />
+          <button onClick={handleGoBack} className="p-2 hover:bg-white/20 rounded-full transition-colors shrink-0" aria-label="Go back">
+            <ArrowLeft className="h-5 w-5 text-white" />
           </button>
           
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between mb-1.5">
-              <h1 className="text-lg font-black text-slate-900 truncate mr-4 tracking-tight">{quiz.title}</h1>
-              <span className="text-[12px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+              <h1 className="text-lg font-black text-white truncate mr-4 tracking-tight">{quiz.title}</h1>
+              <span className="child-pill border-0 bg-white/20 py-1 text-[11px] text-white shadow-none whitespace-nowrap">
                 {currentQuestionIndex + 1} / {quiz.questions.length}
               </span>
             </div>
-            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+            <div className="w-full h-2 bg-white/25 rounded-full overflow-hidden">
               <div 
-                className="h-full bg-blue-500 transition-all duration-500 ease-out rounded-full"
+                className="h-full bg-amber-300 transition-all duration-500 ease-out rounded-full"
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -459,7 +459,7 @@ export default function PlayQuiz() {
           <div className="shrink-0 flex items-center gap-2">
             <button 
               onClick={handleListenQuestion} 
-              className={`inline-flex items-center justify-center rounded-full transition-colors h-9 w-9 border ${isPlaying ? 'border-blue-300 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'} shadow-sm`}
+              className={`inline-flex items-center justify-center rounded-full transition-colors h-10 w-10 border-2 ${isPlaying ? 'border-amber-200 bg-amber-100 text-amber-700' : 'border-white/60 bg-white/20 text-white hover:bg-white/30'} shadow-sm`}
               title="Listen to question"
             >
               {isPlaying ? <Square className="h-3.5 w-3.5 fill-current" /> : <Volume2 className="h-4 w-4" />}
@@ -470,17 +470,17 @@ export default function PlayQuiz() {
 
       <main className="flex-1">
         <div className="h-full grid grid-cols-1 md:grid-cols-4">
-          <div className="md:col-span-3 flex flex-col bg-white border-r border-slate-100">
+          <div className="md:col-span-3 flex flex-col bg-white/85 border-r border-indigo-100 backdrop-blur-sm">
             <div className="p-4 md:p-8 space-y-6">
               <div className="space-y-0.5">
-                <span className="text-[11px] font-black text-blue-600 uppercase tracking-[0.2em]">Question</span>
+                <span className="inline-flex rounded-full bg-violet-100 px-3 py-1 text-[11px] font-black text-violet-700 uppercase tracking-[0.2em]">Question</span>
                 <h2 className="text-lg md:text-2xl font-bold text-slate-900 leading-tight text-justify">
                   {currentQuestion.question}
                 </h2>
               </div>
               
               {currentQuestion.imageUrl && (
-                <div className="flex items-center justify-center py-1.5 bg-slate-50/50 rounded-xl border border-slate-100">
+                <div className="flex items-center justify-center p-3 bg-gradient-to-br from-sky-50 to-violet-50 rounded-3xl border-2 border-white shadow-sm">
                   <img 
                     src={normalizeImageSource(currentQuestion.imageUrl)}
                     alt="Question illustration"
@@ -519,12 +519,12 @@ export default function PlayQuiz() {
                         const isCorrect = (currentQuestion.correctAnswerIndices || []).includes(idx);
                         const isMultiSelect = (currentQuestion.correctAnswerIndices || []).length > 1;
                         
-                        let buttonClass = "w-full p-2.5 text-left rounded-lg border-2 transition-all duration-200 font-bold text-[16px] flex items-center justify-between group shadow-sm min-h-[50px] ";
+                        let buttonClass = "child-answer w-full text-left text-[16px] flex items-center justify-between group min-h-[56px] ";
                         
                         if (!isAnswerChecked) {
                           buttonClass += isSelected 
-                            ? "border-blue-500 bg-blue-50 text-blue-900 ring-2 ring-blue-500/5" 
-                            : "border-slate-100 bg-white text-slate-600 hover:border-blue-200 hover:bg-slate-50";
+                            ? "border-violet-500 bg-violet-50 text-violet-950 ring-4 ring-violet-200/40 -translate-y-0.5"
+                            : "border-indigo-100 bg-white text-slate-700 hover:border-sky-300 hover:bg-sky-50";
                         } else {
                           if (isCorrect) {
                             buttonClass += "border-emerald-500 bg-emerald-50 text-emerald-900";
@@ -564,8 +564,8 @@ export default function PlayQuiz() {
           </div>
 
           {/* Column 2: Actions & Feedback (25% / 1 part) */}
-          <div className="md:col-span-1 border-t md:border-t-0 bg-slate-50 flex flex-col">
-            <div className="p-4 md:p-6 flex flex-col bg-slate-50/50">
+          <div className="md:col-span-1 border-t border-indigo-100 md:border-t-0 bg-gradient-to-b from-violet-50 to-sky-50 flex flex-col">
+            <div className="p-4 md:p-6 flex flex-col">
               {/* Primary Action at Top */}
               <div className="pb-3">
                 {!isAnswerChecked ? (
@@ -573,7 +573,7 @@ export default function PlayQuiz() {
                     size="lg" 
                     onClick={handleCheckAnswer} 
                     disabled={quiz.questionType === 'Fill in the Blanks' ? !typedAnswer.trim() : selectedAnswers.length === 0}
-                    className="w-full h-12 font-black uppercase tracking-[0.15em] text-base bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20 rounded-xl active:scale-[0.98] transition-all"
+                    className="child-primary-action w-full h-12 font-black uppercase tracking-[0.15em] text-base border-0 rounded-2xl active:scale-[0.98] transition-all"
                   >
                     Check Answer
                   </Button>

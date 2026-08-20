@@ -115,6 +115,195 @@
     @apply transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-lg hover:shadow-slate-300/25;
   }
 
+  /* Shared application patterns. Prefer these classes and the components in
+     src/components when building new screens. */
+  .app-link {
+    @apply inline-flex items-center gap-1.5 rounded-md font-semibold text-brand-700 underline decoration-brand-200 underline-offset-4 transition-colors hover:text-brand-900 hover:decoration-brand-500;
+  }
+
+  .app-link-muted {
+    @apply inline-flex items-center gap-1.5 rounded-md font-semibold text-slate-600 transition-colors hover:text-brand-700;
+  }
+
+  .app-label {
+    @apply ml-1 block text-xs font-bold uppercase tracking-wider text-slate-600;
+  }
+
+  .app-control {
+    @apply w-full rounded-xl border border-slate-200 bg-white/95 px-4 py-2.5 text-sm text-slate-800 shadow-sm shadow-slate-200/30 transition-all placeholder:text-slate-400 hover:border-slate-300 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-60;
+  }
+
+  .app-menu {
+    @apply rounded-2xl border border-slate-200/90 bg-white/95 p-2 shadow-2xl shadow-slate-300/35 backdrop-blur-xl;
+  }
+
+  .app-menu-item {
+    @apply flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-brand-50 hover:text-brand-700;
+  }
+
+  .app-grid {
+    @apply grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3;
+  }
+
+  .app-grid-2 {
+    @apply grid grid-cols-1 gap-5 md:grid-cols-2;
+  }
+
+  .app-table-shell {
+    @apply overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm shadow-slate-300/25;
+  }
+
+  .app-pagination {
+    @apply flex flex-col gap-3 border-b border-slate-100 bg-white/90 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6;
+  }
+
+  .app-empty-state {
+    @apply flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-white/75 px-6 py-16 text-center text-slate-500;
+  }
+
+  .app-callout {
+    @apply rounded-2xl border border-brand-100 bg-brand-50/80 p-5 text-brand-950;
+  }
+
+  .public-hero {
+    @apply relative overflow-hidden rounded-3xl border border-white/80 bg-white/80 shadow-xl shadow-slate-300/25 backdrop-blur-sm;
+  }
+
+  .feature-card {
+    @apply rounded-2xl border border-slate-200/70 bg-white/80 p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-lg hover:shadow-slate-300/25;
+  }
+
+  /* Parent workspace: quiet blue/green, low-glare surfaces and restrained
+     decoration for planning-heavy screens. */
+  .parent-theme {
+    --parent-blue: #247abd;
+    --parent-green: #3f8f76;
+    --parent-mist: #eef7f4;
+    background-image:
+      radial-gradient(circle at 4% 0%, rgb(217 239 255 / 0.58), transparent 25rem),
+      radial-gradient(circle at 96% 2%, rgb(216 240 230 / 0.62), transparent 26rem),
+      linear-gradient(180deg, #fbfdfc 0%, #f3f8f6 100%);
+  }
+
+  .parent-nav {
+    @apply border-slate-200/80 bg-white/[0.88] shadow-sm shadow-emerald-900/5 backdrop-blur-xl;
+  }
+
+  .parent-brand-mark {
+    @apply bg-gradient-to-br from-brand-600 to-emerald-600 shadow-lg shadow-brand-200/70;
+  }
+
+  .parent-accent-line {
+    background: linear-gradient(90deg, rgb(36 122 189 / 0.8), rgb(63 143 118 / 0.75));
+  }
+
+  /* Child experience: playful color and shape, while maintaining readable
+     contrast and calm content surfaces. */
+  .child-theme {
+    --kid-sky: #458de4;
+    --kid-violet: #8067d8;
+    --kid-coral: #ef7f6d;
+    --kid-sun: #f3b83f;
+    min-height: 100vh;
+    font-family: var(--font-display);
+    background-color: #f5f8ff;
+    background-image:
+      radial-gradient(circle at 8% 8%, rgb(255 223 154 / 0.42), transparent 17rem),
+      radial-gradient(circle at 92% 4%, rgb(204 191 255 / 0.42), transparent 20rem),
+      radial-gradient(circle at 82% 92%, rgb(174 232 219 / 0.42), transparent 22rem);
+  }
+
+  .child-page {
+    @apply relative isolate overflow-hidden;
+  }
+
+  .child-page::before,
+  .child-page::after {
+    content: '';
+    position: fixed;
+    z-index: -1;
+    border-radius: 999px;
+    pointer-events: none;
+    opacity: 0.45;
+  }
+
+  .child-page::before {
+    width: 9rem;
+    height: 9rem;
+    top: 5rem;
+    right: -4rem;
+    background: rgb(255 211 199 / 0.65);
+  }
+
+  .child-page::after {
+    width: 7rem;
+    height: 7rem;
+    bottom: 2rem;
+    left: -3rem;
+    background: rgb(201 232 255 / 0.75);
+  }
+
+  .child-header {
+    @apply border-white/50 bg-gradient-to-r from-sky-500 via-blue-500 to-violet-500 text-white shadow-lg shadow-blue-300/25;
+  }
+
+  .child-surface {
+    @apply rounded-3xl border-2 border-white/90 bg-white/[0.92] shadow-lg shadow-indigo-200/25;
+  }
+
+  .child-pill {
+    @apply rounded-full border-2 border-white/90 bg-white/90 px-3 py-1.5 font-bold text-slate-700 shadow-sm;
+  }
+
+  .child-answer {
+    @apply rounded-2xl border-2 border-indigo-100 bg-white p-3 font-bold text-slate-700 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-50 hover:shadow-md;
+  }
+
+  .child-primary-action {
+    @apply bg-gradient-to-r from-sky-500 to-violet-500 text-white shadow-lg shadow-indigo-300/35 hover:from-sky-600 hover:to-violet-600;
+  }
+
+  .kid-theme-dark {
+    color-scheme: dark;
+  }
+
+  .kid-theme-dark .child-pill {
+    @apply border-slate-700 bg-slate-900/90 text-slate-100;
+  }
+
+  /* Space uses a photographic background, so its primary content must not
+     inherit the shared light surface or rely on the image for contrast. */
+  .kid-theme-dark .kid-activity-card {
+    background: rgb(15 23 42 / 0.94) !important;
+    border-color: rgb(71 85 105 / 0.9) !important;
+    color: #f8fafc;
+  }
+
+  .kid-theme-dark .kid-activity-card:not(.kid-activity-card--completed):hover {
+    background: rgb(30 41 59 / 0.97) !important;
+  }
+
+  .kid-theme-dark .kid-activity-card--completed {
+    background: rgb(15 23 42 / 0.78) !important;
+  }
+
+  .kid-theme-dark .kid-section-heading {
+    border: 1px solid rgb(71 85 105 / 0.75);
+    border-radius: 0.75rem;
+    background: rgb(15 23 42 / 0.82);
+    padding: 0.45rem 0.75rem;
+    box-shadow: 0 4px 14px rgb(2 6 23 / 0.18);
+    backdrop-filter: blur(6px);
+  }
+
+  .kid-theme-dark .kid-section-heading h3 {
+    color: #e2e8f0 !important;
+  }
+
+  .kid-theme-dark .kid-section-divider {
+    background: #64748b !important;
+  }
+
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;

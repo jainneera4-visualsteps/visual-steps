@@ -110,19 +110,19 @@ export default function KidsDashboard() {
   
   const themes: Record<string, any> = {
     sky: {
-      bg: 'bg-sky-50',
-      header: 'bg-sky-600',
-      banner: 'bg-white ring-sky-100',
+      bg: 'bg-gradient-to-br from-sky-50 via-indigo-50/50 to-amber-50/60',
+      header: 'bg-gradient-to-r from-sky-500 via-blue-500 to-violet-500 border-white/40',
+      banner: 'bg-white/90 ring-sky-200/80 border-2 border-white',
       bannerText: 'text-slate-800',
       bannerSubtext: 'text-slate-400',
-      rules: 'bg-yellow-50 border-yellow-200 text-yellow-900',
+      rules: 'bg-amber-50/95 border-amber-300 text-amber-950',
       rulesHeader: 'bg-yellow-100 text-yellow-600',
       rulesTitle: 'text-yellow-800',
-      card: 'ring-slate-200',
+      card: 'ring-indigo-100 border-2 border-white shadow-indigo-200/25',
       cardTitle: 'text-slate-800',
       cardSubtext: 'text-slate-500',
       accent: 'text-sky-600',
-      button: 'bg-sky-600 hover:bg-sky-700'
+      button: 'bg-gradient-to-r from-sky-500 to-violet-500 hover:from-sky-600 hover:to-violet-600'
     },
     emerald: {
       bg: 'bg-emerald-50',
@@ -170,6 +170,7 @@ export default function KidsDashboard() {
       button: 'bg-purple-600 hover:bg-purple-700'
     },
     space: {
+      isDark: true,
       bg: 'bg-slate-950',
       bgStyle: {
         backgroundImage: 'url("https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&q=80&w=1920")',
@@ -403,6 +404,7 @@ export default function KidsDashboard() {
   };
 
   const currentTheme = themes[kid?.theme || 'sky'] || themes.sky;
+  const isDarkTheme = currentTheme.isDark === true;
 
   // Exit Modal State
   const [rewardItems, setRewardItems] = useState<RewardItem[]>([]);
@@ -812,12 +814,12 @@ export default function KidsDashboard() {
   }
 
   return (
-    <div className={`w-full min-h-screen ${currentTheme.bg} font-sans pb-12`} style={currentTheme.bgStyle}>
+    <div className={`child-page w-full min-h-screen ${currentTheme.bg} ${isDarkTheme ? 'kid-theme-dark' : ''} font-display pb-12`} style={currentTheme.bgStyle}>
       {/* Global Header */}
       <header className={`sticky top-0 z-50 w-full border-b border-slate-200 ${currentTheme.header} shadow-sm`}>
         <div className="w-full flex h-12 items-center px-4 relative">
           <div className="flex items-center gap-2">
-            <div className={`flex h-7 w-7 items-center justify-center rounded ${kid?.theme === 'space' ? 'bg-blue-600' : 'bg-white/20'} text-white shadow-sm`}>
+            <div className={`flex h-7 w-7 items-center justify-center rounded ${isDarkTheme ? 'bg-blue-600' : 'bg-white/20'} text-white shadow-sm`}>
               <Lightbulb className="h-4 w-4" />
             </div>
             <span className={`text-lg font-bold tracking-tight text-white hidden sm:inline`}>Visual Steps</span>
@@ -883,11 +885,11 @@ export default function KidsDashboard() {
                   </div>
                   
                   <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 flex items-center gap-2">
+                    <p className={`text-[10px] font-black uppercase tracking-widest ${currentTheme.cardSubtext} mb-1 flex items-center gap-2`}>
                       <span className="flex h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse"></span>
                       Special Message from Parent
                     </p>
-                    <p className="text-lg font-black text-slate-800 italic tracking-tight leading-snug break-words">
+                    <p className={`text-lg font-black ${currentTheme.cardTitle} italic tracking-tight leading-snug break-words`}>
                       "{kid.parent_message}"
                     </p>
                   </div>
@@ -900,7 +902,7 @@ export default function KidsDashboard() {
             )}
 
             {/* Dashboard Banner - Full Width */}
-            <div className={`flex flex-col sm:flex-row items-center justify-between rounded-xl ${currentTheme.banner} p-4 shadow-sm ring-1 gap-4`}>
+            <div className={`flex flex-col sm:flex-row items-center justify-between rounded-3xl ${currentTheme.banner} p-4 shadow-lg shadow-indigo-200/20 ring-1 gap-4`}>
               <div className="flex items-center gap-3 w-full sm:w-auto">
                 <div className="flex items-center gap-3">
                   {kid?.avatar ? (
@@ -946,13 +948,13 @@ export default function KidsDashboard() {
               {/* Tabs and View Toggle Area */}
               {isAccessAllowed && (
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                  <div className={`flex rounded-lg border p-0.5 ${kid?.theme === 'space' ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'}`}>
+                  <div className={`flex rounded-lg border p-0.5 ${isDarkTheme ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'}`}>
                     <button
                       onClick={() => setActiveTab('todo')}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
                         activeTab === 'todo' 
                           ? 'bg-blue-600 text-white shadow-sm' 
-                          : `${kid?.theme === 'space' ? 'text-slate-400 hover:bg-slate-800' : 'text-slate-500 hover:bg-slate-50'}`
+                          : `${isDarkTheme ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-500 hover:bg-slate-50'}`
                       }`}
                       title="View activities to be done"
                     >
@@ -964,7 +966,7 @@ export default function KidsDashboard() {
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
                         activeTab === 'completed' 
                           ? 'bg-emerald-600 text-white shadow-sm' 
-                          : `${kid?.theme === 'space' ? 'text-slate-400 hover:bg-slate-800' : 'text-slate-500 hover:bg-slate-50'}`
+                          : `${isDarkTheme ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-500 hover:bg-slate-50'}`
                       }`}
                       title="View completed activities"
                     >
@@ -976,7 +978,7 @@ export default function KidsDashboard() {
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
                         activeTab === 'rewards' 
                           ? 'bg-amber-500 text-white shadow-sm' 
-                          : `${kid?.theme === 'space' ? 'text-slate-400 hover:bg-slate-800' : 'text-slate-500 hover:bg-slate-50'}`
+                          : `${isDarkTheme ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-500 hover:bg-slate-50'}`
                       }`}
                       title="View available rewards"
                     >
@@ -989,12 +991,12 @@ export default function KidsDashboard() {
 
               <div className="flex flex-col gap-6">
                     {!isAccessAllowed ? (
-                      <div className={`p-8 rounded-2xl border-2 border-dashed ${kid?.theme === 'space' ? 'border-slate-800 bg-slate-900/50' : 'border-slate-200 bg-white/50'} text-center flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-500`}>
+                      <div className={`p-8 rounded-2xl border-2 border-dashed ${isDarkTheme ? 'border-slate-700 bg-slate-900/80' : 'border-slate-200 bg-white/50'} text-center flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-500`}>
                         <div className={`mb-4 rounded-full ${currentTheme.rulesHeader} p-6 shadow-md animate-bounce`}>
                           <Clock className={`h-12 w-12 ${currentTheme.accent}`} />
                         </div>
                         <h2 className={`text-2xl font-black ${currentTheme.cardTitle} mb-2 tracking-tight`}>{accessMessage}</h2>
-                        <p className="text-slate-500 font-medium max-w-xs">Ask your parent if you need to see your activities or want to keep playing!</p>
+                        <p className={`${currentTheme.cardSubtext} font-medium max-w-xs`}>Ask your parent if you need to see your activities or want to keep playing!</p>
                       </div>
                     ) : activeTab === 'rewards' ? (
                       <div className="space-y-6">
@@ -1016,14 +1018,14 @@ export default function KidsDashboard() {
                             return acc;
                           }, {} as Record<string, RewardItem[]>)).map(([location, items]) => (
                             <div key={location} className="space-y-3">
-                              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">{location}</h3>
+                              <h3 className={`text-sm font-bold ${currentTheme.cardSubtext} uppercase tracking-wider`}>{location}</h3>
                               {items.map((item) => (
                                 <div 
                                   key={item.id} 
                                   className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
                                     (kid?.reward_balance || 0) >= item.cost 
-                                      ? `border-slate-100 ${kid?.theme === 'space' ? 'bg-slate-900' : 'bg-white'}` 
-                                      : `border-slate-50 ${kid?.theme === 'space' ? 'bg-slate-900/40' : 'bg-slate-50'} opacity-60`
+                                      ? `border-slate-100 ${isDarkTheme ? 'bg-slate-900' : 'bg-white'}`
+                                      : `border-slate-50 ${isDarkTheme ? 'bg-slate-900/40' : 'bg-slate-50'} opacity-60`
                                   }`}
                                 >
                                   <div className="flex items-center gap-4">
@@ -1053,7 +1055,7 @@ export default function KidsDashboard() {
                             </div>
                           ))}
                           {rewardItems.length === 0 && (
-                            <div className={`text-center py-12 rounded-2xl border-2 border-dashed ${kid?.theme === 'space' ? 'border-slate-800 text-slate-500' : 'border-slate-200 text-slate-400'}`}>
+                            <div className={`text-center py-12 rounded-2xl border-2 border-dashed ${isDarkTheme ? 'border-slate-700 text-slate-300 bg-slate-900/70' : 'border-slate-200 text-slate-400'}`}>
                               <Sparkles className="h-12 w-12 opacity-20 mx-auto mb-4" />
                               <p className="font-bold">No rewards in the catalog yet!</p>
                               <p className="text-sm mt-1">Ask your parent to add some prizes.</p>
@@ -1083,7 +1085,7 @@ export default function KidsDashboard() {
                           
                           if (filtered.length === 0) {
                             return (
-                              <div className={`py-12 text-center rounded-xl border-2 border-dashed ${kid?.theme === 'space' ? 'border-slate-800 text-slate-500' : 'border-slate-200 text-slate-400'}`}>
+                              <div className={`py-12 text-center rounded-xl border-2 border-dashed ${isDarkTheme ? 'border-slate-700 text-slate-300 bg-slate-900/70' : 'border-slate-200 text-slate-400'}`}>
                                 <p className="font-bold">No activities yet!</p>
                                 <p className="text-sm mt-1">Check back later for more fun things to do.</p>
                               </div>
@@ -1117,18 +1119,18 @@ export default function KidsDashboard() {
                             <div className="space-y-6">
                               {grouped.map((group) => (
                                 <div key={group.time} className="space-y-3">
-                                  <div className="flex items-center gap-2 px-1">
+                                  <div className="kid-section-heading flex items-center gap-2 px-1">
                                     {timeIcons[group.time]}
                                     <h3 className={`text-xs font-black uppercase tracking-[0.2em] ${currentTheme.cardSubtext}`}>
                                       {group.time}
                                     </h3>
-                                    <div className={`h-px flex-1 ${kid?.theme === 'space' ? 'bg-slate-800' : 'bg-slate-200'}`} />
+                                    <div className={`kid-section-divider h-px flex-1 ${isDarkTheme ? 'bg-slate-600' : 'bg-slate-200'}`} />
                                   </div>
                                   <div className="flex flex-col gap-3">
                                     {group.items.map((activity) => (
                                       <Card 
                                         key={activity.id} 
-                                        className={`transition-all border-none ring-1 ${currentTheme.card} ${activity.status === 'completed' ? 'bg-slate-50 opacity-75 cursor-default' : (kid?.theme === 'space' ? 'bg-slate-900' : 'bg-white') + ' cursor-pointer hover:shadow-sm'}`}
+                                        className={`kid-activity-card transition-all border-none ring-1 ${currentTheme.card} ${activity.status === 'completed' ? (isDarkTheme ? 'kid-activity-card--completed bg-slate-900/75' : 'bg-slate-50') + ' opacity-75 cursor-default' : (isDarkTheme ? 'bg-slate-900' : 'bg-white') + ' cursor-pointer hover:shadow-sm'}`}
                                         onClick={() => {
                                           if (activity.status !== 'completed') {
                                             setSelectedActivity(activity);
@@ -1138,7 +1140,7 @@ export default function KidsDashboard() {
                                         <CardContent className="p-2.5 flex items-start gap-2.5">
                                           <div 
                                             className={`mt-0.5 flex-shrink-0 rounded-full transition-colors ${
-                                              activity.status === 'completed' ? 'text-emerald-500' : 'text-slate-300'
+                                              activity.status === 'completed' ? 'text-emerald-500' : isDarkTheme ? 'text-sky-300' : 'text-slate-300'
                                             }`}
                                           >
                                             {activity.status === 'completed' ? (
@@ -1150,7 +1152,7 @@ export default function KidsDashboard() {
                                           
                                           <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2">
-                                              <h3 className={`font-black text-lg truncate ${activity.status === 'completed' ? 'text-slate-400 line-through' : currentTheme.cardTitle}`}>
+                                              <h3 className={`font-black text-lg truncate ${activity.status === 'completed' ? (isDarkTheme ? 'text-slate-300' : 'text-slate-400') + ' line-through' : currentTheme.cardTitle}`}>
                                                 {activity.activity_type}
                                               </h3>
                                               {activity.link?.includes('/social-stories/view/') && (

@@ -5,9 +5,10 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
+import { Select } from '../components/Select';
 import { Card, CardContent } from '../components/Card';
 import { 
-  AlertCircle, CheckCircle2, Search, User, Eye, EyeOff
+  AlertCircle, CheckCircle2, Search, Eye, EyeOff
 } from 'lucide-react';
 
 interface Kid {
@@ -144,29 +145,45 @@ export default function Home() {
   return (
     <div className="w-full flex items-center justify-center">
       {/* Hero Section with Login */}
-      <section className="relative w-full overflow-hidden rounded-2xl bg-gradient-to-br from-blue-50 via-white to-sky-50 py-12 px-8 shadow-md ring-1 ring-slate-200/50">
+      <section className="public-hero w-full bg-gradient-to-br from-brand-50/90 via-white to-emerald-50/60 px-5 py-8 sm:px-8 sm:py-12">
         <div className="w-full">
           <div className="flex flex-col items-start gap-8 lg:flex-row">
             {/* Left: Hero Text */}
             <div className="flex-1 text-center lg:text-left space-y-4">
-              <h1 className="text-3xl md:text-5xl font-black text-blue-950 leading-[0.9] tracking-tighter">
-                Personalized <span className="text-blue-600">Growth</span> for Every Child
+              <div className="inline-flex items-center rounded-full border border-brand-200 bg-white/80 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-brand-800">
+                Calmer routines • clearer next steps
+              </div>
+              <h1 className="text-4xl md:text-6xl font-bold text-slate-950 leading-[0.98] tracking-tight">
+                Make every day feel more <span className="text-brand-600">possible.</span>
               </h1>
-              <p className="text-lg text-slate-600 max-w-2xl">
-                The all-in-one platform dedicated to helping parents and children with autism stay engaged throughout the day, while we help you motivate your kids for learning and fun at the same time.
+              <p className="text-lg leading-8 text-slate-600 max-w-2xl">
+                Visual Steps helps families turn routines, learning and everyday responsibilities into clear visual activities children can understand, complete and celebrate.
               </p>
+              <figure className="relative overflow-hidden rounded-3xl border border-white/90 bg-white shadow-lg shadow-slate-300/25">
+                <img
+                  src="/illustrations/home-family-routine.webp"
+                  alt="A parent and child calmly organizing picture cards on a visual daily schedule"
+                  className="h-56 w-full object-cover object-center sm:h-72"
+                  width="1440"
+                  height="960"
+                  fetchPriority="high"
+                />
+                <figcaption className="absolute bottom-3 left-3 rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm backdrop-blur-md">
+                  Clear routines. Confident next steps.
+                </figcaption>
+              </figure>
               <div className="space-y-3 pt-4">
                 <p className="text-[10px] font-black text-blue-900 uppercase tracking-[0.2em] opacity-60">
-                  Why Parents Love Visual Steps:
+                  Built for the way families really work
                 </p>
-                <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 text-black text-base font-['Arial']">
+                <ul className="grid grid-cols-1 gap-x-8 gap-y-4 text-base md:grid-cols-2">
                   <li className="flex items-start gap-3">
                     <div className="mt-1 bg-blue-100 p-1 rounded-md">
                       <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
                     </div>
                     <div className="flex flex-col">
-                      <strong className="text-black font-bold text-lg">Parental Planning Tools</strong>
-                      <p className="text-sm text-black leading-relaxed text-justify">Empower parents with intuitive tools to plan daily activities and manage schedules effectively. Take total control over organizing every detail of your child's day with ease.</p>
+                      <strong className="text-slate-900 font-bold text-lg">Visual routines that feel manageable</strong>
+                      <p className="text-sm text-slate-600 leading-relaxed">Break activities into clear, image-supported steps so children can see what comes next and move forward with confidence.</p>
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
@@ -174,8 +191,8 @@ export default function Home() {
                       <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
                     </div>
                     <div className="flex flex-col">
-                      <strong className="text-black font-bold text-lg">Visual Step-by-Step Learning</strong>
-                      <p className="text-sm text-black leading-relaxed text-justify">Make it easy for kids to follow activities visually with clear links, images, and broken-down tasks. Every activity is divided into the smallest, most manageable steps for clarity.</p>
+                      <strong className="text-slate-900 font-bold text-lg">Flexible family scheduling</strong>
+                      <p className="text-sm text-slate-600 leading-relaxed">Assign one-time or repeating activities, adjust plans when life changes, and return an activity to pending when it needs another try.</p>
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
@@ -183,8 +200,8 @@ export default function Home() {
                       <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
                     </div>
                     <div className="flex flex-col">
-                      <strong className="text-black font-bold text-lg">Flexible Scheduling & History</strong>
-                      <p className="text-sm text-black leading-relaxed text-justify">Set up recurring activities that adapt to your routine and can be updated at any moment. Completed tasks move to history, giving parents a clear view of long-term development.</p>
+                      <strong className="text-slate-900 font-bold text-lg">A focused dashboard for kids</strong>
+                      <p className="text-sm text-slate-600 leading-relaxed">Children use their own simple code to open a friendly daily view, follow steps and mark activities complete without entering the parent area.</p>
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
@@ -192,8 +209,8 @@ export default function Home() {
                       <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
                     </div>
                     <div className="flex flex-col">
-                      <strong className="text-black font-bold text-lg">Engagement & Progress Tracking</strong>
-                      <p className="text-sm text-black leading-relaxed text-justify">Keep your children motivated through an interactive environment designed for high engagement. Real-time tracking ensures you always have a window into their daily achievements.</p>
+                      <strong className="text-slate-900 font-bold text-lg">Encouragement that children can see</strong>
+                      <p className="text-sm text-slate-600 leading-relaxed">Completed activities build a reward balance children can use for parent-created rewards, connecting effort with positive recognition.</p>
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
@@ -201,8 +218,8 @@ export default function Home() {
                       <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
                     </div>
                     <div className="flex flex-col">
-                      <strong className="text-black font-bold text-lg">Positive Behavioral Support</strong>
-                      <p className="text-sm text-black leading-relaxed text-justify">Boost development by rewarding positive behaviors while purposefully ignoring negative ones. Focus on celebrating good choices to build lasting habits through encouragement.</p>
+                      <strong className="text-slate-900 font-bold text-lg">Progress parents can understand</strong>
+                      <p className="text-sm text-slate-600 leading-relaxed">Review completed activities, daily progress and summary reports to notice patterns and celebrate meaningful growth over time.</p>
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
@@ -210,8 +227,8 @@ export default function Home() {
                       <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
                     </div>
                     <div className="flex flex-col">
-                      <strong className="text-black font-bold text-lg">Rewarding Achievements</strong>
-                      <p className="text-sm text-black leading-relaxed text-justify">Automatically transform tracked positive behaviors and finished tasks into exciting earned rewards. Kids can "buy" special items like stickers and tokens using their hard-earned progress.</p>
+                      <strong className="text-slate-900 font-bold text-lg">Personalized learning resources</strong>
+                      <p className="text-sm text-slate-600 leading-relaxed">Create and edit quizzes, printable worksheets and social stories shaped around a child's age, interests and learning needs.</p>
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
@@ -219,8 +236,8 @@ export default function Home() {
                       <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
                     </div>
                     <div className="flex flex-col">
-                      <strong className="text-black font-bold text-lg">Clarity & Learning Motivation</strong>
-                      <p className="text-sm text-black leading-relaxed text-justify">Provide the structure and certainty kids need to feel confident and ready to tackle new concepts. Foster a genuine drive for learning through clear-cut goals and consistent motivation.</p>
+                      <strong className="text-slate-900 font-bold text-lg">Private, controlled sharing</strong>
+                      <p className="text-sm text-slate-600 leading-relaxed">Share a social story through an expiring, revocable link when a teacher, therapist or family member needs access.</p>
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
@@ -228,8 +245,8 @@ export default function Home() {
                       <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
                     </div>
                     <div className="flex flex-col">
-                      <strong className="text-black font-bold text-lg">AI-Powered Personalization</strong>
-                      <p className="text-sm text-black leading-relaxed text-justify">Instantly generate custom quizzes, social stories, and worksheets using advanced AI technology. Parents can easily edit and customize every resource to match their child's specific needs.</p>
+                      <strong className="text-slate-900 font-bold text-lg">Parents stay in control</strong>
+                      <p className="text-sm text-slate-600 leading-relaxed">AI helps with the first draft, while parents review, edit and decide what is appropriate before a child sees or uses it.</p>
                     </div>
                   </li>
                 </ul>
@@ -358,11 +375,11 @@ export default function Home() {
                       {/* Step 2: Select Kid Dropdown */}
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">2. Who are you?</label>
-                        <div className="relative">
-                          <select
+                        <div>
+                          <Select
                             value={selectedKidId}
                             onChange={(e) => setSelectedKidId(e.target.value)}
-                            className="w-full h-10 rounded border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 appearance-none disabled:bg-slate-50 disabled:text-slate-400"
+                            className="h-10"
                             required
                             disabled={!parentEmail || isSearching}
                           >
@@ -372,10 +389,7 @@ export default function Home() {
                                 {kid.name}
                               </option>
                             ))}
-                          </select>
-                          <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                            <User className="h-4 w-4 text-slate-400" />
-                          </div>
+                          </Select>
                         </div>
                       </div>
 

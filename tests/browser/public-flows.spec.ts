@@ -19,7 +19,7 @@ test('home page renders parent login and public navigation', async ({ page }) =>
   await page.goto('/');
 
   await expect(page).toHaveTitle('Login | Visual Steps');
-  await expect(page.getByRole('heading', { name: /Personalized Growth for Every Child/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Make every day feel more possible/i })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Parent Login' })).toBeVisible();
   await expect(page.getByPlaceholder('name@example.com')).toBeVisible();
   await expect(page.locator('form').getByRole('button', { name: 'Sign In' })).toBeVisible();
@@ -183,9 +183,20 @@ test('about page navigation and mobile layout remain usable', async ({ page }) =
   await expect(page.getByRole('heading', { name: 'About Visual Steps' })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
-  await page.getByRole('button', { name: 'Get Started Today' }).click();
-  await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByRole('button', { name: 'Parent Login' })).toBeVisible();
+  await page.getByRole('button', { name: 'Get started free' }).click();
+  await expect(page).toHaveURL(/\/signup$/);
+  await expect(page.getByRole('heading', { name: 'Create an account' })).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});
+
+test('plans page presents transparent future pricing without an active checkout', async ({ page }) => {
+  await page.goto('/pricing');
+  await expect(page).toHaveTitle('Plans & Pricing | Visual Steps');
+  await expect(page.getByRole('heading', { name: /Start free/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Starter' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Family', exact: true })).toBeVisible();
+  await expect(page.getByText('no payment will be collected yet', { exact: false })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Coming soon' })).toHaveCount(2);
   await expectNoHorizontalOverflow(page);
 });
 
@@ -199,5 +210,6 @@ test('public pages do not emit unexpected browser errors', async ({ page }) => {
   await page.goto('/');
   await page.goto('/signup');
   await page.goto('/about');
+  await page.goto('/pricing');
   expect(errors).toEqual([]);
 });
