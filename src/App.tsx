@@ -27,6 +27,9 @@ import ActivityLibrary from './pages/ActivityLibrary';
 import About from './pages/About';
 import Pricing from './pages/Pricing';
 import GuestDemo from './pages/GuestDemo';
+import Testimonials from './pages/Testimonials';
+import Contact from './pages/Contact';
+import Newsletter from './pages/Newsletter';
 import { NetworkStatusBanner } from './components/NetworkStatusBanner';
 
 export default function App() {
@@ -44,6 +47,9 @@ export default function App() {
             <Route path="about" element={<About />} />
             <Route path="pricing" element={<Pricing />} />
             <Route path="demo" element={<GuestDemo />} />
+            <Route path="testimonials" element={<Testimonials />} />
+            <Route path="contact" element={<Contact />} />
+            <Route path="newsletter" element={<Newsletter />} />
             
             <Route element={<ProtectedRoute />}>
               <Route path="dashboard" element={<Dashboard />} />

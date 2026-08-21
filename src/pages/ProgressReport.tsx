@@ -7,8 +7,6 @@ import {
   CheckCircle, 
   Sparkles, 
   History, 
-  ChevronLeft, 
-  ChevronRight,
   ChevronDown,
   PieChart as PieChartIcon,
   Loader2,
@@ -21,6 +19,11 @@ import {
   PieChart, 
   Pie, 
   Cell, 
+  BarChart,
+  Bar,
+  CartesianGrid,
+  XAxis,
+  YAxis,
   Tooltip as ChartRechartsTooltip, 
   Legend 
 } from 'recharts';
@@ -29,6 +32,7 @@ import { formatReward } from '../utils/rewardUtils';
 import { formatInTimezone } from '../utils/dateUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
+import { Pagination } from '../components/Pagination';
 
 interface Activity {
   id: string;
@@ -41,6 +45,7 @@ interface Activity {
   created_at?: string;
   description: string;
   link?: string;
+  attempt_generation?: number;
 }
 
 interface Kid {
@@ -90,9 +95,11 @@ export default function ProgressReport() {
   const [historyPage, setHistoryPage] = useState(1);
   const [purchasePage, setPurchasePage] = useState(1);
   const [quizPage, setQuizPage] = useState(1);
+  const [repeatPage, setRepeatPage] = useState(1);
   const [historyItemsPerPage, setHistoryItemsPerPage] = useState(10);
   const [purchaseItemsPerPage, setPurchaseItemsPerPage] = useState(10);
   const [quizItemsPerPage, setQuizItemsPerPage] = useState(10);
+  const [repeatItemsPerPage, setRepeatItemsPerPage] = useState(10);
 
   const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f43f5e'];
 
@@ -252,9 +259,9 @@ export default function ProgressReport() {
   const totalHistoryPages = Math.ceil(sortedHistory.length / historyItemsPerPage);
 
   const currentCompleted = activities.filter(a => {
-    if (a.status !== 'completed' || !(a.completion_date || a.created_at)) return false;
+    if (a.status !== 'completed' || !a.completion_date) return false;
     if (reportDuration === 'all') return true;
-    const completedDate = new Date(a.completion_date || a.created_at || "");
+    const completedDate = new Date(a.completion_date);
     const now = new Date();
     const diffMs = Math.abs(now.getTime() - completedDate.getTime());
     const diffHours = diffMs / (1000 * 60 * 60);
@@ -264,7 +271,11 @@ export default function ProgressReport() {
     return true;
   });
 
-  const combinedCompleted = [...filteredHistory, ...currentCompleted];
+  const historyKeys = new Set(filteredHistory.map(item => `${item.activity_type}|${item.description || ''}|${item.due_date || ''}`));
+  const combinedCompleted = [
+    ...filteredHistory,
+    ...currentCompleted.filter(item => !historyKeys.has(`${item.activity_type}|${item.description || ''}|${item.due_date || ''}`)),
+  ];
   const actualActivitiesCompleted = combinedCompleted.filter(item => 
     item.activity_type !== 'Parent Bonus' && 
     item.activity_type !== 'Behavior Goal Achieved'
@@ -278,6 +289,27 @@ export default function ProgressReport() {
     name: cat,
     completed: actualActivitiesCompleted.filter(a => (a.category || 'Uncategorized') === cat).length
   })).sort((a, b) => b.completed - a.completed);
+
+  const completionChartDays = reportDuration === '24h' ? 1 : reportDuration === '7d' ? 7 : 14;
+  const dailyCompletionData = Array.from({ length: completionChartDays }, (_, index) => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() - (completionChartDays - index - 1));
+    const key = formatKidDate(date, { year: 'numeric', month: '2-digit', day: '2-digit' });
+    return {
+      date: formatKidDate(date, { month: 'short', day: 'numeric' }),
+      completed: actualActivitiesCompleted.filter(item => {
+        const value = item.completion_date || item.created_at;
+        return value && formatKidDate(value, { year: 'numeric', month: '2-digit', day: '2-digit' }) === key;
+      }).length,
+    };
+  });
+
+  const repeatedActivities = activities
+    .filter(activity => Number(activity.attempt_generation || 1) > 1)
+    .sort((a, b) => Number(b.attempt_generation || 1) - Number(a.attempt_generation || 1));
+  const paginatedRepeatedActivities = repeatedActivities.slice((repeatPage - 1) * repeatItemsPerPage, repeatPage * repeatItemsPerPage);
+  const totalRepeatPages = Math.max(1, Math.ceil(repeatedActivities.length / repeatItemsPerPage));
 
   
 
@@ -313,6 +345,9 @@ export default function ProgressReport() {
   const sortedQuizzes = [...filteredQuizzes].sort((a, b) => new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime());
   const paginatedQuizzes = sortedQuizzes.slice((quizPage - 1) * quizItemsPerPage, quizPage * quizItemsPerPage);
   const totalQuizPages = Math.ceil(sortedQuizzes.length / quizItemsPerPage);
+  const averageQuizScore = sortedQuizzes.length
+    ? Math.round(sortedQuizzes.reduce((sum, result) => sum + (result.total_questions ? result.score / result.total_questions * 100 : 0), 0) / sortedQuizzes.length)
+    : null;
 
   const rewardIcon = kid?.reward_type ? `https://cdn-icons-png.flaticon.com/512/2489/2489756.png` : ''; // Fallback
 
@@ -553,7 +588,43 @@ export default function ProgressReport() {
         </Card>
       </div>
 
+      <Card className="border-none bg-gradient-to-r from-blue-50 to-emerald-50 ring-1 ring-blue-100 shadow-sm">
+        <CardContent className="grid gap-4 p-6 md:grid-cols-3">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-blue-700">Planning signal</p>
+            <p className="mt-2 text-sm leading-6 text-slate-700">{repeatedActivities.length > 0 ? `${repeatedActivities.length} ${repeatedActivities.length === 1 ? 'activity has' : 'activities have'} needed another try. Review the repeat table before planning related lessons or worksheets.` : 'No activities currently show a parent-directed retry. Continue watching completion and quiz patterns.'}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Learning signal</p>
+            <p className="mt-2 text-sm leading-6 text-slate-700">{averageQuizScore === null ? 'No quiz result is available for this period.' : averageQuizScore < 70 ? `Average quiz accuracy is ${averageQuizScore}%. Consider shorter review activities or a focused worksheet.` : `Average quiz accuracy is ${averageQuizScore}%. Build on successful topics while gradually increasing challenge.`}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">Balance signal</p>
+            <p className="mt-2 text-sm leading-6 text-slate-700">{sortedPurchases.length > 0 ? `${sortedPurchases.length} reward ${sortedPurchases.length === 1 ? 'purchase was' : 'purchases were'} made in this period. Compare earned and spent rewards when setting future goals.` : 'No rewards were purchased in this period. Check whether available goals are motivating and attainable.'}</p>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid gap-8 lg:grid-cols-2">
+        <Card className="border-none ring-1 ring-slate-200 shadow-sm overflow-hidden">
+          <CardHeader className="bg-slate-50/50 border-b border-slate-100 p-6">
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
+              <TrendingUp className="text-blue-600 h-5 w-5" />
+              Completions over time
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 h-[400px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={dailyCompletionData} margin={{ top: 12, right: 12, left: -18, bottom: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#64748b" />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="#64748b" />
+                <ChartRechartsTooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0' }} />
+                <Bar dataKey="completed" name="Completed" fill="#2563eb" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
         <Card className="border-none ring-1 ring-slate-200 shadow-sm overflow-hidden">
           <CardHeader className="bg-slate-50/50 border-b border-slate-100 p-6">
             <CardTitle className="text-lg font-bold flex items-center gap-2">
@@ -603,48 +674,6 @@ export default function ProgressReport() {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {sortedHistory.length > 0 && totalHistoryPages > 1 && (
-            <div className="flex items-center justify-between px-6 py-2 border-b border-slate-100 bg-slate-50/30">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">PER PAGE:</span>
-                <select
-                  className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  value={historyItemsPerPage}
-                  onChange={(e) => {
-                    setHistoryItemsPerPage(Number(e.target.value));
-                    setHistoryPage(1);
-                  }}
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                </select>
-              </div>
-              <div className="flex items-center gap-3">
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  disabled={historyPage === 1}
-                  onClick={() => setHistoryPage(prev => Math.max(1, prev - 1))}
-                  className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600 disabled:opacity-30"
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </Button>
-                <span className="text-xs font-bold text-slate-600 tracking-tight">
-                  Page {historyPage} of {totalHistoryPages}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  disabled={historyPage === totalHistoryPages}
-                  onClick={() => setHistoryPage(prev => Math.min(totalHistoryPages, prev + 1))}
-                  className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600 disabled:opacity-30"
-                >
-                  <ChevronRight className="h-5 w-5" />
-                </Button>
-              </div>
-            </div>
-          )}
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="text-[10px] text-slate-500 bg-slate-50 uppercase border-b border-slate-200 font-bold tracking-widest">
@@ -678,6 +707,7 @@ export default function ProgressReport() {
               </tbody>
             </table>
           </div>
+          {sortedHistory.length > 0 && <Pagination currentPage={historyPage} totalPages={Math.max(1, totalHistoryPages)} pageSize={historyItemsPerPage} onPageChange={setHistoryPage} onPageSizeChange={(size) => { setHistoryItemsPerPage(size); setHistoryPage(1); }} />}
         </CardContent>
       </Card>
 
@@ -690,48 +720,6 @@ export default function ProgressReport() {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {sortedQuizzes.length > 0 && (
-            <div className="flex items-center justify-between px-6 py-2 border-b border-slate-100 bg-slate-50/30">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">PER PAGE:</span>
-                <select
-                  className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  value={quizItemsPerPage}
-                  onChange={(e) => {
-                    setQuizItemsPerPage(Number(e.target.value));
-                    setQuizPage(1);
-                  }}
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                </select>
-              </div>
-              <div className="flex items-center gap-3">
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  disabled={quizPage === 1}
-                  onClick={() => setQuizPage(prev => Math.max(1, prev - 1))}
-                  className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600 disabled:opacity-30"
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </Button>
-                <span className="text-xs font-bold text-slate-600 tracking-tight">
-                  Page {quizPage} of {totalQuizPages || 1}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  disabled={quizPage === totalQuizPages || totalQuizPages <= 1}
-                  onClick={() => setQuizPage(prev => Math.min(totalQuizPages, prev + 1))}
-                  className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600 disabled:opacity-30"
-                >
-                  <ChevronRight className="h-5 w-5" />
-                </Button>
-              </div>
-            </div>
-          )}
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="text-[10px] text-slate-500 bg-slate-50 uppercase border-b border-slate-200 font-bold tracking-widest">
@@ -795,6 +783,44 @@ export default function ProgressReport() {
               </tbody>
             </table>
           </div>
+          {sortedQuizzes.length > 0 && <Pagination currentPage={quizPage} totalPages={Math.max(1, totalQuizPages)} pageSize={quizItemsPerPage} onPageChange={setQuizPage} onPageSizeChange={(size) => { setQuizItemsPerPage(size); setQuizPage(1); }} />}
+        </CardContent>
+      </Card>
+
+      <Card className="border-none ring-1 ring-slate-200 shadow-sm overflow-hidden">
+        <CardHeader className="bg-slate-50/50 border-b border-slate-100 p-6">
+          <CardTitle className="text-lg font-bold flex items-center gap-2">
+            <History className="text-amber-600 h-5 w-5" />
+            Activities that needed another try ({repeatedActivities.length})
+          </CardTitle>
+          <p className="mt-2 text-sm leading-6 text-slate-500">Use recurring patterns here to plan review lessons, smaller activity steps, or a supporting worksheet. A retry is counted when a parent deliberately reassigns the same activity.</p>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="text-[10px] text-slate-500 bg-slate-50 uppercase border-b border-slate-200 font-bold tracking-widest">
+                <tr>
+                  <th className="px-6 py-4">Activity</th>
+                  <th className="px-6 py-4">Category</th>
+                  <th className="px-6 py-4 text-center">Retries</th>
+                  <th className="px-6 py-4 text-center">Current status</th>
+                  <th className="px-6 py-4 text-right">Due date</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {paginatedRepeatedActivities.length ? paginatedRepeatedActivities.map(activity => (
+                  <tr key={activity.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-6 py-4"><p className="font-bold text-slate-900">{activity.activity_type || 'Activity'}</p><p className="mt-1 max-w-md text-xs text-slate-500">{activity.description || 'No description'}</p></td>
+                    <td className="px-6 py-4 text-slate-600">{activity.category || 'Uncategorized'}</td>
+                    <td className="px-6 py-4 text-center font-black text-amber-700">{Math.max(0, Number(activity.attempt_generation || 1) - 1)}</td>
+                    <td className="px-6 py-4 text-center"><span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-slate-700">{activity.status.replace('_', ' ')}</span></td>
+                    <td className="px-6 py-4 text-right text-slate-500">{formatSimpleDate(activity.due_date)}</td>
+                  </tr>
+                )) : <tr><td colSpan={5} className="px-6 py-12 text-center text-slate-400 italic">No parent-directed retries have been recorded.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+          {repeatedActivities.length > 0 && <Pagination currentPage={repeatPage} totalPages={totalRepeatPages} pageSize={repeatItemsPerPage} onPageChange={setRepeatPage} onPageSizeChange={(size) => { setRepeatItemsPerPage(size); setRepeatPage(1); }} />}
         </CardContent>
       </Card>
 
@@ -807,48 +833,6 @@ export default function ProgressReport() {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {sortedPurchases.length > 0 && (
-            <div className="flex items-center justify-between px-6 py-2 border-b border-slate-100 bg-slate-50/30">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">PER PAGE:</span>
-                <select
-                  className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  value={purchaseItemsPerPage}
-                  onChange={(e) => {
-                    setPurchaseItemsPerPage(Number(e.target.value));
-                    setPurchasePage(1);
-                  }}
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                </select>
-              </div>
-              <div className="flex items-center gap-3">
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  disabled={purchasePage === 1}
-                  onClick={() => setPurchasePage(prev => Math.max(1, prev - 1))}
-                  className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600 disabled:opacity-30"
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </Button>
-                <span className="text-xs font-bold text-slate-600 tracking-tight">
-                  Page {purchasePage} of {totalPurchasePages || 1}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  disabled={purchasePage === totalPurchasePages || totalPurchasePages <= 1}
-                  onClick={() => setPurchasePage(prev => Math.min(totalPurchasePages, prev + 1))}
-                  className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600 disabled:opacity-30"
-                >
-                  <ChevronRight className="h-5 w-5" />
-                </Button>
-              </div>
-            </div>
-          )}
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="text-[10px] text-slate-500 bg-slate-50 uppercase border-b border-slate-200 font-bold tracking-widest">
@@ -894,6 +878,7 @@ export default function ProgressReport() {
               </tbody>
             </table>
           </div>
+          {sortedPurchases.length > 0 && <Pagination currentPage={purchasePage} totalPages={Math.max(1, totalPurchasePages)} pageSize={purchaseItemsPerPage} onPageChange={setPurchasePage} onPageSizeChange={(size) => { setPurchaseItemsPerPage(size); setPurchasePage(1); }} />}
         </CardContent>
       </Card>
     </div>

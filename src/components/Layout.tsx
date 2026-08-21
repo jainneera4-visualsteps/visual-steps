@@ -52,6 +52,9 @@ export function Layout() {
     else if (path === '/about') title = 'About | Visual Steps';
     else if (path === '/pricing') title = 'Plans & Pricing | Visual Steps';
     else if (path === '/demo') title = 'Guest Demo | Visual Steps';
+    else if (path === '/testimonials') title = 'Family Stories | Visual Steps';
+    else if (path === '/contact') title = 'Contact | Visual Steps';
+    else if (path === '/newsletter') title = 'Weekly Newsletter | Visual Steps';
 
     document.title = title;
   }, [location.pathname]);
@@ -216,6 +219,11 @@ export function Layout() {
                 About
               </Link>
             </Tooltip>
+            <Tooltip content="Contact Visual Steps">
+              <Link to="/contact" className="text-sm font-semibold text-slate-600 hover:text-brand-600 transition-all">
+                Contact
+              </Link>
+            </Tooltip>
             <div className="h-4 w-px bg-slate-200" />
             {user ? (
               <div className="flex items-center gap-4">
@@ -297,6 +305,9 @@ export function Layout() {
                   <Link to="/pricing" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>
                     Plans
                   </Link>
+                  <Link to="/testimonials" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Family Stories</Link>
+                  <Link to="/newsletter" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Newsletter</Link>
+                  <Link to="/contact" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Contact</Link>
                 </>
               ) : (
                 <>
@@ -306,6 +317,9 @@ export function Layout() {
                   <Link to="/pricing" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>
                     Plans
                   </Link>
+                  <Link to="/testimonials" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Family Stories</Link>
+                  <Link to="/newsletter" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Newsletter</Link>
+                  <Link to="/contact" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Contact</Link>
                   <Link to="/login" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>
                     Sign in
                   </Link>
@@ -327,6 +341,12 @@ export function Layout() {
       
       <footer className="border-t border-slate-200 bg-white py-1 mt-auto no-print">
         <div className="w-full flex flex-col items-center gap-1 px-4">
+          <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] font-semibold text-slate-500" aria-label="Public information">
+            <Link to="/about" className="hover:text-brand-600">About</Link>
+            <Link to="/testimonials" className="hover:text-brand-600">Family Stories</Link>
+            <Link to="/newsletter" className="hover:text-brand-600">Newsletter</Link>
+            <Link to="/contact" className="hover:text-brand-600">Contact</Link>
+          </nav>
           <div className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">
             &copy; {new Date().getFullYear()} Visual Steps.
           </div>

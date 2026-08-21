@@ -252,6 +252,24 @@ const productFeatureRegistry = [
       "guest",
       "help"
     ]
+  },
+  {
+    "id": "weekly-newsletter",
+    "title": "Visual Steps Weekly",
+    "summary": "Read a Monday update archive on the website or receive confirmed issues by email.",
+    "details": "Each Monday, Visual Steps publishes a website newsletter summarizing product updates recorded during the previous week. Every issue organizes new features, practical feature guidance, explicitly approved parent testimonials, and supportive tips for families. Parents and visitors can read the archive without subscribing. Email delivery requires confirmation, keeps subscriber addresses private, and includes one-click unsubscribe in every issue.",
+    "help": "Open Newsletter from the footer or mobile menu. Read published issues in Weekly Archive, or enter an email, select Subscribe, and confirm through the email Visual Steps sends.",
+    "introducedOn": "2026-08-21",
+    "plan": "starter",
+    "icon": "book",
+    "routes": [
+      "/newsletter"
+    ],
+    "surfaces": [
+      "about",
+      "chatbot",
+      "help"
+    ]
   }
 ] as const;
 // FEATURE_REGISTRY_SERVER:END
@@ -958,6 +976,168 @@ const sendPasswordChangeEmail = async (email: string, name: string): Promise<boo
     return false;
   }
 };
+
+const hashNewsletterToken = (token: string) => createHash('sha256').update(token).digest('hex');
+const escapeEmailHtml = (value: unknown) => String(value ?? '')
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+const newsletterEmailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const newsletterTips = [
+  'Choose one routine to simplify this week. Fewer, clearer steps are often easier to follow than a long verbal reminder.',
+  'Praise the specific behavior you observed—such as trying again or staying calm—so encouragement feels earned and understandable.',
+  'Review activities that needed another try before planning the next worksheet or lesson. Repetition can show where a smaller step would help.',
+  'Keep rewards predictable: explain what earns them, record the reason, and avoid adding tokens only because they were requested.',
+  'Use a social story before a new or difficult event, then revisit it afterward to talk about what felt easy or challenging.',
+  'When a quiz result is lower than expected, review the topic and reassign only when a fresh attempt supports learning.',
+];
+
+const isoDate = (date: Date) => date.toISOString().slice(0, 10);
+const getPreviousNewsletterPeriod = (now = new Date()) => {
+  const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const daysSinceMonday = (monday.getUTCDay() + 6) % 7;
+  monday.setUTCDate(monday.getUTCDate() - daysSinceMonday);
+  const periodStart = new Date(monday);
+  periodStart.setUTCDate(periodStart.getUTCDate() - 7);
+  const periodEnd = new Date(monday);
+  periodEnd.setUTCDate(periodEnd.getUTCDate() - 1);
+  return { issueDate: isoDate(monday), periodStart: isoDate(periodStart), periodEnd: isoDate(periodEnd) };
+};
+
+const createWeeklyNewsletter = async (now = new Date()) => {
+  if (!supabaseServiceKey) throw new Error('SUPABASE_SERVICE_ROLE_KEY is required for newsletter publishing');
+  const admin = getAdminSupabaseClient();
+  const period = getPreviousNewsletterPeriod(now);
+  const features = productFeatureRegistry.filter(feature =>
+    feature.introducedOn >= period.periodStart && feature.introducedOn <= period.periodEnd
+  );
+  const { data: testimonials, error: testimonialError } = await admin
+    .from('parent_testimonials').select('display_name,quote,feature_title,approved_at')
+    .gte('approved_at', `${period.periodStart}T00:00:00.000Z`)
+    .lt('approved_at', `${period.issueDate}T00:00:00.000Z`).order('approved_at', { ascending: true });
+  if (testimonialError) throw testimonialError;
+  const tipOffset = Math.floor(now.getTime() / (7 * 24 * 60 * 60 * 1000)) % newsletterTips.length;
+  const tips = [0, 1, 2].map(index => newsletterTips[(tipOffset + index) % newsletterTips.length]);
+  const issue = {
+    issue_date: period.issueDate,
+    period_start: period.periodStart,
+    period_end: period.periodEnd,
+    title: `Visual Steps Weekly — ${period.issueDate}`,
+    introduction: `A practical summary of Visual Steps updates from ${period.periodStart} through ${period.periodEnd}, plus ideas families can use this week.`,
+    new_features: features.map(feature => ({ title: feature.title, summary: feature.summary, introducedOn: feature.introducedOn })),
+    feature_details: features.map(feature => ({ title: feature.title, details: feature.details, help: feature.help })),
+    parent_testimonials: (testimonials || []).map(item => ({ displayName: item.display_name, quote: item.quote, featureTitle: item.feature_title })),
+    parent_tips: tips,
+    published_at: new Date().toISOString(),
+  };
+  const { data, error } = await admin.from('newsletters').upsert(issue, { onConflict: 'issue_date' }).select('*').single();
+  if (error) throw error;
+  return data;
+};
+
+const newsletterSectionHtml = (title: string, items: string[]) => `
+  <h2 style="color:#173b52;margin:28px 0 10px">${escapeEmailHtml(title)}</h2>
+  ${items.length ? `<ul style="padding-left:22px;line-height:1.7">${items.map(item => `<li style="margin-bottom:9px">${item}</li>`).join('')}</ul>` : '<p>No additions were recorded in this section last week.</p>'}`;
+
+const sendNewsletterIssue = async (issue: any, appOrigin: string) => {
+  const admin = getAdminSupabaseClient();
+  const { data: subscribers, error } = await admin.from('newsletter_subscribers')
+    .select('id,email,unsubscribe_token_hash,last_sent_issue_date')
+    .eq('status', 'active').or(`last_sent_issue_date.is.null,last_sent_issue_date.lt.${issue.issue_date}`).limit(100);
+  if (error) throw error;
+  const transporter = await getTransporter();
+  if (!transporter) throw new Error('SMTP is not configured');
+  const from = cleanEnvVar('SMTP_FROM') || cleanEnvVar('SMTP_USER');
+  let delivered = 0;
+  for (const subscriber of subscribers || []) {
+    // Store a newly rotated unsubscribe token because hashes cannot be reversed.
+    const unsubscribeToken = randomBytes(32).toString('hex');
+    const unsubscribeHash = hashNewsletterToken(unsubscribeToken);
+    const unsubscribeUrl = `${appOrigin}/api/newsletter/unsubscribe?token=${encodeURIComponent(unsubscribeToken)}`;
+    const archiveUrl = `${appOrigin}/newsletter`;
+    const featureItems = (issue.new_features || []).map((item: any) => `<strong>${escapeEmailHtml(item.title)}</strong> — ${escapeEmailHtml(item.summary)}`);
+    const detailItems = (issue.feature_details || []).map((item: any) => `<strong>${escapeEmailHtml(item.title)}</strong>: ${escapeEmailHtml(item.details)}<br><em>Where to find it:</em> ${escapeEmailHtml(item.help)}`);
+    const testimonialItems = (issue.parent_testimonials || []).map((item: any) => `“${escapeEmailHtml(item.quote)}” — ${escapeEmailHtml(item.displayName)}`);
+    const tipItems = (issue.parent_tips || []).map((item: string) => escapeEmailHtml(item));
+    try {
+      await transporter.sendMail({
+        from, to: subscriber.email, subject: issue.title,
+        text: `${issue.introduction}\n\nRead this issue: ${archiveUrl}\n\nUnsubscribe: ${unsubscribeUrl}`,
+        html: `<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;color:#334155;line-height:1.6"><h1 style="color:#176b87">${escapeEmailHtml(issue.title)}</h1><p>${escapeEmailHtml(issue.introduction)}</p>${newsletterSectionHtml('New Features Added', featureItems)}${newsletterSectionHtml('Feature Details', detailItems)}${newsletterSectionHtml('Parent Testimonials Added', testimonialItems)}${newsletterSectionHtml('Tips and Tricks for Parents', tipItems)}<p style="margin-top:32px"><a href="${archiveUrl}">Read the newsletter archive</a></p><p style="font-size:12px;color:#64748b">You received this because you confirmed a Visual Steps newsletter subscription. <a href="${unsubscribeUrl}">Unsubscribe with one click</a>.</p></div>`,
+      });
+      await admin.from('newsletter_subscribers').update({ last_sent_issue_date: issue.issue_date, unsubscribe_token_hash: unsubscribeHash, updated_at: new Date().toISOString() }).eq('id', subscriber.id);
+      delivered += 1;
+    } catch (sendError) {
+      console.error('Newsletter delivery failed:', getSafeSmtpError(sendError));
+    }
+  }
+  return { delivered, pending: (subscribers || []).length - delivered };
+};
+
+app.get('/api/newsletters', async (_req, res) => {
+  const client = getPublicSupabaseClient();
+  const { data, error } = await client.from('newsletters').select('*').not('published_at', 'is', null).order('issue_date', { ascending: false }).limit(52);
+  if (error) return res.status(500).json({ error: 'Unable to load newsletters' });
+  return res.json(data || []);
+});
+
+app.post('/api/newsletter/subscribe', async (req, res) => {
+  const email = String(req.body?.email || '').trim().toLowerCase();
+  if (!newsletterEmailPattern.test(email) || email.length > 254) return res.status(400).json({ error: 'Enter a valid email address.' });
+  if (!supabaseServiceKey) return res.status(503).json({ error: 'Newsletter subscriptions are not configured.' });
+  const confirmationToken = randomBytes(32).toString('hex');
+  const unsubscribeToken = randomBytes(32).toString('hex');
+  const admin = getAdminSupabaseClient();
+  const { error } = await admin.from('newsletter_subscribers').upsert({
+    email, status: 'pending', confirmation_token_hash: hashNewsletterToken(confirmationToken),
+    unsubscribe_token_hash: hashNewsletterToken(unsubscribeToken), unsubscribed_at: null, updated_at: new Date().toISOString(),
+  }, { onConflict: 'email' });
+  if (error) return res.status(500).json({ error: 'We could not save this subscription request.' });
+  try {
+    const transporter = await getTransporter();
+    if (!transporter) throw new Error('SMTP unavailable');
+    const confirmationUrl = `${getPublicAppOrigin(req)}/api/newsletter/confirm?token=${encodeURIComponent(confirmationToken)}`;
+    await transporter.sendMail({
+      from: cleanEnvVar('SMTP_FROM') || cleanEnvVar('SMTP_USER'), to: email,
+      subject: 'Confirm your Visual Steps Weekly subscription',
+      text: `Confirm your subscription: ${confirmationUrl}\n\nIf you did not request this, ignore this email.`,
+      html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;line-height:1.6"><h1 style="color:#176b87">Visual Steps Weekly</h1><p>Please confirm that you want one practical Visual Steps newsletter each Monday.</p><p><a href="${confirmationUrl}" style="background:#2563eb;color:white;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:bold">Confirm subscription</a></p><p>If you did not request this, simply ignore this message.</p></div>`,
+    });
+    return res.status(202).json({ message: `Check ${email} and select Confirm subscription.` });
+  } catch (sendError) {
+    console.error('Newsletter confirmation failed:', getSafeSmtpError(sendError));
+    return res.status(502).json({ error: 'Your request was saved, but the confirmation email could not be sent. Please try again.' });
+  }
+});
+
+app.get('/api/newsletter/confirm', async (req, res) => {
+  const token = String(req.query.token || '');
+  if (!token || !supabaseServiceKey) return res.redirect(303, `${getPublicAppOrigin(req)}/newsletter?confirmation=invalid`);
+  const admin = getAdminSupabaseClient();
+  const { data } = await admin.from('newsletter_subscribers').update({ status: 'active', confirmed_at: new Date().toISOString(), confirmation_token_hash: null, updated_at: new Date().toISOString() }).eq('confirmation_token_hash', hashNewsletterToken(token)).select('id').maybeSingle();
+  return res.redirect(303, `${getPublicAppOrigin(req)}/newsletter?confirmation=${data ? 'success' : 'invalid'}`);
+});
+
+app.get('/api/newsletter/unsubscribe', async (req, res) => {
+  const token = String(req.query.token || '');
+  if (!token || !supabaseServiceKey) return res.redirect(303, `${getPublicAppOrigin(req)}/newsletter?unsubscribe=invalid`);
+  const admin = getAdminSupabaseClient();
+  const { data } = await admin.from('newsletter_subscribers').update({ status: 'unsubscribed', unsubscribed_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('unsubscribe_token_hash', hashNewsletterToken(token)).select('id').maybeSingle();
+  return res.redirect(303, `${getPublicAppOrigin(req)}/newsletter?unsubscribe=${data ? 'success' : 'invalid'}`);
+});
+
+app.get('/api/cron/weekly-newsletter', async (req, res) => {
+  const cronSecret = cleanEnvVar('CRON_SECRET');
+  if (!cronSecret || req.get('authorization') !== `Bearer ${cronSecret}`) return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    const issue = await createWeeklyNewsletter();
+    const delivery = await sendNewsletterIssue(issue, getPublicAppOrigin(req));
+    return res.json({ issueDate: issue.issue_date, ...delivery });
+  } catch (error) {
+    console.error('Weekly newsletter job failed:', error instanceof Error ? error.message : 'Unknown error');
+    return res.status(500).json({ error: 'Newsletter job failed' });
+  }
+});
 
 // Authenticated, non-secret SMTP diagnostic. This verifies the connection but
 // does not send an email or return credential values.
@@ -4454,9 +4634,12 @@ export const parentAssistantFeatureCatalog = [
   { area: 'Saved worksheets and printing', routes: ['/saved-worksheets', '/worksheet-generator'], help: 'Open Activities > Worksheets to reach Saved Worksheets. The curated Calm-Down Strategy Map sample can be opened and printed without using AI or saving data. In the worksheet grid find the row and Actions column. Select the eye icon with tooltip View. On View Worksheet select Print Worksheet above the preview. In the browser dialog choose the printer or Save as PDF and select Print or Save. If no dialog opens, allow popups and retry. The other row actions edit or delete; saved content can be assigned to a child.' },
   { area: 'Social stories', routes: ['/social-stories', '/social-stories/create', '/social-stories/edit/:id', '/social-stories/view/:id'], help: 'Open Activities > Social Stories. The curated four-page When My Plan Changes sample can be opened without using AI or saving data. Create a story using Select Kid, Language, Tone, Number of Pages, Sentences per Page, What is the story about?, Narrator Selection, Speech Speed, Visual Sync, Story Title, Page Text, and optional page images. Generate/edit and save. The saved-story Actions icons securely Share, View, Print, Edit, or Delete.' },
   { area: 'Controlled story sharing', routes: ['/social-stories', '/social-stories/shared/:shareToken'], help: 'In Social Stories select the Share securely action. Choose the link lifetime (1, 7, or 30 days), create and copy the link, and send only the URL. Links expire and can be revoked. A recipient can open the shared story without signing in while the link remains valid.' },
-  { area: 'Progress report', routes: ['/progress-report/:kidId'], help: 'Select a child, open the top Analytics menu, and select Progress Report. Use Duration: Last 24 Hours, Last 7 Days, Last 30 Days, or All Time. Review Activities Completed, Current Balance, Rewards Earned, activity history, quiz results, and reward purchases. Tables include per-page pagination; quiz results can be deleted with the Delete control.' },
+  { area: 'Progress and summary reports', routes: ['/progress-report/:kidId', '/summary-report/:kidId'], help: 'Select a child, open the top Analytics menu, and choose Progress Report or Summary Report. Progress Report supports Last 24 Hours, Last 7 Days, Last 30 Days, or All Time and includes completion and category charts, planning signals, completed activity history, quiz results, activities that needed another try, and reward purchase history. Every report table uses the standard Per page and Page controls. Summary Report combines the last 30 days into completion, quiz, retry, category, purchase, and reward patterns with practical ideas for planning the next activities, worksheets, difficulty level, and rewards.' },
   { area: 'Summary report', routes: ['/summary-report/:kidId'], help: 'Select a child, open Analytics, and select Summary Report. It combines activity and quiz entries with type, title, details, reward, and date for a concise overview.' },
   { area: 'Parent account settings', routes: ['/profile'], help: 'Select the parent name in the top navigation to open Account Settings. In Profile Information update Full Name or Email. In Change Password enter a new password or leave it blank to keep the current password. In Parent Messaging set Days to Keep Messages. Select Save Changes. Profile also provides welcome-email resend and email-delivery checks when configured.' },
+  { area: 'Family stories and testimonials', routes: ['/testimonials'], help: 'Open Family Stories from the footer or mobile menu. Visual Steps publishes testimonials only with explicit family approval and never converts private child data into public quotes. Select Share your story to open the Contact page with the testimonial subject prepared.' },
+  { area: 'Contact Visual Steps', routes: ['/contact'], help: 'Open Contact from the top navigation, footer, or mobile menu. Enter your name, reply email, subject, and message, then select Open email to send. The form opens the visitor’s own email application and does not store the fields in the Visual Steps database. Never include passwords, API keys, child login codes, or sensitive clinical information.' },
+  { area: 'Visual Steps weekly newsletter', routes: ['/newsletter'], help: 'Open Newsletter from the footer or mobile menu. The Weekly Archive shows each published Monday issue with New Features Added, Feature Details, approved Parent Testimonials Added, and Tips and Tricks for Parents. To receive it by email, enter an address, select Subscribe, and use the confirmation link sent by Visual Steps. Every issue includes one-click unsubscribe, and subscriber addresses remain private.' },
   { area: 'Child dashboard', routes: ['/kids-dashboard/:kidId'], help: 'Children sign in with their Kid Code. To Be Done lists pending activities, Waiting for parent verification lists submitted work, Completed shows completed activities, and Rewards shows items they may purchase with earned tokens. Meaningful completions show celebrations. A verification-required submission tells the child to wait and does not award tokens until parent approval.' },
   { area: 'Offline and installation', routes: ['/'], help: 'Visual Steps is installable as a PWA from a supported browser and can be added to an iPhone or iPad Home Screen through Safari Share > Add to Home Screen. When internet access is lost, the app displays an offline notice; database, sign-in, and AI operations require reconnection.' },
 ] as const;

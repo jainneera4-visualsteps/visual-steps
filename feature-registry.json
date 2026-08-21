@@ -118,5 +118,17 @@
     "icon": "book",
     "routes": ["/saved-quizzes", "/saved-worksheets", "/social-stories", "/progress-report/:kidId"],
     "surfaces": ["home", "about", "onboarding", "chatbot", "pricing", "guest", "help"]
+  },
+  {
+    "id": "weekly-newsletter",
+    "title": "Visual Steps Weekly",
+    "summary": "Read a Monday update archive on the website or receive confirmed issues by email.",
+    "details": "Each Monday, Visual Steps publishes a website newsletter summarizing product updates recorded during the previous week. Every issue organizes new features, practical feature guidance, explicitly approved parent testimonials, and supportive tips for families. Parents and visitors can read the archive without subscribing. Email delivery requires confirmation, keeps subscriber addresses private, and includes one-click unsubscribe in every issue.",
+    "help": "Open Newsletter from the footer or mobile menu. Read published issues in Weekly Archive, or enter an email, select Subscribe, and confirm through the email Visual Steps sends.",
+    "introducedOn": "2026-08-21",
+    "plan": "starter",
+    "icon": "book",
+    "routes": ["/newsletter"],
+    "surfaces": ["about", "chatbot", "help"]
   }
 ]

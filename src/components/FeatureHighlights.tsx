@@ -19,10 +19,12 @@ export function NewFeatureBadge({ introducedOn }: { introducedOn: string }) {
   return <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-800">New</span>;
 }
 
-export function FeatureHighlights({ surface, limit, compact = false, onlyNew = false, detailed = false, columns = 3 }: { surface: FeatureSurface; limit?: number; compact?: boolean; onlyNew?: boolean; detailed?: boolean; columns?: 2 | 3 }) {
-  const features = featuresForSurface(surface).filter((feature) => !onlyNew || isFeatureNew(feature)).slice(0, limit);
-  const gridColumns = columns === 2
-    ? 'md:grid-cols-2'
+export function FeatureHighlights({ surface, limit, compact = false, onlyNew = false, detailed = false, columns = 3, sortByTitle = false }: { surface: FeatureSurface; limit?: number; compact?: boolean; onlyNew?: boolean; detailed?: boolean; columns?: 1 | 2 | 3; sortByTitle?: boolean }) {
+  const matchingFeatures = featuresForSurface(surface).filter((feature) => !onlyNew || isFeatureNew(feature));
+  const features = (sortByTitle ? [...matchingFeatures].sort((a, b) => a.title.localeCompare(b.title)) : matchingFeatures).slice(0, limit);
+  const gridColumns = columns === 1
+    ? 'grid-cols-1'
+    : columns === 2 ? 'md:grid-cols-2'
     : compact ? 'sm:grid-cols-2 lg:grid-cols-3' : 'md:grid-cols-2 lg:grid-cols-3';
   return <div className={`grid gap-4 ${gridColumns}`} data-feature-registry-surface={surface}>
     {features.map((feature) => {

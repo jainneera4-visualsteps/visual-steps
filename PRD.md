@@ -267,4 +267,5 @@ This section is generated from `feature-registry.json`. Update the registry when
 | Controlled social-story sharing | family | 2026-08-19 | Share a story using a private link that can expire or be revoked. |
 | Temporary guest demonstration | starter | 2026-08-21 | Explore realistic parent and child workflows without an account or database writes. |
 | Learning, progress, and meaningful rewards | starter | 2026-03-15 | Create personalized resources, understand progress, and connect earned rewards to meaningful goals. |
+| Visual Steps Weekly | starter | 2026-08-21 | Read a Monday update archive on the website or receive confirmed issues by email. |
 <!-- FEATURE_REGISTRY:END -->

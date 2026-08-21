@@ -41,21 +41,13 @@ export default function About() {
           </div>
         </section>
 
-        <section>
-          <div className="mb-6 max-w-2xl">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-700">What families can do today</p>
-            <h2 className="mt-2 text-3xl font-bold">Practical tools for everyday life</h2>
-          </div>
-          <FeatureHighlights surface="about" detailed />
-        </section>
-
         <section className="surface p-7 sm:p-10">
           <div className="mb-7 max-w-3xl">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-700">Development history</p>
             <h2 className="mt-2 text-3xl font-bold text-slate-950">Built step by step with real family needs in mind</h2>
             <p className="mt-3 text-sm leading-7 text-slate-600">Visual Steps has grown from a focused routine planner into a broader family support platform. Each phase has kept the same goal: make expectations clearer while preserving parent judgment and child dignity.</p>
           </div>
-          <ol className="grid gap-5 md:grid-cols-2">
+          <ol className="grid grid-cols-1 gap-5">
             {[
               ['March 2026', 'The foundation', 'Visual Steps began with parent-managed child profiles, visual activities, smaller task steps, schedules, and a dedicated child dashboard. The first version focused on reducing uncertainty around daily routines. Rewards connected completed effort with visible encouragement. Parent and child experiences were intentionally kept separate and simple.'],
               ['Spring–Summer 2026', 'Learning and progress', 'Quizzes, printable worksheets, social stories, reports, and activity history expanded the platform beyond daily planning. Resources could be personalized, saved, edited, printed, and assigned. Secure authentication and parent-controlled data access matured alongside these tools. The project also removed unused games and chatbot experiments so the experience stayed focused.'],
@@ -69,6 +61,14 @@ export default function About() {
               </li>
             ))}
           </ol>
+        </section>
+
+        <section>
+          <div className="mb-6 max-w-2xl">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-700">What families can do today</p>
+            <h2 className="mt-2 text-3xl font-bold">Practical tools for everyday life</h2>
+          </div>
+          <FeatureHighlights surface="about" detailed columns={1} sortByTitle />
         </section>
 
         <section className="surface flex flex-col items-start gap-5 bg-slate-900 p-7 text-white sm:flex-row sm:items-center sm:justify-between sm:p-10">
