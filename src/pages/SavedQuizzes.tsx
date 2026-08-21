@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { ArrowLeft, Gamepad2, Trash2, Plus, Pencil, HelpCircle, Eye } from 'lucide-react';
 import { Tooltip } from '../components/ui/Tooltip';
 import { Pagination } from '../components/Pagination';
+import { SampleLearningContent } from '../components/SampleLearningContent';
 
 export default function SavedQuizzes() {
   const navigate = useNavigate();
@@ -103,6 +104,8 @@ export default function SavedQuizzes() {
           </Link>
         </div>
       </div>
+
+      <SampleLearningContent show="quiz" compact />
 
       {error ? (
         <Card className="border-none ring-1 ring-red-200 bg-red-50">

@@ -7,6 +7,7 @@ import { Plus, BookOpen, Trash2, ArrowLeft, Eye, Pencil, Printer, Loader2, HelpC
 import { Pagination } from '../components/Pagination';
 import { Tooltip } from '../components/ui/Tooltip';
 import { SocialStoryModal } from '../components/SocialStoryModal';
+import { SampleLearningContent } from '../components/SampleLearningContent';
 
 interface SocialStory {
   id: string;
@@ -386,6 +387,8 @@ export default function SocialStories() {
           </Link>
         </div>
       </div>
+
+      <SampleLearningContent show="story" compact />
 
       {error ? (
         <Card className="border-none ring-1 ring-red-200 bg-red-50">

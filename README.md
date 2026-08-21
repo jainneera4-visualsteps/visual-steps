@@ -187,6 +187,10 @@ Run `npm run test:browser:mobile` to check install metadata, icons, public-page 
 
 Parents authenticate through Supabase Auth. Protected browser API requests attach the Supabase access token. Children use a separate short-lived JWT session obtained by verifying their access code. API endpoints enforce ownership and role checks, while the Supabase schema also enables row-level security.
 
+The public `/demo` route provides a database-free product tour. Its sample activities, verification decisions, reward balance, and behavior bonuses live only in React memory. It does not create an account, call protected APIs, or use browser storage, so refreshing or leaving the page restores the original sample data.
+
+The guest demo and authenticated Quizzes, Worksheets, and Social Stories pages also expose the same curated sample content. These examples are bundled with the application, do not consume Gemini requests, and are never inserted into a parent's saved records.
+
 Uploaded files are stored in the local `uploads/` directory. Because ephemeral/serverless filesystems do not provide durable storage, production deployments should use persistent object storage for uploads.
 
 ## Deployment

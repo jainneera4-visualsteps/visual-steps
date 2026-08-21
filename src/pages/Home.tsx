@@ -331,6 +331,13 @@ export default function Home() {
                           </Link>
                         </p>
                       </div>
+                      <div className="relative py-1">
+                        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200" /></div>
+                        <div className="relative flex justify-center"><span className="bg-white px-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">or explore first</span></div>
+                      </div>
+                      <Link to="/demo" className="flex h-10 w-full items-center justify-center rounded-xl border border-emerald-300 bg-emerald-50 text-sm font-bold text-emerald-800 transition hover:bg-emerald-100">
+                        Try Guest Demo
+                      </Link>
                     </form>
                   ) : (
                     <form onSubmit={handleKidSubmit} className="space-y-5">

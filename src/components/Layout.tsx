@@ -51,6 +51,7 @@ export function Layout() {
     else if (path === '/forgot-password') title = 'Forgot Password | Visual Steps';
     else if (path === '/about') title = 'About | Visual Steps';
     else if (path === '/pricing') title = 'Plans & Pricing | Visual Steps';
+    else if (path === '/demo') title = 'Guest Demo | Visual Steps';
 
     document.title = title;
   }, [location.pathname]);

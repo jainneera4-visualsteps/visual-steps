@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { ArrowLeft, FileText, Trash2, Sparkles, Eye, Edit2, HelpCircle, Loader2 } from 'lucide-react';
 import { Tooltip } from '../components/ui/Tooltip';
 import { Pagination } from '../components/Pagination';
+import { SampleLearningContent } from '../components/SampleLearningContent';
 
 interface Worksheet {
   id: string;
@@ -106,6 +107,8 @@ export default function SavedWorksheets() {
           </Link>
         </div>
       </div>
+
+      <SampleLearningContent show="worksheet" compact />
 
       {isLoading ? (
         <div className="flex h-64 items-center justify-center">

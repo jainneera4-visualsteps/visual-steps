@@ -43,6 +43,7 @@ Visual Steps provides a shared system in which a parent can prepare and supervis
 
 ### 5.1 Accounts and access
 
+- Public, temporary guest demonstration with realistic in-memory parent and child views. Demo changes never call application APIs or Supabase and reset on browser reload.
 - Parent signup, login, logout, profile management, and password recovery through Supabase Auth.
 - Parent-protected application routes.
 - Child access using a parent email and child-specific access code.
@@ -72,6 +73,7 @@ Visual Steps provides a shared system in which a parent can prepare and supervis
 
 ### 5.4 Learning materials
 
+- Provide fixed, curated sample quiz, worksheet, and social story previews to guests and authenticated parents without invoking AI or storing sample data.
 - Generate, save, edit, assign, play, and delete quizzes.
 - Limit a child to one submitted quiz attempt per assigned activity occurrence; parent reassignment permits one new attempt while preserving prior results.
 - Record quiz results and include them in child reporting.
