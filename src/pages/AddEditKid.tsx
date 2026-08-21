@@ -73,6 +73,7 @@ export default function AddEditKid() {
     maxIncompleteLimit: '',
     rewardType: 'Penny',
     rewardQuantity: '1',
+    bonusHistoryLimit: '5',
     theme: 'sky',
     canPrint: false,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -106,6 +107,7 @@ export default function AddEditKid() {
             maxIncompleteLimit: kid.max_incomplete_limit || '',
             rewardType: kid.reward_type || 'Penny',
             rewardQuantity: kid.reward_quantity?.toString() || '1',
+            bonusHistoryLimit: kid.bonus_history_limit?.toString() || '5',
             theme: kid.theme || 'sky',
             canPrint: kid.can_print || false,
             timezone: kid.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -179,6 +181,7 @@ export default function AddEditKid() {
         max_incomplete_limit: formData.maxIncompleteLimit,
         reward_type: formData.rewardType,
         reward_quantity: parseInt(formData.rewardQuantity),
+        bonus_history_limit: parseInt(formData.bonusHistoryLimit),
         theme: formData.theme,
         can_print: formData.canPrint,
         timezone: formData.timezone,
@@ -494,6 +497,27 @@ export default function AddEditKid() {
                   type="number"
                   min="1"
                   value={isNaN(Number(formData.rewardQuantity)) ? '' : formData.rewardQuantity}
+                  onChange={handleChange}
+                  required
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-1.5">
+                  <label className="text-[12px] font-bold text-slate-500 uppercase">Bonus History</label>
+                  <div className="group relative">
+                    <HelpCircle className="h-3.5 w-3.5 cursor-help text-brand-500" />
+                    <div className="pointer-events-none absolute right-0 top-full z-[100] mt-2 w-80 rounded-2xl border-2 border-yellow-200 bg-[#fffdea] p-4 font-[Arial] text-slate-800 opacity-0 shadow-2xl transition-all group-hover:opacity-100">
+                      <span className="font-bold text-[15px] leading-tight">Choose how many recent parent-awarded behavior bonuses appear on the child dashboard, from 1 to 10.</span>
+                    </div>
+                  </div>
+                </div>
+                <Input
+                  name="bonusHistoryLimit"
+                  type="number"
+                  min="1"
+                  max="10"
+                  value={formData.bonusHistoryLimit}
                   onChange={handleChange}
                   required
                   className="h-8 text-sm"

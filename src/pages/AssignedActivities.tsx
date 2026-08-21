@@ -73,12 +73,12 @@ interface RewardItem {
   is_active?: boolean;
 }
 
-interface Purchase {
+interface BehaviorBonusAward {
   id: string;
   kid_id: string;
-  item_name: string;
-  cost: number;
-  purchased_at: string;
+  behavior_reason: string;
+  reward_amount: number;
+  awarded_at: string;
 }
 
 interface ActivityTemplate {
@@ -136,8 +136,11 @@ export default function AssignedActivities() {
   const [worksheets, setWorksheets] = useState<any[]>([]);
   const [rewardItems, setRewardItems] = useState<RewardItem[]>([]);
   const [quizResults, setQuizResults] = useState<any[]>([]);
-  const [purchases, setPurchases] = useState<Purchase[]>([]);
-  const [isPurchasesTableMissing, setIsPurchasesTableMissing] = useState(false);
+  const [behaviorBonuses, setBehaviorBonuses] = useState<BehaviorBonusAward[]>([]);
+  const [isAwardingBonus, setIsAwardingBonus] = useState(false);
+  const [isBonusFormOpen, setIsBonusFormOpen] = useState(false);
+  const [bonusReason, setBonusReason] = useState('Focused effort');
+  const [bonusAmount, setBonusAmount] = useState(1);
   const [isRewardModalOpen, setIsRewardModalOpen] = useState(false);
   const [isHistoryDeleteConfirmOpen, setIsHistoryDeleteConfirmOpen] = useState(false);
   const [activityToDelete, setActivityToDelete] = useState<string | null>(null);
@@ -705,15 +708,10 @@ export default function AssignedActivities() {
         setHistoryActivities(mappedHistory);
       }
 
-      // Fetch purchases
-      const redRes = await apiFetch(`/api/kids/${encodeURIComponent(kidId)}/purchases`);
-      if (redRes.ok) {
-        const redData = await safeJson(redRes);
-        setPurchases(redData.purchases || []);
-        setIsPurchasesTableMissing(!!redData.tableMissing);
-      } else {
-        const errorData = await safeJson(redRes).catch(() => ({}));
-        console.error('Failed to fetch purchases:', redRes.status, errorData);
+      const bonusRes = await apiFetch(`/api/kids/${encodeURIComponent(kidId)}/behavior-bonuses`);
+      if (bonusRes.ok) {
+        const bonusData = await safeJson(bonusRes);
+        setBehaviorBonuses(bonusData.awards || []);
       }
     } catch (error: any) {
       setActivitiesLoadError(
@@ -964,6 +962,26 @@ export default function AssignedActivities() {
       });
     }
     setIsModalOpen(true);
+  };
+
+  const awardBehaviorBonus = async () => {
+    setIsAwardingBonus(true);
+    try {
+      const response = await apiFetch(`/api/kids/${encodeURIComponent(kidId)}/behavior-bonuses`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ behaviorReason: bonusReason, rewardAmount: bonusAmount }),
+      });
+      const payload = await safeJson(response);
+      if (!response.ok) throw new Error(payload?.error || 'Unable to award the behavior bonus.');
+      setBehaviorBonuses(current => [payload.award, ...current]);
+      setKid(current => current ? { ...current, reward_balance: (current.reward_balance || 0) + bonusAmount } : current);
+      setIsBonusFormOpen(false);
+    } catch (error: any) {
+      alert(error?.message || 'Unable to award the behavior bonus.');
+    } finally {
+      setIsAwardingBonus(false);
+    }
   };
 
   const handleCloseForm = () => {
@@ -1990,13 +2008,6 @@ export default function AssignedActivities() {
                         Add Activity
                       </Button>
                     </CustomTooltip>
-                  ) : activeTab === 'rewards' ? (
-                    <CustomTooltip content="Adds reward item">
-                      <Button size="xs" onClick={() => setIsRewardModalOpen(true)} className="h-7 text-[12px] shrink-0">
-                        <Plus className="mr-1 h-3 w-3" />
-                        Add Item
-                      </Button>
-                    </CustomTooltip>
                   ) : null}
                 </div>
               </div>
@@ -2798,20 +2809,61 @@ export default function AssignedActivities() {
 
 
       ) : activeTab === 'rewards' ? (
-        <div className="space-y-4">
-          <div className="flex justify-start items-center gap-4">
-            <select
-              className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={locationFilter}
-              onChange={(e) => setLocationFilter(e.target.value)}
-            >
-              <option value="">All Locations</option>
-              {[...new Set(rewardItems.map(item => item.location || ''))].filter(Boolean).map(loc => <option key={loc} value={loc}>{loc}</option>)}
-            </select>
-            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">{kid?.name ? `${kid.name}'s ` : ''}Reward Items</h2>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {rewardItems.filter(item => !locationFilter || item.location === locationFilter).map((item) => (
+        <div className="grid gap-5 lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start">
+          <aside className="lg:sticky lg:top-20">
+          <Card className="border-indigo-200 bg-gradient-to-br from-indigo-50 to-emerald-50 shadow-sm">
+            <CardContent className="p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h2 className="flex items-center gap-2 text-base font-black text-slate-900"><Award className="h-5 w-5 text-indigo-600" /> Recognize Positive Behavior</h2>
+                  <p className="mt-1 text-xs font-medium text-slate-600">Give a small bonus only when you observe {kid?.name || 'your child'} making a positive choice. The reason is recorded and shown to your child, so the tokens are never presented as free.</p>
+                </div>
+                {!isBonusFormOpen && <Button size="xs" onClick={() => setIsBonusFormOpen(true)}><Award className="mr-1 h-3.5 w-3.5" /> Give Bonus</Button>}
+              </div>
+              {isBonusFormOpen && (
+                <div className="mt-3 space-y-3 rounded-xl border border-indigo-100 bg-white/90 p-3">
+                  <label className="text-xs font-bold text-slate-700">What positive behavior did you observe?
+                    <Input list="behavior-bonus-suggestions" maxLength={160} value={bonusReason} onChange={event => setBonusReason(event.target.value)} placeholder="e.g., Put toys away without being asked" className="mt-1 h-9" />
+                    <datalist id="behavior-bonus-suggestions">
+                      {Array.from(new Set([
+                        'Focused effort', 'Following family rules', 'Calm communication', 'Helpful behavior',
+                        'Trying again', 'Positive self-control', 'Completed the routine independently', 'Handled a change calmly',
+                        ...behaviorBonuses.map(award => award.behavior_reason).filter(Boolean),
+                      ])).map(reason => <option key={reason} value={reason} />)}
+                    </datalist>
+                  </label>
+                  <label className="text-xs font-bold text-slate-700">Tokens (1–10)
+                    <Input type="number" min={1} max={10} value={bonusAmount} onChange={event => setBonusAmount(Math.max(1, Math.min(10, Number(event.target.value) || 1)))} className="mt-1 h-9" />
+                  </label>
+                  <div className="flex flex-wrap gap-2"><Button size="xs" disabled={isAwardingBonus} onClick={() => void awardBehaviorBonus()}>{isAwardingBonus ? 'Giving…' : 'Confirm bonus'}</Button><Button variant="ghost" size="xs" disabled={isAwardingBonus} onClick={() => setIsBonusFormOpen(false)}>Cancel</Button></div>
+                </div>
+              )}
+              {behaviorBonuses.length > 0 && (
+                <div className="mt-4 border-t border-indigo-100 pt-3">
+                  <p className="mb-2 text-xs font-black uppercase tracking-wide text-slate-500">Recent behavior bonuses</p>
+                  <div className="space-y-2">{behaviorBonuses.slice(0, 5).map(award => <div key={award.id} className="flex items-center justify-between gap-3 rounded-lg bg-white/80 px-3 py-2 text-xs"><span className="font-semibold text-slate-700">{award.behavior_reason}</span><span className="whitespace-nowrap font-black text-emerald-700">+{award.reward_amount} · {formatKidDate(award.awarded_at, { month: 'short', day: 'numeric' })}</span></div>)}</div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          </aside>
+          <Card className="border-slate-200 shadow-sm">
+            <CardContent className="p-4">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div><h2 className="text-base font-black text-slate-900">Reward Catalog</h2><p className="text-xs font-medium text-slate-500">Manage the items {kid?.name || 'your child'} can purchase with earned rewards.</p></div>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <select className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} aria-label="Filter rewards by location">
+                    <option value="">All Locations</option>
+                    {[...new Set(rewardItems.map(item => item.location || ''))].filter(Boolean).map(loc => <option key={loc} value={loc}>{loc}</option>)}
+                  </select>
+                  <Button size="xs" className="h-9" onClick={() => setIsRewardModalOpen(true)}><Plus className="mr-1 h-3.5 w-3.5" /> Add Reward Item</Button>
+                </div>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+            {rewardItems
+              .filter(item => !locationFilter || item.location === locationFilter)
+              .sort((a, b) => Number(b.is_active !== false) - Number(a.is_active !== false) || a.cost - b.cost)
+              .map((item) => (
               <Card key={item.id} className="overflow-hidden border-slate-200 shadow-sm hover:shadow-md transition-shadow bg-green-50">
                 <CardContent className="p-0">
                   <div className="flex h-28">
@@ -2828,8 +2880,8 @@ export default function AssignedActivities() {
                       <div>
                         <div className="flex items-center justify-between">
                           <h3 className="font-bold text-sm text-slate-900 truncate">{item.name}</h3>
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${item.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                            {item.is_active ? 'Active' : 'Inactive'}
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${item.is_active !== false ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            {item.is_active !== false ? 'Active' : 'Inactive'}
                           </span>
                         </div>
                         <div className="mt-1 flex items-center gap-1 text-xs font-black text-blue-600 uppercase tracking-wider">
@@ -2878,7 +2930,9 @@ export default function AssignedActivities() {
                 </Button>
               </div>
             )}
-          </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       ) : null}
     </>

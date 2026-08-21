@@ -3,6 +3,7 @@ DROP TABLE IF EXISTS public.activity_history_steps CASCADE;
 
 DROP TABLE IF EXISTS public.activity_history CASCADE;
 DROP TABLE IF EXISTS public.activity_steps CASCADE;
+DROP TABLE IF EXISTS public.behavior_bonus_awards CASCADE;
 DROP TABLE IF EXISTS public.activities CASCADE;
 DROP TABLE IF EXISTS public.activity_template_steps CASCADE;
 DROP TABLE IF EXISTS public.activity_templates CASCADE;
@@ -53,6 +54,7 @@ CREATE TABLE public.kids (
     max_incomplete_limit INTEGER,
     reward_type TEXT DEFAULT 'Penny',
     reward_quantity INTEGER DEFAULT 1,
+    bonus_history_limit INTEGER NOT NULL DEFAULT 5 CHECK (bonus_history_limit BETWEEN 1 AND 10),
     rules TEXT,
     theme TEXT DEFAULT 'sky',
     kid_code TEXT,
@@ -114,6 +116,17 @@ CREATE TABLE public.activities (
 ALTER TABLE public.activities
   ADD CONSTRAINT activities_status_check
   CHECK (status IN ('pending', 'awaiting_verification', 'completed'));
+
+CREATE TABLE public.behavior_bonus_awards (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    kid_id UUID NOT NULL REFERENCES public.kids(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    behavior_reason TEXT NOT NULL CHECK (length(btrim(behavior_reason)) BETWEEN 1 AND 160),
+    reward_amount INTEGER NOT NULL CHECK (reward_amount BETWEEN 1 AND 10),
+    awarded_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX behavior_bonus_awards_kid_date_idx ON public.behavior_bonus_awards(kid_id, awarded_at DESC);
 
 -- Create activity_steps table
 CREATE TABLE public.activity_steps (
@@ -285,6 +298,7 @@ ALTER TABLE public.kids ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_template_steps ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.behavior_bonus_awards ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_steps ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_history_steps ENABLE ROW LEVEL SECURITY;
@@ -327,6 +341,9 @@ CREATE POLICY "Users can view their kids activities" ON public.activities FOR SE
 CREATE POLICY "Users can insert their kids activities" ON public.activities FOR INSERT WITH CHECK (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
 CREATE POLICY "Users can update their kids activities" ON public.activities FOR UPDATE USING (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
 CREATE POLICY "Users can delete their kids activities" ON public.activities FOR DELETE USING (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
+
+-- Parent-initiated behavior bonus history
+CREATE POLICY "Parents can view their children's behavior bonuses" ON public.behavior_bonus_awards FOR SELECT USING (auth.uid() = user_id);
 
 -- Activity Steps
 CREATE POLICY "Users can view their kids activity steps" ON public.activity_steps FOR SELECT USING (activity_id IN (SELECT id FROM public.activities WHERE kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid())));
@@ -398,6 +415,27 @@ CREATE POLICY "Users can insert their kids quiz results" ON public.quiz_results 
 CREATE POLICY "Users can delete their kids quiz results" ON public.quiz_results FOR DELETE USING (kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid()));
 
 -- Functions
+CREATE OR REPLACE FUNCTION public.award_behavior_bonus(kid_id_param UUID, behavior_reason_param TEXT, reward_amount_param INTEGER)
+RETURNS TABLE (award_id UUID, kid_id UUID, behavior_reason TEXT, reward_amount INTEGER, awarded_at TIMESTAMP WITH TIME ZONE) AS $$
+DECLARE
+  requesting_user UUID := auth.uid();
+  award_row public.behavior_bonus_awards%ROWTYPE;
+BEGIN
+  IF requesting_user IS NULL THEN RAISE EXCEPTION 'Authentication required' USING ERRCODE = '42501'; END IF;
+  IF NULLIF(btrim(behavior_reason_param), '') IS NULL OR length(btrim(behavior_reason_param)) > 160 THEN RAISE EXCEPTION 'A positive behavior reason is required' USING ERRCODE = '22023'; END IF;
+  IF reward_amount_param IS NULL OR reward_amount_param < 1 OR reward_amount_param > 10 THEN RAISE EXCEPTION 'Reward amount must be between 1 and 10' USING ERRCODE = '22023'; END IF;
+  UPDATE public.kids SET reward_balance = COALESCE(reward_balance, 0) + reward_amount_param WHERE id = kid_id_param AND user_id = requesting_user;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Child not found or not authorized' USING ERRCODE = '42501'; END IF;
+  INSERT INTO public.behavior_bonus_awards (kid_id, user_id, behavior_reason, reward_amount)
+  VALUES (kid_id_param, requesting_user, btrim(behavior_reason_param), reward_amount_param) RETURNING * INTO award_row;
+  RETURN QUERY SELECT award_row.id, award_row.kid_id, award_row.behavior_reason, award_row.reward_amount, award_row.awarded_at;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+REVOKE ALL ON FUNCTION public.award_behavior_bonus(UUID, TEXT, INTEGER) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.award_behavior_bonus(UUID, TEXT, INTEGER) FROM anon;
+GRANT EXECUTE ON FUNCTION public.award_behavior_bonus(UUID, TEXT, INTEGER) TO authenticated;
+
 CREATE OR REPLACE FUNCTION public.consume_parent_ai_question()
 RETURNS TABLE (allowed BOOLEAN, used INTEGER, remaining INTEGER, daily_limit INTEGER, resets_at TIMESTAMP WITH TIME ZONE) AS $$
 DECLARE

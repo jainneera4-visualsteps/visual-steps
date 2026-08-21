@@ -237,28 +237,6 @@ export default function Dashboard() {
     };
   }, [kids.map(k => k.id).join(',')]);
 
-  const handleGiveReward = async (kid: Kid, amount: number = 1) => {
-    
-    try {
-      const newBalance = (kid.reward_balance || 0) + amount;
-      const res = await apiFetch(`/api/kids/${kid.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reward_balance: newBalance }),
-      });
-
-      if (!res.ok) throw new Error('Failed to update reward balance');
-
-      // Update local state
-      setKids(prev => prev.map(k => k.id === kid.id ? { ...k, reward_balance: newBalance } : k));
-      return true;
-    } catch (err) {
-      console.error(err);
-      alert('Failed to give reward. Please try again.');
-      return false;
-    }
-  };
-
   const handleShowBuyGrid = async (kid: Kid) => {
     setSelectedKid(kid);
     setShowBuyGrid(true);
@@ -560,29 +538,6 @@ export default function Dashboard() {
                       <span className="text-3xl">🛍️</span>
                     )}
                     <span className="font-bold text-2xl text-white">{kid.reward_balance || 0}</span>
-                    <div className="flex items-center gap-1">
-                      <button 
-                        onClick={() => handleGiveReward(kid)}
-                        className="p-1.5 rounded-full hover:bg-blue-500 transition-colors"
-                        aria-label="Add reward"
-                      >
-                        <Plus className="h-6 w-6" />
-                      </button>
-                      <div className="group relative">
-                        <HelpCircle className="h-4 w-4 text-white/70 cursor-help transition-colors hover:text-white" />
-                        <div className="absolute right-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
-                          <div className="flex items-start gap-3">
-                            <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
-                              <HelpCircle className="h-4 w-4 text-yellow-700" />
-                            </div>
-                            <span className="font-bold text-[14px] leading-tight text-slate-900 normal-case">
-                              Click the + icon to increase your child's reward balance by 1.
-                            </span>
-                          </div>
-                          <div className="absolute right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
-                        </div>
-                      </div>
-                    </div>
                   </div>
                 </div>
                 <div className="absolute -bottom-10 sm:-bottom-12 left-6 h-20 w-20 sm:h-24 sm:w-24 rounded-full bg-white flex items-center justify-center text-3xl sm:text-4xl overflow-hidden border-4 border-white shadow-md z-10">

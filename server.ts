@@ -387,6 +387,7 @@ export const isKidApiRequestAllowed = (method: string, pathName: string, kidId: 
   if (methodUpper === 'GET' && pathName === ownKidBase) return true;
   if (methodUpper === 'GET' && pathName === `${ownKidBase}/activities`) return true;
   if (methodUpper === 'GET' && pathName === `${ownKidBase}/reward-items`) return true;
+  if (methodUpper === 'GET' && pathName === `${ownKidBase}/behavior-bonuses`) return true;
   if (methodUpper === 'PUT' && /^\/api\/activities\/[^/]+$/.test(pathName)) return true;
   if (methodUpper === 'GET' && /^\/api\/quizzes\/[^/]+$/.test(pathName)) return true;
   if (methodUpper === 'GET' && /^\/api\/quiz-attempts\/[^/]+$/.test(pathName)) return true;
@@ -1345,6 +1346,7 @@ app.post('/api/kids', authenticateToken, async (req: any, res) => {
     max_incomplete_limit: maxIncompleteLimit, 
     reward_type: rewardType, 
     reward_quantity: rewardQuantity, 
+    bonus_history_limit: bonusHistoryLimit,
     rules, 
     theme, 
     can_print: canPrint, 
@@ -1360,6 +1362,8 @@ app.post('/api/kids', authenticateToken, async (req: any, res) => {
     const id = uuidv4();
     const maxLimit = maxIncompleteLimit && !isNaN(parseInt(maxIncompleteLimit, 10)) ? parseInt(maxIncompleteLimit, 10) : null;
     const rewardQty = rewardQuantity && !isNaN(parseInt(rewardQuantity, 10)) ? parseInt(rewardQuantity, 10) : 1;
+    const parsedBonusHistoryLimit = Number.parseInt(String(bonusHistoryLimit), 10);
+    const bonusHistoryLimitValue = Number.isFinite(parsedBonusHistoryLimit) ? Math.min(10, Math.max(1, parsedBonusHistoryLimit)) : 5;
     const start_time = startTime && startTime !== '' ? startTime : null;
     const end_time = endTime && endTime !== '' ? endTime : null;
     
@@ -1382,6 +1386,7 @@ app.post('/api/kids', authenticateToken, async (req: any, res) => {
       max_incomplete_limit: maxLimit,
       reward_type: rewardType || 'Penny',
       reward_quantity: rewardQty,
+      bonus_history_limit: bonusHistoryLimitValue,
       rules,
       theme: theme || 'sky',
       kid_code: kidCode,
@@ -1921,6 +1926,7 @@ app.put('/api/kids/:id', authenticateToken, async (req: any, res) => {
     max_incomplete_limit: maxIncompleteLimit, 
     reward_type: rewardType, 
     reward_quantity: rewardQuantity, 
+    bonus_history_limit: bonusHistoryLimit,
     reward_balance: rewardBalance, 
     rules, 
     theme, 
@@ -1976,6 +1982,10 @@ app.put('/api/kids/:id', authenticateToken, async (req: any, res) => {
     if (rewardQuantity !== undefined) {
       const parsedQty = parseInt(rewardQuantity, 10);
       updates.reward_quantity = !isNaN(parsedQty) ? parsedQty : 1;
+    }
+    if (bonusHistoryLimit !== undefined) {
+      const parsedLimit = Number.parseInt(String(bonusHistoryLimit), 10);
+      updates.bonus_history_limit = Number.isFinite(parsedLimit) ? Math.min(10, Math.max(1, parsedLimit)) : 5;
     }
     if (rewardBalance !== undefined) {
       const parsedBal = parseInt(rewardBalance, 10);
@@ -2647,6 +2657,57 @@ app.get('/api/activity-categories', authenticateToken, async (req: any, res) => 
   }
 });
 
+// Behavior bonuses are initiated only by parents and always include a reason.
+app.get('/api/kids/:kidId/behavior-bonuses', authenticateToken, async (req: any, res) => {
+  const { kidId } = req.params;
+  if (req.user.role === 'kid' && req.user.kidId !== kidId) return res.status(403).json({ error: 'Forbidden' });
+  try {
+    const supabase = getSupabaseForUser(req);
+    if (req.user.role !== 'kid') {
+      const { data: kid, error: kidError } = await supabase.from('kids').select('id').eq('id', kidId).eq('user_id', req.user.id).maybeSingle();
+      if (kidError || !kid) return res.status(404).json({ error: 'Child not found' });
+    }
+    const { data, error } = await supabase
+      .from('behavior_bonus_awards')
+      .select('id, kid_id, behavior_reason, reward_amount, awarded_at')
+      .eq('kid_id', kidId)
+      .order('awarded_at', { ascending: false })
+      .limit(20);
+    if (error) throw error;
+    res.json({ awards: data || [] });
+  } catch (error) {
+    console.error('Failed to load behavior bonuses:', error);
+    res.status(500).json({ error: 'Unable to load behavior bonuses' });
+  }
+});
+
+app.post('/api/kids/:kidId/behavior-bonuses', authenticateToken, async (req: any, res) => {
+  const { kidId } = req.params;
+  if (req.user.role !== 'parent') return res.status(403).json({ error: 'Parent access required' });
+  const behaviorReason = typeof req.body?.behaviorReason === 'string' ? req.body.behaviorReason.trim().slice(0, 160) : '';
+  const rewardAmount = Number(req.body?.rewardAmount);
+  if (!behaviorReason || !Number.isInteger(rewardAmount) || rewardAmount < 1 || rewardAmount > 10) {
+    return res.status(400).json({ error: 'Choose a positive behavior reason and a reward amount from 1 to 10.' });
+  }
+  try {
+    const supabase = getSupabaseForUser(req);
+    const { data, error } = await supabase.rpc('award_behavior_bonus', {
+      kid_id_param: kidId,
+      behavior_reason_param: behaviorReason,
+      reward_amount_param: rewardAmount,
+    });
+    if (error) throw error;
+    const award = Array.isArray(data) ? data[0] : data;
+    if (!award) return res.status(404).json({ error: 'Child not found' });
+    const io = req.app.get('io');
+    if (io) io.to(`kid_${kidId}`).emit('data_updated', { kidId });
+    res.status(201).json({ award, message: 'Behavior bonus granted.' });
+  } catch (error) {
+    console.error('Failed to award behavior bonus:', error);
+    res.status(500).json({ error: 'Unable to award the behavior bonus' });
+  }
+});
+
 // Create Activity
 app.post('/api/activities', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
@@ -2707,6 +2768,7 @@ app.post('/api/activities', authenticateToken, async (req: any, res) => {
 
       if (stepsError) throw stepsError;
     }
+
 
     const io = req.app.get('io');
     if (io) io.to(`kid_${kidId}`).emit('data_updated', { kidId });
@@ -3339,6 +3401,7 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
           console.error('historyRecord is null or missing id, cannot insert steps. historyRecord:', historyRecord);
         }
       }
+
     }
 
     // Update steps: Delete existing and re-insert if steps are provided
@@ -4142,7 +4205,7 @@ export const parentAssistantFeatureCatalog = [
   { area: 'Activities', routes: ['/assigned-activities/:kidId'], help: 'From Dashboard select a child and Activities. Add Activity opens the form. Enter activity type/name and description, optional link/image and steps, Due Date, Time, Repeat and Repeats till. For custom repeats set Every and Unit. Enable Parent verification required when approval is needed. Finish with Add Activity or Save Changes. List and Calendar views are available.' },
   { area: 'Activity verification and reassignment', routes: ['/assigned-activities/:kidId'], help: 'The child submits a verification-required activity into Waiting for parent verification. On the parent Activities page open the To Be Verified tab/grid. Select Verify & complete to approve it and award the configured tokens, or Reassign to return the same activity record to pending without awarding tokens. Reassignment intentionally removes it from completed counts until it is completed again.' },
   { area: 'Completed activity history', routes: ['/assigned-activities/:kidId'], help: 'Use Completed for currently completed assignments and History for completion records. Done Today is based on activities.completion_date, so reassigning an activity reduces the current completed count as intended.' },
-  { area: 'Rewards', routes: ['/dashboard', '/assigned-activities/:kidId', '/kids-dashboard/:kidId'], help: 'Open a child’s Activities page and select Rewards. Add Item creates a reward with its name, token cost, image, and location. Children open Rewards on their dashboard and can purchase an active item only when their earned balance is sufficient. Tokens come from completed activities; the app does not provide free on-demand points.' },
+  { area: 'Rewards and behavior bonuses', routes: ['/dashboard', '/assigned-activities/:kidId', '/kids-dashboard/:kidId'], help: 'Open a child’s Activities page and select Rewards. Add Item creates a reward with its name, token cost, image, and location. Children can purchase an active item only when their earned balance is sufficient. Only a parent can initiate a behavior bonus: select Recognize positive behavior, type the specific observed behavior (suggestions such as Focused effort, Following family rules, Calm communication, Helpful behavior, Trying again, and Positive self-control are available), choose 1 to 10 rewards, and confirm. The child dashboard shows recent bonuses as reason and amount in its sidebar. Edit the child profile and set Bonus History from 1 to 10 to control how many appear. The child has no control for requesting tokens or bonuses.' },
   { area: 'Activity library', routes: ['/activity-library'], help: 'Open the top Activities menu and Activity Library. Create reusable activities with Activity Category, Activity Name, Description, optional External Link, Display Artwork, milestones/steps, and an optional linked asset type: Interactive Quizzes, Social Narratives, or Practice Sheets. Saved templates can be assigned to a selected child.' },
   { area: 'Quiz generation and saved quizzes', routes: ['/quiz-generator', '/saved-quizzes', '/edit-quiz/:id'], help: 'Open Activities > Quizzes. Quiz Generator uses Select Kid, Subject, Describe a topic / Explain the problem, No. of questions, Question Type, Difficulty, and Score / Question. Generate, review, and save the quiz. Saved Quizzes provides Actions icons View, Edit, and Delete and supports assignment. Each assigned quiz occurrence accepts one submitted attempt; parent reassignment creates one fresh attempt.' },
   { area: 'Playing quizzes', routes: ['/play-quiz/:id', '/play-quiz/:id/:kidId'], help: 'Open an assigned quiz from the child dashboard, answer each question, then submit. Listen controls can read questions or feedback. After an assignment attempt is submitted it is locked; Back to activities returns to the dashboard. A parent must reassign the activity to allow a new attempt.' },

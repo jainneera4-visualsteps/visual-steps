@@ -65,6 +65,7 @@ Visual Steps provides a shared system in which a parent can prepare and supervis
 - Display pending and completed work in the child dashboard.
 - Let parents optionally require verification for an individual activity.
 - Display submitted activities in parent and child waiting-for-verification queues.
+- Let parents type a specific observed positive behavior—with optional suggestions—and grant 1–10 bonus rewards. Show a configurable 1–10 recent bonuses as compact reason-and-amount entries on the child dashboard; children cannot request them.
 - Grant completion credit and rewards only after final completion; allow a parent to reassign an unverified submission without granting rewards.
 - Preserve completion history and use time-zone-aware dates.
 - Support offline awareness and cached dashboard data for graceful degradation.

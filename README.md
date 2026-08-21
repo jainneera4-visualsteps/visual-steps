@@ -13,6 +13,7 @@ Visual Steps is a full-stack web application that helps parents and caregivers c
 - Ask the parent-only AI assistant how to use Visual Steps, summarize owned child data, or suggest relevant activities within a strictly app-related scope. Its verified catalog covers every registered app route; parents can view that coverage and report missing information for review without automatically training the model.
 - Control AI spending with an atomic 30-question daily allowance per parent, including visible remaining usage and reset information.
 - Schedule recurring activities, optionally require parent verification, and review completion history.
+- Let parents type why a positive behavior deserves a limited bonus, with optional suggestions. The child dashboard shows a profile-configurable number of recent bonuses as compact reason-and-amount entries, and children cannot request them.
 - Generate and edit AI-assisted quizzes, worksheets, and social stories.
 - Assign quizzes for one attempt per activity occurrence and review results through progress and summary reports. A deliberate reassignment unlocks one new attempt without deleting earlier results.
 - Configure reward-shop items and approve purchases.

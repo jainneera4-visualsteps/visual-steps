@@ -57,6 +57,7 @@ interface Kid {
   end_time?: string;
   reward_type?: string;
   reward_quantity?: number;
+  bonus_history_limit?: number;
   reward_balance?: number;
   rules?: string;
   theme?: string;
@@ -72,6 +73,13 @@ interface RewardItem {
   cost: number;
   image_url?: string;
   location?: string;
+}
+
+interface BehaviorBonusAward {
+  id: string;
+  behavior_reason: string;
+  reward_amount: number;
+  awarded_at: string;
 }
 
 export default function KidsDashboard() {
@@ -411,6 +419,7 @@ export default function KidsDashboard() {
 
   // Exit Modal State
   const [rewardItems, setRewardItems] = useState<RewardItem[]>([]);
+  const [behaviorBonuses, setBehaviorBonuses] = useState<BehaviorBonusAward[]>([]);
 
   const safeLocalStorageGet = (key: string) => {
     try {
@@ -620,10 +629,11 @@ export default function KidsDashboard() {
           }
         };
 
-        const [kidRes, actRes, rewardRes] = await Promise.all([
+        const [kidRes, actRes, rewardRes, bonusRes] = await Promise.all([
           fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}`), 'kid'),
           fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/activities?mode=kid&localDate=${localDate}&localTime=${localTime}&_t=${Date.now()}`), 'activities'),
-          fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/reward-items?onlyActive=true`), 'rewards')
+          fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/reward-items?onlyActive=true`), 'rewards'),
+          fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/behavior-bonuses`), 'behavior bonuses')
         ]);
 
         // Process Kid Data
@@ -665,6 +675,10 @@ export default function KidsDashboard() {
           const rewardData = await safeJson(rewardRes);
           setRewardItems(rewardData.items || []);
         }
+        if (bonusRes.ok) {
+          const bonusData = await safeJson(bonusRes);
+          setBehaviorBonuses(bonusData.awards || []);
+        }
 
       } catch (error: any) {
         console.error('KidsDashboard: Failed to fetch data', {
@@ -678,7 +692,6 @@ export default function KidsDashboard() {
     
     if (!silent) setIsLoading(false);
   }, [kidId]);
-
 
   useEffect(() => {
     fetchData();
@@ -938,6 +951,7 @@ export default function KidsDashboard() {
                         {formatInTimezone(currentTime, kid?.timezone, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
                       </p>
                     </div>
+                    <p className={`mt-0.5 text-xs font-bold ${currentTheme.bannerSubtext}`}>You’re doing great—one step at a time! ✨</p>
                   </div>
                 </div>
               </div>
@@ -964,7 +978,7 @@ export default function KidsDashboard() {
               {/* Tabs and View Toggle Area */}
               {isAccessAllowed && (
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                  <div className={`flex rounded-lg border p-0.5 ${isDarkTheme ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'}`}>
+                  <div className={`flex flex-wrap rounded-lg border p-0.5 ${isDarkTheme ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'}`}>
                     <button
                       onClick={() => setActiveTab('todo')}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
@@ -1017,7 +1031,7 @@ export default function KidsDashboard() {
                 </div>
               )}
 
-              <div className="flex flex-col gap-6">
+              <div className={`grid gap-6 ${behaviorBonuses[0] && isAccessAllowed ? 'lg:grid-cols-[minmax(0,1fr)_300px]' : ''}`}>
                     {!isAccessAllowed ? (
                       <div className={`p-8 rounded-2xl border-2 border-dashed ${isDarkTheme ? 'border-slate-700 bg-slate-900/80' : 'border-slate-200 bg-white/50'} text-center flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-500`}>
                         <div className={`mb-4 rounded-full ${currentTheme.rulesHeader} p-6 shadow-md animate-bounce`}>
@@ -1255,6 +1269,25 @@ export default function KidsDashboard() {
                           );
                         })()}
                       </div>
+                    )}
+                    {behaviorBonuses[0] && isAccessAllowed && (
+                      <aside className={`h-fit rounded-2xl border-2 p-4 shadow-sm lg:sticky lg:top-20 ${isDarkTheme ? 'border-emerald-400/40 bg-slate-900/90 text-white' : 'border-emerald-200 bg-gradient-to-br from-emerald-50 to-sky-50 text-slate-800'}`} aria-label="Recent bonus rewards">
+                        <div className="mb-3 flex items-center gap-2">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100"><Sparkles className="h-5 w-5 text-emerald-600" /></div>
+                          <div><p className={`text-xs font-black uppercase tracking-widest ${isDarkTheme ? 'text-emerald-300' : 'text-emerald-700'}`}>Bonus Rewards</p><p className={`text-[11px] font-semibold ${isDarkTheme ? 'text-slate-400' : 'text-slate-500'}`}>Your good choices were noticed!</p></div>
+                        </div>
+                        <ul className="space-y-2">
+                          {behaviorBonuses.slice(0, Math.min(10, Math.max(1, kid?.bonus_history_limit || 5))).map(award => (
+                            <li key={award.id} className={`flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-black ${isDarkTheme ? 'bg-slate-800 text-slate-100' : 'bg-white/90 text-slate-800'}`}>
+                              <span className="min-w-0 flex-1 break-words">{award.behavior_reason}</span>
+                              <span className="flex shrink-0 items-center gap-1.5 text-emerald-600" aria-label={`${award.reward_amount} ${formatReward(kid?.reward_type, award.reward_amount)}`}>
+                                <span>{award.reward_amount}</span>
+                                <img src={rewardIcon} alt={kid?.reward_type || 'Reward'} className="h-5 w-5 object-contain" referrerPolicy="no-referrer" />
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </aside>
                     )}
                   </div>
                 </div>
