@@ -34,7 +34,8 @@ test('required product surfaces consume the shared feature registry', async () =
   const onboarding = await readFile(new URL('../src/components/ParentOnboarding.tsx', import.meta.url), 'utf8');
   const server = await readFile(new URL('../server.ts', import.meta.url), 'utf8');
   assert.match(onboarding, /newFeatures/);
-  assert.match(server, /productFeatureRegistry/);
+  assert.match(server, /FEATURE_REGISTRY_SERVER:START/);
+  assert.doesNotMatch(server, /import productFeatureRegistry/);
 });
 
 test('generated documentation includes every registered feature', async () => {
