@@ -140,11 +140,11 @@ export function ParentAssistant() {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className={`fixed bottom-5 right-5 z-[70] flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-emerald-500 px-4 py-3 font-black text-white shadow-xl transition hover:-translate-y-0.5 hover:shadow-2xl ${isOpen ? 'pointer-events-none opacity-0' : ''}`}
+        className={`fixed bottom-3 right-3 z-[70] flex h-11 w-11 items-center justify-center rounded-full border-2 border-white/90 bg-gradient-to-br from-blue-600 to-emerald-500 p-0 text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200 ${isOpen ? 'pointer-events-none opacity-0' : ''}`}
         aria-label="Open parent AI assistant"
+        title="Ask Visual Steps"
       >
-        <Sparkles className="h-5 w-5" />
-        <span className="hidden sm:inline">Ask Visual Steps</span>
+        <Sparkles className="h-4 w-4" />
       </button>
 
       {isOpen && (

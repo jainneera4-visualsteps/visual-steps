@@ -202,3 +202,21 @@ Configure all required environment variables in the deployment platform. Use a s
 ## Product documentation
 
 See [PRD.md](PRD.md) for the product goals, user journeys, implemented scope, requirements, and roadmap.
+
+<!-- FEATURE_REGISTRY:START -->
+## Synchronized feature registry
+
+This section is generated from `feature-registry.json`. Update the registry when a feature is added, changed, or removed; normal lint, test, development, and build commands refresh this table.
+
+| Feature | Plan | Introduced | Current description |
+| --- | --- | --- | --- |
+| Clear visual activities | starter | 2026-03-01 | Build scheduled routines with small, image-supported steps children can follow. |
+| Parent activity verification | starter | 2026-08-20 | Choose which activities require parent approval before rewards are earned. |
+| Positive behavior bonuses | starter | 2026-08-20 | Parents can recognize a specific calm, focused, helpful, or persistent behavior. |
+| Fair quiz attempts | starter | 2026-08-20 | Each assigned quiz allows one submitted attempt until a parent deliberately reassigns it. |
+| Curated learning samples | starter | 2026-08-21 | Preview a quiz, printable worksheet, and social story without using AI or saving data. |
+| Replayable parent tour | starter | 2026-08-20 | New parents receive a guided introduction, and existing parents can replay it anytime. |
+| Visual Steps Parent Assistant | family | 2026-08-20 | Ask app how-to questions and receive answers grounded in owned family data. |
+| Controlled social-story sharing | family | 2026-08-19 | Share a story using a private link that can expire or be revoked. |
+| Temporary guest demonstration | starter | 2026-08-21 | Explore realistic parent and child workflows without an account or database writes. |
+<!-- FEATURE_REGISTRY:END -->

@@ -7,12 +7,16 @@
     "node": "24.x"
   },
   "scripts": {
+    "docs:sync": "node scripts/sync-feature-docs.mjs",
+    "predev": "npm run docs:sync",
     "dev": "tsx server.ts",
     "dev:browser": "vite --host 127.0.0.1 --port 4173 --strictPort",
+    "prebuild": "npm run docs:sync",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
     "preview": "vite preview",
-    "lint": "tsc --noEmit",
+    "lint": "npm run docs:sync && tsc --noEmit",
+    "pretest": "npm run docs:sync",
     "test": "tsx --test tests/*.test.ts",
     "test:integration": "tsx --test tests/integration/*.test.ts",
     "test:api": "tsx --test tests/api/*.test.ts",

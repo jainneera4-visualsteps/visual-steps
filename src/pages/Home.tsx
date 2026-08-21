@@ -7,6 +7,7 @@ import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Select } from '../components/Select';
 import { Card, CardContent } from '../components/Card';
+import { FeatureHighlights } from '../components/FeatureHighlights';
 import { 
   AlertCircle, CheckCircle2, Search, Eye, EyeOff
 } from 'lucide-react';
@@ -251,6 +252,10 @@ export default function Home() {
                   </li>
                 </ul>
               </div>
+              <section className="space-y-4 pt-5">
+                <div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700">Recently added</p><h2 className="mt-1 text-2xl font-black text-slate-950">New ways to support your family</h2></div>
+                <FeatureHighlights surface="home" onlyNew limit={6} compact />
+              </section>
             </div>
 
             {/* Right: Login Card */}

@@ -1,13 +1,17 @@
 import { Check, Heart, ShieldCheck, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '../components/Button';
+import { FeatureHighlights } from '../components/FeatureHighlights';
+import { FeaturePlan, featuresForSurface } from '../content/featureRegistry';
+import { NewFeatureBadge } from '../components/FeatureHighlights';
 
 const plans = [
   {
     name: 'Starter',
     price: 'Free',
     description: 'A simple way for families to begin building calmer, more predictable routines.',
-    features: ['One parent account', 'Visual activity planning', 'Kid-friendly daily dashboard', 'Basic rewards and progress history'],
+    plan: 'starter' as FeaturePlan,
+    features: ['One parent account', 'Kid-friendly daily dashboard', 'Basic progress history'],
     action: 'Start free',
     href: '/signup',
   },
@@ -16,6 +20,7 @@ const plans = [
     price: '$9',
     suffix: '/ month',
     description: 'More personalization and planning support for families using Visual Steps every day.',
+    plan: 'family' as FeaturePlan,
     features: ['Everything in Starter', 'Multiple child profiles', 'AI quizzes, worksheets and social stories', 'Expanded reports and printable resources'],
     action: 'Coming soon',
     featured: true,
@@ -25,12 +30,14 @@ const plans = [
     price: '$19',
     suffix: '/ month',
     description: 'Designed for families who want additional sharing, storage and support tools.',
-    features: ['Everything in Family', 'More AI generations', 'Controlled story-sharing links', 'Priority support and future family collaboration'],
+    plan: 'family-plus' as FeaturePlan,
+    features: ['Everything in Family', 'More AI generations', 'Priority support and future family collaboration'],
     action: 'Coming soon',
   },
 ];
 
 export default function Pricing() {
+  const registeredPricingFeatures = featuresForSurface('pricing');
   return (
     <div className="page-shell">
       <div className="page-container space-y-12">
@@ -61,6 +68,12 @@ export default function Pricing() {
                     {feature}
                   </li>
                 ))}
+                {registeredPricingFeatures.filter((feature) => feature.plan === plan.plan).map((feature) => (
+                  <li key={feature.id} className="flex gap-3 text-sm text-slate-700">
+                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600"><Check className="h-3.5 w-3.5" /></span>
+                    <span>{feature.title} <NewFeatureBadge introducedOn={feature.introducedOn} /></span>
+                  </li>
+                ))}
               </ul>
               {plan.href ? (
                 <Link to={plan.href}><Button className="w-full">{plan.action}</Button></Link>
@@ -69,6 +82,14 @@ export default function Pricing() {
               )}
             </article>
           ))}
+        </section>
+
+        <section>
+          <div className="mb-5 text-center">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-brand-700">Current and upcoming capabilities</p>
+            <h2 className="mt-2 text-3xl font-black">Features synchronized with the product</h2>
+          </div>
+          <FeatureHighlights surface="pricing" compact />
         </section>
 
         <section className="app-callout mx-auto flex max-w-4xl flex-col gap-5 sm:flex-row sm:items-center">

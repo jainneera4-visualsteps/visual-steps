@@ -15,6 +15,7 @@ import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
 import path from 'path';
 import { createHash, randomBytes } from 'crypto';
+import productFeatureRegistry from './feature-registry.json';
 
 dotenv.config();
 
@@ -4195,7 +4196,10 @@ const parentAssistantSafetySettings = [
   { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
 ];
 
-export const PARENT_ASSISTANT_KNOWLEDGE_VERSION = '2026-08-20';
+export const PARENT_ASSISTANT_KNOWLEDGE_VERSION = productFeatureRegistry.reduce(
+  (latest, feature) => feature.introducedOn > latest ? feature.introducedOn : latest,
+  '2026-03-01',
+);
 
 export const parentAssistantFeatureCatalog = [
   { area: 'Getting started and guest demo', routes: ['/', '/login', '/about', '/pricing', '/signup', '/demo'], help: 'Home explains the product and parent or child sign-in. About describes current capabilities. Pricing explains available plans. Join free opens Create an account; enter Full Name, Email, and Password, submit the form, then use Continue to Dashboard. Try Guest Demo opens a temporary interactive sample without signing in. Switch between Parent view and Child view to try activity submission, verification and positive behavior bonuses. Demo data stays only in page memory, never reaches Supabase or protected APIs, and resets when the page is refreshed or reloaded.' },
@@ -4248,6 +4252,9 @@ SAFETY AND ACCURACY:
 
 VERIFIED VISUAL STEPS FEATURE CATALOG (knowledge version ${PARENT_ASSISTANT_KNOWLEDGE_VERSION}):
 ${parentAssistantFeatureCatalog.map(feature => `- ${feature.area} [${feature.routes.join(', ')}]: ${feature.help}`).join('\n')}
+
+SYNCHRONIZED PRODUCT RELEASE REGISTRY:
+${productFeatureRegistry.filter(feature => feature.surfaces.includes('chatbot')).map(feature => `- ${feature.title} (introduced ${feature.introducedOn}; ${feature.plan}): ${feature.summary} Help: ${feature.help}`).join('\n')}
 
 KNOWLEDGE GAPS:
 - The catalog covers every currently registered Visual Steps page and its main workflows. Prefer it over assumptions from general software knowledge.

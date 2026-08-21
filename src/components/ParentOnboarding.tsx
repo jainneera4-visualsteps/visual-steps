@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Activity, BarChart3, BookOpen, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Gift, UserPlus, X } from 'lucide-react';
 import { Button } from './Button';
+import { newFeatures } from '../content/featureRegistry';
+import { NewFeatureBadge } from './FeatureHighlights';
 
 const steps = [
   {
@@ -126,6 +128,7 @@ export function ParentOnboarding({ onClose }: { onClose: () => Promise<void> | v
   const [isClosing, setIsClosing] = useState(false);
   const step = steps[stepIndex];
   const Icon = step.icon;
+  const recentFeatures = newFeatures().slice(0, 4);
 
   const closeTour = async () => {
     setIsClosing(true);
@@ -171,6 +174,19 @@ export function ParentOnboarding({ onClose }: { onClose: () => Promise<void> | v
           <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm font-semibold leading-6 text-emerald-900">
             <span className="font-black">Helpful tip:</span> {step.tip}
           </div>
+          {recentFeatures.length > 0 && (
+            <section className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
+              <p className="text-xs font-black uppercase tracking-wider text-blue-700">Recently added to Visual Steps</p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {recentFeatures.map((feature) => (
+                  <div key={feature.id} className="rounded-xl bg-white px-3 py-2 shadow-sm">
+                    <div className="flex items-center gap-2"><span className="text-sm font-bold text-slate-800">{feature.title}</span><NewFeatureBadge introducedOn={feature.introducedOn} /></div>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">{feature.summary}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           <div className="flex items-center justify-center gap-2" aria-label={`Step ${stepIndex + 1} of ${steps.length}`}>
             {steps.map((_, index) => (

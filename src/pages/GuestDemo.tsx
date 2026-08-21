@@ -2,11 +2,9 @@ import { FormEvent, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowLeft,
-  BookOpen,
   Check,
   CheckCircle2,
   Clock3,
-  Gift,
   RotateCcw,
   ShieldCheck,
   Sparkles,
@@ -14,6 +12,7 @@ import {
   UserRound,
 } from 'lucide-react';
 import { SampleLearningContent } from '../components/SampleLearningContent';
+import { FeatureHighlights } from '../components/FeatureHighlights';
 
 type DemoView = 'parent' | 'child';
 type ActivityStatus = 'pending' | 'verification' | 'completed';
@@ -43,13 +42,6 @@ const initialActivities: DemoActivity[] = [
 const initialBonuses: DemoBonus[] = [
   { id: 1, reason: 'Trying again calmly', amount: 2 },
   { id: 2, reason: 'Following the routine independently', amount: 1 },
-];
-
-const featureCards = [
-  { title: 'Visual activities', text: 'Build routines with ordered, image-supported steps.', icon: CheckCircle2, tone: 'bg-blue-50 text-blue-700' },
-  { title: 'Learning resources', text: 'Create quizzes, printable worksheets and social stories.', icon: BookOpen, tone: 'bg-violet-50 text-violet-700' },
-  { title: 'Positive rewards', text: 'Connect demonstrated effort with clear, parent-controlled recognition.', icon: Gift, tone: 'bg-amber-50 text-amber-700' },
-  { title: 'Parent review', text: 'Choose which activities need approval before rewards are earned.', icon: ShieldCheck, tone: 'bg-emerald-50 text-emerald-700' },
 ];
 
 export default function GuestDemo() {
@@ -160,9 +152,7 @@ export default function GuestDemo() {
               <DemoSection title="Assigned activities" count={grouped.pending.length} icon={<CheckCircle2 className="h-5 w-5 text-blue-600" />}>
                 {grouped.pending.map((activity) => <ActivityCard key={activity.id} activity={activity} />)}
               </DemoSection>
-              <div className="grid gap-4 sm:grid-cols-2">
-                {featureCards.map(({ title, text, icon: Icon, tone }) => <article key={title} className="rounded-2xl border border-slate-200 bg-white p-4"><div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${tone}`}><Icon className="h-5 w-5" /></div><h3 className="font-black text-slate-900">{title}</h3><p className="mt-1 text-sm leading-6 text-slate-600">{text}</p><span className="mt-3 inline-block text-xs font-bold text-slate-400">Feature preview</span></article>)}
-              </div>
+              <FeatureHighlights surface="guest" compact />
             </section>
           </div>
         ) : (
