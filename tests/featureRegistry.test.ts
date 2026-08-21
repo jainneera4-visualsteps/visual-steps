@@ -8,12 +8,15 @@ const requiredSurfaces = ['home', 'about', 'onboarding', 'chatbot', 'pricing', '
 test('every product feature supplies synchronization metadata for all required surfaces', () => {
   assert.ok(productFeatures.length > 0);
   for (const feature of productFeatures) {
-    assert.ok(feature.id && feature.title && feature.summary && feature.help);
+    assert.ok(feature.id && feature.title && feature.summary && feature.details && feature.help);
+    const sentenceCount = feature.details.match(/[.!?](?:\s|$)/g)?.length ?? 0;
+    assert.ok(sentenceCount >= 4 && sentenceCount <= 5, `${feature.id} must have a four- or five-sentence explanation`);
     assert.match(feature.introducedOn, /^\d{4}-\d{2}-\d{2}$/);
     assert.ok(feature.routes.length > 0);
     for (const surface of requiredSurfaces) assert.ok(feature.surfaces.includes(surface), `${feature.id} is missing ${surface}`);
   }
   for (const surface of requiredSurfaces) assert.equal(featuresForSurface(surface).length, productFeatures.length);
+  assert.equal(featuresForSurface('home').length, 10);
 });
 
 test('new badges last 30 days and never appear before release', () => {

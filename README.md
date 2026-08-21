@@ -219,4 +219,5 @@ This section is generated from `feature-registry.json`. Update the registry when
 | Visual Steps Parent Assistant | family | 2026-08-20 | Ask app how-to questions and receive answers grounded in owned family data. |
 | Controlled social-story sharing | family | 2026-08-19 | Share a story using a private link that can expire or be revoked. |
 | Temporary guest demonstration | starter | 2026-08-21 | Explore realistic parent and child workflows without an account or database writes. |
+| Learning, progress, and meaningful rewards | starter | 2026-03-15 | Create personalized resources, understand progress, and connect earned rewards to meaningful goals. |
 <!-- FEATURE_REGISTRY:END -->

@@ -8,9 +8,7 @@ import { Input } from '../components/Input';
 import { Select } from '../components/Select';
 import { Card, CardContent } from '../components/Card';
 import { FeatureHighlights } from '../components/FeatureHighlights';
-import { 
-  AlertCircle, CheckCircle2, Search, Eye, EyeOff
-} from 'lucide-react';
+import { AlertCircle, Search, Eye, EyeOff } from 'lucide-react';
 
 interface Kid {
   id: string;
@@ -173,89 +171,12 @@ export default function Home() {
                   Clear routines. Confident next steps.
                 </figcaption>
               </figure>
-              <div className="space-y-3 pt-4">
+              <div className="space-y-5 pt-4">
                 <p className="text-[10px] font-black text-blue-900 uppercase tracking-[0.2em] opacity-60">
                   Built for the way families really work
                 </p>
-                <ul className="grid grid-cols-1 gap-x-8 gap-y-4 text-base md:grid-cols-2">
-                  <li className="flex items-start gap-3">
-                    <div className="mt-1 bg-blue-100 p-1 rounded-md">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
-                    </div>
-                    <div className="flex flex-col">
-                      <strong className="text-slate-900 font-bold text-lg">Visual routines that feel manageable</strong>
-                      <p className="text-sm text-slate-600 leading-relaxed">Break activities into clear, image-supported steps so children can see what comes next and move forward with confidence.</p>
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <div className="mt-1 bg-blue-100 p-1 rounded-md">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
-                    </div>
-                    <div className="flex flex-col">
-                      <strong className="text-slate-900 font-bold text-lg">Flexible family scheduling</strong>
-                      <p className="text-sm text-slate-600 leading-relaxed">Assign one-time or repeating activities, adjust plans when life changes, and return an activity to pending when it needs another try.</p>
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <div className="mt-1 bg-blue-100 p-1 rounded-md">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
-                    </div>
-                    <div className="flex flex-col">
-                      <strong className="text-slate-900 font-bold text-lg">A focused dashboard for kids</strong>
-                      <p className="text-sm text-slate-600 leading-relaxed">Children use their own simple code to follow daily steps and submit finished activities. Parents can optionally review selected activities before completion is confirmed.</p>
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <div className="mt-1 bg-blue-100 p-1 rounded-md">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
-                    </div>
-                    <div className="flex flex-col">
-                      <strong className="text-slate-900 font-bold text-lg">Encouragement that children can see</strong>
-                      <p className="text-sm text-slate-600 leading-relaxed">Verified completions build a reward balance children can use for parent-created rewards, connecting demonstrated effort with positive recognition.</p>
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <div className="mt-1 bg-blue-100 p-1 rounded-md">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
-                    </div>
-                    <div className="flex flex-col">
-                      <strong className="text-slate-900 font-bold text-lg">Progress parents can understand</strong>
-                      <p className="text-sm text-slate-600 leading-relaxed">Review completed activities, daily progress and summary reports to notice patterns and celebrate meaningful growth over time.</p>
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <div className="mt-1 bg-blue-100 p-1 rounded-md">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
-                    </div>
-                    <div className="flex flex-col">
-                      <strong className="text-slate-900 font-bold text-lg">Personalized learning resources</strong>
-                      <p className="text-sm text-slate-600 leading-relaxed">Create and edit quizzes, printable worksheets and social stories shaped around a child's age, interests and learning needs.</p>
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <div className="mt-1 bg-blue-100 p-1 rounded-md">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
-                    </div>
-                    <div className="flex flex-col">
-                      <strong className="text-slate-900 font-bold text-lg">Private, controlled sharing</strong>
-                      <p className="text-sm text-slate-600 leading-relaxed">Share a social story through an expiring, revocable link when a teacher, therapist or family member needs access.</p>
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <div className="mt-1 bg-blue-100 p-1 rounded-md">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
-                    </div>
-                    <div className="flex flex-col">
-                      <strong className="text-slate-900 font-bold text-lg">Parents stay in control</strong>
-                      <p className="text-sm text-slate-600 leading-relaxed">AI helps with the first draft, while parents review, edit and decide what is appropriate before a child sees or uses it.</p>
-                    </div>
-                  </li>
-                </ul>
+                <FeatureHighlights surface="home" limit={10} detailed columns={2} />
               </div>
-              <section className="space-y-4 pt-5">
-                <div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700">Recently added</p><h2 className="mt-1 text-2xl font-black text-slate-950">New ways to support your family</h2></div>
-                <FeatureHighlights surface="home" onlyNew limit={6} compact />
-              </section>
             </div>
 
             {/* Right: Login Card */}

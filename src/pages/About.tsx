@@ -46,7 +46,29 @@ export default function About() {
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-700">What families can do today</p>
             <h2 className="mt-2 text-3xl font-bold">Practical tools for everyday life</h2>
           </div>
-          <FeatureHighlights surface="about" />
+          <FeatureHighlights surface="about" detailed />
+        </section>
+
+        <section className="surface p-7 sm:p-10">
+          <div className="mb-7 max-w-3xl">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-700">Development history</p>
+            <h2 className="mt-2 text-3xl font-bold text-slate-950">Built step by step with real family needs in mind</h2>
+            <p className="mt-3 text-sm leading-7 text-slate-600">Visual Steps has grown from a focused routine planner into a broader family support platform. Each phase has kept the same goal: make expectations clearer while preserving parent judgment and child dignity.</p>
+          </div>
+          <ol className="grid gap-5 md:grid-cols-2">
+            {[
+              ['March 2026', 'The foundation', 'Visual Steps began with parent-managed child profiles, visual activities, smaller task steps, schedules, and a dedicated child dashboard. The first version focused on reducing uncertainty around daily routines. Rewards connected completed effort with visible encouragement. Parent and child experiences were intentionally kept separate and simple.'],
+              ['Spring–Summer 2026', 'Learning and progress', 'Quizzes, printable worksheets, social stories, reports, and activity history expanded the platform beyond daily planning. Resources could be personalized, saved, edited, printed, and assigned. Secure authentication and parent-controlled data access matured alongside these tools. The project also removed unused games and chatbot experiments so the experience stayed focused.'],
+              ['August 2026', 'Safety, trust, and family control', 'Parent verification was added for activities that should not award rewards immediately. Fair quiz-attempt locking, secure uploads, email recovery, controlled story sharing, and clearer offline states strengthened reliability. Positive-behavior bonuses let parents recognize observed effort without teaching children to request free points. Automated, integration, browser, authorization, and mocked AI tests increased confidence in each release.'],
+              ['Today and next', 'A welcoming guided platform', 'A replayable parent tour, temporary guest demonstration, curated samples, and the Visual Steps Parent Assistant now help families understand the product. New features are marked for thirty days and shared product content is synchronized across important surfaces. The interface continues to become warmer, more consistent, and more accessible on desktop and mobile. Future paid options are planned carefully so useful core family tools can remain approachable.'],
+            ].map(([date, title, description]) => (
+              <li key={date} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
+                <p className="text-xs font-black uppercase tracking-wider text-brand-700">{date}</p>
+                <h3 className="mt-2 text-xl font-bold text-slate-950">{title}</h3>
+                <p className="mt-2 text-sm leading-7 text-slate-600">{description}</p>
+              </li>
+            ))}
+          </ol>
         </section>
 
         <section className="surface flex flex-col items-start gap-5 bg-slate-900 p-7 text-white sm:flex-row sm:items-center sm:justify-between sm:p-10">

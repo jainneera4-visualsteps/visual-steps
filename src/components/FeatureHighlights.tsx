@@ -19,9 +19,12 @@ export function NewFeatureBadge({ introducedOn }: { introducedOn: string }) {
   return <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-800">New</span>;
 }
 
-export function FeatureHighlights({ surface, limit, compact = false, onlyNew = false }: { surface: FeatureSurface; limit?: number; compact?: boolean; onlyNew?: boolean }) {
+export function FeatureHighlights({ surface, limit, compact = false, onlyNew = false, detailed = false, columns = 3 }: { surface: FeatureSurface; limit?: number; compact?: boolean; onlyNew?: boolean; detailed?: boolean; columns?: 2 | 3 }) {
   const features = featuresForSurface(surface).filter((feature) => !onlyNew || isFeatureNew(feature)).slice(0, limit);
-  return <div className={`grid gap-4 ${compact ? 'sm:grid-cols-2 lg:grid-cols-3' : 'md:grid-cols-2 lg:grid-cols-3'}`} data-feature-registry-surface={surface}>
+  const gridColumns = columns === 2
+    ? 'md:grid-cols-2'
+    : compact ? 'sm:grid-cols-2 lg:grid-cols-3' : 'md:grid-cols-2 lg:grid-cols-3';
+  return <div className={`grid gap-4 ${gridColumns}`} data-feature-registry-surface={surface}>
     {features.map((feature) => {
       const Icon = icons[feature.icon as keyof typeof icons] || Sparkles;
       return <article key={feature.id} className="feature-card relative">
@@ -30,7 +33,7 @@ export function FeatureHighlights({ surface, limit, compact = false, onlyNew = f
           <div className="flex items-center gap-2"><NewFeatureBadge introducedOn={feature.introducedOn} /><Tooltip content={feature.help} variant="help"><HelpCircle className="h-4 w-4 cursor-help text-brand-500" /></Tooltip></div>
         </div>
         <h3 className="mt-4 text-lg font-bold text-slate-950">{feature.title}</h3>
-        <p className="mt-2 text-sm leading-7 text-slate-600">{feature.summary}</p>
+        <p className="mt-2 text-sm leading-7 text-slate-600">{detailed ? feature.details : feature.summary}</p>
       </article>;
     })}
   </div>;
