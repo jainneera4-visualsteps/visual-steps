@@ -15,7 +15,6 @@ import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
 import path from 'path';
 import { createHash, randomBytes } from 'crypto';
-import { membershipPlans } from './src/content/membershipPlans';
 
 dotenv.config();
 
@@ -995,7 +994,14 @@ const newsletterResources = [
   { type: 'Website', title: 'Autism Navigator', description: 'Evidence-informed family resources from the Florida State University Autism Institute.', url: 'https://autismnavigator.com/' },
   { type: 'Website', title: 'Autism Research Institute', description: 'Research, webinars, and educational resources for autistic people and families.', url: 'https://autism.org/' },
 ];
-const currentMembershipDetails = membershipPlans.map(plan => ({ name: plan.name, price: `${plan.price}${'suffix' in plan ? plan.suffix : ''}`, status: plan.status, details: `${plan.description} ${plan.status === 'Coming soon' ? 'No payment is collected yet.' : ''}`.trim() }));
+// Keep serverless startup independent from browser content modules. These
+// values mirror the public pricing page but remain plain server data so the
+// Vercel function never needs to resolve frontend-only imports.
+const currentMembershipDetails = [
+  { name: 'Starter', price: 'Free', status: 'Available now', details: 'A simple way for families to begin building calmer, more predictable routines.' },
+  { name: 'Family', price: '$9/ month', status: 'Coming soon', details: 'More personalization and planning support for families using Visual Steps every day. No payment is collected yet.' },
+  { name: 'Family Plus', price: '$19/ month', status: 'Coming soon', details: 'Designed for families who want additional sharing, storage and support tools. No payment is collected yet.' },
+];
 const newsletterSectionTitles = {
   new_features: 'Newly Added Feature Details', feature_previews: 'Feature Previews',
   community_posts: 'Parent Stories, News, Information, Tips and Tricks', parent_testimonials: 'Parent Testimonials',
