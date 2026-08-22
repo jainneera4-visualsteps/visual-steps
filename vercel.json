@@ -26,7 +26,7 @@
   "crons": [
     {
       "path": "/api/cron/weekly-newsletter",
-      "schedule": "0 13 * * 1"
+      "schedule": "0 13 * * *"
     }
   ]
 }

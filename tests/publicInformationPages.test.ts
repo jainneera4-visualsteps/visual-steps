@@ -25,12 +25,12 @@ test('public contact and newsletter pages keep SMTP secrets on the server', asyn
   assert.doesNotMatch(`${contact}\n${newsletter}`, /SMTP_PASS|SMTP_USER|service_role/);
 });
 
-test('weekly newsletters use a protected Monday Vercel schedule', async () => {
+test('weekly newsletters use a protected daily schedule check', async () => {
   const [server, vercel] = await Promise.all([
     readFile(new URL('../server.ts', import.meta.url), 'utf8'),
     readFile(new URL('../vercel.json', import.meta.url), 'utf8'),
   ]);
   assert.match(server, /CRON_SECRET/);
   assert.match(server, /\/api\/cron\/weekly-newsletter/);
-  assert.deepEqual(JSON.parse(vercel).crons, [{ path: '/api/cron/weekly-newsletter', schedule: '0 13 * * 1' }]);
+  assert.deepEqual(JSON.parse(vercel).crons, [{ path: '/api/cron/weekly-newsletter', schedule: '0 13 * * *' }]);
 });

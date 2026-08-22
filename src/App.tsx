@@ -30,6 +30,7 @@ import GuestDemo from './pages/GuestDemo';
 import Testimonials from './pages/Testimonials';
 import Contact from './pages/Contact';
 import Newsletter from './pages/Newsletter';
+import NewsletterAdmin from './pages/NewsletterAdmin';
 import { NetworkStatusBanner } from './components/NetworkStatusBanner';
 
 export default function App() {
@@ -69,6 +70,7 @@ export default function App() {
               <Route path="play-quiz/:id" element={<PlayQuiz />} />
               <Route path="edit-quiz/:id" element={<EditQuiz />} />
               <Route path="activity-library" element={<ActivityLibrary />} />
+              <Route path="newsletter-admin" element={<NewsletterAdmin />} />
             </Route>
             <Route path="social-stories/view/:id" element={<ViewSocialStory />} />
             <Route path="social-stories/shared/:shareToken" element={<ViewSocialStory />} />

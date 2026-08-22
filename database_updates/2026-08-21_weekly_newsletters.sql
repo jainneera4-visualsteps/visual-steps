@@ -38,9 +38,53 @@ CREATE TABLE IF NOT EXISTS public.parent_testimonials (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- Parent contributions are private submissions until a moderator approves them.
+CREATE TABLE IF NOT EXISTS public.newsletter_community_submissions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  contribution_type TEXT NOT NULL CHECK (contribution_type IN ('story', 'news', 'information', 'tip', 'testimonial')),
+  title TEXT NOT NULL CHECK (length(btrim(title)) BETWEEN 3 AND 120),
+  content TEXT NOT NULL CHECK (length(btrim(content)) BETWEEN 20 AND 2000),
+  display_name TEXT NOT NULL CHECK (length(btrim(display_name)) BETWEEN 2 AND 80),
+  source_url TEXT,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  consent_to_publish BOOLEAN NOT NULL DEFAULT false,
+  submitted_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  reviewed_at TIMESTAMP WITH TIME ZONE
+);
+
+-- Explicit administrator allow-list. Membership is managed only through the
+-- Supabase SQL editor/service role; browser clients receive no table policy.
+CREATE TABLE IF NOT EXISTS public.app_admins (
+  user_id UUID PRIMARY KEY REFERENCES public.users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Singleton delivery configuration. The daily Vercel cron reads this row and
+-- sends only on the selected UTC weekday (0 Sunday through 6 Saturday).
+CREATE TABLE IF NOT EXISTS public.newsletter_settings (
+  id BOOLEAN PRIMARY KEY DEFAULT true CHECK (id = true),
+  delivery_weekday INTEGER NOT NULL DEFAULT 1 CHECK (delivery_weekday BETWEEN 0 AND 6),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+INSERT INTO public.newsletter_settings (id, delivery_weekday)
+VALUES (true, 1) ON CONFLICT (id) DO NOTHING;
+
+ALTER TABLE public.newsletters
+  ADD COLUMN IF NOT EXISTS feature_previews JSONB NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS community_posts JSONB NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS popular_features JSONB NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS recommended_resources JSONB NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS membership_details JSONB NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS section_titles JSONB NOT NULL DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS section_visibility JSONB NOT NULL DEFAULT '{}'::jsonb;
+
 ALTER TABLE public.newsletter_subscribers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.newsletters ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.parent_testimonials ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.newsletter_community_submissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.app_admins ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.newsletter_settings ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Anyone can read published newsletters" ON public.newsletters;
 CREATE POLICY "Anyone can read published newsletters"
@@ -50,7 +94,23 @@ DROP POLICY IF EXISTS "Anyone can read approved parent testimonials" ON public.p
 CREATE POLICY "Anyone can read approved parent testimonials"
   ON public.parent_testimonials FOR SELECT USING (approved_at IS NOT NULL);
 
+DROP POLICY IF EXISTS "Parents can view their own newsletter submissions" ON public.newsletter_community_submissions;
+DROP POLICY IF EXISTS "Parents can submit newsletter contributions" ON public.newsletter_community_submissions;
+CREATE POLICY "Parents can view their own newsletter submissions"
+  ON public.newsletter_community_submissions FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Parents can submit newsletter contributions"
+  ON public.newsletter_community_submissions FOR INSERT WITH CHECK (
+    auth.uid() = user_id AND status = 'pending' AND consent_to_publish = true
+  );
+
 CREATE INDEX IF NOT EXISTS newsletter_subscribers_delivery_idx
   ON public.newsletter_subscribers(status, last_sent_issue_date);
 CREATE INDEX IF NOT EXISTS parent_testimonials_approved_idx
   ON public.parent_testimonials(approved_at DESC) WHERE approved_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS newsletter_community_review_idx
+  ON public.newsletter_community_submissions(status, submitted_at DESC);
+
+-- ONE-TIME ADMIN SETUP (run separately after replacing the email):
+-- INSERT INTO public.app_admins (user_id)
+-- SELECT id FROM public.users WHERE lower(email) = lower('YOUR_VISUAL_STEPS_EMAIL')
+-- ON CONFLICT (user_id) DO NOTHING;

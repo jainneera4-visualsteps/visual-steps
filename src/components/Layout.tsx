@@ -55,6 +55,7 @@ export function Layout() {
     else if (path === '/testimonials') title = 'Family Stories | Visual Steps';
     else if (path === '/contact') title = 'Contact | Visual Steps';
     else if (path === '/newsletter') title = 'Weekly Newsletter | Visual Steps';
+    else if (path === '/newsletter-admin') title = 'Newsletter Administration | Visual Steps';
 
     document.title = title;
   }, [location.pathname]);

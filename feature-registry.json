@@ -111,24 +111,12 @@
     "id": "learning-progress-rewards",
     "title": "Learning, progress, and meaningful rewards",
     "summary": "Create personalized resources, understand progress, and connect earned rewards to meaningful goals.",
-    "details": "Parents can create, edit, save, assign, and print personalized quizzes, worksheets, and social stories. Activity history and reports help families review completion patterns, learning results, and reward purchases over time. Children earn the parent-selected reward type through completed work and can see goals created specifically for them. Parents remain responsible for reviewing AI drafts, interpreting progress, and choosing rewards that suit their family.",
-    "help": "Use Quizzes, Worksheets, or Social Stories from the parent navigation to create learning material. Open a child's Activities page and Reports to manage rewards and review progress.",
+    "details": "Parents can create, edit, save, assign, and print personalized quizzes, worksheets, and social stories. Activity history and reports help families review completion patterns, learning results, and reward purchases over time. The Visual Steps Weekly archive shares product guidance, approved parent contributions, curated resources, and current membership information. Parents remain responsible for reviewing AI drafts, interpreting progress, and choosing rewards that suit their family.",
+    "help": "Use Quizzes, Worksheets, or Social Stories to create learning material; open a child's Reports to review progress; or open Newsletter for the public weekly archive and confirmed email subscription.",
     "introducedOn": "2026-03-15",
     "plan": "starter",
     "icon": "book",
-    "routes": ["/saved-quizzes", "/saved-worksheets", "/social-stories", "/progress-report/:kidId"],
+    "routes": ["/saved-quizzes", "/saved-worksheets", "/social-stories", "/progress-report/:kidId", "/newsletter"],
     "surfaces": ["home", "about", "onboarding", "chatbot", "pricing", "guest", "help"]
-  },
-  {
-    "id": "weekly-newsletter",
-    "title": "Visual Steps Weekly",
-    "summary": "Read a Monday update archive on the website or receive confirmed issues by email.",
-    "details": "Each Monday, Visual Steps publishes a website newsletter summarizing product updates recorded during the previous week. Every issue organizes new features, practical feature guidance, explicitly approved parent testimonials, and supportive tips for families. Parents and visitors can read the archive without subscribing. Email delivery requires confirmation, keeps subscriber addresses private, and includes one-click unsubscribe in every issue.",
-    "help": "Open Newsletter from the footer or mobile menu. Read published issues in Weekly Archive, or enter an email, select Subscribe, and confirm through the email Visual Steps sends.",
-    "introducedOn": "2026-08-21",
-    "plan": "starter",
-    "icon": "book",
-    "routes": ["/newsletter"],
-    "surfaces": ["about", "chatbot", "help"]
   }
 ]

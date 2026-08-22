@@ -15,6 +15,7 @@ import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
 import path from 'path';
 import { createHash, randomBytes } from 'crypto';
+import { membershipPlans } from './src/content/membershipPlans';
 
 dotenv.config();
 
@@ -232,8 +233,8 @@ const productFeatureRegistry = [
     "id": "learning-progress-rewards",
     "title": "Learning, progress, and meaningful rewards",
     "summary": "Create personalized resources, understand progress, and connect earned rewards to meaningful goals.",
-    "details": "Parents can create, edit, save, assign, and print personalized quizzes, worksheets, and social stories. Activity history and reports help families review completion patterns, learning results, and reward purchases over time. Children earn the parent-selected reward type through completed work and can see goals created specifically for them. Parents remain responsible for reviewing AI drafts, interpreting progress, and choosing rewards that suit their family.",
-    "help": "Use Quizzes, Worksheets, or Social Stories from the parent navigation to create learning material. Open a child's Activities page and Reports to manage rewards and review progress.",
+    "details": "Parents can create, edit, save, assign, and print personalized quizzes, worksheets, and social stories. Activity history and reports help families review completion patterns, learning results, and reward purchases over time. The Visual Steps Weekly archive shares product guidance, approved parent contributions, curated resources, and current membership information. Parents remain responsible for reviewing AI drafts, interpreting progress, and choosing rewards that suit their family.",
+    "help": "Use Quizzes, Worksheets, or Social Stories to create learning material; open a child's Reports to review progress; or open Newsletter for the public weekly archive and confirmed email subscription.",
     "introducedOn": "2026-03-15",
     "plan": "starter",
     "icon": "book",
@@ -241,7 +242,8 @@ const productFeatureRegistry = [
       "/saved-quizzes",
       "/saved-worksheets",
       "/social-stories",
-      "/progress-report/:kidId"
+      "/progress-report/:kidId",
+      "/newsletter"
     ],
     "surfaces": [
       "home",
@@ -250,24 +252,6 @@ const productFeatureRegistry = [
       "chatbot",
       "pricing",
       "guest",
-      "help"
-    ]
-  },
-  {
-    "id": "weekly-newsletter",
-    "title": "Visual Steps Weekly",
-    "summary": "Read a Monday update archive on the website or receive confirmed issues by email.",
-    "details": "Each Monday, Visual Steps publishes a website newsletter summarizing product updates recorded during the previous week. Every issue organizes new features, practical feature guidance, explicitly approved parent testimonials, and supportive tips for families. Parents and visitors can read the archive without subscribing. Email delivery requires confirmation, keeps subscriber addresses private, and includes one-click unsubscribe in every issue.",
-    "help": "Open Newsletter from the footer or mobile menu. Read published issues in Weekly Archive, or enter an email, select Subscribe, and confirm through the email Visual Steps sends.",
-    "introducedOn": "2026-08-21",
-    "plan": "starter",
-    "icon": "book",
-    "routes": [
-      "/newsletter"
-    ],
-    "surfaces": [
-      "about",
-      "chatbot",
       "help"
     ]
   }
@@ -797,6 +781,20 @@ const authenticateToken = async (req: any, res: any, next: any) => {
   }
 };
 
+const requireNewsletterAdmin = async (req: any, res: any, next: any) => {
+  if (req.user?.role !== 'parent' || !req.user?.id || !supabaseServiceKey) {
+    return res.status(403).json({ error: 'Newsletter administrator access required' });
+  }
+  try {
+    const admin = getAdminSupabaseClient();
+    const { data, error } = await admin.from('app_admins').select('user_id').eq('user_id', req.user.id).maybeSingle();
+    if (error || !data) return res.status(403).json({ error: 'Newsletter administrator access required' });
+    return next();
+  } catch {
+    return res.status(403).json({ error: 'Newsletter administrator access required' });
+  }
+};
+
 // Helper Functions
 type SafeSmtpError = {
   code: string;
@@ -984,30 +982,57 @@ const escapeEmailHtml = (value: unknown) => String(value ?? '')
 const newsletterEmailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const newsletterTips = [
-  'Choose one routine to simplify this week. Fewer, clearer steps are often easier to follow than a long verbal reminder.',
-  'Praise the specific behavior you observed—such as trying again or staying calm—so encouragement feels earned and understandable.',
-  'Review activities that needed another try before planning the next worksheet or lesson. Repetition can show where a smaller step would help.',
-  'Keep rewards predictable: explain what earns them, record the reason, and avoid adding tokens only because they were requested.',
-  'Use a social story before a new or difficult event, then revisit it afterward to talk about what felt easy or challenging.',
-  'When a quiz result is lower than expected, review the topic and reassign only when a fresh attempt supports learning.',
+  'Choose one routine to simplify this week. Break it into a few clear steps that your child can see and follow. Fewer, clearer steps are often easier to understand than a long verbal reminder. Notice which step still needs support and adjust it gently next time.',
+  'Praise the specific behavior you observed, such as trying again, waiting calmly, or following a direction. Naming the behavior helps your child understand exactly what went well. Keep the message warm, brief, and sincere. When appropriate, record a behavior bonus so the encouragement feels earned rather than automatic.',
+  'Review activities that needed another try before planning the next worksheet or lesson. Look for the exact step where your child became unsure, distracted, or overwhelmed. Repetition can show where a smaller step, visual prompt, or different explanation would help. Use that information to make the next activity achievable without making it too easy.',
+  'Keep rewards predictable by explaining which actions can earn them. Record the positive reason whenever you give a behavior bonus so your child connects the reward with genuine effort or growth. Avoid adding tokens only because they were requested. Calm, consistent boundaries help rewards remain meaningful over time.',
+  'Use a social story before a new, unfamiliar, or difficult event. Read it when everyone is calm and allow time for questions without pressuring your child. Revisit the story afterward to discuss what felt easy, surprising, or challenging. Update future preparation based on what your child actually experienced.',
+  'When a quiz result is lower than expected, review the topic before assigning another attempt. Focus on understanding the missed ideas instead of only aiming for a higher score. Offer a short lesson, visual example, or related worksheet that addresses the difficulty. Reassign the quiz only when a fresh attempt supports learning rather than repeated guessing.',
 ];
+const newsletterResources = [
+  { type: 'Activity', title: 'First–Then routine', description: 'Pair one necessary step with the next preferred or restful step.' },
+  { type: 'Game', title: 'Emotion charades', description: 'Take turns acting out emotions and identifying supportive responses. No purchase is required.' },
+  { type: 'Website', title: 'Autism Navigator', description: 'Evidence-informed family resources from the Florida State University Autism Institute.', url: 'https://autismnavigator.com/' },
+  { type: 'Website', title: 'Autism Research Institute', description: 'Research, webinars, and educational resources for autistic people and families.', url: 'https://autism.org/' },
+];
+const currentMembershipDetails = membershipPlans.map(plan => ({ name: plan.name, price: `${plan.price}${'suffix' in plan ? plan.suffix : ''}`, status: plan.status, details: `${plan.description} ${plan.status === 'Coming soon' ? 'No payment is collected yet.' : ''}`.trim() }));
+const newsletterSectionTitles = {
+  new_features: 'Newly Added Feature Details', feature_previews: 'Feature Previews',
+  community_posts: 'Parent Stories, News, Information, Tips and Tricks', parent_testimonials: 'Parent Testimonials',
+  popular_features: 'Most Popular Features', recommended_resources: 'Suggested Activities, Games and Websites',
+  membership_details: 'Current Visual Steps Membership Details', parent_tips: 'Tips and Tricks for Parents',
+};
+const newsletterSectionVisibility = Object.fromEntries(Object.keys(newsletterSectionTitles).map(key => [key, true]));
 
 const isoDate = (date: Date) => date.toISOString().slice(0, 10);
-const getPreviousNewsletterPeriod = (now = new Date()) => {
-  const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  const daysSinceMonday = (monday.getUTCDay() + 6) % 7;
-  monday.setUTCDate(monday.getUTCDate() - daysSinceMonday);
-  const periodStart = new Date(monday);
+const getPreviousNewsletterPeriod = (now = new Date(), deliveryWeekday = 1) => {
+  const issueDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const daysSinceDelivery = (issueDay.getUTCDay() - deliveryWeekday + 7) % 7;
+  issueDay.setUTCDate(issueDay.getUTCDate() - daysSinceDelivery);
+  const periodStart = new Date(issueDay);
   periodStart.setUTCDate(periodStart.getUTCDate() - 7);
-  const periodEnd = new Date(monday);
+  const periodEnd = new Date(issueDay);
   periodEnd.setUTCDate(periodEnd.getUTCDate() - 1);
-  return { issueDate: isoDate(monday), periodStart: isoDate(periodStart), periodEnd: isoDate(periodEnd) };
+  return { issueDate: isoDate(issueDay), periodStart: isoDate(periodStart), periodEnd: isoDate(periodEnd) };
 };
 
-const createWeeklyNewsletter = async (now = new Date()) => {
+const getNewsletterDeliveryWeekday = async () => {
+  const { data } = await getAdminSupabaseClient().from('newsletter_settings').select('delivery_weekday').eq('id', true).maybeSingle();
+  return Number.isInteger(data?.delivery_weekday) ? Number(data.delivery_weekday) : 1;
+};
+
+const getNextNewsletterDate = (now: Date, deliveryWeekday: number) => {
+  const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 13));
+  let daysAhead = (deliveryWeekday - next.getUTCDay() + 7) % 7;
+  if (daysAhead === 0 && now.getUTCHours() >= 13) daysAhead = 7;
+  next.setUTCDate(next.getUTCDate() + daysAhead);
+  return next;
+};
+
+const buildWeeklyNewsletter = async (now = new Date(), published = false, deliveryWeekday = 1) => {
   if (!supabaseServiceKey) throw new Error('SUPABASE_SERVICE_ROLE_KEY is required for newsletter publishing');
   const admin = getAdminSupabaseClient();
-  const period = getPreviousNewsletterPeriod(now);
+  const period = getPreviousNewsletterPeriod(now, deliveryWeekday);
   const features = productFeatureRegistry.filter(feature =>
     feature.introducedOn >= period.periodStart && feature.introducedOn <= period.periodEnd
   );
@@ -1016,6 +1041,26 @@ const createWeeklyNewsletter = async (now = new Date()) => {
     .gte('approved_at', `${period.periodStart}T00:00:00.000Z`)
     .lt('approved_at', `${period.issueDate}T00:00:00.000Z`).order('approved_at', { ascending: true });
   if (testimonialError) throw testimonialError;
+  const { data: communityPosts, error: communityError } = await admin.from('newsletter_community_submissions')
+    .select('contribution_type,title,content,display_name,source_url,reviewed_at')
+    .eq('status', 'approved').eq('consent_to_publish', true)
+    .gte('reviewed_at', `${period.periodStart}T00:00:00.000Z`).lt('reviewed_at', `${period.issueDate}T00:00:00.000Z`)
+    .order('reviewed_at', { ascending: true });
+  if (communityError) throw communityError;
+  const popularitySources = [
+    ['Visual activities', 'activities'], ['Quizzes', 'quizzes'], ['Worksheets', 'worksheets'], ['Social stories', 'social_stories'], ['Positive behavior bonuses', 'behavior_bonus_awards'],
+  ] as const;
+  const popularityExplanations: Record<string, string> = {
+    'Visual activities': 'Families use visual activities to turn routines and learning goals into smaller, clearer steps children can follow with less uncertainty.',
+    'Quizzes': 'Personalized quizzes help parents check understanding, identify topics that need review, and plan the next learning activity.',
+    'Worksheets': 'Printable worksheets give families a focused way to practise skills away from the screen and revisit topics at a comfortable pace.',
+    'Social stories': 'Social stories help children prepare for routines, changes, and unfamiliar situations using supportive language tailored to their needs.',
+    'Positive behavior bonuses': 'Behavior bonuses help parents recognize specific positive choices while making it clear that rewards are earned for observed effort and behavior.',
+  };
+  const popularFeatures = (await Promise.all(popularitySources.map(async ([title, table]) => {
+    const { count } = await admin.from(table).select('*', { count: 'exact', head: true });
+    return { title, usageCount: count || 0, explanation: popularityExplanations[title] };
+  }))).sort((a, b) => b.usageCount - a.usageCount).slice(0, 3).map(({ title, explanation }) => ({ title, explanation }));
   const tipOffset = Math.floor(now.getTime() / (7 * 24 * 60 * 60 * 1000)) % newsletterTips.length;
   const tips = [0, 1, 2].map(index => newsletterTips[(tipOffset + index) % newsletterTips.length]);
   const issue = {
@@ -1024,20 +1069,42 @@ const createWeeklyNewsletter = async (now = new Date()) => {
     period_end: period.periodEnd,
     title: `Visual Steps Weekly — ${period.issueDate}`,
     introduction: `A practical summary of Visual Steps updates from ${period.periodStart} through ${period.periodEnd}, plus ideas families can use this week.`,
-    new_features: features.map(feature => ({ title: feature.title, summary: feature.summary, introducedOn: feature.introducedOn })),
-    feature_details: features.map(feature => ({ title: feature.title, details: feature.details, help: feature.help })),
-    parent_testimonials: (testimonials || []).map(item => ({ displayName: item.display_name, quote: item.quote, featureTitle: item.feature_title })),
+    new_features: features.map(feature => ({ title: feature.title, summary: feature.summary, details: feature.details, help: feature.help, introducedOn: feature.introducedOn })),
+    feature_details: [],
+    feature_previews: features.slice(0, 2).map((feature, index) => ({ title: feature.title, caption: feature.summary, imageUrl: index % 2 ? '/illustrations/about-shared-win.webp' : '/illustrations/home-family-routine.webp' })),
+    parent_testimonials: [...(testimonials || []).map(item => ({ displayName: item.display_name, quote: item.quote, featureTitle: item.feature_title })), ...(communityPosts || []).filter(item => item.contribution_type === 'testimonial').map(item => ({ displayName: item.display_name, quote: item.content, featureTitle: item.title }))],
+    community_posts: (communityPosts || []).filter(item => item.contribution_type !== 'testimonial').map(item => ({ type: item.contribution_type, title: item.title, content: item.content, displayName: item.display_name, sourceUrl: item.source_url })),
+    popular_features: popularFeatures,
+    recommended_resources: newsletterResources,
+    membership_details: currentMembershipDetails,
     parent_tips: tips,
-    published_at: new Date().toISOString(),
+    section_titles: newsletterSectionTitles,
+    section_visibility: newsletterSectionVisibility,
+    published_at: published ? new Date().toISOString() : null,
   };
+  return issue;
+};
+
+const createWeeklyNewsletter = async (now = new Date()) => {
+  const admin = getAdminSupabaseClient();
+  const deliveryWeekday = await getNewsletterDeliveryWeekday();
+  const generated = await buildWeeklyNewsletter(now, true, deliveryWeekday);
+  const { data: savedDraft } = await admin.from('newsletters').select('title,introduction,section_titles,section_visibility,published_at').eq('issue_date', generated.issue_date).maybeSingle();
+  const issue = savedDraft && !savedDraft.published_at ? {
+    ...generated,
+    title: savedDraft.title,
+    introduction: savedDraft.introduction,
+    section_titles: { ...newsletterSectionTitles, ...(savedDraft.section_titles || {}) },
+    section_visibility: { ...newsletterSectionVisibility, ...(savedDraft.section_visibility || {}) },
+  } : generated;
   const { data, error } = await admin.from('newsletters').upsert(issue, { onConflict: 'issue_date' }).select('*').single();
   if (error) throw error;
   return data;
 };
 
-const newsletterSectionHtml = (title: string, items: string[]) => `
+const newsletterSectionHtml = (title: string, items: string[], columns = 1, bulleted = false) => items.length ? `
   <h2 style="color:#173b52;margin:28px 0 10px">${escapeEmailHtml(title)}</h2>
-  ${items.length ? `<ul style="padding-left:22px;line-height:1.7">${items.map(item => `<li style="margin-bottom:9px">${item}</li>`).join('')}</ul>` : '<p>No additions were recorded in this section last week.</p>'}`;
+  <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:14px;padding:16px 20px">${bulleted ? `<ul style="padding-left:22px;line-height:1.7;margin:0">${items.map(item => `<li style="margin-bottom:12px">${item}</li>`).join('')}</ul>` : `<div style="display:grid;grid-template-columns:${columns === 2 ? 'repeat(2,minmax(0,1fr))' : '1fr'};gap:14px;line-height:1.7">${items.map(item => `<div style="${columns === 2 ? 'background:#ffffff;border:1px solid #dbeafe;border-radius:10px;padding:12px;' : ''}">${item}</div>`).join('')}</div>`}</div>` : '';
 
 const sendNewsletterIssue = async (issue: any, appOrigin: string) => {
   const admin = getAdminSupabaseClient();
@@ -1055,15 +1122,19 @@ const sendNewsletterIssue = async (issue: any, appOrigin: string) => {
     const unsubscribeHash = hashNewsletterToken(unsubscribeToken);
     const unsubscribeUrl = `${appOrigin}/api/newsletter/unsubscribe?token=${encodeURIComponent(unsubscribeToken)}`;
     const archiveUrl = `${appOrigin}/newsletter`;
-    const featureItems = (issue.new_features || []).map((item: any) => `<strong>${escapeEmailHtml(item.title)}</strong> — ${escapeEmailHtml(item.summary)}`);
-    const detailItems = (issue.feature_details || []).map((item: any) => `<strong>${escapeEmailHtml(item.title)}</strong>: ${escapeEmailHtml(item.details)}<br><em>Where to find it:</em> ${escapeEmailHtml(item.help)}`);
+    const featureItems = (issue.new_features || []).map((item: any) => `<strong>${escapeEmailHtml(item.title)}</strong><br>${escapeEmailHtml(item.summary)}<br>${escapeEmailHtml(item.details)}<br><em>Where to find it:</em> ${escapeEmailHtml(item.help)}`);
     const testimonialItems = (issue.parent_testimonials || []).map((item: any) => `“${escapeEmailHtml(item.quote)}” — ${escapeEmailHtml(item.displayName)}`);
     const tipItems = (issue.parent_tips || []).map((item: string) => escapeEmailHtml(item));
+    const previewItems = (issue.feature_previews || []).map((item: any) => `<strong>${escapeEmailHtml(item.title)}</strong><br>${escapeEmailHtml(item.caption)}`);
+    const communityItems = (issue.community_posts || []).map((item: any) => `<strong>${escapeEmailHtml(item.title)}</strong> (${escapeEmailHtml(item.type)}) — ${escapeEmailHtml(item.content)} — ${escapeEmailHtml(item.displayName)}`);
+    const popularItems = (issue.popular_features || []).map((item: any) => `<strong>${escapeEmailHtml(item.title)}</strong> — ${escapeEmailHtml(item.explanation)}`);
+    const resourceItems = (issue.recommended_resources || []).map((item: any) => `<strong>${escapeEmailHtml(item.title)}</strong> (${escapeEmailHtml(item.type)}) — ${escapeEmailHtml(item.description)}`);
+    const membershipItems = (issue.membership_details || []).map((item: any) => `<strong>${escapeEmailHtml(item.name)}: ${escapeEmailHtml(item.price)}</strong> — ${escapeEmailHtml(item.status)}. ${escapeEmailHtml(item.details)}`);
     try {
       await transporter.sendMail({
         from, to: subscriber.email, subject: issue.title,
         text: `${issue.introduction}\n\nRead this issue: ${archiveUrl}\n\nUnsubscribe: ${unsubscribeUrl}`,
-        html: `<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;color:#334155;line-height:1.6"><h1 style="color:#176b87">${escapeEmailHtml(issue.title)}</h1><p>${escapeEmailHtml(issue.introduction)}</p>${newsletterSectionHtml('New Features Added', featureItems)}${newsletterSectionHtml('Feature Details', detailItems)}${newsletterSectionHtml('Parent Testimonials Added', testimonialItems)}${newsletterSectionHtml('Tips and Tricks for Parents', tipItems)}<p style="margin-top:32px"><a href="${archiveUrl}">Read the newsletter archive</a></p><p style="font-size:12px;color:#64748b">You received this because you confirmed a Visual Steps newsletter subscription. <a href="${unsubscribeUrl}">Unsubscribe with one click</a>.</p></div>`,
+        html: `<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;color:#334155;line-height:1.6;background:#fffdf7;padding:24px"><div style="background:linear-gradient(135deg,#dbeafe,#d1fae5);border-radius:18px;padding:24px"><h1 style="color:#176b87;margin-top:0">${escapeEmailHtml(issue.title)}</h1><p>${escapeEmailHtml(issue.introduction)}</p></div>${issue.section_visibility?.feature_previews === false ? '' : newsletterSectionHtml(issue.section_titles?.feature_previews || newsletterSectionTitles.feature_previews, previewItems)}${issue.section_visibility?.new_features === false ? '' : newsletterSectionHtml(issue.section_titles?.new_features || newsletterSectionTitles.new_features, featureItems, 2)}${issue.section_visibility?.community_posts === false ? '' : newsletterSectionHtml(issue.section_titles?.community_posts || newsletterSectionTitles.community_posts, communityItems)}${issue.section_visibility?.parent_testimonials === false ? '' : newsletterSectionHtml(issue.section_titles?.parent_testimonials || newsletterSectionTitles.parent_testimonials, testimonialItems)}${issue.section_visibility?.popular_features === false ? '' : newsletterSectionHtml(issue.section_titles?.popular_features || newsletterSectionTitles.popular_features, popularItems)}${issue.section_visibility?.recommended_resources === false ? '' : newsletterSectionHtml(issue.section_titles?.recommended_resources || newsletterSectionTitles.recommended_resources, resourceItems)}${issue.section_visibility?.parent_tips === false ? '' : newsletterSectionHtml(issue.section_titles?.parent_tips || newsletterSectionTitles.parent_tips, tipItems, 1, true)}${issue.section_visibility?.membership_details === false ? '' : newsletterSectionHtml(issue.section_titles?.membership_details || newsletterSectionTitles.membership_details, membershipItems)}<p style="margin-top:32px"><a href="${archiveUrl}">Read the illustrated newsletter archive</a></p><p style="font-size:12px;color:#64748b">You received this because you confirmed a Visual Steps newsletter subscription. <a href="${unsubscribeUrl}">Unsubscribe with one click</a>.</p></div>`,
       });
       await admin.from('newsletter_subscribers').update({ last_sent_issue_date: issue.issue_date, unsubscribe_token_hash: unsubscribeHash, updated_at: new Date().toISOString() }).eq('id', subscriber.id);
       delivered += 1;
@@ -1101,13 +1172,134 @@ app.post('/api/newsletter/subscribe', async (req, res) => {
       from: cleanEnvVar('SMTP_FROM') || cleanEnvVar('SMTP_USER'), to: email,
       subject: 'Confirm your Visual Steps Weekly subscription',
       text: `Confirm your subscription: ${confirmationUrl}\n\nIf you did not request this, ignore this email.`,
-      html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;line-height:1.6"><h1 style="color:#176b87">Visual Steps Weekly</h1><p>Please confirm that you want one practical Visual Steps newsletter each Monday.</p><p><a href="${confirmationUrl}" style="background:#2563eb;color:white;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:bold">Confirm subscription</a></p><p>If you did not request this, simply ignore this message.</p></div>`,
+      html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;line-height:1.6"><h1 style="color:#176b87">Visual Steps Weekly</h1><p>Please confirm that you want one practical Visual Steps newsletter each week on the administrator-selected delivery day.</p><p><a href="${confirmationUrl}" style="background:#2563eb;color:white;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:bold">Confirm subscription</a></p><p>If you did not request this, simply ignore this message.</p></div>`,
     });
     return res.status(202).json({ message: `Check ${email} and select Confirm subscription.` });
   } catch (sendError) {
     console.error('Newsletter confirmation failed:', getSafeSmtpError(sendError));
     return res.status(502).json({ error: 'Your request was saved, but the confirmation email could not be sent. Please try again.' });
   }
+});
+
+app.post('/api/newsletter/community-submissions', authenticateToken, async (req: any, res) => {
+  if (req.user?.role === 'kid') return res.status(403).json({ error: 'Parent access required' });
+  const contributionType = String(req.body?.contributionType || '');
+  const title = String(req.body?.title || '').trim();
+  const content = String(req.body?.content || '').trim();
+  const displayName = String(req.body?.displayName || '').trim();
+  const sourceUrl = String(req.body?.sourceUrl || '').trim() || null;
+  const allowedTypes = new Set(['story', 'news', 'information', 'tip', 'testimonial']);
+  if (!allowedTypes.has(contributionType) || title.length < 3 || title.length > 120 || content.length < 20 || content.length > 2000 || displayName.length < 2 || displayName.length > 80 || req.body?.consentToPublish !== true) {
+    return res.status(400).json({ error: 'Complete all required fields and confirm permission to publish.' });
+  }
+  if (contributionType === 'news' && !sourceUrl) return res.status(400).json({ error: 'News submissions require a trustworthy source link.' });
+  if (sourceUrl) { try { const parsed = new URL(sourceUrl); if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error(); } catch { return res.status(400).json({ error: 'Enter a valid source link beginning with http:// or https://.' }); } }
+  const supabase = getSupabaseForUser(req);
+  const { error } = await supabase.from('newsletter_community_submissions').insert({ user_id: req.user.id, contribution_type: contributionType, title, content, display_name: displayName, source_url: sourceUrl, consent_to_publish: true, status: 'pending' });
+  if (error) return res.status(500).json({ error: 'Unable to submit this contribution.' });
+  return res.status(201).json({ message: 'Submitted for review. It will not be public unless approved.' });
+});
+
+app.get('/api/newsletter/admin/status', authenticateToken, requireNewsletterAdmin, (_req, res) => {
+  return res.json({ isAdmin: true });
+});
+
+app.get('/api/newsletter/admin/submissions', authenticateToken, requireNewsletterAdmin, async (req, res) => {
+  const status = String(req.query.status || 'pending');
+  if (!['pending', 'approved', 'rejected', 'all'].includes(status)) return res.status(400).json({ error: 'Invalid review status' });
+  let query = getAdminSupabaseClient().from('newsletter_community_submissions').select('*').order('submitted_at', { ascending: false }).limit(200);
+  if (status !== 'all') query = query.eq('status', status);
+  const { data, error } = await query;
+  if (error) return res.status(500).json({ error: 'Unable to load newsletter submissions' });
+  return res.json(data || []);
+});
+
+app.patch('/api/newsletter/admin/submissions/:id', authenticateToken, requireNewsletterAdmin, async (req, res) => {
+  const status = String(req.body?.status || '');
+  const title = String(req.body?.title || '').trim();
+  const content = String(req.body?.content || '').trim();
+  const displayName = String(req.body?.displayName || '').trim();
+  const sourceUrl = String(req.body?.sourceUrl || '').trim() || null;
+  if (!['approved', 'rejected'].includes(status) || title.length < 3 || title.length > 120 || content.length < 20 || content.length > 2000 || displayName.length < 2 || displayName.length > 80) {
+    return res.status(400).json({ error: 'Review details are incomplete or invalid' });
+  }
+  if (sourceUrl) { try { const parsed = new URL(sourceUrl); if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error(); } catch { return res.status(400).json({ error: 'Enter a valid source link' }); } }
+  const admin = getAdminSupabaseClient();
+  const { data: existing } = await admin.from('newsletter_community_submissions').select('contribution_type,consent_to_publish').eq('id', req.params.id).maybeSingle();
+  if (!existing) return res.status(404).json({ error: 'Submission not found' });
+  if (existing.contribution_type === 'news' && !sourceUrl && status === 'approved') return res.status(400).json({ error: 'Approved news requires a trustworthy source link' });
+  if (!existing.consent_to_publish && status === 'approved') return res.status(400).json({ error: 'This parent did not consent to publication' });
+  const { data, error } = await admin.from('newsletter_community_submissions').update({
+    title, content, display_name: displayName, source_url: sourceUrl, status, reviewed_at: new Date().toISOString(),
+  }).eq('id', req.params.id).select('*').single();
+  if (error) return res.status(500).json({ error: 'Unable to save this review' });
+  return res.json(data);
+});
+
+app.delete('/api/newsletter/admin/submissions/:id', authenticateToken, requireNewsletterAdmin, async (req, res) => {
+  const admin = getAdminSupabaseClient();
+  const { data, error } = await admin.from('newsletter_community_submissions')
+    .delete().eq('id', req.params.id).select('id').maybeSingle();
+  if (error) return res.status(500).json({ error: 'Unable to delete this submission' });
+  if (!data) return res.status(404).json({ error: 'Submission not found' });
+  return res.json({ deleted: true });
+});
+
+app.get('/api/newsletter/admin/preview', authenticateToken, requireNewsletterAdmin, async (_req, res) => {
+  try {
+    const deliveryWeekday = await getNewsletterDeliveryWeekday();
+    const nextIssueRun = getNextNewsletterDate(new Date(), deliveryWeekday);
+    const generated = await buildWeeklyNewsletter(nextIssueRun, false, deliveryWeekday);
+    const { data: savedDraft } = await getAdminSupabaseClient().from('newsletters').select('title,introduction,section_titles,section_visibility').eq('issue_date', generated.issue_date).is('published_at', null).maybeSingle();
+    return res.json(savedDraft ? {
+      ...generated,
+      title: savedDraft.title,
+      introduction: savedDraft.introduction,
+      section_titles: { ...newsletterSectionTitles, ...(savedDraft.section_titles || {}) },
+      section_visibility: { ...newsletterSectionVisibility, ...(savedDraft.section_visibility || {}) },
+    } : generated);
+  } catch (error) {
+    console.error('Newsletter preview failed:', error instanceof Error ? error.message : 'Unknown error');
+    return res.status(500).json({ error: 'Unable to prepare the newsletter preview' });
+  }
+});
+
+app.get('/api/newsletter/admin/settings', authenticateToken, requireNewsletterAdmin, async (_req, res) => {
+  return res.json({ deliveryWeekday: await getNewsletterDeliveryWeekday(), deliveryHourUtc: 13 });
+});
+
+app.put('/api/newsletter/admin/settings', authenticateToken, requireNewsletterAdmin, async (req, res) => {
+  const deliveryWeekday = Number(req.body?.deliveryWeekday);
+  if (!Number.isInteger(deliveryWeekday) || deliveryWeekday < 0 || deliveryWeekday > 6) return res.status(400).json({ error: 'Choose a valid delivery day' });
+  const { error } = await getAdminSupabaseClient().from('newsletter_settings').upsert({ id: true, delivery_weekday: deliveryWeekday, updated_at: new Date().toISOString() });
+  if (error) return res.status(500).json({ error: 'Unable to save the newsletter delivery day' });
+  return res.json({ deliveryWeekday, deliveryHourUtc: 13 });
+});
+
+app.put('/api/newsletter/admin/draft', authenticateToken, requireNewsletterAdmin, async (req, res) => {
+  const issueDate = String(req.body?.issueDate || '');
+  const title = String(req.body?.title || '').trim();
+  const introduction = String(req.body?.introduction || '').trim();
+  const sectionTitles = req.body?.sectionTitles;
+  const sectionVisibility = req.body?.sectionVisibility;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(issueDate) || title.length < 3 || title.length > 160 || introduction.length < 20 || introduction.length > 1000 || !sectionTitles || !sectionVisibility) {
+    return res.status(400).json({ error: 'Complete the draft title, introduction, and section settings' });
+  }
+  const safeTitles: Record<string, string> = {};
+  const safeVisibility: Record<string, boolean> = {};
+  for (const key of Object.keys(newsletterSectionTitles)) {
+    const value = String(sectionTitles[key] || '').trim();
+    if (value.length < 3 || value.length > 100) return res.status(400).json({ error: 'Each visible section needs a valid heading' });
+    safeTitles[key] = value;
+    safeVisibility[key] = sectionVisibility[key] !== false;
+  }
+  const previewRun = new Date(`${issueDate}T12:00:00.000Z`);
+  const deliveryWeekday = await getNewsletterDeliveryWeekday();
+  const generated = await buildWeeklyNewsletter(previewRun, false, deliveryWeekday);
+  const draft = { ...generated, title, introduction, section_titles: safeTitles, section_visibility: safeVisibility, published_at: null };
+  const { data, error } = await getAdminSupabaseClient().from('newsletters').upsert(draft, { onConflict: 'issue_date' }).select('*').single();
+  if (error) return res.status(500).json({ error: 'Unable to save the newsletter draft' });
+  return res.json(data);
 });
 
 app.get('/api/newsletter/confirm', async (req, res) => {
@@ -1130,6 +1322,8 @@ app.get('/api/cron/weekly-newsletter', async (req, res) => {
   const cronSecret = cleanEnvVar('CRON_SECRET');
   if (!cronSecret || req.get('authorization') !== `Bearer ${cronSecret}`) return res.status(401).json({ error: 'Unauthorized' });
   try {
+    const deliveryWeekday = await getNewsletterDeliveryWeekday();
+    if (new Date().getUTCDay() !== deliveryWeekday) return res.json({ skipped: true, reason: 'Not the configured newsletter delivery day' });
     const issue = await createWeeklyNewsletter();
     const delivery = await sendNewsletterIssue(issue, getPublicAppOrigin(req));
     return res.json({ issueDate: issue.issue_date, ...delivery });
@@ -4639,7 +4833,7 @@ export const parentAssistantFeatureCatalog = [
   { area: 'Parent account settings', routes: ['/profile'], help: 'Select the parent name in the top navigation to open Account Settings. In Profile Information update Full Name or Email. In Change Password enter a new password or leave it blank to keep the current password. In Parent Messaging set Days to Keep Messages. Select Save Changes. Profile also provides welcome-email resend and email-delivery checks when configured.' },
   { area: 'Family stories and testimonials', routes: ['/testimonials'], help: 'Open Family Stories from the footer or mobile menu. Visual Steps publishes testimonials only with explicit family approval and never converts private child data into public quotes. Select Share your story to open the Contact page with the testimonial subject prepared.' },
   { area: 'Contact Visual Steps', routes: ['/contact'], help: 'Open Contact from the top navigation, footer, or mobile menu. Enter your name, reply email, subject, and message, then select Open email to send. The form opens the visitor’s own email application and does not store the fields in the Visual Steps database. Never include passwords, API keys, child login codes, or sensitive clinical information.' },
-  { area: 'Visual Steps weekly newsletter', routes: ['/newsletter'], help: 'Open Newsletter from the footer or mobile menu. The Weekly Archive shows each published Monday issue with New Features Added, Feature Details, approved Parent Testimonials Added, and Tips and Tricks for Parents. To receive it by email, enter an address, select Subscribe, and use the confirmation link sent by Visual Steps. Every issue includes one-click unsubscribe, and subscriber addresses remain private.' },
+  { area: 'Visual Steps weekly newsletter', routes: ['/newsletter', '/newsletter-admin'], help: 'Open Newsletter from the footer or mobile menu. Each weekly issue includes new features and details, illustrated previews, approved parent stories/news/information/tips, testimonials, popular features, curated activities/games/websites, current membership details, and parent tips. A signed-in parent can use Share with the community to submit autism-related content with publication consent; submissions remain private until reviewed and approved. Approved administrators see Manage newsletter, which opens the protected Newsletter Administration page to manage submissions, change the weekly delivery day, edit and save the next issue template, and preview it without publishing or emailing it. Email subscription requires confirmation and every issue includes one-click unsubscribe.' },
   { area: 'Child dashboard', routes: ['/kids-dashboard/:kidId'], help: 'Children sign in with their Kid Code. To Be Done lists pending activities, Waiting for parent verification lists submitted work, Completed shows completed activities, and Rewards shows items they may purchase with earned tokens. Meaningful completions show celebrations. A verification-required submission tells the child to wait and does not award tokens until parent approval.' },
   { area: 'Offline and installation', routes: ['/'], help: 'Visual Steps is installable as a PWA from a supported browser and can be added to an iPhone or iPad Home Screen through Safari Share > Add to Home Screen. When internet access is lost, the app displays an offline notice; database, sign-in, and AI operations require reconnection.' },
 ] as const;
