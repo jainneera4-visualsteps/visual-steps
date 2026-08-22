@@ -1,4 +1,4 @@
-import { FeaturePlan } from './featureRegistry';
+import type { FeaturePlan } from './featureRegistry';
 
 export type MembershipPlan = { name:string; price:string; suffix?:string; description:string; plan:FeaturePlan; features:string[]; action:string; href?:string; featured?:boolean; status:'Available now'|'Coming soon' };
 

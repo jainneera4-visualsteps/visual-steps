@@ -52,7 +52,8 @@ test('saved newsletter drafts are protected and used by scheduled publication', 
 });
 
 test('newsletter combines feature guidance, hides empty sections, and explains popularity without public counts', async () => {
-  const [server, page] = await Promise.all([read('server.ts'), read('src/pages/Newsletter.tsx')]);
+  const [server, page, membershipPlans] = await Promise.all([read('server.ts'), read('src/pages/Newsletter.tsx'), read('src/content/membershipPlans.ts')]);
+  assert.match(membershipPlans, /import type \{ FeaturePlan \}/);
   assert.match(server, /new_features: features\.map\(feature => \(\{ title: feature\.title, summary: feature\.summary, details: feature\.details, help: feature\.help/);
   assert.match(server, /newsletterSectionHtml = \(title: string, items: string\[\], columns = 1, bulleted = false\) => items\.length \?/);
   assert.doesNotMatch(page, /uses recorded/);
