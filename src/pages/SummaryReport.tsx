@@ -9,7 +9,7 @@ import { formatInTimezone } from '../utils/dateUtils';
 import { formatReward } from '../utils/rewardUtils';
 
 interface Kid { name: string; timezone?: string; reward_type?: string; reward_balance?: number }
-interface Assigned { id: string; activity_type: string; category?: string; description?: string; status: string; completion_date?: string; created_at?: string; reward_qty?: number; attempt_generation?: number }
+interface Assigned { id: string; activity_type: string; category?: string; description?: string; status: string; completion_date?: string; created_at?: string; reward_qty?: number; attempt_generation?: number; repeat_count?: number }
 interface Quiz { id: string; score: number; total_questions: number; completed_at: string; quizzes?: { title?: string } }
 interface Purchase { id: string; item_name: string; cost: number; purchased_at: string; location?: string }
 interface TimelineItem { id: string; type: 'Activity' | 'Quiz' | 'Purchase'; title: string; details: string; date: string; reward?: number }
@@ -59,7 +59,7 @@ export default function SummaryReport() {
     const completed = [...recentHistory, ...currentCompleted];
     const recentQuizzes = quizzes.filter(item => within30Days(item.completed_at));
     const recentPurchases = purchases.filter(item => within30Days(item.purchased_at));
-    const repeats = assigned.filter(item => Number(item.attempt_generation || 1) > 1);
+    const repeats = assigned.filter(item => Number(item.repeat_count || 0) > 0);
     const quizAverage = recentQuizzes.length ? Math.round(recentQuizzes.reduce((sum, item) => sum + (item.total_questions ? item.score / item.total_questions * 100 : 0), 0) / recentQuizzes.length) : null;
     const categories = Array.from(new Set(completed.map(item => item.category || 'Uncategorized')))
       .map(name => ({ name, completed: completed.filter(item => (item.category || 'Uncategorized') === name).length }))

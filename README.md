@@ -124,6 +124,7 @@ Supabase sends the reset-link email, so configure Supabase Auth SMTP for reliabl
 | `SUPABASE_SERVICE_ROLE_KEY` | Recommended | Administrative operations that must bypass RLS |
 | `JWT_SECRET` | Yes in production | Signs child-session tokens; the development fallback is not production-safe |
 | `APP_URL` | Deployment-dependent | Public application URL used in generated links and emails; production uses `https://visual-steps-six.vercel.app` |
+| `FACEBOOK_URL`, `INSTAGRAM_URL` | Optional | Public social-profile links shown in newsletters when configured |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Optional | Email delivery |
 
 See `.env.example` for the complete template.

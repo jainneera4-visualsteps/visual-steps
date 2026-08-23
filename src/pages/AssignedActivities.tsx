@@ -7,9 +7,9 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import { ArrowLeft, Plus, Trash2, Edit2, CheckCircle, Circle, Calendar, Clock, Image as ImageIcon, Eye, Sparkles, Loader2, LayoutList, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Activity, Award, History, Lock, HelpCircle, X, WifiOff, ShieldCheck, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Edit2, CheckCircle, Circle, Calendar, Clock, Image as ImageIcon, Eye, Sparkles, Loader2, LayoutList, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Activity, Award, History, Lock, HelpCircle, X, WifiOff, ShieldCheck, RotateCcw, PauseCircle, Ban } from 'lucide-react';
 import { ActivityDetailModal } from '../components/ActivityDetailModal';
-import { formatInTimezone, getZonedTime, convertDateToTimeZone } from '../utils/dateUtils';
+import { formatAppDateTime, formatInTimezone, getZonedTime, convertDateToTimeZone } from '../utils/dateUtils';
 
 interface ActivityStep {
   id?: number;
@@ -17,6 +17,10 @@ interface ActivityStep {
   description: string;
   image_url?: string;
 }
+
+type ActivityStatus = 'pending' | 'awaiting_verification' | 'completed' | 'on_hold' | 'ended';
+type ActivityOutcome = '' | 'reassign' | 'on_hold' | 'ended';
+type ReassignmentLevel = 'same' | 'up' | 'down';
 
 interface Activity {
   id: string;
@@ -29,7 +33,7 @@ interface Activity {
   description: string;
   link: string;
   image_url: string;
-  status: 'pending' | 'awaiting_verification' | 'completed';
+  status: ActivityStatus;
   requires_verification?: boolean;
   submitted_at?: string;
   verified_at?: string;
@@ -41,6 +45,8 @@ interface Activity {
   isHistory?: boolean;
   reward_qty?: number;
   completion_date?: string;
+  reassignment_level?: ReassignmentLevel;
+  repeat_count?: number;
 }
 
 interface Kid {
@@ -128,7 +134,7 @@ export default function AssignedActivities() {
     return new Date(zoned.year, zoned.month - 1, 1);
   });
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'activities' | 'verification' | 'completed' | 'history' | 'rewards'>((searchParams.get('tab') as any) || 'activities');
+  const [activeTab, setActiveTab] = useState<'activities' | 'verification' | 'completed' | 'on_hold' | 'ended' | 'history' | 'rewards'>((searchParams.get('tab') as any) || 'activities');
 
   const [templates, setTemplates] = useState<ActivityTemplate[]>([]);
   const [socialStories, setSocialStories] = useState<any[]>([]);
@@ -183,6 +189,8 @@ export default function AssignedActivities() {
   const [completedSearchQuery, setCompletedSearchQuery] = useState('');
   const [completedCategoryFilter, setCompletedCategoryFilter] = useState('All');
   const [completedDateFilter, setCompletedDateFilter] = useState('');
+  const [activityOutcome, setActivityOutcome] = useState<ActivityOutcome>('');
+  const [reassignmentLevel, setReassignmentLevel] = useState<ReassignmentLevel>('same');
   const [historySearchQuery, setHistorySearchQuery] = useState('');
   const [historyDateFilter, setHistoryDateFilter] = useState('');
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([]);
@@ -209,8 +217,8 @@ export default function AssignedActivities() {
     if (!date) return '';
     const defaultOptions: Intl.DateTimeFormatOptions = {
       year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
+      month: 'short',
+      day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
       hour12: false,
@@ -223,7 +231,7 @@ export default function AssignedActivities() {
     if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
       const [y, m, d] = dateStr.split('T')[0].split('-');
       const date = new Date(Date.UTC(Number(y), Number(m)-1, Number(d)));
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+      return formatInTimezone(date, 'UTC', { month: 'short', day: 'numeric', year: 'numeric' });
     }
     return formatKidDate(dateStr, { month: 'short', day: 'numeric', year: 'numeric', hour: undefined, minute: undefined });
   };
@@ -239,6 +247,10 @@ export default function AssignedActivities() {
       ? activities.filter(a => a.status === 'awaiting_verification')
     : activeTab === 'completed' 
       ? activities.filter(a => a.status === 'completed')
+      : activeTab === 'on_hold'
+        ? activities.filter(a => a.status === 'on_hold')
+        : activeTab === 'ended'
+          ? activities.filter(a => a.status === 'ended')
       : historyActivities;
 
   const fixedBuiltInActivities = [
@@ -885,6 +897,8 @@ export default function AssignedActivities() {
     setPredefinedId('');
     if (activity) {
       setEditingActivity(activity);
+      setActivityOutcome(activity.status === 'on_hold' ? 'on_hold' : activity.status === 'ended' ? 'ended' : '');
+      setReassignmentLevel(activity.reassignment_level || 'same');
       const freq = activity.repeat_frequency || 'Never';
       let repeatInterval = activity.repeat_interval || 1;
       let repeatUnit = activity.repeat_unit || 'day';
@@ -923,6 +937,8 @@ export default function AssignedActivities() {
       });
     } else {
       setEditingActivity(null);
+      setActivityOutcome('');
+      setReassignmentLevel('same');
       
       // Calculate default due date based on local time and kid's end time
       const now = new Date();
@@ -1059,8 +1075,22 @@ export default function AssignedActivities() {
       return;
     }
 
-    // Check if assigning for past dates or today past end time
-    if (formData.dueDate) {
+    const needsOutcome = editingActivity && ['completed', 'on_hold', 'ended'].includes(editingActivity.status);
+    if (needsOutcome && !activityOutcome) {
+      setFormError('Select Reassign, On Hold, or Discontinued / Ended.');
+      return;
+    }
+    const nextStatus: ActivityStatus = activityOutcome === 'reassign'
+      ? 'pending'
+      : activityOutcome === 'on_hold'
+        ? 'on_hold'
+        : activityOutcome === 'ended'
+          ? 'ended'
+          : formData.status as ActivityStatus;
+
+    // A new or reassigned activity needs a current/future due date. Holding or
+    // ending an existing record must remain possible even when its date passed.
+    if (formData.dueDate && (!editingActivity || nextStatus === 'pending')) {
       const zoned = getZonedTime(kid?.timezone);
       const now = new Date(zoned.year, zoned.month - 1, zoned.day);
       now.setHours(0, 0, 0, 0); // Midnight today in kid's local time (represented in system local)
@@ -1101,6 +1131,8 @@ export default function AssignedActivities() {
       
       const body = {
         ...formData,
+        status: nextStatus,
+        reassignmentLevel: activityOutcome === 'reassign' ? reassignmentLevel : null,
         repeatFrequency: formData.repeatFrequency === 'Custom' ? `Every ${formData.repeatInterval} ${formData.repeatUnit}${formData.repeatInterval > 1 ? 's' : ''}` : formData.repeatFrequency,
         repeat_interval: formData.repeatFrequency === 'Custom' ? formData.repeatInterval : null,
         repeat_unit: formData.repeatFrequency === 'Custom' ? formData.repeatUnit : null,
@@ -1297,6 +1329,7 @@ export default function AssignedActivities() {
           imageUrl: activity.image_url,
           dueDate: activity.due_date,
           status: newStatus,
+          ...(newStatus === 'pending' ? { reassignmentLevel: 'same' } : {}),
           ...(newStatus === 'completed' ? {
             completedAt: convertDateToTimeZone(new Date(), kid?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone),
             createdAt: convertDateToTimeZone(activity.created_at, kid?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone)
@@ -1330,6 +1363,7 @@ export default function AssignedActivities() {
           repeat_unit: activity.repeat_unit,
           requiresVerification: activity.requires_verification === true,
           status: decision === 'complete' ? 'completed' : 'pending',
+          ...(decision === 'reassign' ? { reassignmentLevel: 'same' } : {}),
         }),
       });
 
@@ -1521,8 +1555,9 @@ export default function AssignedActivities() {
     );
   };
 
-  const renderCompletedTab = () => {
-    const completedOriginal = activities.filter(a => a.status === 'completed' && (!selectedDate || a.due_date === selectedDate));
+  const renderCompletedTab = (status: 'completed' | 'on_hold' | 'ended' = 'completed') => {
+    const statusLabel = status === 'completed' ? 'completed' : status === 'on_hold' ? 'on-hold' : 'discontinued / ended';
+    const completedOriginal = activities.filter(a => a.status === status && (!selectedDate || a.due_date === selectedDate));
     
     const filteredCompleted = completedOriginal
       .filter(a => completedCategoryFilter === 'All' || (a.category || 'Uncategorized') === completedCategoryFilter)
@@ -1656,8 +1691,8 @@ export default function AssignedActivities() {
               <div className="bg-slate-50 p-4 rounded-full mb-3">
                 <CheckCircle className="h-8 w-8 text-slate-300" />
               </div>
-              <p className="text-sm font-bold text-slate-600">{selectedDate ? 'No completed activities for this day' : 'No completed activities yet'}</p>
-              <p className="text-xs mt-1">{selectedDate ? 'Try selecting another date or clear the filter.' : 'Activities you complete will appear here.'}</p>
+              <p className="text-sm font-bold text-slate-600">{selectedDate ? `No ${statusLabel} activities for this day` : `No ${statusLabel} activities yet`}</p>
+              <p className="text-xs mt-1">{selectedDate ? 'Try selecting another date or clear the filter.' : `Activities marked ${statusLabel} will appear here.`}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -1809,8 +1844,8 @@ export default function AssignedActivities() {
                   {paginatedCompleted.map((activity) => (
                     <tr key={activity.id} className="hover:bg-slate-50 transition-colors bg-white">
                       <td className="px-4 py-3">
-                        <div className="text-emerald-500">
-                          <CheckCircle className="h-5 w-5" />
+                        <div className={status === 'completed' ? 'text-emerald-500' : status === 'on_hold' ? 'text-amber-500' : 'text-slate-500'}>
+                          {status === 'completed' ? <CheckCircle className="h-5 w-5" /> : status === 'on_hold' ? <PauseCircle className="h-5 w-5" /> : <Ban className="h-5 w-5" />}
                         </div>
                       </td>
                       <td className="px-4 py-3">
@@ -1909,6 +1944,10 @@ export default function AssignedActivities() {
                       ? <div className="flex items-center gap-4"><ShieldCheck className="h-12 w-12 text-amber-500" /> Waiting for Verification</div>
                     : activeTab === 'completed' 
                         ? <div className="flex items-center gap-4"><CheckCircle className="h-12 w-12 text-emerald-600" /> {kid?.name ? `${kid.name}'s ` : ''}Completed Activities</div>
+                        : activeTab === 'on_hold'
+                          ? <div className="flex items-center gap-4"><PauseCircle className="h-12 w-12 text-amber-500" /> {kid?.name ? `${kid.name}'s ` : ''}On Hold Activities</div>
+                          : activeTab === 'ended'
+                            ? <div className="flex items-center gap-4"><Ban className="h-12 w-12 text-slate-500" /> {kid?.name ? `${kid.name}'s ` : ''}Discontinued / Ended Activities</div>
                         : activeTab === 'history'
                             ? <div className="flex flex-col gap-1">
                                 <div className="flex items-center gap-4">
@@ -1936,6 +1975,10 @@ export default function AssignedActivities() {
                       ? `Review activities ${kid?.name || 'your child'} submitted before rewards are granted.`
                     : activeTab === 'completed' 
                         ? 'Activities that have been marked as completed. You can repeat them if you want.' 
+                        : activeTab === 'on_hold'
+                          ? 'Paused activities can be opened and reassigned whenever the child is ready.'
+                          : activeTab === 'ended'
+                            ? 'Ended activities remain available and can be started again later.'
                         : activeTab === 'history'
                             ? 'View past activity and reward history.'
                             : 'Add or edit reward items'}
@@ -1979,6 +2022,28 @@ export default function AssignedActivities() {
                   </CustomTooltip>
                   <CustomTooltip content="View activity history">
                     <button
+                      onClick={() => setActiveTab('on_hold')}
+                      className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
+                        activeTab === 'on_hold' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+                      }`}
+                    >
+                      <PauseCircle className="h-3 w-3" />
+                      On Hold
+                    </button>
+                  </CustomTooltip>
+                  <CustomTooltip content="View discontinued or ended activities">
+                    <button
+                      onClick={() => setActiveTab('ended')}
+                      className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
+                        activeTab === 'ended' ? 'bg-slate-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+                      }`}
+                    >
+                      <Ban className="h-3 w-3" />
+                      Ended
+                    </button>
+                  </CustomTooltip>
+                  <CustomTooltip content="View activity history">
+                    <button
                       onClick={() => setActiveTab('history')}
                       className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
                         activeTab === 'history' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
@@ -2014,7 +2079,7 @@ export default function AssignedActivities() {
             </div>
           </div>
 
-          {(activeTab === 'activities' || activeTab === 'completed' || activeTab === 'history') && (
+          {(activeTab === 'activities' || activeTab === 'completed' || activeTab === 'on_hold' || activeTab === 'ended' || activeTab === 'history') && (
               <div className="flex items-center justify-between gap-4 no-print">
                 <div className="flex border-b border-slate-200">
                   <button
@@ -2051,8 +2116,10 @@ export default function AssignedActivities() {
                 <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
                   {activeTab === 'activities' && <LayoutList className="h-5 w-5 text-blue-600" />}
                   {activeTab === 'completed' && <CheckCircle className="h-5 w-5 text-emerald-600" />}
+                  {activeTab === 'on_hold' && <PauseCircle className="h-5 w-5 text-amber-500" />}
+                  {activeTab === 'ended' && <Ban className="h-5 w-5 text-slate-500" />}
                   {activeTab === 'history' && <History className="h-5 w-5 text-blue-600" />}
-                  {activeTab === 'activities' ? 'Activities Calendar' : activeTab === 'completed' ? 'Completed Activities Calendar' : 'Activity History Calendar'}
+                  {activeTab === 'activities' ? 'Activities Calendar' : activeTab === 'completed' ? 'Completed Activities Calendar' : activeTab === 'on_hold' ? 'On Hold Activities Calendar' : activeTab === 'ended' ? 'Ended Activities Calendar' : 'Activity History Calendar'}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -2434,6 +2501,10 @@ export default function AssignedActivities() {
             </Card>
         )) : activeTab === 'completed' ? (
           renderCompletedTab()
+        ) : activeTab === 'on_hold' ? (
+          renderCompletedTab('on_hold')
+        ) : activeTab === 'ended' ? (
+          renderCompletedTab('ended')
         ) : activeTab === 'history' ? (
         <Card className="border-none ring-1 ring-slate-200 shadow-sm">
           <CardContent className="p-0">
@@ -2957,7 +3028,7 @@ export default function AssignedActivities() {
             </div>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Completed on {new Date(viewingQuizResult.completed_at).toLocaleString()}
+            Completed on {formatAppDateTime(viewingQuizResult.completed_at, kid?.timezone)}
           </p>
         </CardHeader>
         <CardContent className="px-4 pb-4 space-y-4">
@@ -3392,35 +3463,55 @@ export default function AssignedActivities() {
                   </label>
                 </div>
 
-                {editingActivity && editingActivity.status === 'completed' && (
-                  <div className="flex items-center gap-2 p-2 bg-blue-50 rounded border border-blue-100 mb-2">
-                    <input
-                      type="checkbox"
-                      id="status-pending"
-                      checked={formData.status === 'pending'}
-                      onChange={(e) => setFormData({ ...formData, status: e.target.checked ? 'pending' : 'completed' })}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 rounded"
-                    />
-                    <div className="flex items-center gap-1.5">
-                      <label htmlFor="status-pending" className="text-sm font-medium text-blue-800">
-                        Re-assign
-                      </label>
-                      <div className="group relative">
-                        <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
-                        <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
-                          <div className="flex items-start gap-3">
-                            <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
-                              <HelpCircle className="h-4 w-4 text-yellow-700" />
-                            </div>
-                            <span className="font-bold text-[15px] leading-tight text-slate-900 normal-case">
-                              Check this to reset a completed activity to re-assign for another date to repeat the activity
-                            </span>
-                          </div>
-                          <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
-                        </div>
-                      </div>
+                {editingActivity && ['completed', 'on_hold', 'ended'].includes(editingActivity.status) && (
+                  <fieldset className="rounded-xl border border-blue-200 bg-blue-50/70 p-3">
+                    <legend className="px-1 text-sm font-bold text-blue-950">What should happen next? <span className="text-red-600">*</span></legend>
+                    <p className="mb-3 text-xs leading-5 text-blue-800">
+                      Select one outcome. Rewards are not added again when an activity is reassigned.
+                    </p>
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      {([
+                        ['reassign', 'Reassign', 'Return it to Assigned Activities.'],
+                        ['on_hold', 'On Hold', 'Pause it until the child is ready.'],
+                        ['ended', 'Discontinued / Ended', 'Stop it without deleting its record.'],
+                      ] as const).map(([value, label, help]) => (
+                        <label key={value} className={`cursor-pointer rounded-lg border p-3 transition-colors ${activityOutcome === value ? 'border-blue-500 bg-white ring-1 ring-blue-400' : 'border-blue-100 bg-white/70 hover:border-blue-300'}`}>
+                          <span className="flex items-center gap-2 text-sm font-bold text-slate-900">
+                            <input
+                              type="radio"
+                              name="activity-outcome"
+                              value={value}
+                              checked={activityOutcome === value}
+                              onChange={() => setActivityOutcome(value)}
+                              required
+                              className="h-4 w-4 border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            {label}
+                          </span>
+                          <span className="mt-1 block pl-6 text-xs leading-4 text-slate-600">{help}</span>
+                        </label>
+                      ))}
                     </div>
-                  </div>
+
+                    {activityOutcome === 'reassign' && (
+                      <div className="mt-3 rounded-lg border border-indigo-200 bg-white p-3">
+                        <label htmlFor="reassignment-level" className="block text-xs font-bold uppercase tracking-wide text-indigo-800">
+                          Reassignment level <span className="text-red-600">*</span>
+                        </label>
+                        <select
+                          id="reassignment-level"
+                          value={reassignmentLevel}
+                          onChange={(event) => setReassignmentLevel(event.target.value as ReassignmentLevel)}
+                          required
+                          className="mt-1 h-9 w-full rounded-md border border-indigo-200 bg-white px-3 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        >
+                          <option value="same">Same level — count as a repeated activity</option>
+                          <option value="up">Level up — increase the challenge</option>
+                          <option value="down">Level down — add more support</option>
+                        </select>
+                      </div>
+                    )}
+                  </fieldset>
                 )}
 
                 {!editingActivity && (

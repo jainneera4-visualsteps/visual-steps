@@ -58,14 +58,26 @@ export function formatInTimezone(date: Date | string | number, timezone?: string
   const tz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   
   try {
-    return new Intl.DateTimeFormat('en-US', {
+    const formatted = new Intl.DateTimeFormat('en-GB', {
       ...options,
       timeZone: tz
     }).format(d);
+    return formatted.replace(/\b(\d{1,2}) ([A-Za-z]{3}) (\d{4})\b/, '$1 $2, $3');
   } catch (e) {
     console.error('Error in formatInTimezone:', e);
-    return d.toLocaleString();
+    const formatted = new Intl.DateTimeFormat('en-GB', options).format(d);
+    return formatted.replace(/\b(\d{1,2}) ([A-Za-z]{3}) (\d{4})\b/, '$1 $2, $3');
   }
+}
+
+/** Formats every user-facing date consistently as `24 Aug, 2026`. */
+export function formatAppDate(date: Date | string | number, timezone?: string) {
+  return formatInTimezone(date, timezone, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+/** Adds a time while preserving the shared user-facing date convention. */
+export function formatAppDateTime(date: Date | string | number, timezone?: string) {
+  return formatInTimezone(date, timezone, { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
 }
 
 /**

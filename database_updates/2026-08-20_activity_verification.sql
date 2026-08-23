@@ -15,9 +15,8 @@ ALTER TABLE public.activities
 
 ALTER TABLE public.activities
   ADD CONSTRAINT activities_status_check
-  CHECK (status IN ('pending', 'awaiting_verification', 'completed'));
+  CHECK (status IN ('pending', 'awaiting_verification', 'completed', 'on_hold', 'ended'));
 
 CREATE INDEX IF NOT EXISTS activities_waiting_for_verification_idx
   ON public.activities(kid_id, submitted_at DESC)
   WHERE status = 'awaiting_verification';
-

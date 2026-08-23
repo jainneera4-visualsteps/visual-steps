@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { convertDateToTimeZone, formatInTimezone, getZonedTime } from '../src/utils/dateUtils';
+import { convertDateToTimeZone, formatAppDate, formatAppDateTime, formatInTimezone, getZonedTime } from '../src/utils/dateUtils';
 
 const instant = new Date('2026-08-14T16:30:45.000Z');
 
@@ -20,4 +20,10 @@ test('convertDateToTimeZone formats a UTC instant for New York', () => {
 test('date helpers return an empty string for invalid input', () => {
   assert.equal(formatInTimezone('not-a-date', 'UTC'), '');
   assert.equal(convertDateToTimeZone('not-a-date', 'UTC'), '');
+});
+
+test('user-facing dates use the shared day month, year format', () => {
+  assert.equal(formatAppDate(instant, 'UTC'), '14 Aug, 2026');
+  assert.match(formatAppDateTime(instant, 'UTC'), /^14 Aug, 2026, 4:30 pm$/i);
+  assert.equal(formatInTimezone(instant, 'UTC', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }), 'Fri, 14 Aug, 2026');
 });

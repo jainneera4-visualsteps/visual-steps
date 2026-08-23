@@ -6,6 +6,7 @@ import { celebrate } from '../utils/celebration';
 import { SocialStoryModal } from './SocialStoryModal';
 import { Link } from 'react-router-dom';
 import { Tooltip } from './ui/Tooltip';
+import { formatAppDateTime } from '../utils/dateUtils';
 
 interface ActivityStep {
   id?: number;
@@ -24,7 +25,7 @@ interface Activity {
   description: string;
   link: string;
   image_url: string;
-  status: 'pending' | 'awaiting_verification' | 'completed';
+  status: 'pending' | 'awaiting_verification' | 'completed' | 'on_hold' | 'ended';
   due_date: string;
   repeat_interval?: number;
   repeat_unit?: string;
@@ -363,7 +364,7 @@ export function ActivityDetailModal({
                   {activity.status === 'completed' && (activity.completion_date || activity.created_at) && (
                     <div className="text-[12px] font-bold text-emerald-500 uppercase tracking-widest flex items-center gap-1">
                       <CheckCircle className="h-2.5 w-2.5" />
-                      Completed: {new Date(activity.completion_date || activity.created_at || "").toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                      Completed: {formatAppDateTime(activity.completion_date || activity.created_at || '')}
                     </div>
                   )}
                 </div>

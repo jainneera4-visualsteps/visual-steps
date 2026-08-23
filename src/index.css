@@ -374,6 +374,14 @@ body {
   padding-left: env(safe-area-inset-left);
 }
 
+/* Newsletter prose is justified in both the archive and admin preview. */
+.newsletter-copy p,
+.newsletter-copy li {
+  text-align: justify;
+  text-justify: inter-word;
+  hyphens: auto;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     scroll-behavior: auto !important;

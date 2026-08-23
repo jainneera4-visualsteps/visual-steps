@@ -1,4 +1,5 @@
 import { apiFetch } from '../utils/api';
+import { formatAppDate, formatAppDateTime } from '../utils/dateUtils';
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
@@ -502,7 +503,7 @@ export default function SocialStories() {
                               const d = new Date(story.updated_at || story.created_at);
                               return isNaN(d.getTime()) 
                                 ? (story.updated_at || story.created_at) 
-                                : d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+                                : formatAppDate(d);
                             })()}
                           </span>
                         </td>
@@ -566,7 +567,7 @@ export default function SocialStories() {
               </p>
               {hasActiveShare && !shareUrl && (
                 <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-                  An active link exists{shareExpiresAt ? ` until ${new Date(shareExpiresAt).toLocaleString()}` : ''}. Create a new link to replace it, or stop sharing.
+                  An active link exists{shareExpiresAt ? ` until ${formatAppDateTime(shareExpiresAt)}` : ''}. Create a new link to replace it, or stop sharing.
                 </div>
               )}
               <label className="block text-sm font-bold text-slate-700">

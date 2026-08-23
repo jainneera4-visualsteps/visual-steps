@@ -1,5 +1,6 @@
 import { Tooltip } from '../components/ui/Tooltip';
 import { apiFetch, safeJson } from '../utils/api';
+import { formatAppDate } from '../utils/dateUtils';
 import { io } from 'socket.io-client';
 import { formatReward, rewardImages } from '../utils/rewardUtils';
 import { useEffect, useState } from 'react';
@@ -381,7 +382,7 @@ export default function Dashboard() {
 
   const formatMessageTimestamp = (createdAt: string) => {
     const date = new Date(createdAt);
-    const datePart = date.toLocaleDateString();
+    const datePart = formatAppDate(date);
     const timePart = date.toLocaleTimeString([], {
       hour: 'numeric',
       minute: '2-digit',

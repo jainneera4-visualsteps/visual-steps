@@ -49,8 +49,8 @@ const productFeatureRegistry = [
     "id": "activity-verification",
     "title": "Parent activity verification",
     "summary": "Choose which activities require parent approval before rewards are earned.",
-    "details": "Parents decide which activities can finish immediately and which need adult verification. A child who submits verification-required work sees that it is waiting for a parent rather than already complete. The parent can approve it or return the same activity to pending when more work is needed. Rewards are added only after approval, keeping recognition connected to genuinely completed effort.",
-    "help": "Enable Parent verification required while adding or editing an activity. Submitted work moves to To Be Verified, where a parent can complete or reassign it.",
+    "details": "Parents decide which activities can finish immediately and which need adult verification. A child who submits verification-required work sees that it is waiting for a parent rather than already complete. From a completed activity, a parent must choose to reassign it, place it on hold, or mark it discontinued or ended. Reassignment can stay at the same level, move up, or move down; only the same-level choice is counted as a repeated activity. Rewards are added only after approval and are not added again merely because an activity is reassigned.",
+    "help": "Enable Parent verification required while adding or editing an activity. Submitted work moves to To Be Verified. Open a completed, on-hold, or ended activity to choose its next outcome and, when reassigning, select Same, Up, or Down level.",
     "introducedOn": "2026-08-20",
     "plan": "starter",
     "icon": "shield",
@@ -980,37 +980,90 @@ const escapeEmailHtml = (value: unknown) => String(value ?? '')
   .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 const newsletterEmailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Editorial standard for every generated newsletter suggestion. In Visual
+// Steps, "kids" includes autistic people across the lifespan—from young
+// children through teenagers and adults. Recommendations must be adaptable to
+// age, communication style, autonomy, abilities, interests and support needs.
+const newsletterEditorialFocus = 'meaningful engagement and healthy physical, emotional, social, practical, and intellectual growth for autistic people of all ages—from younger children through teenagers and adults—and the parents, family members, and caregivers growing alongside them';
+const newsletterCommunityContext = 'Selected because it offers a respectful idea that families and caregivers can adapt to the autistic person’s age, interests, autonomy, communication style, and support needs.';
+const newsletterTestimonialContext = 'This family experience shows how autistic people and the people supporting them can learn, communicate, and grow together; individual experiences and support needs will vary.';
+
+const getNewsletterFeatureImpact = (feature: { id: string; title: string }) => {
+  const impacts: Record<string, string> = {
+    'visual-activities': 'Adaptable visual steps can reduce uncertainty and support participation in self-care, learning, work preparation, household routines, health, movement, and community life at any age. Families and caregivers can provide the amount of support the person wants while building confidence, practical skills, and autonomy together.',
+    'activity-verification': 'Verification gives families and caregivers a respectful pause to notice effort, understand unfinished steps, and offer appropriate support before rewards are added. It supports honest progress without treating a younger child, teenager, or adult as though every task and support need is the same.',
+    'behavior-bonuses': 'Specific recognition connects rewards to meaningful effort, self-advocacy, regulation, cooperation, persistence, or growing independence rather than simply giving free points. Parents and caregivers remain responsible for keeping recognition age-appropriate, sincere, and respectful of the autistic person’s preferences.',
+    'quiz-attempt-locking': 'One intentional attempt protects meaningful learning and helps caregivers identify what teaching, practice, accessibility, or sensory support may be needed next. Reassignment becomes a considered opportunity for growth rather than pressure to repeat until a perfect score appears.',
+    'curated-samples': 'Samples help families understand learning formats before spending AI allowance or creating material. They can be adapted for different ages, interests, communication methods, intellectual goals, and support needs so learning remains relevant rather than childish or one-size-fits-all.',
+    'parent-onboarding': 'A shared understanding of the app helps parents and other caregivers provide more consistent support while still responding to the autistic person as an individual. Families can revisit the tour as goals change from childhood routines to teenage transitions, adult independence, work, and community participation.',
+    'parent-assistant': 'The assistant helps caregivers turn family information into clearer next steps while keeping questions focused on Visual Steps. Used thoughtfully, it can support coordinated planning around wellbeing, movement, learning, life skills, interests, autonomy, and relationships across the lifespan.',
+    'controlled-sharing': 'Private sharing lets families coordinate relevant support with teachers, therapists, relatives, employers, support workers, or other trusted caregivers without exposing the full account. Expiring access helps the autistic person and family share only what is useful for a specific goal or transition.',
+    'guest-demo': 'The demonstration helps families and caregivers explore routines, learning, communication, and rewards before creating an account. It shows how the same structure can be adapted for a young child, teenager, or autistic adult without saving private family data.',
+    'learning-progress-rewards': 'Progress information helps families recognize strengths and plan balanced next steps across learning, practical skills, wellbeing, movement, interests, and participation. Meaningful rewards and reports can support shared reflection without reducing a person’s growth to points or scores.',
+  };
+  return impacts[feature.id] || `${feature.title} is presented as an adaptable tool for meaningful participation and healthy physical, emotional, social, practical, or intellectual growth. Families and caregivers should apply it in an age-respectful way that supports the autistic person’s autonomy, interests, communication, and individual goals.`;
+};
+
 const newsletterTips = [
-  'Choose one routine to simplify this week. Break it into a few clear steps that your child can see and follow. Fewer, clearer steps are often easier to understand than a long verbal reminder. Notice which step still needs support and adjust it gently next time.',
-  'Praise the specific behavior you observed, such as trying again, waiting calmly, or following a direction. Naming the behavior helps your child understand exactly what went well. Keep the message warm, brief, and sincere. When appropriate, record a behavior bonus so the encouragement feels earned rather than automatic.',
-  'Review activities that needed another try before planning the next worksheet or lesson. Look for the exact step where your child became unsure, distracted, or overwhelmed. Repetition can show where a smaller step, visual prompt, or different explanation would help. Use that information to make the next activity achievable without making it too easy.',
-  'Keep rewards predictable by explaining which actions can earn them. Record the positive reason whenever you give a behavior bonus so your child connects the reward with genuine effort or growth. Avoid adding tokens only because they were requested. Calm, consistent boundaries help rewards remain meaningful over time.',
-  'Use a social story before a new, unfamiliar, or difficult event. Read it when everyone is calm and allow time for questions without pressuring your child. Revisit the story afterward to discuss what felt easy, surprising, or challenging. Update future preparation based on what your child actually experienced.',
-  'When a quiz result is lower than expected, review the topic before assigning another attempt. Focus on understanding the missed ideas instead of only aiming for a higher score. Offer a short lesson, visual example, or related worksheet that addresses the difficulty. Reassign the quiz only when a fresh attempt supports learning rather than repeated guessing.',
+  'Choose one everyday routine to practice together this week. Break it into visible steps and let the autistic person take an active role that respects their age, preferences, abilities, and desired level of independence. Offer agreed support without taking over, then notice both effort and self-advocacy. The same approach can support a young child’s morning routine, a teenager’s school preparation, or an adult’s household and community goals.',
+  'Include a movement or sensory break before an activity that requires sustained concentration. Offer age-respectful choices such as stretching, dancing, walking, exercise, paced breathing, or a preferred regulating activity, and respect the person’s knowledge of their own body. Participate if welcomed so the break feels supportive rather than corrective. Observe together whether it improves regulation, comfort, attention, or transition readiness.',
+  'Recognize a specific positive action such as trying again, communicating a boundary, asking for help, showing patience, or supporting another person. Describe what you genuinely observed instead of using praise that sounds childish or controlling. Match the language and any reward to the person’s age and preferences, and invite them to say what recognition feels respectful. Specific, sincere acknowledgement can strengthen confidence and relationships without making rewards automatic.',
+  'Review activities that needed another try before planning the next learning, work, community, or life-skill task. Identify the exact point where the person became unsure, distracted, tired, uncomfortable, or overwhelmed, and include their explanation whenever possible. Consider a clearer visual, smaller step, assistive tool, movement break, environmental adjustment, or different teaching method. This turns repetition into useful information while respecting autonomy and different support needs.',
+  'Create a shared project suited to the participants, such as preparing food, caring for a plant or pet, organizing a space, planning an outing, making art, repairing something, or researching a shared interest. Give every person a meaningful, age-respectful role and allow speech, typing, pictures, gestures, devices, or demonstration as valid participation. Solve one problem together and value cooperation over perfection. Shared projects can combine planning, motor skills, communication, responsibility, enjoyment, and connection at any age.',
+  'Use a social narrative or visual preparation before a new, unfamiliar, or difficult event, then discuss the real experience afterward if the person wants to. Keep the language accurate and age-respectful, allow questions or quiet processing, and avoid presenting compliance as the only successful outcome. Ask what felt comfortable, surprising, inaccessible, or helpful and listen to the person’s point of view. Update future plans together so support remains respectful, practical, and responsive.',
+  'When a quiz, lesson, training task, or new skill is difficult, review the underlying idea before asking for another attempt. Explore it through the person’s interests using real objects, visuals, technology, movement, conversation, demonstration, or hands-on practice. Focus on understanding and useful application rather than only a score. Try again when the new attempt supports learning and consent, not repeated pressure or guessing.',
+  'Protect unstructured time for shared play, conversation, creativity, special interests, hobbies, or rest. Follow the autistic person’s interest and respond to their words, gestures, communication device, ideas, or chosen activity without turning every interaction into therapy. Family members and caregivers can share attention, learn from the person, and participate when invited. Enjoyable, respectful connection supports wellbeing and development throughout life.',
 ];
-const newsletterResources = [
-  { type: 'Activity', title: 'First–Then routine', description: 'Pair one necessary step with the next preferred or restful step.' },
-  { type: 'Game', title: 'Emotion charades', description: 'Take turns acting out emotions and identifying supportive responses. No purchase is required.' },
-  { type: 'Website', title: 'Autism Navigator', description: 'Evidence-informed family resources from the Florida State University Autism Institute.', url: 'https://autismnavigator.com/' },
-  { type: 'Website', title: 'Autism Research Institute', description: 'Research, webinars, and educational resources for autistic people and families.', url: 'https://autism.org/' },
+const newsletterActivitiesAndGames = [
+  { type: 'Activity', title: 'Adaptable movement circuit', description: 'Choose safe movements or sensory actions that fit each person’s age, mobility, health, and preferences, then take turns choosing or leading when welcomed. A younger child might march or copy poses, while a teenager or adult might select stretching, walking, exercise, or a regulation routine.' },
+  { type: 'Game', title: 'Plan, create, and share', description: 'Choose age-appropriate materials or technology to build, design, cook, code, repair, or create something around a shared interest. Participants can communicate ideas through speech, typing, pictures, gestures, devices, or demonstration while practicing planning, flexible thinking, and cooperation.' },
+  { type: 'Activity', title: 'Notice-and-share outing', description: 'Explore a garden, neighborhood, museum, shop, library, or other comfortable setting and notice personally interesting details. Participants may photograph, collect, draw, map, type, point to, or discuss observations, making the activity adaptable across ages, communication styles, and mobility needs.' },
+  { type: 'Life skill', title: 'Complete a meaningful real-life task together', description: 'Choose a goal relevant to the person’s life, such as preparing food, managing a shopping list, organizing belongings, planning travel, completing paperwork, or caring for a shared space. Agree on useful support and divide the task into respectful, achievable roles that build competence and connection.' },
+  { type: 'Communication support', title: 'Build communication into meaningful routines', description: 'Speech and language support can be relevant at every age and may include speech, signs, pictures, writing, typing, or AAC. Practise communication within real choices, relationships, interests, education, work, and community life; the goal is effective self-expression and understanding, not making someone appear less autistic.' },
+  { type: 'Occupational support', title: 'Adapt activities for access and participation', description: 'Occupational-therapy-informed ideas may support sensory comfort, motor access, daily living, study, employment, leisure, and community participation from childhood through adulthood. Families and caregivers can notice barriers, offer useful tools or environmental adjustments, and respect the autistic person’s own goals and sensory experience.' },
+  { type: 'Positive behavior support', title: 'Understand what behavior communicates', description: 'Non-clinical behavior support begins with safety, communication, unmet needs, stress, sensory factors, skills, and the person’s perspective—not punishment or forced compliance. Caregivers can adjust the environment, teach useful alternatives, reinforce meaningful progress, and seek qualified individualized help when needs exceed general educational guidance.' },
+];
+const newsletterBooksAndResources = [
+  { type: 'Book', title: 'Uniquely Human', creator: 'Barry M. Prizant, PhD', description: 'A strengths-based perspective that encourages families and caregivers to understand behavior as communication, support regulation with empathy, and build genuine relationships.' },
+  { type: 'Book', title: 'The Loving Push', creator: 'Temple Grandin, PhD and Debra Moore, PhD', description: 'Practical guidance for supporting confidence, interests, life skills, and achievable growth from childhood toward adulthood while respecting individual needs.' },
+  { type: 'Resource', title: 'Serve and Return: Back-and-Forth Interaction', creator: 'Harvard Center on the Developing Child', description: 'Explains how responsive exchanges between children and caring adults help build relationships and support healthy development.', url: 'https://developingchild.harvard.edu/science/key-concepts/serve-and-return/' },
+  { type: 'Resource', title: 'HealthyChildren.org', creator: 'American Academy of Pediatrics', description: 'Family guidance covering physical activity, emotional wellness, learning, healthy routines, safety, and positive caregiver support across childhood.', url: 'https://www.healthychildren.org/' },
+  { type: 'Resource', title: 'Young Athletes', creator: 'Special Olympics', description: 'Inclusive play and movement ideas that help young children develop motor, social, and learning skills alongside families, teachers, and caregivers.', url: 'https://www.specialolympics.org/our-work/inclusive-health/young-athletes' },
+  { type: 'Resource', title: 'Autism Navigator', creator: 'Florida State University Autism Institute', description: 'Evidence-informed family resources that support social communication, shared participation, and everyday learning in partnership with caregivers.', url: 'https://autismnavigator.com/' },
+  { type: 'Resource', title: 'Autistic Self Advocacy Network Resources', creator: 'Autistic Self Advocacy Network', description: 'Autistic-led resources about self-advocacy, communication, accessibility, community living, rights, and respectful support across adolescence and adulthood.', url: 'https://autisticadvocacy.org/resources/' },
 ];
 // Keep serverless startup independent from browser content modules. These
 // values mirror the public pricing page but remain plain server data so the
 // Vercel function never needs to resolve frontend-only imports.
 const currentMembershipDetails = [
-  { name: 'Starter', price: 'Free', status: 'Available now', details: 'A simple way for families to begin building calmer, more predictable routines.' },
-  { name: 'Family', price: '$9/ month', status: 'Coming soon', details: 'More personalization and planning support for families using Visual Steps every day. No payment is collected yet.' },
-  { name: 'Family Plus', price: '$19/ month', status: 'Coming soon', details: 'Designed for families who want additional sharing, storage and support tools. No payment is collected yet.' },
+  { name: 'Starter', price: 'Free', status: 'Available now', details: 'A starting point for building meaningful, age-respectful routines and learning supports with an autistic family member. Families can begin with one practical goal and adjust support around the person’s strengths, communication, autonomy, and stage of life.' },
+  { name: 'Family', price: '$9/ month', status: 'Coming soon', details: 'Planned for families and caregivers who want more personalization and coordinated support for physical wellbeing, emotional regulation, learning, interests, life skills, and participation across ages. No payment is collected yet.' },
+  { name: 'Family Plus', price: '$19/ month', status: 'Coming soon', details: 'Planned for families who need additional sharing, storage, and support tools as goals and caregiving teams change from childhood through adulthood. No payment is collected yet.' },
 ];
 const newsletterSectionTitles = {
   new_features: 'Newly Added Feature Details', feature_previews: 'Feature Previews',
   community_posts: 'Parent Stories, News, Information, Tips and Tricks', parent_testimonials: 'Parent Testimonials',
   popular_features: 'Most Popular Features', recommended_resources: 'Suggested Activities, Games and Websites',
+  suggested_books_resources: 'Suggested Books and Resources',
+  advertisements: 'Mission-Aligned Advertisements',
   membership_details: 'Current Visual Steps Membership Details', parent_tips: 'Tips and Tricks for Parents',
 };
 const newsletterSectionVisibility = Object.fromEntries(Object.keys(newsletterSectionTitles).map(key => [key, true]));
 
 const isoDate = (date: Date) => date.toISOString().slice(0, 10);
+const formatNewsletterDate = (value: string | Date) => {
+  const date = value instanceof Date ? value : new Date(`${value}T12:00:00Z`);
+  return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' })
+    .format(date).replace(/^(\d{2}) ([A-Za-z]{3}) /, (_match, day, month) => `${Number.parseInt(day, 10)} ${month}, `);
+};
+const normalizeNewsletterDateText = (value: string) => {
+  const monthIndex: Record<string, number> = { jan: 0, january: 0, feb: 1, february: 1, mar: 2, march: 2, apr: 3, april: 3, may: 4, jun: 5, june: 5, jul: 6, july: 6, aug: 7, august: 7, sep: 8, sept: 8, september: 8, oct: 9, october: 9, nov: 10, november: 10, dec: 11, december: 11 };
+  const fromParts = (year: number, month: number, day: number) => formatNewsletterDate(new Date(Date.UTC(year, month, day)));
+  return value
+    .replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, (_match, year, month, day) => fromParts(Number(year), Number(month) - 1, Number(day)))
+    .replace(/\b(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\s+(\d{1,2}),\s+(\d{4})\b/gi, (_match, month, day, year) => fromParts(Number(year), monthIndex[String(month).toLowerCase()], Number(day)))
+    .replace(/\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/g, (_match, month, day, year) => fromParts(Number(year), Number(month) - 1, Number(day)));
+};
 const getPreviousNewsletterPeriod = (now = new Date(), deliveryWeekday = 1) => {
   const issueDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const daysSinceDelivery = (issueDay.getUTCDay() - deliveryWeekday + 7) % 7;
@@ -1057,11 +1110,11 @@ const buildWeeklyNewsletter = async (now = new Date(), published = false, delive
     ['Visual activities', 'activities'], ['Quizzes', 'quizzes'], ['Worksheets', 'worksheets'], ['Social stories', 'social_stories'], ['Positive behavior bonuses', 'behavior_bonus_awards'],
   ] as const;
   const popularityExplanations: Record<string, string> = {
-    'Visual activities': 'Families use visual activities to turn routines and learning goals into smaller, clearer steps children can follow with less uncertainty.',
-    'Quizzes': 'Personalized quizzes help parents check understanding, identify topics that need review, and plan the next learning activity.',
-    'Worksheets': 'Printable worksheets give families a focused way to practise skills away from the screen and revisit topics at a comfortable pace.',
-    'Social stories': 'Social stories help children prepare for routines, changes, and unfamiliar situations using supportive language tailored to their needs.',
-    'Positive behavior bonuses': 'Behavior bonuses help parents recognize specific positive choices while making it clear that rewards are earned for observed effort and behavior.',
+    'Visual activities': 'Families use visual activities to make self-care, movement, learning, work preparation, household routines, and community goals clearer. Steps can be adapted for an autistic person’s age, autonomy, communication, abilities, and preferred support so caregivers participate without taking over.',
+    'Quizzes': 'Personalized quizzes can check understanding and guide the next learning experience when the topic, language, presentation, and goals are age-appropriate. Caregivers can use results to offer another explanation or accessible practice rather than focusing only on scores.',
+    'Worksheets': 'Printable worksheets can support intellectual, communication, practical, or interest-based goals away from the screen. Families should select or adapt them for the person’s age, motor access, learning style, and real-life goals rather than assuming worksheets suit everyone.',
+    'Social stories': 'Social narratives can prepare autistic people of different ages for routines, changes, health care, education, work, travel, and community experiences. Respectful language and the person’s own perspective help caregivers plan support together instead of using the story only to demand compliance.',
+    'Positive behavior bonuses': 'Behavior bonuses help parents and caregivers recognize specific effort, self-advocacy, regulation, cooperation, or growth without giving free rewards on request. Recognition should remain age-respectful and connected to what the autistic person values.',
   };
   const popularFeatures = (await Promise.all(popularitySources.map(async ([title, table]) => {
     const { count } = await admin.from(table).select('*', { count: 'exact', head: true });
@@ -1073,16 +1126,24 @@ const buildWeeklyNewsletter = async (now = new Date(), published = false, delive
     issue_date: period.issueDate,
     period_start: period.periodStart,
     period_end: period.periodEnd,
-    title: `Visual Steps Weekly — ${period.issueDate}`,
-    introduction: `A practical summary of Visual Steps updates from ${period.periodStart} through ${period.periodEnd}, plus ideas families can use this week.`,
-    new_features: features.map(feature => ({ title: feature.title, summary: feature.summary, details: feature.details, help: feature.help, introducedOn: feature.introducedOn })),
+    title: `Visual Steps Weekly — ${formatNewsletterDate(period.issueDate)}`,
+    introduction: `A practical summary of Visual Steps updates from ${formatNewsletterDate(period.periodStart)} through ${formatNewsletterDate(period.periodEnd)}, with suggestions centered on ${newsletterEditorialFocus}.`,
+    new_features: features.map(feature => ({ title: feature.title, summary: feature.summary, details: feature.details, familyImpact: getNewsletterFeatureImpact(feature), help: feature.help, introducedOn: feature.introducedOn })),
     feature_details: [],
-    feature_previews: features.slice(0, 2).map((feature, index) => ({ title: feature.title, caption: feature.summary, imageUrl: index % 2 ? '/illustrations/about-shared-win.webp' : '/illustrations/home-family-routine.webp' })),
-    parent_testimonials: [...(testimonials || []).map(item => ({ displayName: item.display_name, quote: item.quote, featureTitle: item.feature_title })), ...(communityPosts || []).filter(item => item.contribution_type === 'testimonial').map(item => ({ displayName: item.display_name, quote: item.content, featureTitle: item.title }))],
-    community_posts: (communityPosts || []).filter(item => item.contribution_type !== 'testimonial').map(item => ({ type: item.contribution_type, title: item.title, content: item.content, displayName: item.display_name, sourceUrl: item.source_url })),
+    feature_previews: features.slice(0, 2).map((feature, index) => ({ title: feature.title, caption: feature.summary, familyImpact: getNewsletterFeatureImpact(feature), imageUrl: index % 2 ? '/illustrations/about-shared-win.webp' : '/illustrations/home-family-routine.webp' })),
+    parent_testimonials: [...(testimonials || []).map(item => ({ displayName: item.display_name, quote: item.quote, featureTitle: item.feature_title, editorialContext: newsletterTestimonialContext })), ...(communityPosts || []).filter(item => item.contribution_type === 'testimonial').map(item => ({ displayName: item.display_name, quote: item.content, featureTitle: item.title, editorialContext: newsletterTestimonialContext }))],
+    community_posts: (communityPosts || []).filter(item => !['testimonial', 'advertisement'].includes(item.contribution_type)).map(item => ({ type: item.contribution_type, title: item.title, content: item.content, displayName: item.display_name, sourceUrl: item.source_url, editorialContext: newsletterCommunityContext })),
     popular_features: popularFeatures,
-    recommended_resources: newsletterResources,
+    recommended_resources: newsletterActivitiesAndGames,
+    suggested_books_resources: newsletterBooksAndResources,
+    advertisements: (communityPosts || []).filter(item => item.contribution_type === 'advertisement').map(item => ({ advertiser: item.display_name, title: item.title, description: item.content, destinationUrl: item.source_url, disclosure: 'Advertisement reviewed for relevance to the Visual Steps mission. Appearance is not a medical endorsement.' })),
     membership_details: currentMembershipDetails,
+    footer_links: {
+      mainPage: cleanEnvVar('APP_URL') || PRODUCTION_APP_URL,
+      subscribe: `${cleanEnvVar('APP_URL') || PRODUCTION_APP_URL}/newsletter`,
+      facebook: cleanEnvVar('FACEBOOK_URL'),
+      instagram: cleanEnvVar('INSTAGRAM_URL'),
+    },
     parent_tips: tips,
     section_titles: newsletterSectionTitles,
     section_visibility: newsletterSectionVisibility,
@@ -1098,8 +1159,8 @@ const createWeeklyNewsletter = async (now = new Date()) => {
   const { data: savedDraft } = await admin.from('newsletters').select('title,introduction,section_titles,section_visibility,published_at').eq('issue_date', generated.issue_date).maybeSingle();
   const issue = savedDraft && !savedDraft.published_at ? {
     ...generated,
-    title: savedDraft.title,
-    introduction: savedDraft.introduction,
+    title: normalizeNewsletterDateText(savedDraft.title),
+    introduction: normalizeNewsletterDateText(savedDraft.introduction),
     section_titles: { ...newsletterSectionTitles, ...(savedDraft.section_titles || {}) },
     section_visibility: { ...newsletterSectionVisibility, ...(savedDraft.section_visibility || {}) },
   } : generated;
@@ -1110,7 +1171,7 @@ const createWeeklyNewsletter = async (now = new Date()) => {
 
 const newsletterSectionHtml = (title: string, items: string[], columns = 1, bulleted = false) => items.length ? `
   <h2 style="color:#173b52;margin:28px 0 10px">${escapeEmailHtml(title)}</h2>
-  <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:14px;padding:16px 20px">${bulleted ? `<ul style="padding-left:22px;line-height:1.7;margin:0">${items.map(item => `<li style="margin-bottom:12px">${item}</li>`).join('')}</ul>` : `<div style="display:grid;grid-template-columns:${columns === 2 ? 'repeat(2,minmax(0,1fr))' : '1fr'};gap:14px;line-height:1.7">${items.map(item => `<div style="${columns === 2 ? 'background:#ffffff;border:1px solid #dbeafe;border-radius:10px;padding:12px;' : ''}">${item}</div>`).join('')}</div>`}</div>` : '';
+  <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:14px;padding:16px 20px;text-align:justify;text-justify:inter-word">${bulleted ? `<ul style="padding-left:22px;line-height:1.7;margin:0">${items.map(item => `<li style="margin-bottom:12px;text-align:justify;text-justify:inter-word">${item}</li>`).join('')}</ul>` : `<div style="display:grid;grid-template-columns:${columns === 2 ? 'repeat(2,minmax(0,1fr))' : '1fr'};gap:14px;line-height:1.7">${items.map(item => `<div style="text-align:justify;text-justify:inter-word;${columns === 2 ? 'background:#ffffff;border:1px solid #dbeafe;border-radius:10px;padding:12px;' : ''}">${item}</div>`).join('')}</div>`}</div>` : '';
 
 const sendNewsletterIssue = async (issue: any, appOrigin: string) => {
   const admin = getAdminSupabaseClient();
@@ -1128,19 +1189,26 @@ const sendNewsletterIssue = async (issue: any, appOrigin: string) => {
     const unsubscribeHash = hashNewsletterToken(unsubscribeToken);
     const unsubscribeUrl = `${appOrigin}/api/newsletter/unsubscribe?token=${encodeURIComponent(unsubscribeToken)}`;
     const archiveUrl = `${appOrigin}/newsletter`;
-    const featureItems = (issue.new_features || []).map((item: any) => `<strong>${escapeEmailHtml(item.title)}</strong><br>${escapeEmailHtml(item.summary)}<br>${escapeEmailHtml(item.details)}<br><em>Where to find it:</em> ${escapeEmailHtml(item.help)}`);
-    const testimonialItems = (issue.parent_testimonials || []).map((item: any) => `“${escapeEmailHtml(item.quote)}” — ${escapeEmailHtml(item.displayName)}`);
+    const featureItems = (issue.new_features || []).map((item: any) => `<strong>${escapeEmailHtml(item.title)}</strong><br>${escapeEmailHtml(item.summary)}<br>${escapeEmailHtml(item.details)}<br><strong>How this supports growth:</strong> ${escapeEmailHtml(item.familyImpact)}<br><em>Where to find it:</em> ${escapeEmailHtml(item.help)}`);
+    const testimonialItems = (issue.parent_testimonials || []).map((item: any) => `“${escapeEmailHtml(item.quote)}” — ${escapeEmailHtml(item.displayName)}${item.editorialContext ? `<br><em>${escapeEmailHtml(item.editorialContext)}</em>` : ''}`);
     const tipItems = (issue.parent_tips || []).map((item: string) => escapeEmailHtml(item));
-    const previewItems = (issue.feature_previews || []).map((item: any) => `<strong>${escapeEmailHtml(item.title)}</strong><br>${escapeEmailHtml(item.caption)}`);
-    const communityItems = (issue.community_posts || []).map((item: any) => `<strong>${escapeEmailHtml(item.title)}</strong> (${escapeEmailHtml(item.type)}) — ${escapeEmailHtml(item.content)} — ${escapeEmailHtml(item.displayName)}`);
+    const previewItems = (issue.feature_previews || []).map((item: any) => `<strong>${escapeEmailHtml(item.title)}</strong><br>${escapeEmailHtml(item.caption)}${item.familyImpact ? `<br><strong>Why it matters:</strong> ${escapeEmailHtml(item.familyImpact)}` : ''}`);
+    const communityItems = (issue.community_posts || []).map((item: any) => `<strong>${escapeEmailHtml(item.title)}</strong> (${escapeEmailHtml(item.type)}) — ${escapeEmailHtml(item.content)} — ${escapeEmailHtml(item.displayName)}${item.editorialContext ? `<br><em>${escapeEmailHtml(item.editorialContext)}</em>` : ''}`);
     const popularItems = (issue.popular_features || []).map((item: any) => `<strong>${escapeEmailHtml(item.title)}</strong> — ${escapeEmailHtml(item.explanation)}`);
     const resourceItems = (issue.recommended_resources || []).map((item: any) => `<strong>${escapeEmailHtml(item.title)}</strong> (${escapeEmailHtml(item.type)}) — ${escapeEmailHtml(item.description)}`);
+    const bookResourceItems = (issue.suggested_books_resources || []).map((item: any) => `<strong>${escapeEmailHtml(item.title)}</strong> (${escapeEmailHtml(item.type)})${item.creator ? ` by ${escapeEmailHtml(item.creator)}` : ''} — ${escapeEmailHtml(item.description)}${item.url ? `<br><a href="${escapeEmailHtml(item.url)}">Visit resource</a>` : ''}`);
+    const advertisementItems = (issue.advertisements || []).map((item: any) => `<strong>Advertisement: ${escapeEmailHtml(item.title)}</strong><br>${escapeEmailHtml(item.description)}<br><em>From ${escapeEmailHtml(item.advertiser)}. ${escapeEmailHtml(item.disclosure)}</em>${item.destinationUrl ? `<br><a href="${escapeEmailHtml(item.destinationUrl)}">Visit advertiser</a>` : ''}`);
     const membershipItems = (issue.membership_details || []).map((item: any) => `<strong>${escapeEmailHtml(item.name)}: ${escapeEmailHtml(item.price)}</strong> — ${escapeEmailHtml(item.status)}. ${escapeEmailHtml(item.details)}`);
+    const footerLinks = [
+      ['Visual Steps home', appOrigin], ['Subscribe', archiveUrl],
+      ['Facebook', issue.footer_links?.facebook], ['Instagram', issue.footer_links?.instagram],
+    ].filter((item): item is [string, string] => Boolean(item[1]));
+    const footerLinksHtml = footerLinks.map(([label, url]) => `<a href="${escapeEmailHtml(url)}">${escapeEmailHtml(label)}</a>`).join(' &nbsp;|&nbsp; ');
     try {
       await transporter.sendMail({
         from, to: subscriber.email, subject: issue.title,
         text: `${issue.introduction}\n\nRead this issue: ${archiveUrl}\n\nUnsubscribe: ${unsubscribeUrl}`,
-        html: `<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;color:#334155;line-height:1.6;background:#fffdf7;padding:24px"><div style="background:linear-gradient(135deg,#dbeafe,#d1fae5);border-radius:18px;padding:24px"><h1 style="color:#176b87;margin-top:0">${escapeEmailHtml(issue.title)}</h1><p>${escapeEmailHtml(issue.introduction)}</p></div>${issue.section_visibility?.feature_previews === false ? '' : newsletterSectionHtml(issue.section_titles?.feature_previews || newsletterSectionTitles.feature_previews, previewItems)}${issue.section_visibility?.new_features === false ? '' : newsletterSectionHtml(issue.section_titles?.new_features || newsletterSectionTitles.new_features, featureItems, 2)}${issue.section_visibility?.community_posts === false ? '' : newsletterSectionHtml(issue.section_titles?.community_posts || newsletterSectionTitles.community_posts, communityItems)}${issue.section_visibility?.parent_testimonials === false ? '' : newsletterSectionHtml(issue.section_titles?.parent_testimonials || newsletterSectionTitles.parent_testimonials, testimonialItems)}${issue.section_visibility?.popular_features === false ? '' : newsletterSectionHtml(issue.section_titles?.popular_features || newsletterSectionTitles.popular_features, popularItems)}${issue.section_visibility?.recommended_resources === false ? '' : newsletterSectionHtml(issue.section_titles?.recommended_resources || newsletterSectionTitles.recommended_resources, resourceItems)}${issue.section_visibility?.parent_tips === false ? '' : newsletterSectionHtml(issue.section_titles?.parent_tips || newsletterSectionTitles.parent_tips, tipItems, 1, true)}${issue.section_visibility?.membership_details === false ? '' : newsletterSectionHtml(issue.section_titles?.membership_details || newsletterSectionTitles.membership_details, membershipItems)}<p style="margin-top:32px"><a href="${archiveUrl}">Read the illustrated newsletter archive</a></p><p style="font-size:12px;color:#64748b">You received this because you confirmed a Visual Steps newsletter subscription. <a href="${unsubscribeUrl}">Unsubscribe with one click</a>.</p></div>`,
+        html: `<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;color:#334155;line-height:1.6;background:#fffdf7;padding:24px"><div style="background:linear-gradient(135deg,#dbeafe,#d1fae5);border-radius:18px;padding:24px"><h1 style="color:#176b87;margin-top:0">${escapeEmailHtml(issue.title)}</h1><p style="text-align:justify;text-justify:inter-word">${escapeEmailHtml(issue.introduction)}</p></div>${issue.section_visibility?.feature_previews === false ? '' : newsletterSectionHtml(issue.section_titles?.feature_previews || newsletterSectionTitles.feature_previews, previewItems)}${issue.section_visibility?.new_features === false ? '' : newsletterSectionHtml(issue.section_titles?.new_features || newsletterSectionTitles.new_features, featureItems, 2)}${issue.section_visibility?.community_posts === false ? '' : newsletterSectionHtml(issue.section_titles?.community_posts || newsletterSectionTitles.community_posts, communityItems)}${issue.section_visibility?.parent_testimonials === false ? '' : newsletterSectionHtml(issue.section_titles?.parent_testimonials || newsletterSectionTitles.parent_testimonials, testimonialItems)}${issue.section_visibility?.popular_features === false ? '' : newsletterSectionHtml(issue.section_titles?.popular_features || newsletterSectionTitles.popular_features, popularItems)}${issue.section_visibility?.recommended_resources === false ? '' : newsletterSectionHtml(issue.section_titles?.recommended_resources || newsletterSectionTitles.recommended_resources, resourceItems)}${issue.section_visibility?.suggested_books_resources === false ? '' : newsletterSectionHtml(issue.section_titles?.suggested_books_resources || newsletterSectionTitles.suggested_books_resources, bookResourceItems, 2)}${issue.section_visibility?.advertisements === false ? '' : newsletterSectionHtml(issue.section_titles?.advertisements || newsletterSectionTitles.advertisements, advertisementItems, 2)}${issue.section_visibility?.parent_tips === false ? '' : newsletterSectionHtml(issue.section_titles?.parent_tips || newsletterSectionTitles.parent_tips, tipItems, 1, true)}${issue.section_visibility?.membership_details === false ? '' : newsletterSectionHtml(issue.section_titles?.membership_details || newsletterSectionTitles.membership_details, membershipItems)}<p style="margin-top:32px">${footerLinksHtml}</p><p><a href="${archiveUrl}">Read the illustrated newsletter archive</a></p><p style="font-size:12px;color:#64748b">You received this because you confirmed a Visual Steps newsletter subscription. <a href="${unsubscribeUrl}">Unsubscribe with one click</a>.</p></div>`,
       });
       await admin.from('newsletter_subscribers').update({ last_sent_issue_date: issue.issue_date, unsubscribe_token_hash: unsubscribeHash, updated_at: new Date().toISOString() }).eq('id', subscriber.id);
       delivered += 1;
@@ -1194,11 +1262,11 @@ app.post('/api/newsletter/community-submissions', authenticateToken, async (req:
   const content = String(req.body?.content || '').trim();
   const displayName = String(req.body?.displayName || '').trim();
   const sourceUrl = String(req.body?.sourceUrl || '').trim() || null;
-  const allowedTypes = new Set(['story', 'news', 'information', 'tip', 'testimonial']);
+  const allowedTypes = new Set(['story', 'news', 'information', 'tip', 'testimonial', 'advertisement']);
   if (!allowedTypes.has(contributionType) || title.length < 3 || title.length > 120 || content.length < 20 || content.length > 2000 || displayName.length < 2 || displayName.length > 80 || req.body?.consentToPublish !== true) {
     return res.status(400).json({ error: 'Complete all required fields and confirm permission to publish.' });
   }
-  if (contributionType === 'news' && !sourceUrl) return res.status(400).json({ error: 'News submissions require a trustworthy source link.' });
+  if (['news', 'advertisement'].includes(contributionType) && !sourceUrl) return res.status(400).json({ error: contributionType === 'news' ? 'News submissions require a trustworthy source link.' : 'Advertisements require a destination link.' });
   if (sourceUrl) { try { const parsed = new URL(sourceUrl); if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error(); } catch { return res.status(400).json({ error: 'Enter a valid source link beginning with http:// or https://.' }); } }
   const supabase = getSupabaseForUser(req);
   const { error } = await supabase.from('newsletter_community_submissions').insert({ user_id: req.user.id, contribution_type: contributionType, title, content, display_name: displayName, source_url: sourceUrl, consent_to_publish: true, status: 'pending' });
@@ -1233,7 +1301,7 @@ app.patch('/api/newsletter/admin/submissions/:id', authenticateToken, requireNew
   const admin = getAdminSupabaseClient();
   const { data: existing } = await admin.from('newsletter_community_submissions').select('contribution_type,consent_to_publish').eq('id', req.params.id).maybeSingle();
   if (!existing) return res.status(404).json({ error: 'Submission not found' });
-  if (existing.contribution_type === 'news' && !sourceUrl && status === 'approved') return res.status(400).json({ error: 'Approved news requires a trustworthy source link' });
+  if (['news', 'advertisement'].includes(existing.contribution_type) && !sourceUrl && status === 'approved') return res.status(400).json({ error: existing.contribution_type === 'news' ? 'Approved news requires a trustworthy source link' : 'Approved advertisements require a destination link' });
   if (!existing.consent_to_publish && status === 'approved') return res.status(400).json({ error: 'This parent did not consent to publication' });
   const { data, error } = await admin.from('newsletter_community_submissions').update({
     title, content, display_name: displayName, source_url: sourceUrl, status, reviewed_at: new Date().toISOString(),
@@ -1259,8 +1327,8 @@ app.get('/api/newsletter/admin/preview', authenticateToken, requireNewsletterAdm
     const { data: savedDraft } = await getAdminSupabaseClient().from('newsletters').select('title,introduction,section_titles,section_visibility').eq('issue_date', generated.issue_date).is('published_at', null).maybeSingle();
     return res.json(savedDraft ? {
       ...generated,
-      title: savedDraft.title,
-      introduction: savedDraft.introduction,
+      title: normalizeNewsletterDateText(savedDraft.title),
+      introduction: normalizeNewsletterDateText(savedDraft.introduction),
       section_titles: { ...newsletterSectionTitles, ...(savedDraft.section_titles || {}) },
       section_visibility: { ...newsletterSectionVisibility, ...(savedDraft.section_visibility || {}) },
     } : generated);
@@ -1284,8 +1352,8 @@ app.put('/api/newsletter/admin/settings', authenticateToken, requireNewsletterAd
 
 app.put('/api/newsletter/admin/draft', authenticateToken, requireNewsletterAdmin, async (req, res) => {
   const issueDate = String(req.body?.issueDate || '');
-  const title = String(req.body?.title || '').trim();
-  const introduction = String(req.body?.introduction || '').trim();
+  const title = normalizeNewsletterDateText(String(req.body?.title || '').trim());
+  const introduction = normalizeNewsletterDateText(String(req.body?.introduction || '').trim());
   const sectionTitles = req.body?.sectionTitles;
   const sectionVisibility = req.body?.sectionVisibility;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(issueDate) || title.length < 3 || title.length > 160 || introduction.length < 20 || introduction.length > 1000 || !sectionTitles || !sectionVisibility) {
@@ -3628,7 +3696,7 @@ app.put('/api/kids/:kidId/confirm-reward', authenticateToken, async (req: any, r
 app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
   const { id } = req.params;
-  let { activityType, category, repeatFrequency, repeatsTill, timeOfDay, description, link, imageUrl, status, dueDate, steps, repeat_interval, repeat_unit, requiresVerification } = req.body;
+  let { activityType, category, repeatFrequency, repeatsTill, timeOfDay, description, link, imageUrl, status, dueDate, steps, repeat_interval, repeat_unit, requiresVerification, reassignmentLevel } = req.body;
   const userId = req.user.id;
 
   try {
@@ -3692,6 +3760,11 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
       steps = undefined;
     }
 
+    const supportedStatuses = new Set(['pending', 'awaiting_verification', 'completed', 'on_hold', 'ended']);
+    if (!supportedStatuses.has(status)) {
+      return res.status(400).json({ error: 'Select a valid activity status' });
+    }
+
     if (isHistory) {
       // Update activity_history
       const { error: historyUpdateError } = await supabase
@@ -3745,6 +3818,9 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
     const isNewCompletion = status === 'completed' && activity.status !== 'completed';
     const isNewSubmission = status === 'awaiting_verification' && activity.status === 'pending';
     const isReassignment = status === 'pending' && activity.status !== 'pending';
+    if (isReassignment && !['same', 'up', 'down'].includes(reassignmentLevel)) {
+      return res.status(400).json({ error: 'Select whether the reassigned activity level is the same, up, or down' });
+    }
     const assignedCompletionDate = isNewCompletion
       ? new Date().toISOString()
       : status === 'pending'
@@ -3780,6 +3856,10 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
         attempt_generation: isReassignment
           ? Math.max(1, Number(activity.attempt_generation) || 1) + 1
           : Math.max(1, Number(activity.attempt_generation) || 1),
+        reassignment_level: isReassignment ? reassignmentLevel : activity.reassignment_level || null,
+        repeat_count: isReassignment && reassignmentLevel === 'same'
+          ? Math.max(0, Number(activity.repeat_count) || 0) + 1
+          : Math.max(0, Number(activity.repeat_count) || 0),
         due_date: dueDate,
         repeat_interval: repeat_interval || null,
         repeat_unit: repeat_unit || null
@@ -4839,7 +4919,7 @@ export const parentAssistantFeatureCatalog = [
   { area: 'Parent account settings', routes: ['/profile'], help: 'Select the parent name in the top navigation to open Account Settings. In Profile Information update Full Name or Email. In Change Password enter a new password or leave it blank to keep the current password. In Parent Messaging set Days to Keep Messages. Select Save Changes. Profile also provides welcome-email resend and email-delivery checks when configured.' },
   { area: 'Family stories and testimonials', routes: ['/testimonials'], help: 'Open Family Stories from the footer or mobile menu. Visual Steps publishes testimonials only with explicit family approval and never converts private child data into public quotes. Select Share your story to open the Contact page with the testimonial subject prepared.' },
   { area: 'Contact Visual Steps', routes: ['/contact'], help: 'Open Contact from the top navigation, footer, or mobile menu. Enter your name, reply email, subject, and message, then select Open email to send. The form opens the visitor’s own email application and does not store the fields in the Visual Steps database. Never include passwords, API keys, child login codes, or sensitive clinical information.' },
-  { area: 'Visual Steps weekly newsletter', routes: ['/newsletter', '/newsletter-admin'], help: 'Open Newsletter from the footer or mobile menu. Each weekly issue includes new features and details, illustrated previews, approved parent stories/news/information/tips, testimonials, popular features, curated activities/games/websites, current membership details, and parent tips. A signed-in parent can use Share with the community to submit autism-related content with publication consent; submissions remain private until reviewed and approved. Approved administrators see Manage newsletter, which opens the protected Newsletter Administration page to manage submissions, change the weekly delivery day, edit and save the next issue template, and preview it without publishing or emailing it. Email subscription requires confirmation and every issue includes one-click unsubscribe.' },
+  { area: 'Visual Steps weekly newsletter', routes: ['/newsletter', '/newsletter-admin'], help: 'Open Newsletter from the footer or mobile menu. Each weekly issue includes new features and details, illustrated previews, approved parent stories/news/information/tips, testimonials, popular features, curated activities and games, suggested books and family resources, current membership details, parent tips, and clearly labeled mission-aligned advertisements when approved. General non-clinical topics may include communication and speech support, occupational support, positive behavior support, daily living, learning, work, leisure, and community participation for autistic people of all ages. A signed-in parent can use Share with the community to submit autism-related content or a relevant advertisement with publication consent; submissions remain private until reviewed and approved. Approved administrators see Manage newsletter, which opens the protected Newsletter Administration page to manage submissions, change the weekly delivery day, edit and save the next issue template, and preview it without publishing or emailing it. Email subscription requires confirmation; every issue includes the Visual Steps home and subscription links, optional configured Facebook and Instagram links, and one-click unsubscribe.' },
   { area: 'Child dashboard', routes: ['/kids-dashboard/:kidId'], help: 'Children sign in with their Kid Code. To Be Done lists pending activities, Waiting for parent verification lists submitted work, Completed shows completed activities, and Rewards shows items they may purchase with earned tokens. Meaningful completions show celebrations. A verification-required submission tells the child to wait and does not award tokens until parent approval.' },
   { area: 'Offline and installation', routes: ['/'], help: 'Visual Steps is installable as a PWA from a supported browser and can be added to an iPhone or iPad Home Screen through Safari Share > Add to Home Screen. When internet access is lost, the app displays an offline notice; database, sign-in, and AI operations require reconnection.' },
 ] as const;

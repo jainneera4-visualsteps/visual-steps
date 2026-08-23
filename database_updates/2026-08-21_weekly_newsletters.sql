@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS public.parent_testimonials (
 CREATE TABLE IF NOT EXISTS public.newsletter_community_submissions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-  contribution_type TEXT NOT NULL CHECK (contribution_type IN ('story', 'news', 'information', 'tip', 'testimonial')),
+  contribution_type TEXT NOT NULL CHECK (contribution_type IN ('story', 'news', 'information', 'tip', 'testimonial', 'advertisement')),
   title TEXT NOT NULL CHECK (length(btrim(title)) BETWEEN 3 AND 120),
   content TEXT NOT NULL CHECK (length(btrim(content)) BETWEEN 20 AND 2000),
   display_name TEXT NOT NULL CHECK (length(btrim(display_name)) BETWEEN 2 AND 80),
@@ -75,9 +75,21 @@ ALTER TABLE public.newsletters
   ADD COLUMN IF NOT EXISTS community_posts JSONB NOT NULL DEFAULT '[]'::jsonb,
   ADD COLUMN IF NOT EXISTS popular_features JSONB NOT NULL DEFAULT '[]'::jsonb,
   ADD COLUMN IF NOT EXISTS recommended_resources JSONB NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS suggested_books_resources JSONB NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS advertisements JSONB NOT NULL DEFAULT '[]'::jsonb,
   ADD COLUMN IF NOT EXISTS membership_details JSONB NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS footer_links JSONB NOT NULL DEFAULT '{}'::jsonb,
   ADD COLUMN IF NOT EXISTS section_titles JSONB NOT NULL DEFAULT '{}'::jsonb,
   ADD COLUMN IF NOT EXISTS section_visibility JSONB NOT NULL DEFAULT '{}'::jsonb;
+
+-- Older versions of this table used a five-value contribution-type check.
+-- Replace it so approved, clearly labeled mission-aligned advertisements can
+-- share the same protected moderation workflow.
+ALTER TABLE public.newsletter_community_submissions
+  DROP CONSTRAINT IF EXISTS newsletter_community_submissions_contribution_type_check;
+ALTER TABLE public.newsletter_community_submissions
+  ADD CONSTRAINT newsletter_community_submissions_contribution_type_check
+  CHECK (contribution_type IN ('story', 'news', 'information', 'tip', 'testimonial', 'advertisement'));
 
 ALTER TABLE public.newsletter_subscribers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.newsletters ENABLE ROW LEVEL SECURITY;

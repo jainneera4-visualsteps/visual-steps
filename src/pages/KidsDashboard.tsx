@@ -28,7 +28,7 @@ interface Activity {
   description: string;
   link: string;
   image_url: string;
-  status: 'pending' | 'awaiting_verification' | 'completed';
+  status: 'pending' | 'awaiting_verification' | 'completed' | 'on_hold' | 'ended';
   requires_verification?: boolean;
   submitted_at?: string;
   due_date: string;

@@ -29,7 +29,7 @@ import {
 } from 'recharts';
 import { apiFetch, safeJson } from '../utils/api';
 import { formatReward } from '../utils/rewardUtils';
-import { formatInTimezone } from '../utils/dateUtils';
+import { formatAppDateTime, formatInTimezone } from '../utils/dateUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Pagination } from '../components/Pagination';
@@ -46,6 +46,7 @@ interface Activity {
   description: string;
   link?: string;
   attempt_generation?: number;
+  repeat_count?: number;
 }
 
 interface Kid {
@@ -205,8 +206,8 @@ export default function ProgressReport() {
     if (!date) return '';
     const defaultOptions: Intl.DateTimeFormatOptions = {
       year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
+      month: 'short',
+      day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
       hour12: false,
@@ -306,8 +307,8 @@ export default function ProgressReport() {
   });
 
   const repeatedActivities = activities
-    .filter(activity => Number(activity.attempt_generation || 1) > 1)
-    .sort((a, b) => Number(b.attempt_generation || 1) - Number(a.attempt_generation || 1));
+    .filter(activity => Number(activity.repeat_count || 0) > 0)
+    .sort((a, b) => Number(b.repeat_count || 0) - Number(a.repeat_count || 0));
   const paginatedRepeatedActivities = repeatedActivities.slice((repeatPage - 1) * repeatItemsPerPage, repeatPage * repeatItemsPerPage);
   const totalRepeatPages = Math.max(1, Math.ceil(repeatedActivities.length / repeatItemsPerPage));
 
@@ -394,7 +395,7 @@ export default function ProgressReport() {
               </div>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Completed on {new Date(viewingQuizResult.completed_at).toLocaleString()}
+              Completed on {formatAppDateTime(viewingQuizResult.completed_at, kid?.timezone)}
             </p>
           </CardHeader>
           <CardContent className="px-4 pb-4 space-y-4">
@@ -793,7 +794,7 @@ export default function ProgressReport() {
             <History className="text-amber-600 h-5 w-5" />
             Activities that needed another try ({repeatedActivities.length})
           </CardTitle>
-          <p className="mt-2 text-sm leading-6 text-slate-500">Use recurring patterns here to plan review lessons, smaller activity steps, or a supporting worksheet. A retry is counted when a parent deliberately reassigns the same activity.</p>
+          <p className="mt-2 text-sm leading-6 text-slate-500">Use recurring patterns here to plan review lessons, smaller activity steps, or a supporting worksheet. A retry is counted only when a parent deliberately reassigns the activity at the same level.</p>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -812,7 +813,7 @@ export default function ProgressReport() {
                   <tr key={activity.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4"><p className="font-bold text-slate-900">{activity.activity_type || 'Activity'}</p><p className="mt-1 max-w-md text-xs text-slate-500">{activity.description || 'No description'}</p></td>
                     <td className="px-6 py-4 text-slate-600">{activity.category || 'Uncategorized'}</td>
-                    <td className="px-6 py-4 text-center font-black text-amber-700">{Math.max(0, Number(activity.attempt_generation || 1) - 1)}</td>
+                    <td className="px-6 py-4 text-center font-black text-amber-700">{Math.max(0, Number(activity.repeat_count || 0))}</td>
                     <td className="px-6 py-4 text-center"><span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-slate-700">{activity.status.replace('_', ' ')}</span></td>
                     <td className="px-6 py-4 text-right text-slate-500">{formatSimpleDate(activity.due_date)}</td>
                   </tr>

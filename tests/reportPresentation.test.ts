@@ -8,7 +8,7 @@ test('progress report keeps planning charts and all required history grids', asy
     assert.match(source, new RegExp(expected));
   }
   assert.ok((source.match(/<Pagination/g) || []).length >= 4, 'all progress grids should use standard pagination');
-  assert.match(source, /attempt_generation/);
+  assert.match(source, /repeat_count/);
 });
 
 test('summary report provides thirty-day planning signals and a standard timeline', async () => {
@@ -18,5 +18,5 @@ test('summary report provides thirty-day planning signals and a standard timelin
   assert.match(source, /Activity, quiz, and purchase timeline/);
   assert.match(source, /<Pagination/);
   assert.match(source, /quizAverage/);
-  assert.match(source, /attempt_generation/);
+  assert.match(source, /repeat_count/);
 });
