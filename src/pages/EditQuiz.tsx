@@ -20,6 +20,7 @@ interface QuizQuestion {
 interface QuizContent {
   title: string;
   description: string;
+  learningObjective?: string;
   questionType?: string;
   questionScore?: number;
   questions: QuizQuestion[];
@@ -34,6 +35,7 @@ export default function EditQuiz() {
   const [difficulty, setDifficulty] = useState('Medium');
   const [gradeLevel, setGradeLevel] = useState('Grade 1');
   const [description, setDescription] = useState('');
+  const [learningObjective, setLearningObjective] = useState('');
   const [questionScore, setQuestionScore] = useState(1);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [questionType, setQuestionType] = useState('Multiple Choice');
@@ -59,6 +61,7 @@ export default function EditQuiz() {
 
         const content = typeof quiz.content === 'string' ? JSON.parse(quiz.content) : quiz.content;
         setDescription(content.description || '');
+        setLearningObjective(quiz.learning_objective || content.learningObjective || '');
         setQuestionScore(content.questionScore || 1);
         setQuestionType(content.questionType || 'Multiple Choice');
         setQuestions((content.questions || []).map((q: any) => ({
@@ -80,6 +83,7 @@ export default function EditQuiz() {
 
   const handleSave = async () => {
     if (!title.trim()) return alert('Please enter a title');
+    if (!learningObjective.trim()) return alert('Please enter a learning objective');
     if (questions.length === 0) return alert('Please add at least one question');
     
     setIsSaving(true);
@@ -87,6 +91,7 @@ export default function EditQuiz() {
       const quizContent: QuizContent = {
         title,
         description,
+        learningObjective: learningObjective.trim(),
         questionScore,
         questionType,
         questions
@@ -97,6 +102,7 @@ export default function EditQuiz() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title,
+          learningObjective: learningObjective.trim(),
           topic,
           difficulty,
           gradeLevel,
@@ -239,6 +245,30 @@ export default function EditQuiz() {
         </div>
       </div>
 
+      <Card className="border-none ring-1 ring-slate-200 shadow-sm">
+        <CardHeader className="border-b border-slate-100 bg-slate-50/50 py-3">
+          <CardTitle className="text-sm font-bold text-slate-900">Quiz details</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4 p-4 md:grid-cols-2">
+          <div className="space-y-1.5">
+            <label htmlFor="edit-quiz-title" className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Title *</label>
+            <Input id="edit-quiz-title" value={title} onChange={event => setTitle(event.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="edit-quiz-topic" className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Topic</label>
+            <Input id="edit-quiz-topic" value={topic} onChange={event => setTopic(event.target.value)} />
+          </div>
+          <div className="space-y-1.5 md:col-span-2">
+            <label htmlFor="edit-quiz-objective" className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Learning objective *</label>
+            <Input id="edit-quiz-objective" value={learningObjective} onChange={event => setLearningObjective(event.target.value)} maxLength={240} placeholder="What should the learner demonstrate after this quiz?" />
+          </div>
+          <div className="space-y-1.5 md:col-span-2">
+            <label htmlFor="edit-quiz-description" className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Description</label>
+            <Textarea id="edit-quiz-description" value={description} onChange={event => setDescription(event.target.value)} rows={3} />
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-slate-900">Questions</h2>
@@ -360,7 +390,7 @@ export default function EditQuiz() {
                     >
                       {q.imageUrl ? (
                         <>
-                          <img src={normalizeImageSource(q.imageUrl)} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          <img src={normalizeImageSource(q.imageUrl)} alt="Preview" className="h-full w-full object-contain p-1" referrerPolicy="no-referrer" />
                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                             <span className="text-white text-[10px] font-bold uppercase tracking-widest">Change Image</span>
                           </div>

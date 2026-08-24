@@ -38,11 +38,19 @@ export const generateContent = async (options: GenerateContentOptions) => {
   });
 };
 
-export const generateImage = async (prompt: string): Promise<string | null> => {
+export interface ImageGenerationAllowance {
+  used: number;
+  remaining: number;
+  dailyLimit: number;
+  resetsAt: string;
+}
+
+export const generateImage = async (prompt: string, onAllowance?: (allowance: ImageGenerationAllowance) => void): Promise<string | null> => {
   const data = await requestGeneration({
     model: modelNames.image,
     prompt,
   });
+  if (data?.allowance && onAllowance) onAllowance(data.allowance as ImageGenerationAllowance);
 
   if (typeof data?.text !== 'string' || data.text.length === 0) return null;
   const imageSource = normalizeImageSource(data.text);

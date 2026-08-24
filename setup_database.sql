@@ -18,6 +18,7 @@ DROP TABLE IF EXISTS public.quiz_results CASCADE;
 DROP TABLE IF EXISTS public.quizzes CASCADE;
 DROP TABLE IF EXISTS public.parent_messages CASCADE;
 DROP TABLE IF EXISTS public.parent_ai_usage CASCADE;
+DROP TABLE IF EXISTS public.parent_image_usage CASCADE;
 DROP TABLE IF EXISTS public.parent_ai_knowledge_gaps CASCADE;
 DROP TABLE IF EXISTS public.kids CASCADE;
 DROP TABLE IF EXISTS public.users CASCADE;
@@ -227,6 +228,14 @@ CREATE TABLE public.parent_ai_usage (
     PRIMARY KEY (user_id, usage_date)
 );
 
+CREATE TABLE public.parent_image_usage (
+    user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    usage_date DATE NOT NULL,
+    image_count INTEGER NOT NULL DEFAULT 0 CHECK (image_count >= 0),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    PRIMARY KEY (user_id, usage_date)
+);
+
 CREATE TABLE public.parent_ai_knowledge_gaps (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
@@ -266,6 +275,7 @@ CREATE TABLE public.quizzes (
     user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
     kid_id UUID REFERENCES public.kids(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
+    learning_objective TEXT,
     topic TEXT,
     difficulty TEXT,
     target_age TEXT,
@@ -308,6 +318,7 @@ ALTER TABLE public.reward_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reward_purchases ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.parent_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.parent_ai_usage ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.parent_image_usage ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.parent_ai_knowledge_gaps ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.worksheets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.quizzes ENABLE ROW LEVEL SECURITY;
@@ -394,6 +405,7 @@ CREATE POLICY "Users can update their kids parent messages" ON public.parent_mes
 CREATE POLICY "Users can delete their kids parent messages" ON public.parent_messages FOR DELETE USING (kid_id IN (SELECT id FROM public.kids k WHERE k.user_id = auth.uid() OR (to_jsonb(k)->>'parent_id')::uuid = auth.uid()) AND user_id = auth.uid());
 
 CREATE POLICY "Parents can view their own AI usage" ON public.parent_ai_usage FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Parents can view their own illustration usage" ON public.parent_image_usage FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Parents can submit their own AI knowledge gaps" ON public.parent_ai_knowledge_gaps FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Parents can view their own AI knowledge gaps" ON public.parent_ai_knowledge_gaps FOR SELECT USING (auth.uid() = user_id);
 
@@ -464,6 +476,35 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 REVOKE ALL ON FUNCTION public.consume_parent_ai_question() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.consume_parent_ai_question() FROM anon;
 GRANT EXECUTE ON FUNCTION public.consume_parent_ai_question() TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.consume_parent_image_allowance()
+RETURNS TABLE (allowed BOOLEAN, used INTEGER, remaining INTEGER, daily_limit INTEGER, resets_at TIMESTAMP WITH TIME ZONE) AS $$
+DECLARE
+  requesting_user UUID := auth.uid();
+  current_day DATE := (timezone('utc'::text, now()))::date;
+  current_count INTEGER;
+  was_consumed BOOLEAN := false;
+  limit_value CONSTANT INTEGER := 10;
+BEGIN
+  IF requesting_user IS NULL THEN RAISE EXCEPTION 'Authentication required' USING ERRCODE = '42501'; END IF;
+  INSERT INTO public.parent_image_usage (user_id, usage_date, image_count, updated_at)
+  VALUES (requesting_user, current_day, 1, timezone('utc'::text, now()))
+  ON CONFLICT (user_id, usage_date) DO UPDATE
+    SET image_count = public.parent_image_usage.image_count + 1, updated_at = timezone('utc'::text, now())
+    WHERE public.parent_image_usage.image_count < limit_value
+  RETURNING image_count INTO current_count;
+  IF current_count IS NOT NULL THEN
+    was_consumed := true;
+  ELSE
+    SELECT image_count INTO current_count FROM public.parent_image_usage WHERE user_id = requesting_user AND usage_date = current_day;
+  END IF;
+  RETURN QUERY SELECT was_consumed, COALESCE(current_count, 0), GREATEST(limit_value - COALESCE(current_count, 0), 0), limit_value, ((current_day + 1)::timestamp AT TIME ZONE 'UTC');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+REVOKE ALL ON FUNCTION public.consume_parent_image_allowance() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.consume_parent_image_allowance() FROM anon;
+GRANT EXECUTE ON FUNCTION public.consume_parent_image_allowance() TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.increment_reward_balance(kid_id_param UUID, amount INTEGER)
 RETURNS void AS $$

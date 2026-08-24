@@ -123,15 +123,15 @@ const productFeatureRegistry = [
   },
   {
     "id": "quiz-attempt-locking",
-    "title": "Fair quiz attempts",
-    "summary": "Each assigned quiz allows one submitted attempt until a parent deliberately reassigns it.",
-    "details": "An assigned quiz allows one submitted attempt for that particular assignment. This prevents repeated attempts from turning an initial score into an artificial one-hundred-percent result. A parent can deliberately reassign the quiz when another attempt supports learning. The earlier result remains available in history while the reassigned activity receives one fresh attempt.",
-    "familyImpact": "A single meaningful attempt gives families a clearer picture of current understanding instead of a score improved through unlimited repetition. Parents, teachers, and caregivers can use the result to select an appropriate next lesson, worksheet, explanation, or supported second attempt while the learner’s earlier effort remains respected.",
+    "title": "Personalized, fair quizzes",
+    "summary": "Create an age-respectful quiz around a measurable learning objective, with careful illustration use and one meaningful attempt per assignment.",
+    "details": "Parents and caregivers select a child / adult profile, topic, measurable learning objective, purpose, question format, challenge level, and a focused three-to-twenty-question length. The generator uses recorded age, learning level, interests, strengths, and support context instead of assuming Grade 1 or applying a school standard automatically. Optional controls adjust reading level, clue support, curriculum alignment, instructions, and complete uncropped illustrations, while a visible daily allowance and confirmation step help families generate images selectively. Before saving, a review workspace lets the parent edit the content, resolve automatic quality-check items, and privately experience the questions, learning goal, and feedback through Preview as Learner without recording a result. Once assigned, the learner sees the same goal and receives one submitted attempt until a parent deliberately reassigns the quiz, preserving earlier results for honest progress planning.",
+    "familyImpact": "Personalized setup can make questions understandable without making material unnecessarily childish for teenagers or autistic adults. A single meaningful attempt then gives families a clearer picture of current understanding, helping parents, teachers, and caregivers select an appropriate lesson, worksheet, explanation, or supported second attempt while respecting the learner’s earlier effort.",
     "guideParagraphs": [
-      "One submitted attempt makes the quiz result a more useful snapshot of what the learner understood at that moment. The person can still work thoughtfully through every question, but repeatedly reopening the same assignment cannot turn memorized answers into a misleading perfect score. This keeps progress information more meaningful for planning future teaching and support.",
-      "A lower score is not treated as failure or as a reason to remove the earlier effort. Parents can review which ideas were difficult, offer another explanation or related worksheet, and then reassign the quiz when a fresh attempt would support learning. The earlier result stays in history, allowing families to see growth between attempts rather than only the final score."
+      "Quiz creation begins with both a topic and an observable learning objective rather than a broad request for generic questions. For example, a topic might be workplace safety signs, while the objective asks the learner to identify four common signs and their meanings. The selected profile supplies age, recorded learning level, interests, strengths, and areas needing support, while the parent chooses whether the quiz should introduce, practice, review, or check understanding. Challenge and reading level are controlled separately, which allows an intellectually meaningful question to use accessible language without talking down to a teenager or autistic adult.",
+      "Optional settings let a caregiver request more clues, balanced support, or independent work; override the reading level; add concise instructions; explicitly choose Common Core when it is relevant; and request illustrations only when they improve understanding. The page shows the family’s remaining daily illustration allowance and asks for confirmation before generating several images, so a parent can create the quiz without images and add only the most useful ones later. Generated illustrations are shown in full so an important object, person, label, or visual cue is not lost at the edge of a cropped frame. Before saving, the review workspace allows the caregiver to correct wording, answer choices, marked answers, explanations, and the learning objective, while a quality check flags repeated questions and incomplete formats. Preview as Learner then opens the child-friendly quiz experience so the caregiver can try answers, read feedback, inspect mobile-friendly controls, and see results without creating a real attempt, saving a score, or changing rewards. After assignment, the objective remains visible and one submitted attempt makes the result a useful snapshot for planning the next lesson, worksheet, explanation, or supported reassignment."
     ],
-    "help": "The child submits an assigned quiz once. To allow another attempt, the parent reassigns that activity; the earlier result remains in history.",
+    "help": "Open Activities > Quizzes > Quiz Generator. Select a child / adult profile, subject, learning goal or topic, required Learning objective, purpose, question type, challenge level, and 3–20 questions. Under Optional learning and accessibility settings, review the remaining daily illustration allowance before enabling illustrations, then select Generate Quiz. Select Review & Edit to change the content and resolve quality-check items, then select Preview as Learner to privately try the quiz without saving a score or changing rewards. Close the preview, select Finish Review, and select Save Quiz; the learner sees the objective and submits an assigned quiz once, while parent reassignment permits another attempt and keeps the earlier result.",
     "screenshot": {
       "src": "/onboarding/quiz-attempt.png",
       "alt": "Visual Steps one-attempt quiz",
@@ -141,6 +141,7 @@ const productFeatureRegistry = [
     "plan": "starter",
     "icon": "quiz",
     "routes": [
+      "/quiz-generator",
       "/play-quiz/:id/:kidId",
       "/saved-quizzes"
     ],
@@ -403,6 +404,15 @@ export const sanitizeApiErrorResponse = (
   };
   if (typeof source.message === 'string') sanitized.message = source.message.slice(0, 300);
   if (typeof source.code === 'number') sanitized.code = source.code;
+  if (status === 429 && source.allowance && typeof source.allowance === 'object') {
+    const allowance = source.allowance as Record<string, unknown>;
+    sanitized.allowance = {
+      used: Number(allowance.used) || 0,
+      remaining: Math.max(0, Number(allowance.remaining) || 0),
+      dailyLimit: Math.max(0, Number(allowance.dailyLimit) || 0),
+      resetsAt: typeof allowance.resetsAt === 'string' ? allowance.resetsAt : null,
+    };
+  }
   return sanitized;
 };
 
@@ -5129,7 +5139,7 @@ export const parentAssistantFeatureCatalog = [
   { area: 'Completed activity history', routes: ['/assigned-activities/:kidId'], help: 'Use Completed for currently completed assignments and History for completion records. Done Today is based on activities.completion_date, so reassigning an activity reduces the current completed count as intended.' },
   { area: 'Rewards and behavior bonuses', routes: ['/dashboard', '/assigned-activities/:kidId', '/kids-dashboard/:kidId'], help: 'Open a child’s Activities page and select Rewards. Add Item creates a reward with its name, token cost, image, and location. Children can purchase an active item only when their earned balance is sufficient. Only a parent can initiate a behavior bonus: select Recognize positive behavior, type the specific observed behavior (suggestions such as Focused effort, Following family rules, Calm communication, Helpful behavior, Trying again, and Positive self-control are available), choose 1 to 10 rewards, and confirm. The child dashboard shows recent bonuses as reason and amount in its sidebar. Edit the child profile and set Bonus History from 1 to 10 to control how many appear. The child has no control for requesting tokens or bonuses.' },
   { area: 'Activity library', routes: ['/activity-library'], help: 'Open the top Activities menu and Activity Library. Create reusable activities with Activity Category, Activity Name, Description, optional External Link, Display Artwork, milestones/steps, and an optional linked asset type: Interactive Quizzes, Social Narratives, or Practice Sheets. Saved templates can be assigned to a selected child.' },
-  { area: 'Quiz generation and saved quizzes', routes: ['/quiz-generator', '/saved-quizzes', '/edit-quiz/:id'], help: 'Open Activities > Quizzes. Saved Quizzes includes a curated Space Explorer Quiz sample that can be opened and scored without using AI or saving data. Quiz Generator uses Select Kid, Subject, Describe a topic / Explain the problem, No. of questions, Question Type, Difficulty, and Score / Question. Generate, review, and save the quiz. Saved Quizzes provides Actions icons View, Edit, and Delete and supports assignment. Each assigned quiz occurrence accepts one submitted attempt; parent reassignment creates one fresh attempt.' },
+  { area: 'Quiz generation and saved quizzes', routes: ['/quiz-generator', '/saved-quizzes', '/edit-quiz/:id'], help: 'Open Activities > Quizzes. Saved Quizzes includes a curated Space Explorer Quiz sample that can be opened and scored without using AI or saving data. In Quiz Generator, select a Child / adult profile, Subject, Learning goal or topic, Learning purpose, Question Type, Challenge level, 3–20 questions, and Score / Question. Optional learning and accessibility settings control clue support, a reading-level override, explicit Common Core alignment, special instructions, and illustrations. Select Generate Quiz, then select Review & Edit to change the title, questions, answer choices, correct answers, or explanations. Resolve any quality-check items and select Preview as Learner to privately try the child-friendly quiz without saving a score, using an assigned attempt, or changing rewards. Close the preview, select Finish Review, and select Save Quiz. Saved Quizzes provides View, Edit, Delete, and assignment actions. Each assigned quiz occurrence accepts one submitted attempt; parent reassignment creates one fresh attempt.' },
   { area: 'Playing quizzes', routes: ['/play-quiz/:id', '/play-quiz/:id/:kidId'], help: 'Open an assigned quiz from the child dashboard, answer each question, then submit. Listen controls can read questions or feedback. After an assignment attempt is submitted it is locked; Back to activities returns to the dashboard. A parent must reassign the activity to allow a new attempt.' },
   { area: 'Worksheet generation', routes: ['/worksheet-generator'], help: 'Open Activities > Worksheets and go to Worksheet Generator. Select the child, subject, topic, format, difficulty, and number of worksheets, then generate. Use Save Worksheet to keep it. Use Print Worksheet above the preview to open the browser print dialog; choose a printer or Save as PDF.' },
   { area: 'Saved worksheets and printing', routes: ['/saved-worksheets', '/worksheet-generator'], help: 'Open Activities > Worksheets to reach Saved Worksheets. The curated Calm-Down Strategy Map sample can be opened and printed without using AI or saving data. In the worksheet grid find the row and Actions column. Select the eye icon with tooltip View. On View Worksheet select Print Worksheet above the preview. In the browser dialog choose the printer or Save as PDF and select Print or Save. If no dialog opens, allow popups and retry. The other row actions edit or delete; saved content can be assigned to a child.' },
@@ -5347,7 +5357,7 @@ app.post('/api/parent-assistant', authenticateToken, async (req: any, res) => {
       kidIds.length ? supabase.from('activity_history').select('kid_id, activity_type, category, description, due_date, completion_date, reward_qty').in('kid_id', kidIds).order('completion_date', { ascending: false }).limit(50) : emptyResult,
       kidIds.length ? supabase.from('quiz_results').select('kid_id, score, total_questions, completed_at, quizzes(title)').in('kid_id', kidIds).order('completed_at', { ascending: false }).limit(30) : emptyResult,
       kidIds.length ? supabase.from('reward_purchases').select('kid_id, item_name, cost, location, purchased_at').in('kid_id', kidIds).order('purchased_at', { ascending: false }).limit(30) : emptyResult,
-      supabase.from('quizzes').select('id, kid_id, title, topic, difficulty, grade_level, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(30),
+      supabase.from('quizzes').select('id, kid_id, title, learning_objective, topic, difficulty, grade_level, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(30),
       supabase.from('worksheets').select('id, kid_id, title, topic, subject, grade_level, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(30),
       supabase.from('social_stories').select('id, kid_id, title, created_at, updated_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(30),
     ]);
@@ -5419,6 +5429,49 @@ app.post('/api/parent-assistant', authenticateToken, async (req: any, res) => {
 });
 
 // --- AI Generation API ---
+const IMAGE_GENERATION_DAILY_LIMIT = 10;
+export const buildImageGenerationAllowance = (usedValue: unknown, now = new Date()) => {
+  const used = Math.max(0, Math.min(IMAGE_GENERATION_DAILY_LIMIT, Number(usedValue) || 0));
+  const resetsAt = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+  return { used, remaining: IMAGE_GENERATION_DAILY_LIMIT - used, dailyLimit: IMAGE_GENERATION_DAILY_LIMIT, resetsAt: resetsAt.toISOString() };
+};
+
+type ImageAllowanceConsumer = (req: any) => Promise<{ allowed: boolean; used: number; remaining: number; dailyLimit: number; resetsAt: string }>;
+const defaultImageAllowanceConsumer: ImageAllowanceConsumer = async (req) => {
+  const { data, error } = await getSupabaseForUser(req).rpc('consume_parent_image_allowance');
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    allowed: row?.allowed === true,
+    used: Number(row?.used) || IMAGE_GENERATION_DAILY_LIMIT,
+    remaining: Math.max(0, Number(row?.remaining) || 0),
+    dailyLimit: Number(row?.daily_limit) || IMAGE_GENERATION_DAILY_LIMIT,
+    resetsAt: row?.resets_at,
+  };
+};
+let imageAllowanceConsumer: ImageAllowanceConsumer = defaultImageAllowanceConsumer;
+export const setImageAllowanceConsumerForTests = (consumer: ImageAllowanceConsumer | null) => {
+  imageAllowanceConsumer = consumer || defaultImageAllowanceConsumer;
+};
+
+app.get('/api/image-generation/usage', authenticateToken, async (req: any, res) => {
+  if (req.user.role !== 'parent') return res.status(403).json({ error: 'Parent access required' });
+  try {
+    const usageDate = new Date().toISOString().slice(0, 10);
+    const { data, error } = await getSupabaseForUser(req)
+      .from('parent_image_usage')
+      .select('image_count')
+      .eq('user_id', req.user.id)
+      .eq('usage_date', usageDate)
+      .maybeSingle();
+    if (error) throw error;
+    res.json({ allowance: buildImageGenerationAllowance(data?.image_count) });
+  } catch (error) {
+    console.error('Failed to load illustration allowance:', error);
+    res.status(500).json({ error: 'Unable to load the illustration allowance' });
+  }
+});
+
 app.post('/api/generate', authenticateToken, async (req: any, res) => {
   const { 
     model: model_body, 
@@ -5434,6 +5487,7 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
     const modelNameInput = resolveRequestedAiModel(model_body || model_name_body);
     const apiKey = (cleanEnvVar('GEMINI_API_KEY') || cleanEnvVar('GOOGLE_API_KEY')).trim();
     let finalModelName = 'gemini-3-flash-preview';
+    let imageAllowance: Awaited<ReturnType<ImageAllowanceConsumer>> | null = null;
     
     try {
     if (!apiKey || apiKey === 'undefined' || apiKey === 'null' || apiKey.length < 10) {
@@ -5446,6 +5500,16 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
       return res.status(400).json({ error: 'Unsupported AI model requested' });
     }
     finalModelName = modelNameInput;
+
+    if (finalModelName.includes('image')) {
+      imageAllowance = await imageAllowanceConsumer(req);
+      if (!imageAllowance.allowed) {
+        return res.status(429).json({
+          error: 'Daily illustration limit reached. More illustrations will be available after the daily reset.',
+          allowance: imageAllowance,
+        });
+      }
+    }
 
     console.log(`[AI Generation] Using SDK with model: ${finalModelName}`);
 
@@ -5493,7 +5557,7 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
       return res.status(502).json({ error: 'AI image response did not contain image data' });
     }
 
-    res.json({ text });
+    res.json({ text, ...(imageAllowance ? { allowance: imageAllowance } : {}) });
 
   } catch (error: any) {
     console.error('[AI Generation] SDK Exception:', error);
@@ -5810,7 +5874,7 @@ app.get('/api/quizzes/:id', authenticateToken, async (req: any, res) => {
 
 // Create a quiz
 app.post('/api/quizzes', authenticateToken, async (req: any, res) => {
-  const { kidId, title, topic, subject, difficulty, gradeLevel, noOfQuestions, questionType, questionScore, content } = req.body;
+  const { kidId, title, learningObjective, topic, subject, difficulty, gradeLevel, noOfQuestions, questionType, questionScore, content } = req.body;
   const userId = req.user.id;
   if (!title || !content) return res.status(400).json({ error: 'Title and content are required' });
 
@@ -5828,6 +5892,7 @@ app.post('/api/quizzes', authenticateToken, async (req: any, res) => {
     };
 
     if (topic !== undefined) insertData.topic = topic;
+    if (learningObjective !== undefined) insertData.learning_objective = learningObjective;
     if (difficulty !== undefined) insertData.difficulty = difficulty;
     if (gradeLevel !== undefined) {
       insertData.grade_level = gradeLevel;
@@ -5924,7 +5989,7 @@ app.post('/api/quizzes', authenticateToken, async (req: any, res) => {
 app.put('/api/quizzes/:id', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
   const { id } = req.params;
-  const { kidId, title, topic, subject, difficulty, gradeLevel, noOfQuestions, questionType, questionScore, content } = req.body;
+  const { kidId, title, learningObjective, topic, subject, difficulty, gradeLevel, noOfQuestions, questionType, questionScore, content } = req.body;
   const userId = req.user.id;
 
   if (!title || !content) return res.status(400).json({ error: 'Title and content are required' });
@@ -5952,6 +6017,7 @@ app.put('/api/quizzes/:id', authenticateToken, async (req: any, res) => {
     };
 
     if (kidId !== undefined) updateData.kid_id = kidId;
+    if (learningObjective !== undefined) updateData.learning_objective = learningObjective;
     if (subject !== undefined) updateData.subject = subject;
     if (noOfQuestions !== undefined) updateData.no_of_questions = noOfQuestions;
     if (questionType !== undefined) updateData.question_type = questionType;

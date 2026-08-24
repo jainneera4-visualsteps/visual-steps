@@ -7,7 +7,16 @@ process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'visual-steps-mocked-api-test-secret';
 process.env.GEMINI_API_KEY = 'mocked-gemini-key-never-sent';
 
-const { default: app, sanitizeApiErrorResponse, setAiClientFactoryForTests } = await import('../../server');
+const { default: app, sanitizeApiErrorResponse, setAiClientFactoryForTests, setImageAllowanceConsumerForTests } = await import('../../server');
+
+const availableImageAllowance = {
+  allowed: true,
+  used: 1,
+  remaining: 9,
+  dailyLimit: 10,
+  resetsAt: '2026-08-25T00:00:00.000Z',
+};
+setImageAllowanceConsumerForTests(async () => availableImageAllowance);
 
 const server = app.listen(0, '127.0.0.1');
 await new Promise<void>((resolve, reject) => {
@@ -45,6 +54,7 @@ const api = async (
 
 test.after(() => {
   setAiClientFactoryForTests(null);
+  setImageAllowanceConsumerForTests(null);
   server.close();
 });
 
@@ -228,7 +238,29 @@ test('AI image API converts mocked inline image bytes into a browser data URL', 
   });
 
   assert.equal(response.status, 200);
-  assert.deepEqual(body, { text: 'data:image/png;base64,aW1hZ2U=' });
+  assert.deepEqual(body, { text: 'data:image/png;base64,aW1hZ2U=', allowance: availableImageAllowance });
+});
+
+test('AI image API rejects requests after the daily allowance is exhausted', async () => {
+  let factoryCalls = 0;
+  setAiClientFactoryForTests(() => {
+    factoryCalls += 1;
+    return { models: { generateContent: async () => ({ text: 'should not run' }) } };
+  });
+  setImageAllowanceConsumerForTests(async () => ({ ...availableImageAllowance, allowed: false, used: 10, remaining: 0 }));
+
+  try {
+    const { response, body } = await api('/api/generate', {
+      method: 'POST', authenticated: true,
+      body: { model: 'gemini-2.5-flash-image', prompt: 'Draw another illustration' },
+    });
+    assert.equal(response.status, 429);
+    assert.match(body.error, /Daily illustration limit reached/);
+    assert.equal(body.allowance.remaining, 0);
+    assert.equal(factoryCalls, 0);
+  } finally {
+    setImageAllowanceConsumerForTests(async () => availableImageAllowance);
+  }
 });
 
 test('AI API returns a status error without exposing a stack or SDK response', async () => {

@@ -260,7 +260,7 @@ This section is generated from `feature-registry.json`. Update the registry when
 | Clear visual activities | starter | 2026-03-01 | Build scheduled routines with small steps and illustrations that match what the child / adult is being asked to do. |
 | Parent activity verification | starter | 2026-08-20 | Choose which activities require parent approval before rewards are earned. |
 | Positive behavior bonuses | starter | 2026-08-20 | Parents can recognize a specific calm, focused, helpful, or persistent behavior. |
-| Fair quiz attempts | starter | 2026-08-20 | Each assigned quiz allows one submitted attempt until a parent deliberately reassigns it. |
+| Personalized, fair quizzes | starter | 2026-08-20 | Create an age-respectful quiz around a measurable learning objective, with careful illustration use and one meaningful attempt per assignment. |
 | Curated learning samples | starter | 2026-08-21 | Preview a quiz, printable worksheet, and social story without using AI or saving data. |
 | Replayable parent tour | starter | 2026-08-20 | New parents receive a guided introduction, and existing parents can replay it anytime. |
 | Visual Steps Parent Assistant | family | 2026-08-20 | Ask app how-to questions and receive answers grounded in owned family data. |

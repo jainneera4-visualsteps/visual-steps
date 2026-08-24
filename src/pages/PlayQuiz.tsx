@@ -11,6 +11,7 @@ import { celebrate } from '../utils/celebration';
 interface QuizContent {
   title: string;
   description: string;
+  learningObjective?: string;
   questionType?: string;
   questionScore?: number;
   questions: {
@@ -497,6 +498,11 @@ export default function PlayQuiz() {
         <div className="h-full grid grid-cols-1 md:grid-cols-4">
           <div className="md:col-span-3 flex flex-col bg-white/85 border-r border-indigo-100 backdrop-blur-sm">
             <div className="p-4 md:p-8 space-y-6">
+              {quiz.learningObjective && (
+                <p className="rounded-xl border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold text-violet-900">
+                  <span className="font-black">Today’s goal:</span> {quiz.learningObjective}
+                </p>
+              )}
               <div className="space-y-0.5">
                 <span className="inline-flex rounded-full bg-violet-100 px-3 py-1 text-[11px] font-black text-violet-700 uppercase tracking-[0.2em]">Question</span>
                 <h2 className="text-lg md:text-2xl font-bold text-slate-900 leading-tight text-justify">
