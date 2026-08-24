@@ -58,6 +58,11 @@ test('required product surfaces consume the shared feature registry', async () =
   assert.match(onboarding, /featuresForSurface\('onboarding'\)/);
   assert.match(server, /FEATURE_REGISTRY_SERVER:START/);
   assert.doesNotMatch(server, /import productFeatureRegistry/);
+  assert.match(server, /buildWelcomeFeatureContent/);
+  assert.match(server, /productFeatureRegistry\.filter\(feature => feature\.surfaces\.includes\('home'\)\)/);
+  assert.match(server, /welcomeFeatures\.text/);
+  assert.match(server, /welcomeFeatures\.html/);
+  assert.match(server, /features\/\$\{encodeURIComponent\(feature\.id\)\}/);
 });
 
 test('home feature cards link to catalog-backed detailed feature guides', async () => {

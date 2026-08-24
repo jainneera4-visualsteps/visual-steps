@@ -962,6 +962,29 @@ const getTransporter = async () => {
   return transporter;
 };
 
+const isRecentlyIntroducedFeature = (introducedOn: string, now = new Date()) => {
+  const introducedAt = new Date(`${introducedOn}T00:00:00Z`).getTime();
+  const age = now.getTime() - introducedAt;
+  return age >= 0 && age < 30 * 24 * 60 * 60 * 1000;
+};
+
+const buildWelcomeFeatureContent = (appUrl: string, now = new Date()) => {
+  const features = productFeatureRegistry.filter(feature => feature.surfaces.includes('home'));
+  return {
+    text: features
+      .map(feature => `- ${isRecentlyIntroducedFeature(feature.introducedOn, now) ? 'NEW: ' : ''}${feature.title}: ${feature.summary} Learn more: ${appUrl}/features/${feature.id}`)
+      .join('\n'),
+    html: features
+      .map(feature => {
+        const newLabel = isRecentlyIntroducedFeature(feature.introducedOn, now)
+          ? '<span style="display:inline-block;margin-left:8px;padding:2px 7px;border-radius:999px;background:#dcfce7;color:#166534;font-size:11px;font-weight:700;text-transform:uppercase;">New</span>'
+          : '';
+        return `<li style="margin:0 0 12px;"><strong style="color:#1e293b;">${escapeEmailHtml(feature.title)}</strong>${newLabel}<br><span>${escapeEmailHtml(feature.summary)}</span> <a href="${appUrl}/features/${encodeURIComponent(feature.id)}" style="color:#2563eb;text-decoration:none;font-weight:600;">Read more</a></li>`;
+      })
+      .join(''),
+  };
+};
+
 const sendWelcomeEmail = async (email: string, name: string) => {
   console.log(`Attempting to send welcome email to: ${email} (${name})`);
   try {
@@ -972,12 +995,15 @@ const sendWelcomeEmail = async (email: string, name: string) => {
     const appUrl = cleanEnvVar('APP_URL') || (process.env.NODE_ENV === 'production'
       ? PRODUCTION_APP_URL
       : 'http://localhost:3000');
+    const welcomeFeatures = buildWelcomeFeatureContent(appUrl);
+    const safeName = escapeEmailHtml(name || 'User');
+    const safeEmail = escapeEmailHtml(email);
     
     const info = await transporter.sendMail({
       from: smtpFrom,
       to: email,
       subject: 'Welcome to Visual Steps — Let’s Make Every Step Clearer',
-      text: `Hello ${name || 'User'},\n\nWelcome to Visual Steps. You have made a thoughtful choice to create more structure, clarity, and encouragement in your child’s daily routine. We are glad to support your family.\n\nVisual Steps helps parents turn everyday goals into clear, manageable actions. In one place, you can:\n- Plan visual activities and break routines into step-by-step instructions\n- Organize schedules and assign activities for each child\n- Create personalized social stories, worksheets, and quizzes\n- Encourage progress through rewards and positive parent messages\n- Review completed activities, progress reports, and learning history\n- Personalize each child’s experience, schedule, interests, and support needs\n\nStart with one small routine that would make today easier. Add the activity, divide it into simple steps, and celebrate each success along the way.\n\nOpen your Visual Steps dashboard: ${appUrl}/login\nRegistered email: ${email}\n\nYou know your child best. Visual Steps gives you practical tools to turn that knowledge into consistent, visible support—and every completed step is meaningful progress.\n\nIf you have questions, reply to this email. We are here to help.\n\nWarmly,\nThe Visual Steps Team`,
+      text: `Hello ${name || 'User'},\n\nWelcome to Visual Steps. You have made a thoughtful choice to create more structure, clarity, and encouragement in your family’s daily routines. We support autistic people of different ages and the parents and caregivers growing alongside them.\n\nHere is what your family can explore today:\n${welcomeFeatures.text}\n\nStart with one small routine that would make today easier. Add the activity, divide it into simple steps, and celebrate each meaningful success along the way.\n\nOpen your Visual Steps dashboard: ${appUrl}/login\nRegistered email: ${email}\n\nYou know your family member best. Visual Steps gives you practical tools to turn that knowledge into consistent, visible support.\n\nIf you have questions, reply to this email. We are here to help.\n\nWarmly,\nThe Visual Steps Team`,
       html: `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #f0f0f0; border-radius: 12px; color: #333; line-height: 1.6;">
           <div style="text-align: center; margin-bottom: 30px;">
@@ -985,21 +1011,16 @@ const sendWelcomeEmail = async (email: string, name: string) => {
             <p style="color: #64748b; font-size: 16px; margin-top: 8px;">Clearer routines. Encouraging progress. One step at a time.</p>
           </div>
           
-          <p>Hello <strong>${name || 'User'}</strong>,</p>
+          <p>Hello <strong>${safeName}</strong>,</p>
           
-          <p>You have made a thoughtful choice to create more structure, clarity, and encouragement in your child’s daily routine. We are glad to support your family.</p>
+          <p>You have made a thoughtful choice to create more structure, clarity, and encouragement in your family’s daily routines. We support autistic people of different ages and the parents and caregivers growing alongside them.</p>
 
           <p><strong>Visual Steps</strong> helps parents turn everyday goals into clear, manageable actions. Whether you are building a morning routine, supporting learning, or encouraging greater independence, you now have one organized place to guide and celebrate progress.</p>
           
           <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 25px 0;">
             <h3 style="margin-top: 0; color: #1e293b; font-size: 16px;">What you can do with Visual Steps:</h3>
             <ul style="margin-bottom: 0; padding-left: 20px; color: #475569;">
-              <li>Plan visual activities and break routines into step-by-step instructions</li>
-              <li>Organize schedules and assign activities for each child</li>
-              <li>Create personalized social stories, worksheets, and quizzes</li>
-              <li>Encourage progress through rewards and positive parent messages</li>
-              <li>Review completed activities, progress reports, and learning history</li>
-              <li>Personalize each child’s experience, schedule, interests, and support needs</li>
+              ${welcomeFeatures.html}
             </ul>
           </div>
 
@@ -1016,7 +1037,7 @@ const sendWelcomeEmail = async (email: string, name: string) => {
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #64748b;">Registered Email:</td>
-              <td style="padding: 8px 0; font-weight: bold;">${email}</td>
+              <td style="padding: 8px 0; font-weight: bold;">${safeEmail}</td>
             </tr>
           </table>
           
