@@ -6,24 +6,24 @@
 
 ## 1. Product summary
 
-Visual Steps is a web platform for parents and caregivers of children with autism. It combines visual schedules, personalized learning content, progress tracking, parent-child communication, and positive reinforcement in one environment.
+Visual Steps is a web platform for parents and caregivers supporting an autistic child / adult. It combines visual schedules, personalized learning content, progress tracking, family communication, and positive reinforcement in one environment.
 
-Parents use a management dashboard to plan activities and tailor the experience to each child. Children use a simplified dashboard that emphasizes predictability, clear instructions, immediate feedback, and earned rewards.
+Parents and caregivers use a management dashboard to plan activities and tailor the experience to each child / adult. The child / adult uses a simplified dashboard that emphasizes predictability, clear instructions, immediate feedback, and earned rewards.
 
 The product is a support and educational tool. It does not diagnose conditions, provide clinical treatment, or replace advice from qualified healthcare or education professionals.
 
 ## 2. Problem
 
-Families often need several disconnected tools to manage routines, break tasks into visual steps, create differentiated learning resources, track progress, and motivate positive behavior. Generic task managers can be too complex for a child-facing experience, while educational products may not reflect a child's schedule, interests, sensory needs, or family reward system.
+Families often need several disconnected tools to manage routines, break tasks into visual steps, create differentiated learning resources, track progress, and motivate positive behavior. Generic task managers can be too complex for a child / adult-facing experience, while educational products may not reflect the person’s schedule, interests, sensory needs, or family reward system.
 
-Visual Steps provides a shared system in which a parent can prepare and supervise the plan while the child receives only the information and choices relevant to the current task.
+Visual Steps provides a shared system in which a parent or caregiver can prepare and supervise the plan while the child / adult receives only the information and choices relevant to the current task.
 
 ## 3. Users
 
 ### Primary users
 
-- **Parents and caregivers:** Create child profiles, plan routines, generate content, communicate with children, and monitor progress.
-- **Children:** Complete visual activities and quizzes, view messages and stories, and redeem earned rewards.
+- **Parents and caregivers:** Create profiles, plan routines, generate content, communicate with the child / adult, and monitor progress.
+- **Child / adult:** Complete visual activities and quizzes, view messages and stories, and redeem earned rewards.
 
 ### Potential future users
 
@@ -33,11 +33,11 @@ Visual Steps provides a shared system in which a parent can prepare and supervis
 
 - **Clarity:** Present tasks in small, concrete, visual steps.
 - **Predictability:** Make schedules, rules, completion state, and rewards easy to understand.
-- **Personalization:** Adapt content to a child's age, grade, interests, strengths, and support needs.
+- **Personalization:** Adapt content to the child / adult’s age, learning level, interests, strengths, and support needs.
 - **Positive reinforcement:** Reward effort and completion without using punitive mechanics.
 - **Parent control:** Keep assignment, configuration, purchasing, and sensitive information under caregiver supervision.
 - **Accessibility:** Use readable, responsive interfaces and avoid unnecessary cognitive load.
-- **Privacy:** Treat child profiles, behavioral context, messages, and learning data as sensitive information.
+- **Privacy:** Treat child / adult profiles, behavioral context, messages, and learning data as sensitive information.
 
 ## 5. Implemented scope
 
@@ -257,7 +257,7 @@ This section is generated from `feature-registry.json`. Update the registry when
 
 | Feature | Plan | Introduced | Current description |
 | --- | --- | --- | --- |
-| Clear visual activities | starter | 2026-03-01 | Build scheduled routines with small steps and illustrations that match what the child is being asked to do. |
+| Clear visual activities | starter | 2026-03-01 | Build scheduled routines with small steps and illustrations that match what the child / adult is being asked to do. |
 | Parent activity verification | starter | 2026-08-20 | Choose which activities require parent approval before rewards are earned. |
 | Positive behavior bonuses | starter | 2026-08-20 | Parents can recognize a specific calm, focused, helpful, or persistent behavior. |
 | Fair quiz attempts | starter | 2026-08-20 | Each assigned quiz allows one submitted attempt until a parent deliberately reassigns it. |
@@ -265,6 +265,6 @@ This section is generated from `feature-registry.json`. Update the registry when
 | Replayable parent tour | starter | 2026-08-20 | New parents receive a guided introduction, and existing parents can replay it anytime. |
 | Visual Steps Parent Assistant | family | 2026-08-20 | Ask app how-to questions and receive answers grounded in owned family data. |
 | Controlled social-story sharing | family | 2026-08-19 | Share a story using a private link that can expire or be revoked. |
-| Temporary guest demonstration | starter | 2026-08-21 | Explore realistic parent and child workflows without creating an account or keeping any changes. |
+| Temporary guest demonstration | starter | 2026-08-21 | Explore realistic caregiver and child / adult workflows without creating an account or keeping any changes. |
 | Learning, progress, and meaningful rewards | starter | 2026-03-15 | Create personalized resources, understand progress, and connect earned rewards to meaningful goals. |
 <!-- FEATURE_REGISTRY:END -->

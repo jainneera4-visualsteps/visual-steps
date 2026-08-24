@@ -165,7 +165,7 @@ export default function Home() {
                 Make every day feel more <span className="text-brand-600">possible.</span>
               </h1>
               <p className="text-lg leading-8 text-slate-600 max-w-2xl">
-                Visual Steps helps families turn routines, learning and everyday responsibilities into clear visual activities children can understand, complete and celebrate.
+                Visual Steps helps families turn routines, learning and everyday responsibilities into clear visual activities a child / adult can understand, complete and celebrate.
               </p>
               <figure className="relative overflow-hidden rounded-3xl border border-white/90 bg-white shadow-lg shadow-slate-300/25">
                 <img

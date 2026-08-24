@@ -145,8 +145,8 @@ test('newsletter combines feature guidance, hides empty sections, and explains p
   assert.match(server, /INSTAGRAM_URL/);
   assert.match(page, /NewsletterLinks/);
   assert.match(page, /isSubscribePage/);
+  assert.match(page, /\['Visual Steps Home',links\?\.mainPage\|\|'\/'\]/);
   assert.match(page, /\['Subscribe Newsletter','\/newsletter\/subscribe'\]/);
-  assert.doesNotMatch(page, /\['Visual Steps home'/);
   assert.match(envExample, /FACEBOOK_URL=/);
   assert.match(envExample, /INSTAGRAM_URL=/);
 });

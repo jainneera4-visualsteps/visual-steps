@@ -86,6 +86,7 @@ test('home links to the newsletter and safely exposes configured social pages', 
   assert.match(layout, /publicLinks\.instagram/);
   assert.match(layout, /text-sm font-bold text-slate-600/);
   assert.match(server, /Subscribe Newsletter', `\$\{appOrigin\}\/newsletter\/subscribe`/);
+  assert.match(server, /\['Visual Steps Home', appOrigin\]/);
   assert.doesNotMatch(home, /SMTP_PASS|service_role/);
 });
 

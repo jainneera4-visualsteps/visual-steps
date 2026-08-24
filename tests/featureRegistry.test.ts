@@ -34,6 +34,23 @@ test('family-facing feature guidance avoids implementation and billing terminolo
   );
 });
 
+test('lifespan-wide feature guidance names both children and adults', () => {
+  const lifespanFeatureIds = [
+    'visual-activities',
+    'activity-verification',
+    'behavior-bonuses',
+    'curated-samples',
+    'parent-assistant',
+    'guest-demo',
+  ];
+  for (const featureId of lifespanFeatureIds) {
+    const feature = productFeatures.find(item => item.id === featureId);
+    assert.ok(feature, `${featureId} must remain in the feature registry`);
+    const familyFacingCopy = [feature.summary, feature.details, feature.familyImpact, ...feature.guideParagraphs].join(' ');
+    assert.match(familyFacingCopy, /child \/ adult/i, `${featureId} must represent autistic people across ages`);
+  }
+});
+
 test('new badges last 30 days and never appear before release', () => {
   const feature = productFeatures[0];
   const dated = { ...feature, introducedOn: '2026-08-01' };

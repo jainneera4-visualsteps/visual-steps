@@ -1,25 +1,25 @@
 # Visual Steps
 
-Visual Steps is a full-stack web application that helps parents and caregivers create structured, visual routines and personalized learning experiences for children with autism. Parents manage profiles, activities, learning materials, progress, messages, and rewards; children receive a focused dashboard for completing activities, playing assigned quizzes, and redeeming earned rewards.
+Visual Steps is a full-stack web application that helps parents and caregivers create structured, visual routines and personalized learning experiences for an autistic child / adult. Parents and caregivers manage profiles, activities, learning materials, progress, messages, and rewards; the child / adult receives a focused dashboard for completing activities, playing assigned quizzes, and redeeming earned rewards.
 
 ## What the application includes
 
 ### Parent experience
 
-- Create and manage profiles for multiple children.
-- Record each child's schedule, interests, strengths, support needs, therapies, rules, theme, time zone, and reward settings.
+- Create and manage profiles for multiple children / adults.
+- Record each child / adult's schedule, interests, strengths, support needs, therapies, rules, theme, time zone, and reward settings.
 - Create reusable activity templates and assign visual, step-by-step activities.
 - Follow a friendly first-time parent onboarding tour or replay it anytime from the dashboard.
 - Ask the parent-only AI assistant how to use Visual Steps, summarize owned child data, or suggest relevant activities within a strictly app-related scope. Its verified catalog covers every registered app route; parents can view that coverage and report missing information for review without automatically training the model.
 - Control AI spending with an atomic 30-question daily allowance per parent, including visible remaining usage and reset information.
 - Schedule recurring activities, optionally require parent verification, and review completion history.
-- Let parents type why a positive behavior deserves a limited bonus, with optional suggestions. The child dashboard shows a profile-configurable number of recent bonuses as compact reason-and-amount entries, and children cannot request them.
+- Let parents type why a positive behavior deserves a limited bonus, with optional suggestions. The child dashboard shows a profile-configurable number of recent bonuses as compact reason-and-amount entries, and the child / adult cannot request them.
 - Generate and edit AI-assisted quizzes, worksheets, and social stories.
 - Assign quizzes for one attempt per activity occurrence and review results through progress and summary reports. A deliberate reassignment unlocks one new attempt without deleting earlier results.
 - Configure reward-shop items and approve purchases.
 - Send messages to a child's dashboard.
 
-### Child experience
+### Child / adult experience
 
 - Sign in with a parent email and child access code.
 - View current, waiting-for-verification, and completed activities in a child-friendly dashboard.
@@ -27,7 +27,7 @@ Visual Steps is a full-stack web application that helps parents and caregivers c
 - Receive small, reduced-motion-aware celebrations for correct quiz answers and meaningful completions.
 - Submit assigned work and earn configured tokens or stickers only after the completion requirements are satisfied.
 
-For activities marked **Parent verification required**, a child submission moves to a waiting queue. It does not update completion totals or rewards until the parent selects **Verify & complete**. A parent can instead reassign it to pending without granting a reward. Existing activities default to immediate completion.
+For activities marked **Parent verification required**, a child / adult submission moves to a waiting queue. It does not update completion totals or rewards until the parent selects **Verify & complete**. A parent can instead reassign it to pending without granting a reward. Existing activities default to immediate completion.
 - Read assigned social stories and messages from a parent.
 - Spend earned rewards in the reward shop.
 
@@ -211,7 +211,7 @@ This section is generated from `feature-registry.json`. Update the registry when
 
 | Feature | Plan | Introduced | Current description |
 | --- | --- | --- | --- |
-| Clear visual activities | starter | 2026-03-01 | Build scheduled routines with small steps and illustrations that match what the child is being asked to do. |
+| Clear visual activities | starter | 2026-03-01 | Build scheduled routines with small steps and illustrations that match what the child / adult is being asked to do. |
 | Parent activity verification | starter | 2026-08-20 | Choose which activities require parent approval before rewards are earned. |
 | Positive behavior bonuses | starter | 2026-08-20 | Parents can recognize a specific calm, focused, helpful, or persistent behavior. |
 | Fair quiz attempts | starter | 2026-08-20 | Each assigned quiz allows one submitted attempt until a parent deliberately reassigns it. |
@@ -219,6 +219,6 @@ This section is generated from `feature-registry.json`. Update the registry when
 | Replayable parent tour | starter | 2026-08-20 | New parents receive a guided introduction, and existing parents can replay it anytime. |
 | Visual Steps Parent Assistant | family | 2026-08-20 | Ask app how-to questions and receive answers grounded in owned family data. |
 | Controlled social-story sharing | family | 2026-08-19 | Share a story using a private link that can expire or be revoked. |
-| Temporary guest demonstration | starter | 2026-08-21 | Explore realistic parent and child workflows without creating an account or keeping any changes. |
+| Temporary guest demonstration | starter | 2026-08-21 | Explore realistic caregiver and child / adult workflows without creating an account or keeping any changes. |
 | Learning, progress, and meaningful rewards | starter | 2026-03-15 | Create personalized resources, understand progress, and connect earned rewards to meaningful goals. |
 <!-- FEATURE_REGISTRY:END -->

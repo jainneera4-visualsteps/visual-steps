@@ -24,8 +24,8 @@ const productFeatureRegistry = [
   {
     "id": "visual-activities",
     "title": "Clear visual activities",
-    "summary": "Build scheduled routines with small steps and illustrations that match what the child is being asked to do.",
-    "details": "Parents can turn a routine, responsibility, or learning goal into a clear assigned activity. Each activity can include a description, relevant illustrations, smaller visual steps, timing, recurrence, and a reward amount. Children see a focused view of what to do now and what comes next rather than unrelated generic imagery. Parents can adjust or reassign the same activity when a child needs another try.",
+    "summary": "Build scheduled routines with small steps and illustrations that match what the child / adult is being asked to do.",
+    "details": "Parents and caregivers can turn a routine, responsibility, or learning goal into a clear assigned activity. Each activity can include a description, relevant illustrations, smaller visual steps, timing, recurrence, and a reward amount. The child / adult sees a focused view of what to do now and what comes next rather than unrelated generic imagery. Parents and caregivers can adjust or reassign the same activity when the child / adult needs another try.",
     "familyImpact": "Clear visual sequences can reduce uncertainty and make a task easier to begin, understand, and finish for autistic people of different ages and support needs. Parents and caregivers can divide responsibilities into achievable steps, adapt the pace, and use consistent instructions across home, learning, work, therapy support, and community routines.",
     "guideParagraphs": [
       "A visual activity is most useful when it answers the questions a person may naturally have before beginning: what am I doing, how much is expected, what happens next, and how will I know I am finished? Parents can keep the wording concrete, choose an illustration that truly matches the task, and add only the steps that make the activity easier to follow. For a familiar routine, a short instruction may be enough; for a newer or more demanding responsibility, several smaller steps can provide a clearer path.",
@@ -59,8 +59,8 @@ const productFeatureRegistry = [
     "id": "activity-verification",
     "title": "Parent activity verification",
     "summary": "Choose which activities require parent approval before rewards are earned.",
-    "details": "Parents decide which activities can finish immediately and which need adult verification. A child who submits verification-required work sees that it is waiting for a parent rather than already complete. From a completed activity, a parent must choose to reassign it, place it on hold, or mark it discontinued or ended. Reassignment can stay at the same level, move up, or move down; only the same-level choice is counted as a repeated activity. Rewards are added only after approval and are not added again merely because an activity is reassigned.",
-    "familyImpact": "Verification helps children and adults understand that rewards recognize work that has genuinely been completed, while still allowing another attempt without shame. Caregivers gain a calm review point where they can acknowledge effort, clarify unfinished steps, change difficulty, or pause a task according to the person’s current needs.",
+    "details": "Parents and caregivers decide which activities can finish immediately and which need verification. A child / adult who submits verification-required work sees that it is waiting for review rather than already complete. From a completed activity, a parent or caregiver must choose to reassign it, place it on hold, or mark it discontinued or ended. Reassignment can stay at the same level, move up, or move down; only the same-level choice is counted as a repeated activity. Rewards are added only after approval and are not added again merely because an activity is reassigned.",
+    "familyImpact": "Verification helps the child / adult understand that rewards recognize work that has genuinely been completed, while still allowing another attempt without shame. Caregivers gain a calm review point where they can acknowledge effort, clarify unfinished steps, change difficulty, or pause a task according to the person’s current needs.",
     "guideParagraphs": [
       "Verification is intended for work that genuinely benefits from a second look, not as an extra barrier for every routine. A parent might enable it for a multi-step responsibility, a learning task, or an activity where safety and completeness matter, while allowing straightforward daily routines to finish immediately. The child dashboard clearly explains that submitted work is waiting for review so the person is not left wondering why the reward has not appeared.",
       "During review, the parent can recognize what was done well and choose the outcome that best reflects the situation. Reassigning at the same level records that the activity needed another comparable attempt, while moving the level up or down changes the challenge without labeling it as a simple repeat. On Hold and Discontinued or Ended choices also preserve useful planning information when timing, interest, health, support, or family priorities change."
@@ -92,11 +92,11 @@ const productFeatureRegistry = [
     "id": "behavior-bonuses",
     "title": "Positive behavior bonuses",
     "summary": "Parents can recognize a specific calm, focused, helpful, or persistent behavior.",
-    "details": "Parents can recognize positive behavior they personally observed without creating another activity. Every bonus records a specific reason, such as trying again, staying calm, focusing, or following a rule. The child sees the reason and reward together, reinforcing that the bonus was earned rather than freely requested. Parents control when a bonus is appropriate and children cannot request one through the app.",
+    "details": "Parents and caregivers can recognize positive behavior they personally observed without creating another activity. Every bonus records a specific reason, such as trying again, staying calm, focusing, or following a rule. The child / adult sees the reason and reward together, reinforcing that the bonus was earned rather than freely requested. Parents and caregivers control when a bonus is appropriate, and the child / adult cannot request one through the app.",
     "familyImpact": "Specific recognition helps an autistic person connect a reward with a meaningful behavior such as persistence, self-regulation, communication, kindness, or following an agreed routine. Parents and caregivers retain control of the decision and can describe exactly what went well, encouraging healthy growth without presenting rewards as something obtained through repeated demands.",
     "guideParagraphs": [
       "A behavior bonus works best when it follows something the parent actually noticed and names that behavior clearly. Instead of giving an unexplained token, a parent can write “Returned to the task after a break,” “Used words to ask for help,” or “Stayed calm while the plan changed.” The reason appears with the reward so the recognition remains connected to effort, regulation, communication, or another meaningful action.",
-      "The child cannot request or award these bonuses, which helps parents maintain a calm and consistent boundary when a person repeatedly asks for more rewards. Parents decide whether a behavior deserves recognition and how many rewards are appropriate within the family’s existing expectations. Over time, the recent bonus list can also remind everyone of real examples of growth that might otherwise be overlooked."
+      "The child / adult cannot request or award these bonuses, which helps parents and caregivers maintain a calm and consistent boundary when a person repeatedly asks for more rewards. Parents and caregivers decide whether a behavior deserves recognition and how many rewards are appropriate within the family’s existing expectations. Over time, the recent bonus list can also remind everyone of real examples of growth that might otherwise be overlooked."
     ],
     "help": "Open a child’s Activities page, select Rewards, type the observed positive behavior, select 1–10 rewards, and confirm the bonus.",
     "screenshot": {
@@ -158,7 +158,7 @@ const productFeatureRegistry = [
     "id": "curated-samples",
     "title": "Curated learning samples",
     "summary": "Preview a quiz, printable worksheet, and social story without using AI or saving data.",
-    "details": "Families can open a complete sample quiz, printable worksheet, and social story before creating their own material. The samples show the expected format, level of detail, and child-friendly presentation. They are available to signed-in parents and visitors using the guest experience. Opening a sample does not reduce the family's daily creation allowance or add anything to their saved work.",
+    "details": "Families can open a complete sample quiz, printable worksheet, and social story before creating their own material. The samples show the expected format, level of detail, and accessible presentation for a child / adult. They are available to signed-in parents and visitors using the guest experience. Opening a sample does not reduce the family's daily creation allowance or add anything to their saved work.",
     "familyImpact": "Samples let parents and caregivers judge whether a learning format suits the autistic person before spending time creating new material. They can preview supportive language, visual organization, print layout, and question style, then decide how to adapt future resources for the person’s age, interests, communication, and learning goals.",
     "guideParagraphs": [
       "The sample quiz demonstrates a clear question-and-answer format, the worksheet shows how printable learning can be organized, and the social story illustrates supportive language presented in manageable sections. Families can open each example in full rather than judging the feature from a short description. This makes it easier to decide which format matches the person’s attention, reading, communication, and learning preferences.",
@@ -225,10 +225,10 @@ const productFeatureRegistry = [
     "id": "parent-assistant",
     "title": "Visual Steps Parent Assistant",
     "summary": "Ask app how-to questions and receive answers grounded in owned family data.",
-    "details": "Parents can ask detailed questions about where to find a menu, which field to complete, and which button to select. The assistant can also summarize their children's activities, achievements, and relevant suggestions. It is restricted to Visual Steps and the signed-in parent’s family information rather than acting as a general chatbot. A clear daily question allowance is shown in advance, including how many questions remain and when the allowance renews.",
+    "details": "Parents and caregivers can ask detailed questions about where to find a menu, which field to complete, and which button to select. The assistant can also summarize their child / adult’s activities, achievements, and relevant suggestions. It is restricted to Visual Steps and the signed-in family’s information rather than acting as a general chatbot. A clear daily question allowance is shown in advance, including how many questions remain and when the allowance renews.",
     "familyImpact": "Detailed app guidance can save caregivers time and help them use existing family information to plan relevant next steps. By staying within Visual Steps, respecting family ownership, and showing a predictable allowance, the assistant supports practical decisions without replacing parental judgment or qualified educational, therapeutic, or clinical advice.",
     "guideParagraphs": [
-      "The assistant is designed to give practical Visual Steps directions rather than brief, vague answers. A parent can ask where a feature is located, which menu to open, what field to complete, and which button finishes the task. Questions can also focus on a child’s recorded activities and progress, such as identifying repeated activities or suggesting a next activity connected to known interests.",
+      "The assistant is designed to give practical Visual Steps directions rather than brief, vague answers. A parent or caregiver can ask where a feature is located, which menu to open, what field to complete, and which button finishes the task. Questions can also focus on a child / adult’s recorded activities and progress, such as identifying repeated activities or suggesting a next activity connected to known interests.",
       "The assistant stays within the app and the signed-in family’s information. It should not be used for diagnosis, treatment decisions, emergencies, or unrelated general questions, and parents should review suggestions before acting on them. The visible daily question count helps families know in advance how much guidance remains available that day."
     ],
     "help": "Open the assistant from the Parent Dashboard. It answers only Visual Steps and owned-child questions and shows the remaining daily allowance.",
@@ -289,9 +289,9 @@ const productFeatureRegistry = [
   {
     "id": "guest-demo",
     "title": "Temporary guest demonstration",
-    "summary": "Explore realistic parent and child workflows without creating an account or keeping any changes.",
+    "summary": "Explore realistic caregiver and child / adult workflows without creating an account or keeping any changes.",
     "details": "Visitors can enter through Continue as Guest and explore a realistic parent workspace before deciding whether to create an account. Sequential onboarding bubbles point directly to the relevant menus, forms, and primary buttons while explaining the dashboard, child profile, illustrated activities, messages, verification, quiz, worksheet, social story, and progress-planning workflows. Visitors can move Back or Next, skip the hints, replay them later, and then use the interactive parent and child workspace. Guest messages, verification choices, and other changes are temporary and disappear when the page is refreshed. Content-creation tools are unavailable during guest exploration, helping visitors learn the app without using a family's daily allowance.",
-    "familyImpact": "Families and professional caregivers can explore the real workflow before sharing personal information or committing to an account. Seeing both parent and child views makes it easier to discuss whether the structure, visuals, learning resources, verification, and rewards feel suitable for an autistic child, teenager, or adult and the people supporting them.",
+    "familyImpact": "Families and professional caregivers can explore the real workflow before sharing personal information or committing to an account. Seeing both caregiver and child / adult views makes it easier to discuss whether the structure, visuals, learning resources, verification, and rewards feel suitable for an autistic person of any age and the people supporting them.",
     "guideParagraphs": [
       "Guest access is an interactive visit to the same kind of parent and child workspace used by signed-in families. Product hints point to actual menus and buttons while sample profiles, activities, messages, rewards, and learning materials make the screens feel complete. Visitors can move between the parent and child views to understand how a plan created by a caregiver appears to the person completing it.",
       "The guest workspace is intentionally temporary. Visitors can try messages, verification decisions, and other sample actions, but refreshing the page restores the original demonstration. This allows families, educators, and other caregivers to evaluate the experience together before deciding whether to create an account and enter personal information."
@@ -1045,13 +1045,13 @@ const sendWelcomeEmail = async (email: string, name: string) => {
             </tr>
           </table>
           
-          <p>You know your child best. Visual Steps gives you practical tools to turn that knowledge into consistent, visible support—and every completed step is meaningful progress.</p>
+          <p>You know the child / adult you support best. Visual Steps gives you practical tools to turn that knowledge into consistent, visible support—and every completed step is meaningful progress.</p>
 
           <p>If you have questions, reply to this email. We are here to help.</p>
           
           <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #f0f0f0; text-align: center;">
             <p style="margin: 0; font-weight: bold; color: #1e293b;">The Visual Steps Team</p>
-            <p style="margin: 5px 0 0; font-size: 12px; color: #94a3b8;">Empowering children through visual learning.</p>
+            <p style="margin: 5px 0 0; font-size: 12px; color: #94a3b8;">Empowering each child / adult through visual learning.</p>
           </div>
         </div>
       `,
@@ -1375,6 +1375,7 @@ const sendNewsletterIssue = async (issue: any, appOrigin: string) => {
     const advertisementItems = (issue.advertisements || []).map((item: any) => `<strong>Advertisement: ${escapeEmailHtml(item.title)}</strong><br>${escapeEmailHtml(item.description)}<br><em>From ${escapeEmailHtml(item.advertiser)}. ${escapeEmailHtml(item.disclosure)}</em>${item.destinationUrl ? `<br><a href="${escapeEmailHtml(item.destinationUrl)}">Visit advertiser</a>` : ''}`);
     const membershipItems = (issue.membership_details || []).map((item: any) => `<strong>${escapeEmailHtml(item.name)}: ${escapeEmailHtml(item.price)}</strong> — ${escapeEmailHtml(item.status)}. ${escapeEmailHtml(item.details)}`);
     const footerLinks = [
+      ['Visual Steps Home', appOrigin],
       ['Subscribe Newsletter', `${appOrigin}/newsletter/subscribe`],
       ['Facebook', issue.footer_links?.facebook], ['Instagram', issue.footer_links?.instagram],
     ].filter((item): item is [string, string] => Boolean(item[1]));

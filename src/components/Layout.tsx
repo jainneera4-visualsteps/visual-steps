@@ -277,7 +277,6 @@ export function Layout() {
                 Newsletter <ChevronDown size={14} className={isNewsletterOpen ? 'rotate-180' : ''} />
               </button>
               {isNewsletterOpen && <div onMouseEnter={() => setIsNewsletterOpen(true)} onMouseLeave={() => setIsNewsletterOpen(false)} className="app-menu absolute right-0 z-[60] mt-0 w-64">
-                <Link to="/newsletter/subscribe" className="app-menu-item" onClick={() => setIsNewsletterOpen(false)}><Mail size={18} className="text-blue-600"/> Subscribe</Link>
                 <div className="relative" onMouseEnter={() => setIsArchiveMonthsOpen(true)} onMouseLeave={() => setIsArchiveMonthsOpen(false)}>
                   <div className="app-menu-item cursor-default"><Newspaper size={18} className="text-blue-600" /><span className="flex-1">Weekly archive</span><ChevronDown size={14} className="-rotate-90" /></div>
                   {isArchiveMonthsOpen && <div className="app-menu absolute right-full top-0 z-[70] w-52">
@@ -286,6 +285,7 @@ export function Layout() {
                 </div>
                 <Link to="/newsletter/community" className="app-menu-item" onClick={() => setIsNewsletterOpen(false)}><Users size={18} className="text-emerald-600" /> Share with the community</Link>
                 {isNewsletterAdmin && <Link to="/newsletter-admin" className="app-menu-item" onClick={() => setIsNewsletterOpen(false)}><Settings size={18} className="text-violet-600" /> Manage newsletter</Link>}
+                <Link to="/newsletter/subscribe" className="app-menu-item" onClick={() => setIsNewsletterOpen(false)}><Mail size={18} className="text-blue-600"/> Subscribe</Link>
               </div>}
             </div>
             <div className="h-4 w-px bg-slate-200" />
@@ -375,8 +375,8 @@ export function Layout() {
                     <button type="button" className="flex items-center gap-1 text-left text-[11px] font-bold text-slate-600 uppercase" onClick={() => setIsMobileArchiveOpen(value => !value)}>Weekly archive <ChevronDown size={12} className={isMobileArchiveOpen ? 'rotate-180' : ''}/></button>
                     {isMobileArchiveOpen && newsletterMonths.map(month => <Link key={month.value} to={`/newsletter/archive/${month.value}`} className="pl-3 text-[11px] font-semibold text-slate-500" onClick={() => setIsMenuOpen(false)}>{month.label}</Link>)}
                     <Link to="/newsletter/community" className="text-[11px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Share with community</Link>
-                    <Link to="/newsletter/subscribe" className="text-[11px] font-bold text-blue-700 uppercase" onClick={() => setIsMenuOpen(false)}>Subscribe</Link>
                     {isNewsletterAdmin && <Link to="/newsletter-admin" className="text-[11px] font-bold text-violet-700 uppercase" onClick={() => setIsMenuOpen(false)}>Manage newsletter</Link>}
+                    <Link to="/newsletter/subscribe" className="text-[11px] font-bold text-blue-700 uppercase" onClick={() => setIsMenuOpen(false)}>Subscribe</Link>
                   </div>
                   <Link to="/contact" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Contact</Link>
                 </>
