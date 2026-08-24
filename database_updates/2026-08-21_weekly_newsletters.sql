@@ -65,10 +65,19 @@ CREATE TABLE IF NOT EXISTS public.app_admins (
 CREATE TABLE IF NOT EXISTS public.newsletter_settings (
   id BOOLEAN PRIMARY KEY DEFAULT true CHECK (id = true),
   delivery_weekday INTEGER NOT NULL DEFAULT 1 CHECK (delivery_weekday BETWEEN 0 AND 6),
+  delivery_hour INTEGER NOT NULL DEFAULT 0 CHECK (delivery_hour BETWEEN 0 AND 23),
+  delivery_timezone TEXT NOT NULL DEFAULT 'America/New_York',
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 INSERT INTO public.newsletter_settings (id, delivery_weekday)
 VALUES (true, 1) ON CONFLICT (id) DO NOTHING;
+
+ALTER TABLE public.newsletter_settings
+  ADD COLUMN IF NOT EXISTS delivery_hour INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS delivery_timezone TEXT NOT NULL DEFAULT 'America/New_York';
+ALTER TABLE public.newsletter_settings DROP CONSTRAINT IF EXISTS newsletter_settings_delivery_hour_check;
+ALTER TABLE public.newsletter_settings
+  ADD CONSTRAINT newsletter_settings_delivery_hour_check CHECK (delivery_hour BETWEEN 0 AND 23);
 
 ALTER TABLE public.newsletters
   ADD COLUMN IF NOT EXISTS feature_previews JSONB NOT NULL DEFAULT '[]'::jsonb,

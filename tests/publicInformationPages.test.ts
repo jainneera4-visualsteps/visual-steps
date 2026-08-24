@@ -41,13 +41,43 @@ test('public contact and newsletter pages keep SMTP secrets on the server', asyn
   assert.doesNotMatch(`${contact}\n${newsletter}`, /SMTP_PASS|SMTP_USER|service_role/);
 });
 
+test('newsletter navigation groups issues by newest month and opens individual issues in a new tab', async () => {
+  const [app, layout, newsletter] = await Promise.all([
+    readFile(new URL('../src/App.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/components/Layout.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/pages/Newsletter.tsx', import.meta.url), 'utf8'),
+  ]);
+  assert.match(app, /path="newsletter\/archive\/:month"/);
+  assert.match(app, /path="newsletter\/issues\/:issueDate"/);
+  assert.match(app, /path="newsletter\/subscribe"/);
+  assert.match(app, /path="newsletter\/community"/);
+  assert.match(layout, /Weekly archive/);
+  assert.match(layout, /to="\/newsletter\/subscribe"[^>]*>.*Subscribe/);
+  assert.match(layout, /Share with the community/);
+  assert.match(layout, /to="\/newsletter\/community"/);
+  assert.match(layout, /isNewsletterAdmin &&/);
+  assert.match(layout, /newsletterMonths\.map/);
+  assert.match(layout, /isArchiveMonthsOpen &&/);
+  assert.match(layout, /onMouseEnter=\{\(\) => setIsArchiveMonthsOpen\(true\)\}/);
+  const footer = layout.slice(layout.indexOf('<footer'), layout.indexOf('</footer>'));
+  assert.doesNotMatch(footer, /to="\/newsletter"/);
+  assert.match(newsletter, /monthKeys=Object\.keys\(monthGroups\)\.sort\(\(a,b\)=>b\.localeCompare\(a\)\)/);
+  assert.match(newsletter, /to=\{`\/newsletter\/issues\/\$\{issue\.issue_date\}`\} target="_blank"/);
+  assert.match(newsletter, /Navigate to=\{`\/newsletter\/archive\/\$\{monthKeys\[0\]\}`\}/);
+  assert.doesNotMatch(newsletter, /Back to weekly archive/);
+  assert.match(newsletter, /window\.close\(\)/);
+  assert.match(newsletter, /Close newsletter/);
+});
+
 test('home links to the newsletter and safely exposes configured social pages', async () => {
   const [home, layout, server] = await Promise.all([
     readFile(new URL('../src/pages/Home.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/components/Layout.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../server.ts', import.meta.url), 'utf8'),
   ]);
-  assert.match(home, /Subscribe to the newsletter/);
+  assert.match(home, /to="\/newsletter\/subscribe"/);
+  assert.match(home, /Subscribe Newsletter/);
+  assert.doesNotMatch(home, /Subscribe to the newsletter/);
   assert.match(home, /\/api\/public-links/);
   assert.match(server, /app\.get\('\/api\/public-links'/);
   assert.match(server, /cleanEnvVar\('FACEBOOK_URL'\)/);
@@ -55,6 +85,7 @@ test('home links to the newsletter and safely exposes configured social pages', 
   assert.match(layout, /publicLinks\.facebook/);
   assert.match(layout, /publicLinks\.instagram/);
   assert.match(layout, /text-sm font-bold text-slate-600/);
+  assert.match(server, /Subscribe Newsletter', `\$\{appOrigin\}\/newsletter\/subscribe`/);
   assert.doesNotMatch(home, /SMTP_PASS|service_role/);
 });
 
@@ -65,5 +96,7 @@ test('weekly newsletters use a protected daily schedule check', async () => {
   ]);
   assert.match(server, /CRON_SECRET/);
   assert.match(server, /\/api\/cron\/weekly-newsletter/);
-  assert.deepEqual(JSON.parse(vercel).crons, [{ path: '/api/cron/weekly-newsletter', schedule: '0 5 * * *' }]);
+  const crons = JSON.parse(vercel).crons;
+  assert.equal(crons.length, 24);
+  crons.forEach((cron: { path: string; schedule: string }, hour: number) => assert.deepEqual(cron, { path: `/api/cron/weekly-newsletter/${hour}`, schedule: `0 ${hour} * * *` }));
 });

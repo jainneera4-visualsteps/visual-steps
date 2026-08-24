@@ -55,6 +55,10 @@ export default function App() {
             <Route path="testimonials" element={<Testimonials />} />
             <Route path="contact" element={<Contact />} />
             <Route path="newsletter" element={<Newsletter />} />
+            <Route path="newsletter/subscribe" element={<Newsletter />} />
+            <Route path="newsletter/community" element={<Newsletter />} />
+            <Route path="newsletter/archive/:month" element={<Newsletter />} />
+            <Route path="newsletter/issues/:issueDate" element={<Newsletter />} />
             <Route path="features/:featureId" element={<FeatureDetail />} />
             
             <Route element={<ProtectedRoute />}>

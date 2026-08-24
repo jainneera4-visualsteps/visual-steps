@@ -31,16 +31,22 @@ test('newsletter administrator page is nested under the parent protected route',
   assert.match(page, /Save newsletter template/);
   assert.match(page, /Email delivery preview/);
   assert.match(page, /Weekly delivery day/);
+  assert.match(page, /Delivery time/);
+  assert.match(page, /resolvedOptions\(\)\.timeZone/);
   assert.match(page, /Send newsletter now/);
   assert.match(page, /Subscriber delivery status/);
   assert.match(page, /last_sent_issue_date/);
 });
 
-test('delivery weekday is database-backed and editable only by an administrator', async () => {
+test('delivery weekday, local hour and timezone are database-backed and editable only by an administrator', async () => {
   const [server, migration, vercel] = await Promise.all([read('server.ts'), read('database_updates/2026-08-21_weekly_newsletters.sql'), read('vercel.json')]);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.newsletter_settings/);
+  assert.match(migration, /delivery_hour INTEGER NOT NULL DEFAULT 0/);
+  assert.match(migration, /delivery_timezone TEXT NOT NULL DEFAULT 'America\/New_York'/);
   assert.match(server, /app\.put\('\/api\/newsletter\/admin\/settings', authenticateToken, requireNewsletterAdmin/);
-  assert.deepEqual(JSON.parse(vercel).crons, [{ path: '/api/cron/weekly-newsletter', schedule: '0 5 * * *' }]);
+  const crons = JSON.parse(vercel).crons;
+  assert.equal(crons.length, 24);
+  crons.forEach((cron: { path: string; schedule: string }, hour: number) => assert.deepEqual(cron, { path: `/api/cron/weekly-newsletter/${hour}`, schedule: `0 ${hour} * * *` }));
 });
 
 test('permanent submission deletion is administrator protected', async () => {
@@ -84,7 +90,12 @@ test('newsletter combines feature guidance, hides empty sections, and explains p
   assert.match(page, /visible\('parent_tips'\).*<Section bulleted/);
   assert.ok(page.indexOf("visible('parent_tips')") < page.indexOf("visible('membership_details')"));
   assert.match(server, /parent_tips[^\n]+tipItems, 1, true[^\n]+membership_details/);
-  assert.match(server, /suggested_books_resources: newsletterBooksAndResources/);
+  assert.match(server, /suggested_books_resources: unusedBooks/);
+  assert.match(server, /previouslyUsedTips/);
+  assert.match(server, /previouslyUsedActivities/);
+  assert.match(server, /previouslyUsedBooks/);
+  assert.match(server, /previouslyUsedPopularFeatures/);
+  assert.match(server, /membershipWasPublished \? \[\] : currentMembershipDetails/);
   assert.match(server, /meaningful engagement and healthy physical, emotional, social, practical, and intellectual growth for autistic people of all ages/);
   assert.match(server, /autistic people of all ages—from younger children through teenagers and adults/);
   assert.match(server, /age, communication style, autonomy, abilities, interests and support needs/);
@@ -102,10 +113,11 @@ test('newsletter combines feature guidance, hides empty sections, and explains p
   assert.match(server, /newsletterCommunityContext/);
   assert.match(server, /newsletterTestimonialContext/);
   assert.match(page, /How this supports growth:/);
-  assert.match(page, /Every section supports meaningful engagement/);
   assert.match(page, /newsletter-copy surface/);
   assert.match(styles, /\.newsletter-copy p,[\s\S]*\.newsletter-copy li[\s\S]*text-align: justify/);
   assert.match(server, /text-align:justify;text-justify:inter-word/);
+  assert.match(server, /display:grid;grid-template-columns:1fr;gap:14px/);
+  assert.doesNotMatch(server, /grid-template-columns:\$\{columns === 2/);
   assert.match(page, /suggested_books_resources'\).*fullWidth itemColumns=\{2\}/);
   assert.match(page, /Suggested Books and Resources/);
   assert.match(migration, /suggested_books_resources JSONB NOT NULL DEFAULT '\[\]'::jsonb/);
@@ -132,6 +144,9 @@ test('newsletter combines feature guidance, hides empty sections, and explains p
   assert.match(server, /FACEBOOK_URL/);
   assert.match(server, /INSTAGRAM_URL/);
   assert.match(page, /NewsletterLinks/);
+  assert.match(page, /isSubscribePage/);
+  assert.match(page, /\['Subscribe Newsletter','\/newsletter\/subscribe'\]/);
+  assert.doesNotMatch(page, /\['Visual Steps home'/);
   assert.match(envExample, /FACEBOOK_URL=/);
   assert.match(envExample, /INSTAGRAM_URL=/);
 });

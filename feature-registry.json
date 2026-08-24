@@ -171,12 +171,12 @@
       "Quizzes, worksheets, and social stories serve different purposes within one learning plan. A quiz can check current understanding, a worksheet can provide guided or printable practice, and a social story can prepare someone for a situation, routine, expectation, or change. Parents can edit the material before saving or assigning it so the language, difficulty, interests, and presentation remain appropriate for the individual.",
       "Reports bring daily work into a longer view by showing completion history, quiz results, repeated activities, purchases, and other planning signals. Parents can use patterns to decide whether to repeat a skill, change the level, introduce a different format, or recognize progress that deserves celebration. The newsletter and family community links add optional ideas and resources while leaving decisions with the person and their trusted caregivers."
     ],
-    "help": "Use Quizzes, Worksheets, or Social Stories to create learning material; open a child's Reports to review progress; or open Newsletter for the public weekly archive and confirmed email subscription.",
+    "help": "Use Quizzes, Worksheets, or Social Stories to create learning material; open a child's Reports to review progress; open Newsletter for the public weekly archive; or choose Newsletter > Subscribe to open the dedicated email subscription page.",
     "screenshot": { "src": "/onboarding/progress.png", "alt": "Visual Steps progress report", "caption": "Progress views help families connect daily activities and learning results with future planning." },
     "introducedOn": "2026-03-15",
     "plan": "starter",
     "icon": "book",
-    "routes": ["/saved-quizzes", "/saved-worksheets", "/social-stories", "/progress-report/:kidId", "/newsletter"],
+    "routes": ["/saved-quizzes", "/saved-worksheets", "/social-stories", "/progress-report/:kidId", "/newsletter", "/newsletter/subscribe", "/newsletter/community", "/newsletter/archive/:month", "/newsletter/issues/:issueDate"],
     "surfaces": ["home", "about", "onboarding", "chatbot", "pricing", "guest", "help"]
   }
 ]

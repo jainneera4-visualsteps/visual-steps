@@ -1,11 +1,12 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from './Button';
-import { LogOut, Menu, X, Lightbulb, ChevronDown, BookOpen, FileText, Gamepad2, Activity, TrendingUp, Facebook, Instagram } from 'lucide-react';
+import { LogOut, Menu, X, Lightbulb, ChevronDown, BookOpen, FileText, Gamepad2, Activity, TrendingUp, Facebook, Instagram, Mail, Newspaper, Users, Settings } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Tooltip } from './ui/Tooltip';
 import { ParentAssistant } from './ParentAssistant';
 import { isGuestSession } from '../guest/guestSession';
+import { apiFetch } from '../utils/api';
 
 export function Layout() {
   const { user, logout } = useAuth();
@@ -13,6 +14,11 @@ export function Layout() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isActivitiesOpen, setIsActivitiesOpen] = useState(false);
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
+  const [isNewsletterOpen, setIsNewsletterOpen] = useState(false);
+  const [isArchiveMonthsOpen, setIsArchiveMonthsOpen] = useState(false);
+  const [isMobileArchiveOpen, setIsMobileArchiveOpen] = useState(false);
+  const [newsletterMonths, setNewsletterMonths] = useState<{ value: string; label: string }[]>([]);
+  const [isNewsletterAdmin, setIsNewsletterAdmin] = useState(false);
   const [publicLinks, setPublicLinks] = useState<{ facebook?: string; instagram?: string }>({});
   const [selectedKidId, setSelectedKidId] = useState<string | null>(localStorage.getItem('dashboard_selected_kid_id') || localStorage.getItem('analysis_selected_kid_id'));
 
@@ -24,6 +30,26 @@ export function Layout() {
       .then(data => setPublicLinks({ facebook: data.facebook, instagram: data.instagram }))
       .catch(() => setPublicLinks({}));
   }, []);
+
+  useEffect(() => {
+    fetch('/api/newsletters')
+      .then(response => response.ok ? response.json() : Promise.reject())
+      .then((issues: { issue_date?: string }[]) => {
+        const months = [...new Set((Array.isArray(issues) ? issues : []).map(issue => String(issue.issue_date || '').slice(0, 7)).filter(Boolean))];
+        setNewsletterMonths(months.map(value => ({
+          value,
+          label: new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${value}-01T12:00:00Z`)),
+        })));
+      })
+      .catch(() => setNewsletterMonths([]));
+  }, []);
+
+  useEffect(() => {
+    if (!user || isGuestSession()) { setIsNewsletterAdmin(false); return; }
+    apiFetch('/api/newsletter/admin/status', {}, 0)
+      .then(response => setIsNewsletterAdmin(response.ok))
+      .catch(() => setIsNewsletterAdmin(false));
+  }, [user]);
 
   useEffect(() => {
     // Sync selected kid ID from localStorage
@@ -63,6 +89,9 @@ export function Layout() {
     else if (path === '/demo' || path === '/guest') title = 'Guest Login | Visual Steps';
     else if (path === '/testimonials') title = 'Testimonials | Visual Steps';
     else if (path === '/contact') title = 'Contact | Visual Steps';
+    else if (path.startsWith('/newsletter/issues/')) title = 'Newsletter Issue | Visual Steps';
+    else if (path.startsWith('/newsletter/archive/')) title = 'Newsletter Archive | Visual Steps';
+    else if (path === '/newsletter/subscribe') title = 'Subscribe to Visual Steps Weekly';
     else if (path === '/newsletter') title = 'Weekly Newsletter | Visual Steps';
     else if (path === '/newsletter-admin') title = 'Newsletter Administration | Visual Steps';
     else if (path.startsWith('/features/')) title = 'Feature Guide | Visual Steps';
@@ -237,6 +266,28 @@ export function Layout() {
                 Contact
               </Link>
             </Tooltip>
+            <div className="relative">
+              <button
+                onMouseEnter={() => setIsNewsletterOpen(true)}
+                onMouseLeave={() => setIsNewsletterOpen(false)}
+                onClick={() => setIsNewsletterOpen(value => !value)}
+                className={`flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-semibold transition-all hover:bg-slate-100 ${location.pathname.startsWith('/newsletter') ? 'bg-brand-50 text-brand-700' : 'text-slate-600'}`}
+                aria-expanded={isNewsletterOpen}
+              >
+                Newsletter <ChevronDown size={14} className={isNewsletterOpen ? 'rotate-180' : ''} />
+              </button>
+              {isNewsletterOpen && <div onMouseEnter={() => setIsNewsletterOpen(true)} onMouseLeave={() => setIsNewsletterOpen(false)} className="app-menu absolute right-0 z-[60] mt-0 w-64">
+                <Link to="/newsletter/subscribe" className="app-menu-item" onClick={() => setIsNewsletterOpen(false)}><Mail size={18} className="text-blue-600"/> Subscribe</Link>
+                <div className="relative" onMouseEnter={() => setIsArchiveMonthsOpen(true)} onMouseLeave={() => setIsArchiveMonthsOpen(false)}>
+                  <div className="app-menu-item cursor-default"><Newspaper size={18} className="text-blue-600" /><span className="flex-1">Weekly archive</span><ChevronDown size={14} className="-rotate-90" /></div>
+                  {isArchiveMonthsOpen && <div className="app-menu absolute right-full top-0 z-[70] w-52">
+                    {newsletterMonths.length ? newsletterMonths.map(month => <Link key={month.value} to={`/newsletter/archive/${month.value}`} className="app-menu-item" onClick={() => { setIsArchiveMonthsOpen(false); setIsNewsletterOpen(false); }}>{month.label}</Link>) : <span className="block px-3 py-2 text-xs text-slate-500">No published issues yet</span>}
+                  </div>}
+                </div>
+                <Link to="/newsletter/community" className="app-menu-item" onClick={() => setIsNewsletterOpen(false)}><Users size={18} className="text-emerald-600" /> Share with the community</Link>
+                {isNewsletterAdmin && <Link to="/newsletter-admin" className="app-menu-item" onClick={() => setIsNewsletterOpen(false)}><Settings size={18} className="text-violet-600" /> Manage newsletter</Link>}
+              </div>}
+            </div>
             <div className="h-4 w-px bg-slate-200" />
             {user ? (
               <div className="flex items-center gap-4">
@@ -319,7 +370,14 @@ export function Layout() {
                     Plans
                   </Link>
                   <Link to="/testimonials" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Testimonials</Link>
-                  <Link to="/newsletter" target="_blank" rel="noopener noreferrer" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Newsletter</Link>
+                  <span className="text-[12px] font-bold text-slate-600 uppercase">Newsletter</span>
+                  <div className="flex flex-col gap-1 pl-3 border-l-2 border-emerald-100">
+                    <button type="button" className="flex items-center gap-1 text-left text-[11px] font-bold text-slate-600 uppercase" onClick={() => setIsMobileArchiveOpen(value => !value)}>Weekly archive <ChevronDown size={12} className={isMobileArchiveOpen ? 'rotate-180' : ''}/></button>
+                    {isMobileArchiveOpen && newsletterMonths.map(month => <Link key={month.value} to={`/newsletter/archive/${month.value}`} className="pl-3 text-[11px] font-semibold text-slate-500" onClick={() => setIsMenuOpen(false)}>{month.label}</Link>)}
+                    <Link to="/newsletter/community" className="text-[11px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Share with community</Link>
+                    <Link to="/newsletter/subscribe" className="text-[11px] font-bold text-blue-700 uppercase" onClick={() => setIsMenuOpen(false)}>Subscribe</Link>
+                    {isNewsletterAdmin && <Link to="/newsletter-admin" className="text-[11px] font-bold text-violet-700 uppercase" onClick={() => setIsMenuOpen(false)}>Manage newsletter</Link>}
+                  </div>
                   <Link to="/contact" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Contact</Link>
                 </>
               ) : (
@@ -331,7 +389,13 @@ export function Layout() {
                     Plans
                   </Link>
                   <Link to="/testimonials" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Testimonials</Link>
-                  <Link to="/newsletter" target="_blank" rel="noopener noreferrer" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Newsletter</Link>
+                  <span className="text-[12px] font-bold text-slate-600 uppercase">Newsletter</span>
+                  <div className="flex flex-col gap-1 pl-3 border-l-2 border-emerald-100">
+                    <button type="button" className="flex items-center gap-1 text-left text-[11px] font-bold text-slate-600 uppercase" onClick={() => setIsMobileArchiveOpen(value => !value)}>Weekly archive <ChevronDown size={12} className={isMobileArchiveOpen ? 'rotate-180' : ''}/></button>
+                    {isMobileArchiveOpen && newsletterMonths.map(month => <Link key={month.value} to={`/newsletter/archive/${month.value}`} className="pl-3 text-[11px] font-semibold text-slate-500" onClick={() => setIsMenuOpen(false)}>{month.label}</Link>)}
+                    <Link to="/newsletter/community" className="text-[11px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Share with community</Link>
+                    <Link to="/newsletter/subscribe" className="text-[11px] font-bold text-blue-700 uppercase" onClick={() => setIsMenuOpen(false)}>Subscribe</Link>
+                  </div>
                   <Link to="/contact" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Contact</Link>
                   <Link to="/login" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>
                     Sign in
@@ -357,7 +421,6 @@ export function Layout() {
           <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm font-bold text-slate-600" aria-label="Public information">
             <Link to="/about" className="hover:text-brand-600">About</Link>
             <Link to="/testimonials" className="hover:text-brand-600">Testimonials</Link>
-            <Link to="/newsletter" target="_blank" rel="noopener noreferrer" className="hover:text-brand-600">Newsletter</Link>
             <Link to="/contact" className="hover:text-brand-600">Contact</Link>
             {publicLinks.facebook && <a href={publicLinks.facebook} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 hover:text-brand-600"><Facebook className="h-4 w-4" />Facebook</a>}
             {publicLinks.instagram && <a href={publicLinks.instagram} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 hover:text-brand-600"><Instagram className="h-4 w-4" />Instagram</a>}

@@ -360,20 +360,15 @@ export default function Home() {
           </div>
 
           <section className="mt-8 rounded-3xl border border-brand-100 bg-white/75 p-5 shadow-sm sm:p-7">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-brand-700">Explore, learn, and stay connected</p>
-                <h2 className="mt-2 text-2xl font-black text-slate-950 sm:text-3xl">A calmer place for families to grow together</h2>
-                <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">Read practical weekly guidance, follow future community updates, or explore the complete feature set before creating an account.</p>
-              </div>
-              <Link to="/newsletter" target="_blank" rel="noopener noreferrer" className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-brand-600 px-4 py-3 text-sm font-bold text-white shadow-md transition hover:bg-brand-700">
-                <Mail className="h-4 w-4" /> Subscribe to the newsletter
-              </Link>
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-brand-700">Explore, learn, and stay connected</p>
+              <h2 className="mt-2 text-2xl font-black text-slate-950 sm:text-3xl">A calmer place for families to grow together</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">Read practical weekly guidance, follow future community updates, or explore the complete feature set before creating an account.</p>
             </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
-              <Link to="/newsletter" target="_blank" rel="noopener noreferrer" className="group flex items-center gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 p-4 transition hover:-translate-y-0.5 hover:bg-blue-50">
+              <Link to="/newsletter/subscribe" className="group flex items-center gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 p-4 transition hover:-translate-y-0.5 hover:bg-blue-50">
                 <span className="rounded-xl bg-white p-2 text-blue-600 shadow-sm"><Mail className="h-5 w-5" /></span>
-                <span><strong className="block text-sm text-slate-900">Visual Steps Weekly</strong><small className="text-slate-600">Updates, ideas, and family resources</small></span>
+                <span><strong className="block text-sm text-slate-900">Subscribe Newsletter</strong><small className="text-slate-600">Updates, ideas, and family resources</small></span>
                 <ArrowUpRight className="ml-auto h-4 w-4 text-blue-500" />
               </Link>
               {publicLinks.facebook ? <a href={publicLinks.facebook} target="_blank" rel="noreferrer" className="group flex items-center gap-3 rounded-2xl border border-sky-100 bg-sky-50/70 p-4 transition hover:-translate-y-0.5 hover:bg-sky-50">

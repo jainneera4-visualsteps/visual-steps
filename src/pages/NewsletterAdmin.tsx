@@ -21,6 +21,10 @@ type Subscriber = {
 type Draft = Record<string, any> & { issue_date?: string; title?: string; introduction?: string };
 const sectionKeys = ['feature_previews','new_features','community_posts','parent_testimonials','popular_features','recommended_resources','suggested_books_resources','advertisements','parent_tips','membership_details'] as const;
 const weekdayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const hourOptions = Array.from({ length: 24 }, (_, hour) => ({
+  hour,
+  label: new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).format(new Date(2026, 0, 1, hour)),
+}));
 const formatNewsletterDate=(value:string)=>new Intl.DateTimeFormat('en-GB',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(`${value.slice(0,10)}T12:00:00Z`)).replace(/^(\d{2}) ([A-Za-z]{3}) /,(_match,day,month)=>`${Number.parseInt(day,10)} ${month}, `);
 const emailItemText = (key: typeof sectionKeys[number], item: any) => {
   if (typeof item === 'string') return item;
@@ -44,6 +48,7 @@ async function adminJson(url: string, init?: RequestInit) {
 }
 
 export default function NewsletterAdmin() {
+  const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [filter, setFilter] = useState<ReviewStatus>('pending');
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -51,6 +56,8 @@ export default function NewsletterAdmin() {
   const [selected, setSelected] = useState<Submission | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [deliveryWeekday, setDeliveryWeekday] = useState(1);
+  const [deliveryHour, setDeliveryHour] = useState(0);
+  const [deliveryTimezone, setDeliveryTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -69,10 +76,10 @@ export default function NewsletterAdmin() {
       const [items, preview, settings, subscriberItems] = await Promise.all([
         adminJson(`/api/newsletter/admin/submissions?status=${filter}`),
         adminJson('/api/newsletter/admin/preview'),
-        adminJson('/api/newsletter/admin/settings'),
+        adminJson(`/api/newsletter/admin/settings?timezone=${encodeURIComponent(browserTimezone)}`),
         adminJson('/api/newsletter/admin/subscribers'),
       ]);
-      setSubmissions(items); setDraft(preview); setDeliveryWeekday(settings.deliveryWeekday); setSubscribers(subscriberItems);
+      setSubmissions(items); setDraft(preview); setDeliveryWeekday(settings.deliveryWeekday); setDeliveryHour(settings.deliveryHour); setDeliveryTimezone(settings.deliveryTimezone); setSubscribers(subscriberItems);
       setSelected(current => current ? items.find((item: Submission) => item.id === current.id) || null : null);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Newsletter data is temporarily unavailable');
@@ -126,11 +133,11 @@ export default function NewsletterAdmin() {
     finally { setBusy(false); }
   };
 
-  const saveDeliveryDay = async () => {
+  const saveDeliverySchedule = async () => {
     setBusy(true); setMessage('');
     try {
-      await adminJson('/api/newsletter/admin/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deliveryWeekday }) });
-      setMessage(`Newsletter delivery changed to ${weekdayNames[deliveryWeekday]} at 05:00 UTC (12:00 AM EST; 1:00 AM EDT).`);
+      await adminJson('/api/newsletter/admin/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deliveryWeekday, deliveryHour, deliveryTimezone }) });
+      setMessage(`Newsletter delivery changed to ${weekdayNames[deliveryWeekday]} at ${hourOptions[deliveryHour].label} (${deliveryTimezone}).`);
       await load(false);
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to save the delivery day'); }
     finally { setBusy(false); }
@@ -153,7 +160,7 @@ export default function NewsletterAdmin() {
   return <div className="page-shell"><div className="page-container space-y-8">
     <header className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-widest text-brand-700">Protected administration</p><h1 className="mt-2 text-4xl font-black">Weekly Newsletter</h1><p className="mt-2 max-w-3xl text-slate-600">Review parent contributions and preview the automatically prepared weekly issue. A preview never publishes or sends email.</p></div><div className="flex flex-wrap gap-2"><Button onClick={sendNow} isLoading={busy}><Send className="mr-2 h-4 w-4"/>Send newsletter now</Button><Link to="/newsletter" target="_blank" rel="noopener noreferrer" className="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"><ExternalLink className="mr-2 h-4 w-4"/>Open newsletter archive</Link><Button variant="outline" onClick={()=>void load()} isLoading={busy}><RefreshCw className="mr-2 h-4 w-4"/>Refresh</Button></div></header>
     {message&&<div role="status" className="rounded-xl border border-slate-200 bg-white p-4 text-sm font-bold">{message}</div>}
-    <section className="surface p-6"><div className="flex flex-wrap items-end gap-4"><div className="min-w-56 flex-1"><Select label="Weekly delivery day" value={deliveryWeekday} onChange={event=>setDeliveryWeekday(Number(event.target.value))}>{weekdayNames.map((day,index)=><option key={day} value={index}>{day}</option>)}</Select></div><Button onClick={saveDeliveryDay} isLoading={busy}>Save delivery day</Button></div><p className="mt-3 text-xs leading-5 text-slate-500">Subscribers will receive the newsletter on the selected weekday at 05:00 UTC: 12:00 AM EST or 1:00 AM EDT in New York. You can change the delivery day here whenever your publishing schedule changes.</p></section>
+    <section className="surface p-6"><div className="grid items-end gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"><Select label="Weekly delivery day" value={deliveryWeekday} onChange={event=>setDeliveryWeekday(Number(event.target.value))}>{weekdayNames.map((day,index)=><option key={day} value={index}>{day}</option>)}</Select><Select label={`Delivery time (${deliveryTimezone})`} value={deliveryHour} onChange={event=>setDeliveryHour(Number(event.target.value))}>{hourOptions.map(option=><option key={option.hour} value={option.hour}>{option.label}</option>)}</Select><Button onClick={saveDeliverySchedule} isLoading={busy}>Save delivery schedule</Button></div><p className="mt-3 text-xs leading-5 text-slate-500">Times are shown in your current administrator timezone: <strong>{deliveryTimezone}</strong>. Daylight-saving changes are handled automatically. On Vercel Hobby, delivery can occur at any point within the selected hour.</p></section>
     <section className="surface p-6"><div className="flex items-center gap-3"><Users className="h-6 w-6 text-brand-600"/><div><h2 className="text-2xl font-black">Subscriber delivery status</h2><p className="text-sm text-slate-600">Pending means the confirmation link has not been completed. Active subscribers are eligible for delivery.</p></div></div><div className="mt-5 overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead><tr className="border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500"><th className="px-3 py-3">Email</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Confirmed</th><th className="px-3 py-3">Last issue sent</th></tr></thead><tbody>{subscribers.length===0?<tr><td colSpan={4} className="px-3 py-6 text-slate-500">No newsletter subscribers yet.</td></tr>:subscribers.map(subscriber=><tr key={subscriber.id} className="border-b border-slate-100"><td className="px-3 py-3 font-semibold">{subscriber.email}</td><td className="px-3 py-3"><span className={`rounded-full px-2 py-1 text-xs font-bold uppercase ${subscriber.status==='active'?'bg-green-100 text-green-700':subscriber.status==='pending'?'bg-amber-100 text-amber-700':'bg-slate-100 text-slate-600'}`}>{subscriber.status}</span></td><td className="px-3 py-3 text-slate-600">{subscriber.confirmed_at?formatNewsletterDate(subscriber.confirmed_at):'Not confirmed'}</td><td className="px-3 py-3 text-slate-600">{subscriber.last_sent_issue_date?formatNewsletterDate(subscriber.last_sent_issue_date):'No issue sent yet'}</td></tr>)}</tbody></table></div></section>
     <div className="grid gap-7 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.8fr)]">
       <section className="surface p-6"><div className="flex flex-wrap items-end justify-between gap-4"><div><h2 className="text-2xl font-black">Community submissions</h2><p className="mt-1 text-sm text-slate-600">Edit for clarity, verify sources, then approve or reject.</p></div><Select aria-label="Submission status" value={filter} onChange={event=>setFilter(event.target.value as ReviewStatus)} className="min-w-40"><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="all">All</option></Select></div>
