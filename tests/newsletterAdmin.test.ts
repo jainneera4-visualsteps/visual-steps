@@ -36,7 +36,7 @@ test('delivery weekday is database-backed and editable only by an administrator'
   const [server, migration, vercel] = await Promise.all([read('server.ts'), read('database_updates/2026-08-21_weekly_newsletters.sql'), read('vercel.json')]);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.newsletter_settings/);
   assert.match(server, /app\.put\('\/api\/newsletter\/admin\/settings', authenticateToken, requireNewsletterAdmin/);
-  assert.deepEqual(JSON.parse(vercel).crons, [{ path: '/api/cron/weekly-newsletter', schedule: '0 13 * * *' }]);
+  assert.deepEqual(JSON.parse(vercel).crons, [{ path: '/api/cron/weekly-newsletter', schedule: '0 5 * * *' }]);
 });
 
 test('permanent submission deletion is administrator protected', async () => {

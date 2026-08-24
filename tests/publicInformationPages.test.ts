@@ -65,5 +65,5 @@ test('weekly newsletters use a protected daily schedule check', async () => {
   ]);
   assert.match(server, /CRON_SECRET/);
   assert.match(server, /\/api\/cron\/weekly-newsletter/);
-  assert.deepEqual(JSON.parse(vercel).crons, [{ path: '/api/cron/weekly-newsletter', schedule: '0 13 * * *' }]);
+  assert.deepEqual(JSON.parse(vercel).crons, [{ path: '/api/cron/weekly-newsletter', schedule: '0 5 * * *' }]);
 });
