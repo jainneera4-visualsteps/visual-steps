@@ -13,9 +13,10 @@ test('newsletter administration uses a server-side allow-list with RLS', async (
 
 test('every newsletter administration API is authenticated and administrator checked', async () => {
   const server = await read('server.ts');
-  for (const route of ['status', 'submissions', 'preview']) {
+  for (const route of ['status', 'submissions', 'subscribers', 'preview']) {
     assert.match(server, new RegExp(`/api/newsletter/admin/${route}[^\\n]*authenticateToken, requireNewsletterAdmin`));
   }
+  assert.match(server, /app\.post\('\/api\/newsletter\/admin\/send-now', authenticateToken, requireNewsletterAdmin/);
   assert.match(server, /app_admins'\)\.select\('user_id'\)/);
 });
 
@@ -30,6 +31,9 @@ test('newsletter administrator page is nested under the parent protected route',
   assert.match(page, /Save newsletter template/);
   assert.match(page, /Email delivery preview/);
   assert.match(page, /Weekly delivery day/);
+  assert.match(page, /Send newsletter now/);
+  assert.match(page, /Subscriber delivery status/);
+  assert.match(page, /last_sent_issue_date/);
 });
 
 test('delivery weekday is database-backed and editable only by an administrator', async () => {
@@ -49,6 +53,14 @@ test('saved newsletter drafts are protected and used by scheduled publication', 
   assert.match(server, /app\.put\('\/api\/newsletter\/admin\/draft', authenticateToken, requireNewsletterAdmin/);
   assert.match(server, /savedDraft && !savedDraft\.published_at/);
   assert.match(server, /section_visibility/);
+});
+
+test('an administrator can publish and deliver the prepared issue immediately without duplicate delivery', async () => {
+  const server = await read('server.ts');
+  assert.match(server, /app\.post\('\/api\/newsletter\/admin\/send-now', authenticateToken, requireNewsletterAdmin/);
+  assert.match(server, /const issue = await createWeeklyNewsletter\(\)/);
+  assert.match(server, /const delivery = await sendNewsletterIssue\(issue, getPublicAppOrigin\(req\)\)/);
+  assert.match(server, /last_sent_issue_date\.lt\.\$\{issue\.issue_date\}/);
 });
 
 test('newsletter combines feature guidance, hides empty sections, and explains popularity without public counts', async () => {

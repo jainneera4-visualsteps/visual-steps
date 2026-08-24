@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Check, ExternalLink, Eye, RefreshCw, ShieldCheck, Trash2, X } from 'lucide-react';
+import { Check, ExternalLink, Eye, RefreshCw, Send, ShieldCheck, Trash2, Users, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
@@ -12,6 +12,11 @@ type ReviewStatus = 'pending' | 'approved' | 'rejected' | 'all';
 type Submission = {
   id: string; contribution_type: string; title: string; content: string;
   display_name: string; source_url: string | null; status: string; submitted_at: string;
+};
+type Subscriber = {
+  id: string; email: string; status: 'pending' | 'active' | 'unsubscribed';
+  confirmed_at: string | null; unsubscribed_at: string | null;
+  last_sent_issue_date: string | null; created_at: string;
 };
 type Draft = Record<string, any> & { issue_date?: string; title?: string; introduction?: string };
 const sectionKeys = ['feature_previews','new_features','community_posts','parent_testimonials','popular_features','recommended_resources','suggested_books_resources','advertisements','parent_tips','membership_details'] as const;
@@ -42,6 +47,7 @@ export default function NewsletterAdmin() {
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [filter, setFilter] = useState<ReviewStatus>('pending');
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [selected, setSelected] = useState<Submission | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [deliveryWeekday, setDeliveryWeekday] = useState(1);
@@ -60,12 +66,13 @@ export default function NewsletterAdmin() {
       return;
     }
     try {
-      const [items, preview, settings] = await Promise.all([
+      const [items, preview, settings, subscriberItems] = await Promise.all([
         adminJson(`/api/newsletter/admin/submissions?status=${filter}`),
         adminJson('/api/newsletter/admin/preview'),
         adminJson('/api/newsletter/admin/settings'),
+        adminJson('/api/newsletter/admin/subscribers'),
       ]);
-      setSubmissions(items); setDraft(preview); setDeliveryWeekday(settings.deliveryWeekday);
+      setSubmissions(items); setDraft(preview); setDeliveryWeekday(settings.deliveryWeekday); setSubscribers(subscriberItems);
       setSelected(current => current ? items.find((item: Submission) => item.id === current.id) || null : null);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Newsletter data is temporarily unavailable');
@@ -129,13 +136,25 @@ export default function NewsletterAdmin() {
     finally { setBusy(false); }
   };
 
+  const sendNow = async () => {
+    if (!window.confirm('Publish the prepared issue to the website and send it now to every eligible active subscriber?')) return;
+    setBusy(true); setMessage('Publishing and delivering the newsletter…');
+    try {
+      const result = await adminJson('/api/newsletter/admin/send-now', { method: 'POST' });
+      setMessage(`Issue ${formatNewsletterDate(result.issueDate)} published. Delivered to ${result.delivered} subscriber${result.delivered === 1 ? '' : 's'}${result.pending ? `; ${result.pending} delivery attempt${result.pending === 1 ? '' : 's'} failed` : ''}.`);
+      await load(false);
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to send the newsletter'); }
+    finally { setBusy(false); }
+  };
+
   if (authorized === null) return <div className="page-shell"><div className="page-container"><p className="surface p-8">Checking administrator access…</p></div></div>;
   if (!authorized) return <div className="page-shell"><div className="page-container"><section className="surface mx-auto max-w-2xl p-8 text-center"><ShieldCheck className="mx-auto h-12 w-12 text-slate-400"/><h1 className="mt-4 text-3xl font-black">Newsletter administration</h1><p className="mt-3 text-slate-600">This page is restricted to approved Visual Steps administrators.</p>{message&&<p className="mt-4 text-sm text-red-700">{message}</p>}</section></div></div>;
 
   return <div className="page-shell"><div className="page-container space-y-8">
-    <header className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-widest text-brand-700">Protected administration</p><h1 className="mt-2 text-4xl font-black">Weekly Newsletter</h1><p className="mt-2 max-w-3xl text-slate-600">Review parent contributions and preview the automatically prepared Monday issue. A preview never publishes or sends email.</p></div><div className="flex flex-wrap gap-2"><Link to="/newsletter" target="_blank" rel="noopener noreferrer" className="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"><ExternalLink className="mr-2 h-4 w-4"/>Open newsletter archive</Link><Button variant="outline" onClick={()=>void load()} isLoading={busy}><RefreshCw className="mr-2 h-4 w-4"/>Refresh</Button></div></header>
+    <header className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-widest text-brand-700">Protected administration</p><h1 className="mt-2 text-4xl font-black">Weekly Newsletter</h1><p className="mt-2 max-w-3xl text-slate-600">Review parent contributions and preview the automatically prepared weekly issue. A preview never publishes or sends email.</p></div><div className="flex flex-wrap gap-2"><Button onClick={sendNow} isLoading={busy}><Send className="mr-2 h-4 w-4"/>Send newsletter now</Button><Link to="/newsletter" target="_blank" rel="noopener noreferrer" className="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"><ExternalLink className="mr-2 h-4 w-4"/>Open newsletter archive</Link><Button variant="outline" onClick={()=>void load()} isLoading={busy}><RefreshCw className="mr-2 h-4 w-4"/>Refresh</Button></div></header>
     {message&&<div role="status" className="rounded-xl border border-slate-200 bg-white p-4 text-sm font-bold">{message}</div>}
     <section className="surface p-6"><div className="flex flex-wrap items-end gap-4"><div className="min-w-56 flex-1"><Select label="Weekly delivery day" value={deliveryWeekday} onChange={event=>setDeliveryWeekday(Number(event.target.value))}>{weekdayNames.map((day,index)=><option key={day} value={index}>{day}</option>)}</Select></div><Button onClick={saveDeliveryDay} isLoading={busy}>Save delivery day</Button></div><p className="mt-3 text-xs leading-5 text-slate-500">Subscribers will receive the newsletter on the selected weekday at 05:00 UTC: 12:00 AM EST or 1:00 AM EDT in New York. You can change the delivery day here whenever your publishing schedule changes.</p></section>
+    <section className="surface p-6"><div className="flex items-center gap-3"><Users className="h-6 w-6 text-brand-600"/><div><h2 className="text-2xl font-black">Subscriber delivery status</h2><p className="text-sm text-slate-600">Pending means the confirmation link has not been completed. Active subscribers are eligible for delivery.</p></div></div><div className="mt-5 overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead><tr className="border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500"><th className="px-3 py-3">Email</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Confirmed</th><th className="px-3 py-3">Last issue sent</th></tr></thead><tbody>{subscribers.length===0?<tr><td colSpan={4} className="px-3 py-6 text-slate-500">No newsletter subscribers yet.</td></tr>:subscribers.map(subscriber=><tr key={subscriber.id} className="border-b border-slate-100"><td className="px-3 py-3 font-semibold">{subscriber.email}</td><td className="px-3 py-3"><span className={`rounded-full px-2 py-1 text-xs font-bold uppercase ${subscriber.status==='active'?'bg-green-100 text-green-700':subscriber.status==='pending'?'bg-amber-100 text-amber-700':'bg-slate-100 text-slate-600'}`}>{subscriber.status}</span></td><td className="px-3 py-3 text-slate-600">{subscriber.confirmed_at?formatNewsletterDate(subscriber.confirmed_at):'Not confirmed'}</td><td className="px-3 py-3 text-slate-600">{subscriber.last_sent_issue_date?formatNewsletterDate(subscriber.last_sent_issue_date):'No issue sent yet'}</td></tr>)}</tbody></table></div></section>
     <div className="grid gap-7 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.8fr)]">
       <section className="surface p-6"><div className="flex flex-wrap items-end justify-between gap-4"><div><h2 className="text-2xl font-black">Community submissions</h2><p className="mt-1 text-sm text-slate-600">Edit for clarity, verify sources, then approve or reject.</p></div><Select aria-label="Submission status" value={filter} onChange={event=>setFilter(event.target.value as ReviewStatus)} className="min-w-40"><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="all">All</option></Select></div>
         <div className="mt-6 grid gap-3">{submissions.length===0?<p className="rounded-xl bg-slate-50 p-5 text-sm text-slate-600">No {filter==='all'?'':filter} submissions.</p>:submissions.map(item=><button key={item.id} onClick={()=>setSelected({...item})} className={`rounded-xl border p-4 text-left transition ${selected?.id===item.id?'border-brand-500 bg-brand-50':'border-slate-200 bg-white hover:border-brand-200'}`}><div className="flex justify-between gap-3"><span className="font-black">{item.title}</span><span className="text-xs font-bold uppercase text-slate-500">{item.status}</span></div><p className="mt-1 text-xs text-slate-500">{item.contribution_type} · {item.display_name} · {formatNewsletterDate(item.submitted_at)}</p><p className="mt-2 line-clamp-2 text-sm text-slate-600">{item.content}</p></button>)}</div>

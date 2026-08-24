@@ -1210,9 +1210,9 @@ const getNewsletterDeliveryWeekday = async () => {
 };
 
 const getNextNewsletterDate = (now: Date, deliveryWeekday: number) => {
-  const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 13));
+  const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 5));
   let daysAhead = (deliveryWeekday - next.getUTCDay() + 7) % 7;
-  if (daysAhead === 0 && now.getUTCHours() >= 13) daysAhead = 7;
+  if (daysAhead === 0 && now.getUTCHours() >= 5) daysAhead = 7;
   next.setUTCDate(next.getUTCDate() + daysAhead);
   return next;
 };
@@ -1432,6 +1432,25 @@ app.get('/api/newsletter/admin/submissions', authenticateToken, requireNewslette
   return res.json(data || []);
 });
 
+app.get('/api/newsletter/admin/subscribers', authenticateToken, requireNewsletterAdmin, async (_req, res) => {
+  const { data, error } = await getAdminSupabaseClient().from('newsletter_subscribers')
+    .select('id,email,status,confirmed_at,unsubscribed_at,last_sent_issue_date,created_at,updated_at')
+    .order('created_at', { ascending: false }).limit(500);
+  if (error) return res.status(500).json({ error: 'Unable to load newsletter subscribers' });
+  return res.json(data || []);
+});
+
+app.post('/api/newsletter/admin/send-now', authenticateToken, requireNewsletterAdmin, async (req, res) => {
+  try {
+    const issue = await createWeeklyNewsletter();
+    const delivery = await sendNewsletterIssue(issue, getPublicAppOrigin(req));
+    return res.json({ issueDate: issue.issue_date, ...delivery });
+  } catch (error) {
+    console.error('Manual newsletter delivery failed:', error instanceof Error ? error.message : 'Unknown error');
+    return res.status(500).json({ error: 'Unable to publish or deliver the newsletter' });
+  }
+});
+
 app.patch('/api/newsletter/admin/submissions/:id', authenticateToken, requireNewsletterAdmin, async (req, res) => {
   const status = String(req.body?.status || '');
   const title = String(req.body?.title || '').trim();
@@ -1483,7 +1502,7 @@ app.get('/api/newsletter/admin/preview', authenticateToken, requireNewsletterAdm
 });
 
 app.get('/api/newsletter/admin/settings', authenticateToken, requireNewsletterAdmin, async (_req, res) => {
-  return res.json({ deliveryWeekday: await getNewsletterDeliveryWeekday(), deliveryHourUtc: 13 });
+  return res.json({ deliveryWeekday: await getNewsletterDeliveryWeekday(), deliveryHourUtc: 5 });
 });
 
 app.put('/api/newsletter/admin/settings', authenticateToken, requireNewsletterAdmin, async (req, res) => {
@@ -1491,7 +1510,7 @@ app.put('/api/newsletter/admin/settings', authenticateToken, requireNewsletterAd
   if (!Number.isInteger(deliveryWeekday) || deliveryWeekday < 0 || deliveryWeekday > 6) return res.status(400).json({ error: 'Choose a valid delivery day' });
   const { error } = await getAdminSupabaseClient().from('newsletter_settings').upsert({ id: true, delivery_weekday: deliveryWeekday, updated_at: new Date().toISOString() });
   if (error) return res.status(500).json({ error: 'Unable to save the newsletter delivery day' });
-  return res.json({ deliveryWeekday, deliveryHourUtc: 13 });
+  return res.json({ deliveryWeekday, deliveryHourUtc: 5 });
 });
 
 app.put('/api/newsletter/admin/draft', authenticateToken, requireNewsletterAdmin, async (req, res) => {
