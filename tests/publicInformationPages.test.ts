@@ -13,6 +13,22 @@ test('public information pages are routed and discoverable', async () => {
   }
 });
 
+test('testimonials are public only after consent and administrator approval', async () => {
+  const [page, server] = await Promise.all([
+    readFile(new URL('../src/pages/Testimonials.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../server.ts', import.meta.url), 'utf8'),
+  ]);
+  assert.match(page, /fetch\('\/api\/testimonials'\)/);
+  assert.match(page, /contributionType: 'testimonial'/);
+  assert.match(page, /consentToPublish/);
+  assert.match(page, /Submit privately for review/);
+  assert.match(server, /app\.get\('\/api\/testimonials'/);
+  assert.match(server, /eq\('contribution_type', 'testimonial'\)/);
+  assert.match(server, /eq\('status', 'approved'\)/);
+  assert.match(server, /eq\('consent_to_publish', true\)/);
+  assert.doesNotMatch(page, /child records.*\.map/i);
+});
+
 test('public contact and newsletter pages keep SMTP secrets on the server', async () => {
   const [contact, newsletter] = await Promise.all([
     readFile(new URL('../src/pages/Contact.tsx', import.meta.url), 'utf8'),

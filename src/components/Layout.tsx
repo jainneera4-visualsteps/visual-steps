@@ -61,7 +61,7 @@ export function Layout() {
     else if (path === '/about') title = 'About | Visual Steps';
     else if (path === '/pricing') title = 'Plans & Pricing | Visual Steps';
     else if (path === '/demo' || path === '/guest') title = 'Guest Login | Visual Steps';
-    else if (path === '/testimonials') title = 'Family Stories | Visual Steps';
+    else if (path === '/testimonials') title = 'Testimonials | Visual Steps';
     else if (path === '/contact') title = 'Contact | Visual Steps';
     else if (path === '/newsletter') title = 'Weekly Newsletter | Visual Steps';
     else if (path === '/newsletter-admin') title = 'Newsletter Administration | Visual Steps';
@@ -318,7 +318,7 @@ export function Layout() {
                   <Link to="/pricing" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>
                     Plans
                   </Link>
-                  <Link to="/testimonials" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Family Stories</Link>
+                  <Link to="/testimonials" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Testimonials</Link>
                   <Link to="/newsletter" target="_blank" rel="noopener noreferrer" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Newsletter</Link>
                   <Link to="/contact" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Contact</Link>
                 </>
@@ -330,7 +330,7 @@ export function Layout() {
                   <Link to="/pricing" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>
                     Plans
                   </Link>
-                  <Link to="/testimonials" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Family Stories</Link>
+                  <Link to="/testimonials" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Testimonials</Link>
                   <Link to="/newsletter" target="_blank" rel="noopener noreferrer" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Newsletter</Link>
                   <Link to="/contact" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Contact</Link>
                   <Link to="/login" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>
@@ -356,7 +356,7 @@ export function Layout() {
         <div className="flex w-full flex-col items-center gap-2 px-4">
           <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm font-bold text-slate-600" aria-label="Public information">
             <Link to="/about" className="hover:text-brand-600">About</Link>
-            <Link to="/testimonials" className="hover:text-brand-600">Family Stories</Link>
+            <Link to="/testimonials" className="hover:text-brand-600">Testimonials</Link>
             <Link to="/newsletter" target="_blank" rel="noopener noreferrer" className="hover:text-brand-600">Newsletter</Link>
             <Link to="/contact" className="hover:text-brand-600">Contact</Link>
             {publicLinks.facebook && <a href={publicLinks.facebook} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 hover:text-brand-600"><Facebook className="h-4 w-4" />Facebook</a>}
