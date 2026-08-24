@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { clearAuthSession, isAuthError } from '../utils/auth';
+import { endGuestSession, guestProfile, isGuestSession, onGuestSessionChange } from '../guest/guestSession';
 
 interface User {
   id: string;
@@ -27,6 +28,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const userRef = useRef<User | null>(null);
 
   const refreshProfile = async () => {
+    if (isGuestSession()) {
+      setUser(guestProfile);
+      return;
+    }
     try {
       const { data: { session }, error } = await supabase.auth.getSession();
       if (error || !session?.user) return;
@@ -50,6 +55,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   useEffect(() => {
+    const syncGuest = () => {
+      if (isGuestSession()) {
+        setUser(guestProfile);
+        setIsLoading(false);
+      }
+    };
+    const removeGuestListener = onGuestSessionChange(syncGuest);
+    syncGuest();
     const pauseAuthRefresh = () => {
       supabase.auth.stopAutoRefresh();
     };
@@ -62,6 +75,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (navigator.onLine === false) pauseAuthRefresh();
 
     const fetchProfile = async (sessionUser: SupabaseUser | null) => {
+      if (isGuestSession()) {
+        setUser(guestProfile);
+        setIsLoading(false);
+        return;
+      }
       if (sessionUser) {
         // Only set loading if we don't already have this user
         if (!userRef.current || userRef.current.id !== sessionUser.id) {
@@ -85,6 +103,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Get initial session
     const initSession = async () => {
+      if (isGuestSession()) {
+        setUser(guestProfile);
+        setIsLoading(false);
+        return;
+      }
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
         
@@ -139,6 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       subscription.unsubscribe();
+      removeGuestListener();
       window.removeEventListener('offline', pauseAuthRefresh);
       window.removeEventListener('online', resumeAuthRefresh);
       pendingAuthTasks.forEach(task => clearTimeout(task));
@@ -147,6 +171,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = async () => {
+    if (isGuestSession()) {
+      endGuestSession();
+      setUser(null);
+      return;
+    }
     await supabase.auth.signOut();
     setUser(null);
   };

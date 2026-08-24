@@ -1,4 +1,5 @@
 import { apiFetch, safeJson } from '../utils/api';
+import { isGuestSession } from '../guest/guestSession';
 import { io } from 'socket.io-client';
 import { formatReward, rewardImages } from '../utils/rewardUtils';
 import { useState, useEffect, useCallback } from 'react';
@@ -456,6 +457,7 @@ export default function KidsDashboard() {
   };
 
   const safeLocalStorageSet = (key: string, value: string) => {
+    if (isGuestSession()) return;
     try {
       localStorage.setItem(key, value);
       return;
@@ -1254,7 +1256,7 @@ export default function KidsDashboard() {
                                                 key={activity.image_url}
                                                 src={activity.image_url} 
                                                 alt={activity.activity_type} 
-                                                className="aspect-square w-full object-cover"
+                                                className="aspect-square w-full object-contain p-1"
                                                 referrerPolicy="no-referrer"
                                               />
                                             </div>

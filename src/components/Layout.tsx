@@ -5,6 +5,7 @@ import { LogOut, Menu, X, Lightbulb, ChevronDown, BookOpen, FileText, Gamepad2, 
 import { useState, useEffect } from 'react';
 import { Tooltip } from './ui/Tooltip';
 import { ParentAssistant } from './ParentAssistant';
+import { isGuestSession } from '../guest/guestSession';
 
 export function Layout() {
   const { user, logout } = useAuth();
@@ -51,7 +52,7 @@ export function Layout() {
     else if (path === '/forgot-password') title = 'Forgot Password | Visual Steps';
     else if (path === '/about') title = 'About | Visual Steps';
     else if (path === '/pricing') title = 'Plans & Pricing | Visual Steps';
-    else if (path === '/demo') title = 'Guest Demo | Visual Steps';
+    else if (path === '/demo' || path === '/guest') title = 'Guest Login | Visual Steps';
     else if (path === '/testimonials') title = 'Family Stories | Visual Steps';
     else if (path === '/contact') title = 'Contact | Visual Steps';
     else if (path === '/newsletter') title = 'Weekly Newsletter | Visual Steps';
@@ -78,6 +79,7 @@ export function Layout() {
                 <Tooltip content="Parent's Dashboard">
                   <Link
                     to="/dashboard"
+                    data-guest-tour="dashboard-menu"
                     className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:bg-slate-100 ${
                       isActive('/dashboard') ? 'bg-brand-50 text-brand-700' : 'text-slate-600'
                     }`}
@@ -89,6 +91,7 @@ export function Layout() {
                 <Tooltip content="Create Activities">
                   <div className="relative group">
                     <button
+                      data-guest-tour="activities-menu"
                       onMouseEnter={() => setIsActivitiesOpen(true)}
                       onMouseLeave={() => setIsActivitiesOpen(false)}
                       className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:bg-slate-100 ${
@@ -307,7 +310,7 @@ export function Layout() {
                     Plans
                   </Link>
                   <Link to="/testimonials" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Family Stories</Link>
-                  <Link to="/newsletter" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Newsletter</Link>
+                  <Link to="/newsletter" target="_blank" rel="noopener noreferrer" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Newsletter</Link>
                   <Link to="/contact" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Contact</Link>
                 </>
               ) : (
@@ -319,7 +322,7 @@ export function Layout() {
                     Plans
                   </Link>
                   <Link to="/testimonials" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Family Stories</Link>
-                  <Link to="/newsletter" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Newsletter</Link>
+                  <Link to="/newsletter" target="_blank" rel="noopener noreferrer" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Newsletter</Link>
                   <Link to="/contact" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Contact</Link>
                   <Link to="/login" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>
                     Sign in
@@ -345,7 +348,7 @@ export function Layout() {
           <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] font-semibold text-slate-500" aria-label="Public information">
             <Link to="/about" className="hover:text-brand-600">About</Link>
             <Link to="/testimonials" className="hover:text-brand-600">Family Stories</Link>
-            <Link to="/newsletter" className="hover:text-brand-600">Newsletter</Link>
+            <Link to="/newsletter" target="_blank" rel="noopener noreferrer" className="hover:text-brand-600">Newsletter</Link>
             <Link to="/contact" className="hover:text-brand-600">Contact</Link>
           </nav>
           <div className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">
@@ -354,7 +357,7 @@ export function Layout() {
         </div>
 
       </footer>
-      {user && <ParentAssistant />}
+      {!isGuestSession() && (user || location.pathname === '/' || location.pathname === '/login') && <ParentAssistant publicMode={!user} />}
     </div>
   );
 }

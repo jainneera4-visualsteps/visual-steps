@@ -26,6 +26,7 @@
     "test:gemini:smoke": "tsx --test tests/smoke/gemini.test.ts",
     "test:browser:mobile": "playwright test tests/browser/pwa-mobile.spec.ts --project=iphone-webkit --project=ipad-webkit",
     "test:browser:ui": "playwright test --ui",
+    "screenshots:onboarding": "node scripts/capture-onboarding-screenshots.mjs",
     "test:all": "npm run lint && npm test && npm run test:api:mocked && npm run build"
   },
   "dependencies": {

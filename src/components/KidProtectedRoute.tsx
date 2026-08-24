@@ -1,6 +1,7 @@
 import { Navigate, Outlet, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Loader2 } from 'lucide-react';
+import { GUEST_KID_ID, isGuestSession } from '../guest/guestSession';
 
 export function KidProtectedRoute() {
   const { user, isLoading } = useAuth();
@@ -16,7 +17,7 @@ export function KidProtectedRoute() {
 
   // Allow access if parent is logged in OR if kid has a valid session
   const kidSession = localStorage.getItem('kid_session');
-  let isKidAuthorized = false;
+  let isKidAuthorized = isGuestSession() && (!kidId || kidId === GUEST_KID_ID);
   if (kidSession) {
     try {
       const session = JSON.parse(kidSession);

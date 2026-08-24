@@ -24,8 +24,8 @@ const productFeatureRegistry = [
   {
     "id": "visual-activities",
     "title": "Clear visual activities",
-    "summary": "Build scheduled routines with small, image-supported steps children can follow.",
-    "details": "Parents can turn a routine, responsibility, or learning goal into a clear assigned activity. Each activity can include a description, images, smaller steps, timing, recurrence, and a reward amount. Children see a focused view of what to do now and what comes next. Parents can adjust or reassign the same activity when a child needs another try.",
+    "summary": "Build scheduled routines with small steps and illustrations that match what the child is being asked to do.",
+    "details": "Parents can turn a routine, responsibility, or learning goal into a clear assigned activity. Each activity can include a description, relevant illustrations, smaller visual steps, timing, recurrence, and a reward amount. Children see a focused view of what to do now and what comes next rather than unrelated generic imagery. Parents can adjust or reassign the same activity when a child needs another try.",
     "help": "From Dashboard, select a child and open Activities. Use Add Activity to enter instructions, steps, timing, recurrence, images, and rewards.",
     "introducedOn": "2026-03-01",
     "plan": "starter",
@@ -210,12 +210,13 @@ const productFeatureRegistry = [
     "id": "guest-demo",
     "title": "Temporary guest demonstration",
     "summary": "Explore realistic parent and child workflows without an account or database writes.",
-    "details": "Visitors can explore realistic parent and child screens before deciding whether to create an account. The demonstration includes sample family data and guided access to important workflows. Guest changes live only in browser memory, are never written to Supabase, and disappear when the page reloads. AI generation is disabled for guests so exploration cannot create unexpected API costs.",
-    "help": "On Home select Try Guest Demo. Switch between Parent and Child views. All demo changes stay in memory and reset when the page reloads.",
+    "details": "Visitors can enter through Continue as Guest and explore a realistic signed-in parent workspace before deciding whether to create an account. Sequential onboarding bubbles point directly to the relevant menus, forms, and primary buttons while explaining the dashboard, child profile, illustrated activities, messages, verification, quiz, worksheet, social story, and progress-planning workflows. Visitors can move Back or Next, skip the hints, replay them later, and then use the interactive parent and child workspace. Guest messages, verification choices, and other changes live only in browser memory, are never written to Supabase, and disappear when the page reloads. AI generation is disabled for guests so exploration cannot create unexpected API costs.",
+    "help": "On Home select Continue as Guest. Follow the product-hint bubbles as they point to each menu and button, or skip and replay them from the guest workspace. All guest changes stay in memory and reset when the page reloads.",
     "introducedOn": "2026-08-21",
     "plan": "starter",
     "icon": "guest",
     "routes": [
+      "/guest",
       "/demo"
     ],
     "surfaces": [
@@ -232,7 +233,7 @@ const productFeatureRegistry = [
     "id": "learning-progress-rewards",
     "title": "Learning, progress, and meaningful rewards",
     "summary": "Create personalized resources, understand progress, and connect earned rewards to meaningful goals.",
-    "details": "Parents can create, edit, save, assign, and print personalized quizzes, worksheets, and social stories. Activity history and reports help families review completion patterns, learning results, and reward purchases over time. The Visual Steps Weekly archive shares product guidance, approved parent contributions, curated resources, and current membership information. Parents remain responsible for reviewing AI drafts, interpreting progress, and choosing rewards that suit their family.",
+    "details": "Parents can create, edit, save, assign, and print personalized quizzes, worksheets, and social stories. Activity history and reports help families review completion patterns, learning results, and reward purchases over time. The Home page connects families to Visual Steps Weekly and to configured Facebook and Instagram communities, while the newsletter shares product guidance, approved parent contributions, curated resources, and current membership information. Parents remain responsible for reviewing AI drafts, interpreting progress, and choosing rewards that suit their family.",
     "help": "Use Quizzes, Worksheets, or Social Stories to create learning material; open a child's Reports to review progress; or open Newsletter for the public weekly archive and confirmed email subscription.",
     "introducedOn": "2026-03-15",
     "plan": "starter",
@@ -517,6 +518,13 @@ const getPublicAppOrigin = (req: any): string => {
     return isProduction ? PRODUCTION_APP_URL : requestOrigin.replace(/\/$/, '');
   }
 };
+
+app.get('/api/public-links', (_req, res) => {
+  res.json({
+    facebook: cleanEnvVar('FACEBOOK_URL'),
+    instagram: cleanEnvVar('INSTAGRAM_URL'),
+  });
+});
 
 const PORT = 3000;
 const PRODUCTION_APP_URL = 'https://visual-steps-six.vercel.app';
@@ -4899,7 +4907,7 @@ export const PARENT_ASSISTANT_KNOWLEDGE_VERSION = productFeatureRegistry.reduce(
 );
 
 export const parentAssistantFeatureCatalog = [
-  { area: 'Getting started and guest demo', routes: ['/', '/login', '/about', '/pricing', '/signup', '/demo'], help: 'Home explains the product and parent or child sign-in. About describes current capabilities. Pricing explains available plans. Join free opens Create an account; enter Full Name, Email, and Password, submit the form, then use Continue to Dashboard. Try Guest Demo opens a temporary interactive sample without signing in. Switch between Parent view and Child view to try activity submission, verification and positive behavior bonuses. Demo data stays only in page memory, never reaches Supabase or protected APIs, and resets when the page is refreshed or reloaded.' },
+  { area: 'Getting started and guest login', routes: ['/', '/login', '/about', '/pricing', '/signup', '/guest', '/demo'], help: 'Home explains the product and parent or child sign-in. About describes current capabilities. Pricing explains available plans. Join free opens Create an account; enter Full Name, Email, and Password, submit the form, then use Continue to Dashboard. Continue as Guest opens a temporary signed-in-style workspace without an account. Follow the sequential product hints as they point to the exact menus and primary buttons, or skip and replay the hints later. Guest data stays only in page memory, never reaches Supabase or protected APIs, and resets when the page is refreshed or reloaded.' },
   { area: 'Password recovery', routes: ['/forgot-password'], help: 'On Sign in select Forgot?, enter Email, and select Send Reset Link. Open the Visual Steps recovery email. On the recovery page enter New Password and Confirm Password, then select Update Password.' },
   { area: 'Parent dashboard', routes: ['/dashboard'], help: 'Select a child card to make it active. Add Child creates a profile. The pencil icon edits the selected child. Activities opens that child’s activity management. Parent messages are entered in the message box and sent with the Send button. The dashboard also shows reward balance, starts or replays the parent tour, and opens this assistant.' },
   { area: 'Child profiles and themes', routes: ['/add-kid', '/edit-kid/:id'], help: 'Profile Details includes Avatar or Upload, Name, Date of Birth, Grade Level, Kid Code, Start Time, End Time, Max Activities, Reward Qty, Reward Type, Dashboard Theme, Therapies Needed, Hobbies, Interests, Strengths, Weaknesses, Sensory Issues, Behavioral Issues, Timezone, and Permissions including child printing. Finish with Create Profile or Save Changes.' },
@@ -5008,6 +5016,32 @@ export const buildParentAiAllowance = (usedValue: unknown, now = new Date()) => 
   const resetsAt = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
   return { used, remaining: PARENT_AI_DAILY_LIMIT - used, dailyLimit: PARENT_AI_DAILY_LIMIT, resetsAt: resetsAt.toISOString() };
 };
+
+// Public visitors receive catalog-based guidance only. This endpoint never
+// queries Supabase, receives family context, or invokes a paid AI model.
+app.get('/api/public-assistant/capabilities', (_req, res) => {
+  res.json({ knowledgeVersion: PARENT_ASSISTANT_KNOWLEDGE_VERSION, capabilities: getParentAssistantCapabilities() });
+});
+
+app.post('/api/public-assistant', (req, res) => {
+  const question = typeof req.body?.question === 'string' ? req.body.question.trim().slice(0, 1200) : '';
+  if (!question) return res.status(400).json({ error: 'Please enter a question' });
+  const normalized = question.toLowerCase();
+  const privateDataRequest = /\b(my|our)\s+(child|children|kid|kids|family|activity|activities|progress|reward|quiz|worksheet|story|account)\b/.test(normalized);
+  const words = new Set<string>(normalized.match(/[a-z]{3,}/g) || []);
+  const ranked = parentAssistantFeatureCatalog
+    .map(feature => ({ feature, score: [...words].filter(word => `${feature.area} ${feature.help}`.toLowerCase().includes(word)).length }))
+    .filter(item => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3)
+    .map(item => item.feature);
+  const matches = ranked.length ? ranked : parentAssistantFeatureCatalog.filter(feature => ['Parent dashboard', 'Activities and verification', 'Child dashboard'].includes(feature.area)).slice(0, 3);
+  const privacy = privateDataRequest
+    ? 'Before sign-in, I cannot access or discuss any parent, child, or family records. I can explain the general Visual Steps workflow instead.\n\n'
+    : '';
+  const answer = `${privacy}${matches.map((feature, index) => `${index + 1}. ${feature.area}\n${feature.help}`).join('\n\n')}\n\nWhat to expect: Guest mode lets you explore the real parent and child pages with temporary sample data. Nothing is written to Supabase, and AI generation and uploads remain disabled for guests.`;
+  res.json({ answer });
+});
 
 app.get('/api/parent-assistant/usage', authenticateToken, async (req: any, res) => {
   if (req.user.role !== 'parent') return res.status(403).json({ error: 'Parent access required' });

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Activity, BarChart3, BookOpen, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Gift, UserPlus, X } from 'lucide-react';
 import { Button } from './Button';
-import { newFeatures } from '../content/featureRegistry';
+import { featuresForSurface, newFeatures } from '../content/featureRegistry';
 import { NewFeatureBadge } from './FeatureHighlights';
 
 const steps = [
@@ -123,12 +123,31 @@ function ProductPreview({ stepIndex }: { stepIndex: number }) {
   );
 }
 
+const realScreenPreviews = [
+  '/onboarding/child-profile.png',
+  '/onboarding/activities.png',
+  '/onboarding/activities.png',
+  '/onboarding/learning.png',
+  '/onboarding/progress.png',
+];
+
+function RealScreenPreview({ stepIndex, title }: { stepIndex: number; title: string }) {
+  return (
+    <img
+      src={realScreenPreviews[stepIndex]}
+      alt={`Real Visual Steps screen showing ${title}`}
+      className="aspect-[16/10] w-full rounded-xl border border-slate-200 bg-white object-cover object-top shadow-sm"
+    />
+  );
+}
+
 export function ParentOnboarding({ onClose }: { onClose: () => Promise<void> | void }) {
   const [stepIndex, setStepIndex] = useState(0);
   const [isClosing, setIsClosing] = useState(false);
   const step = steps[stepIndex];
   const Icon = step.icon;
   const recentFeatures = newFeatures().slice(0, 4);
+  const currentFeatures = featuresForSurface('onboarding');
 
   const closeTour = async () => {
     setIsClosing(true);
@@ -168,7 +187,7 @@ export function ParentOnboarding({ onClose }: { onClose: () => Promise<void> | v
             </div>
             <div className="rounded-2xl border border-blue-100 bg-slate-50/90 p-4 shadow-inner" aria-label={`${step.title} preview`}>
               <div className="mb-3 flex items-center gap-1.5 border-b border-slate-200 pb-3"><span className="h-2.5 w-2.5 rounded-full bg-red-300" /><span className="h-2.5 w-2.5 rounded-full bg-amber-300" /><span className="h-2.5 w-2.5 rounded-full bg-emerald-300" /><span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Visual Steps preview</span></div>
-              <ProductPreview stepIndex={stepIndex} />
+              <RealScreenPreview stepIndex={stepIndex} title={step.title} />
             </div>
           </div>
           <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm font-semibold leading-6 text-emerald-900">
@@ -187,6 +206,10 @@ export function ParentOnboarding({ onClose }: { onClose: () => Promise<void> | v
               </div>
             </section>
           )}
+          <details className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+            <summary className="cursor-pointer text-sm font-black text-slate-800">Browse all current Visual Steps capabilities ({currentFeatures.length})</summary>
+            <div className="mt-3 grid max-h-52 gap-2 overflow-y-auto sm:grid-cols-2">{currentFeatures.map(feature => <div key={feature.id} className="rounded-xl bg-white p-3 text-xs leading-5 text-slate-600 shadow-sm"><strong className="block text-sm text-slate-900">{feature.title}</strong>{feature.summary}</div>)}</div>
+          </details>
 
           <div className="flex items-center justify-center gap-2" aria-label={`Step ${stepIndex + 1} of ${steps.length}`}>
             {steps.map((_, index) => (

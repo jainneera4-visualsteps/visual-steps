@@ -1420,7 +1420,7 @@ export default function AssignedActivities() {
                         <div className="flex items-center gap-2">
                           {activity.image_url && (
                             <div className="h-9 w-9 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-                              <img src={activity.image_url} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                              <img src={activity.image_url} alt="" className="h-full w-full object-contain p-0.5" referrerPolicy="no-referrer" />
                             </div>
                           )}
                           <div className="min-w-0">
@@ -1852,7 +1852,7 @@ export default function AssignedActivities() {
                         <div className="font-bold text-slate-900 flex items-center gap-2">
                           {activity.image_url && (
                             <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded border border-slate-200">
-                              <img src={activity.image_url} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                              <img src={activity.image_url} alt="" className="h-full w-full object-contain p-0.5" referrerPolicy="no-referrer" />
                             </div>
                           )}
                           {activity.activity_type}
@@ -2396,7 +2396,7 @@ export default function AssignedActivities() {
                           <div className={`font-bold flex items-center gap-2 ${activity.status === 'completed' ? 'text-slate-500 line-through' : 'text-slate-900'}`}>
                             {activity.image_url && (
                               <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded border border-slate-200">
-                                <img src={activity.image_url} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                                <img src={activity.image_url} alt="" className="h-full w-full object-contain p-0.5" referrerPolicy="no-referrer" />
                               </div>
                             )}
                             {activity.activity_type}
@@ -2821,7 +2821,7 @@ export default function AssignedActivities() {
                                   </div>
                                 ) : activity.image_url ? (
                                   <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded border border-slate-200">
-                                    <img src={activity.image_url} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                                    <img src={activity.image_url} alt="" className="h-full w-full object-contain p-0.5" referrerPolicy="no-referrer" />
                                   </div>
                                 ) : null}
                                 {activity.activity_type}
@@ -3059,7 +3059,7 @@ export default function AssignedActivities() {
                         <img 
                           src={q.imageUrl} 
                           alt="" 
-                          className="w-full h-32 object-cover rounded-lg" 
+                          className="h-32 w-full rounded-lg bg-slate-50 object-contain"
                           referrerPolicy="no-referrer"
                         />
                       </div>
@@ -3807,7 +3807,7 @@ export default function AssignedActivities() {
                       {formData.imageUrl && (
                         <div className="flex items-center gap-1">
                           <div className="relative h-8 w-8 flex-shrink-0 overflow-hidden rounded border border-slate-200">
-                            <img key={formData.imageUrl} src={formData.imageUrl} alt="Preview" className="h-full w-full object-cover" />
+                            <img key={formData.imageUrl} src={formData.imageUrl} alt="Preview" className="h-full w-full object-contain" />
                           </div>
                           <Button 
                             type="button" 
@@ -3885,7 +3885,7 @@ export default function AssignedActivities() {
                             {step.image_url && (
                               <div className="flex items-center gap-1">
                                 <div className="relative h-5 w-5 overflow-hidden rounded border border-slate-200">
-                                  <img src={step.image_url} alt="Step" className="h-full w-full object-cover" />
+                                  <img src={step.image_url} alt="Step" className="h-full w-full object-contain" />
                                 </div>
                                 <button
                                   type="button"

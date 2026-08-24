@@ -707,7 +707,7 @@ export default function Dashboard() {
               </Select>
             </div>
           )}
-          <Link to="/add-kid">
+          <Link to="/add-kid" data-guest-tour="add-child">
             <Tooltip content="Add Child's Profile">
               <Button size="md" className="h-11 shadow-brand-200">
                 <Plus className="mr-2 h-5 w-5" />

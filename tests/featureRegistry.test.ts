@@ -29,14 +29,18 @@ test('new badges last 30 days and never appear before release', () => {
 });
 
 test('required product surfaces consume the shared feature registry', async () => {
-  const files = ['Home.tsx', 'About.tsx', 'Pricing.tsx', 'GuestDemo.tsx'];
+  const files = ['Home.tsx', 'About.tsx', 'Pricing.tsx'];
   for (const file of files) {
     const source = await readFile(new URL(`../src/pages/${file}`, import.meta.url), 'utf8');
     assert.match(source, /FeatureHighlights/, `${file} is not synchronized`);
   }
+  const guestWorkspace = await readFile(new URL('../src/components/GuestWorkspace.tsx', import.meta.url), 'utf8');
+  assert.match(guestWorkspace, /Guest tour/);
+  assert.match(guestWorkspace, /featuresForSurface\('guest'\)/);
   const onboarding = await readFile(new URL('../src/components/ParentOnboarding.tsx', import.meta.url), 'utf8');
   const server = await readFile(new URL('../server.ts', import.meta.url), 'utf8');
   assert.match(onboarding, /newFeatures/);
+  assert.match(onboarding, /featuresForSurface\('onboarding'\)/);
   assert.match(server, /FEATURE_REGISTRY_SERVER:START/);
   assert.doesNotMatch(server, /import productFeatureRegistry/);
 });

@@ -302,7 +302,7 @@ export function ActivityDetailModal({
           <div className={`grid gap-4 ${activity.image_url ? 'md:grid-cols-2' : ''}`}>
             {activity.image_url && (
               <div className="overflow-hidden rounded-xl border border-blue-100 bg-white print:bg-transparent print-image">
-                <img src={activity.image_url} alt={activity.activity_type} className="h-48 w-full object-cover" />
+                <img src={activity.image_url} alt={activity.activity_type} className="h-48 w-full bg-slate-50 object-contain p-2" />
               </div>
             )}
             <div className="space-y-3">
@@ -389,7 +389,7 @@ export function ActivityDetailModal({
                       <p className="text-[13px] text-slate-800 font-bold leading-snug">{step.description}</p>
                       {step.image_url && (
                         <div className="mt-2 rounded-lg overflow-hidden border border-blue-50 print-image">
-                          <img src={step.image_url} alt={`Step ${index + 1}`} className="max-h-32 w-full object-cover" />
+                          <img src={step.image_url} alt={`Step ${index + 1}`} className="max-h-32 w-full bg-slate-50 object-contain p-1" />
                         </div>
                       )}
                     </div>

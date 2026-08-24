@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Check, Eye, RefreshCw, ShieldCheck, Trash2, X } from 'lucide-react';
+import { Check, ExternalLink, Eye, RefreshCw, ShieldCheck, Trash2, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Select } from '../components/Select';
@@ -132,7 +133,7 @@ export default function NewsletterAdmin() {
   if (!authorized) return <div className="page-shell"><div className="page-container"><section className="surface mx-auto max-w-2xl p-8 text-center"><ShieldCheck className="mx-auto h-12 w-12 text-slate-400"/><h1 className="mt-4 text-3xl font-black">Newsletter administration</h1><p className="mt-3 text-slate-600">This page is restricted to approved Visual Steps administrators.</p>{message&&<p className="mt-4 text-sm text-red-700">{message}</p>}</section></div></div>;
 
   return <div className="page-shell"><div className="page-container space-y-8">
-    <header className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-widest text-brand-700">Protected administration</p><h1 className="mt-2 text-4xl font-black">Weekly Newsletter</h1><p className="mt-2 max-w-3xl text-slate-600">Review parent contributions and preview the automatically prepared Monday issue. A preview never publishes or sends email.</p></div><Button variant="outline" onClick={()=>void load()} isLoading={busy}><RefreshCw className="mr-2 h-4 w-4"/>Refresh</Button></header>
+    <header className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-widest text-brand-700">Protected administration</p><h1 className="mt-2 text-4xl font-black">Weekly Newsletter</h1><p className="mt-2 max-w-3xl text-slate-600">Review parent contributions and preview the automatically prepared Monday issue. A preview never publishes or sends email.</p></div><div className="flex flex-wrap gap-2"><Link to="/newsletter" target="_blank" rel="noopener noreferrer" className="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"><ExternalLink className="mr-2 h-4 w-4"/>Open newsletter archive</Link><Button variant="outline" onClick={()=>void load()} isLoading={busy}><RefreshCw className="mr-2 h-4 w-4"/>Refresh</Button></div></header>
     {message&&<div role="status" className="rounded-xl border border-slate-200 bg-white p-4 text-sm font-bold">{message}</div>}
     <section className="surface p-6"><div className="flex flex-wrap items-end gap-4"><div className="min-w-56 flex-1"><Select label="Weekly delivery day" value={deliveryWeekday} onChange={event=>setDeliveryWeekday(Number(event.target.value))}>{weekdayNames.map((day,index)=><option key={day} value={index}>{day}</option>)}</Select></div><Button onClick={saveDeliveryDay} isLoading={busy}>Save delivery day</Button></div><p className="mt-3 text-xs leading-5 text-slate-500">The daily scheduler checks this setting at 13:00 UTC and sends only on the selected day. Changing it does not require a new deployment.</p></section>
     <div className="grid gap-7 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.8fr)]">

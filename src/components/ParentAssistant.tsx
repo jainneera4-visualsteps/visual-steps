@@ -20,12 +20,13 @@ type AssistantAllowance = {
   resetsAt: string;
 };
 
-const suggestions = [
+const parentSuggestions = [
   'How do I assign an activity?',
   'What is waiting for verification?',
   'Summarize my children’s recent progress.',
   'Suggest an activity using my child’s interests.',
 ];
+const guestSuggestions = ['What can Visual Steps help my family with?', 'How do activities and parent verification work?', 'What learning tools are included?', 'What will children see on their dashboard?'];
 
 const welcomeMessage: ChatMessage = {
   id: 'welcome',
@@ -33,9 +34,13 @@ const welcomeMessage: ChatMessage = {
   content: 'Hi! I’m your Visual Steps assistant. I can explain how the app works, summarize your children’s Visual Steps activity, and suggest practical next steps. What would you like help with?',
 };
 
-export function ParentAssistant() {
+export function ParentAssistant({ publicMode = false }: { publicMode?: boolean }) {
+  const suggestions = publicMode ? guestSuggestions : parentSuggestions;
+  const initialMessage: ChatMessage = publicMode
+    ? { id: 'welcome', role: 'assistant', content: 'Hi! I can explain what families can expect from Visual Steps and how its features work. I cannot access or discuss any parent or child records before sign-in.' }
+    : welcomeMessage;
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([welcomeMessage]);
+  const [messages, setMessages] = useState<ChatMessage[]>([initialMessage]);
   const [question, setQuestion] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState('');
@@ -55,23 +60,25 @@ export function ParentAssistant() {
   useEffect(() => {
     if (isOpen) {
       window.setTimeout(() => inputRef.current?.focus(), 100);
-      setIsAllowanceLoading(true);
-      apiFetch('/api/parent-assistant/usage')
+      if (!publicMode) {
+        setIsAllowanceLoading(true);
+        apiFetch('/api/parent-assistant/usage')
         .then(async response => {
           const payload = await safeJson(response);
           if (!response.ok) throw new Error(payload?.error || 'Unable to load allowance');
           setAllowance(payload.allowance);
         })
         .catch(() => setAllowance(null))
-        .finally(() => setIsAllowanceLoading(false));
-      apiFetch('/api/parent-assistant/capabilities')
+          .finally(() => setIsAllowanceLoading(false));
+      }
+      apiFetch(publicMode ? '/api/public-assistant/capabilities' : '/api/parent-assistant/capabilities')
         .then(async response => {
           const payload = await safeJson(response);
           if (response.ok && Array.isArray(payload?.capabilities)) setCapabilities(payload.capabilities);
         })
         .catch(() => undefined);
     }
-  }, [isOpen]);
+  }, [isOpen, publicMode]);
 
   const askQuestion = async (value: string) => {
     const trimmedQuestion = value.trim();
@@ -85,7 +92,7 @@ export function ParentAssistant() {
     setIsSending(true);
 
     try {
-      const response = await apiFetch('/api/parent-assistant', {
+      const response = await apiFetch(publicMode ? '/api/public-assistant' : '/api/parent-assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -110,6 +117,7 @@ export function ParentAssistant() {
   };
 
   const reportMissingInfo = async (message: ChatMessage) => {
+    if (publicMode) return;
     if (!message.sourceQuestion || reportedMessageIds.has(message.id)) return;
     setError('');
     try {
@@ -152,11 +160,11 @@ export function ParentAssistant() {
           <header className="flex items-center justify-between rounded-t-3xl bg-gradient-to-r from-blue-600 to-emerald-500 px-4 py-4 text-white">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20"><Bot className="h-6 w-6" /></div>
-              <div><h2 id="parent-assistant-title" className="font-black">Visual Steps Assistant</h2><p className="text-xs font-semibold text-blue-50">App help and your family’s progress</p></div>
+              <div><h2 id="parent-assistant-title" className="font-black">Visual Steps Assistant</h2><p className="text-xs font-semibold text-blue-50">{publicMode ? 'See what families can expect' : 'App help and your family’s progress'}</p></div>
             </div>
             <div className="flex gap-1">
               <button type="button" onClick={() => setShowCapabilities(current => !current)} className="rounded-full p-2 hover:bg-white/20" aria-label="Show what the assistant can help with"><BookOpen className="h-4 w-4" /></button>
-              <button type="button" onClick={() => { setMessages([welcomeMessage]); setError(''); }} className="rounded-full p-2 hover:bg-white/20" aria-label="Clear conversation"><Trash2 className="h-4 w-4" /></button>
+              <button type="button" onClick={() => { setMessages([initialMessage]); setError(''); }} className="rounded-full p-2 hover:bg-white/20" aria-label="Clear conversation"><Trash2 className="h-4 w-4" /></button>
               <button type="button" onClick={() => setIsOpen(false)} className="rounded-full p-2 hover:bg-white/20" aria-label="Close assistant"><X className="h-5 w-5" /></button>
             </div>
           </header>
@@ -165,7 +173,7 @@ export function ParentAssistant() {
             {showCapabilities && (
               <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-slate-700 shadow-sm">
                 <div className="mb-2 flex items-center justify-between gap-2"><h3 className="text-sm font-black text-blue-900">What I can help with</h3><button type="button" onClick={() => setShowCapabilities(false)} className="text-xs font-bold text-blue-700">Hide</button></div>
-                <p className="mb-3 text-xs leading-5">These are the app areas in my verified guide. I can also explain your children’s activity, quiz, reward, and progress data.</p>
+                <p className="mb-3 text-xs leading-5">{publicMode ? 'These are the app areas in my verified public guide. No family records are loaded.' : 'These are the app areas in my verified guide. I can also explain your children’s activity, quiz, reward, and progress data.'}</p>
                 <div className="flex flex-wrap gap-1.5">{capabilities.map(capability => <span key={capability.area} className="rounded-full border border-blue-200 bg-white px-2.5 py-1 text-[11px] font-bold">{capability.area}</span>)}</div>
               </div>
             )}
@@ -175,7 +183,7 @@ export function ParentAssistant() {
                   {message.role === 'assistant' ? (
                     <div className="space-y-2 [&_ol]:list-decimal [&_ol]:space-y-1 [&_ol]:pl-5 [&_p]:m-0 [&_strong]:font-black [&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:pl-5"><ReactMarkdown>{message.content}</ReactMarkdown></div>
                   ) : message.content}
-                  {message.role === 'assistant' && message.sourceQuestion && (
+                  {!publicMode && message.role === 'assistant' && message.sourceQuestion && (
                     <div className="mt-3 border-t border-slate-100 pt-2">
                       <button type="button" onClick={() => void reportMissingInfo(message)} disabled={reportedMessageIds.has(message.id)} className="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-500 hover:text-blue-700 disabled:text-emerald-700">
                         {reportedMessageIds.has(message.id) ? <><Check className="h-3 w-3" /> Added to review list</> : <><Flag className="h-3 w-3" /> Report missing info</>}
@@ -202,10 +210,10 @@ export function ParentAssistant() {
           </div>
 
           <form onSubmit={handleSubmit} className="border-t border-slate-200 bg-white p-3 sm:rounded-b-3xl">
-            <div className={`mb-2 flex items-center justify-between rounded-xl px-3 py-2 text-xs font-bold ${allowance && allowance.remaining <= 5 ? 'bg-amber-50 text-amber-800' : 'bg-blue-50 text-blue-700'}`}>
+            {!publicMode && <div className={`mb-2 flex items-center justify-between rounded-xl px-3 py-2 text-xs font-bold ${allowance && allowance.remaining <= 5 ? 'bg-amber-50 text-amber-800' : 'bg-blue-50 text-blue-700'}`}>
               <span>{isAllowanceLoading ? 'Checking today’s allowance…' : allowance ? `${allowance.remaining} of ${allowance.dailyLimit} questions left today` : 'Daily allowance unavailable'}</span>
               {allowance?.resetsAt && <span className="font-semibold opacity-75">Resets {new Date(allowance.resetsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>}
-            </div>
+            </div>}
             <div className="flex items-end gap-2 rounded-2xl border border-slate-300 bg-white p-2 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100">
               <textarea
                 ref={inputRef}
@@ -218,7 +226,7 @@ export function ParentAssistant() {
                   }
                 }}
                 rows={2}
-                placeholder="Ask about Visual Steps or your children’s progress…"
+                placeholder={publicMode ? 'Ask what Visual Steps offers…' : 'Ask about Visual Steps or your children’s progress…'}
                 className="max-h-28 flex-1 resize-none border-0 bg-transparent px-2 py-1 text-sm outline-none"
                 disabled={isSending || allowance?.remaining === 0}
               />

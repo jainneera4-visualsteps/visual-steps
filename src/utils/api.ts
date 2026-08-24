@@ -6,6 +6,7 @@ import {
   isBrowserOffline,
   isRetryableApiMethod,
 } from './apiRetry';
+import { guestApiFetch, isGuestSession } from '../guest/guestSession';
 
 export const safeJson = async (response: Response) => {
   const text = await response.text();
@@ -61,6 +62,7 @@ export const apiFetch = async (
   retryAttempt = 0,
 ): Promise<Response> => {
   const requestedUrl = input instanceof Request ? input.url : input.toString();
+  if (isGuestSession()) return guestApiFetch(input, init);
   if (isBrowserOffline()) {
     throw new Error(`You are offline. Reconnect to the internet and try again. (URL: ${requestedUrl})`);
   }

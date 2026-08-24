@@ -32,6 +32,7 @@ import Contact from './pages/Contact';
 import Newsletter from './pages/Newsletter';
 import NewsletterAdmin from './pages/NewsletterAdmin';
 import { NetworkStatusBanner } from './components/NetworkStatusBanner';
+import { GuestWorkspace } from './components/GuestWorkspace';
 
 export default function App() {
   return (
@@ -39,6 +40,7 @@ export default function App() {
       <AuthProvider>
         <WalkthroughProvider>
           <NetworkStatusBanner />
+          <GuestWorkspace />
           <Routes>
           <Route path="/" element={<Layout />}>
             <Route index element={<Home />} />
@@ -48,6 +50,7 @@ export default function App() {
             <Route path="about" element={<About />} />
             <Route path="pricing" element={<Pricing />} />
             <Route path="demo" element={<GuestDemo />} />
+            <Route path="guest" element={<GuestDemo />} />
             <Route path="testimonials" element={<Testimonials />} />
             <Route path="contact" element={<Contact />} />
             <Route path="newsletter" element={<Newsletter />} />

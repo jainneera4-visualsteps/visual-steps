@@ -8,7 +8,8 @@ import { Input } from '../components/Input';
 import { Select } from '../components/Select';
 import { Card, CardContent } from '../components/Card';
 import { FeatureHighlights } from '../components/FeatureHighlights';
-import { AlertCircle, Search, Eye, EyeOff } from 'lucide-react';
+import { AlertCircle, ArrowUpRight, Facebook, Instagram, Mail, Search, Eye, EyeOff } from 'lucide-react';
+import { startGuestSession } from '../guest/guestSession';
 
 interface Kid {
   id: string;
@@ -33,6 +34,7 @@ export default function Home() {
 
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [publicLinks, setPublicLinks] = useState<{ facebook?: string; instagram?: string }>({});
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -51,6 +53,13 @@ export default function Home() {
       localStorage.removeItem('kid_session');
     }
   }, [location]);
+
+  useEffect(() => {
+    fetch('/api/public-links')
+      .then(response => response.ok ? response.json() : Promise.reject())
+      .then(data => setPublicLinks({ facebook: data.facebook, instagram: data.instagram }))
+      .catch(() => setPublicLinks({}));
+  }, []);
 
   const handleParentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -171,12 +180,6 @@ export default function Home() {
                   Clear routines. Confident next steps.
                 </figcaption>
               </figure>
-              <div className="space-y-5 pt-4">
-                <p className="text-[10px] font-black text-blue-900 uppercase tracking-[0.2em] opacity-60">
-                  Built for the way families really work
-                </p>
-                <FeatureHighlights surface="home" limit={10} detailed columns={2} />
-              </div>
             </div>
 
             {/* Right: Login Card */}
@@ -261,9 +264,9 @@ export default function Home() {
                         <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200" /></div>
                         <div className="relative flex justify-center"><span className="bg-white px-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">or explore first</span></div>
                       </div>
-                      <Link to="/demo" className="flex h-10 w-full items-center justify-center rounded-xl border border-emerald-300 bg-emerald-50 text-sm font-bold text-emerald-800 transition hover:bg-emerald-100">
-                        Try Guest Demo
-                      </Link>
+                      <button type="button" onClick={() => { startGuestSession(); navigate('/dashboard'); }} className="flex h-10 w-full items-center justify-center rounded-xl border border-emerald-300 bg-emerald-50 text-sm font-bold text-emerald-800 transition hover:bg-emerald-100">
+                        Continue as Guest
+                      </button>
                     </form>
                   ) : (
                     <form onSubmit={handleKidSubmit} className="space-y-5">
@@ -355,6 +358,41 @@ export default function Home() {
               </Card>
             </div>
           </div>
+
+          <section className="mt-8 rounded-3xl border border-brand-100 bg-white/75 p-5 shadow-sm sm:p-7">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-brand-700">Explore, learn, and stay connected</p>
+                <h2 className="mt-2 text-2xl font-black text-slate-950 sm:text-3xl">A calmer place for families to grow together</h2>
+                <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">Read practical weekly guidance, follow future community updates, or explore the complete feature set before creating an account.</p>
+              </div>
+              <Link to="/newsletter" target="_blank" rel="noopener noreferrer" className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-brand-600 px-4 py-3 text-sm font-bold text-white shadow-md transition hover:bg-brand-700">
+                <Mail className="h-4 w-4" /> Subscribe to the newsletter
+              </Link>
+            </div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              <Link to="/newsletter" target="_blank" rel="noopener noreferrer" className="group flex items-center gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 p-4 transition hover:-translate-y-0.5 hover:bg-blue-50">
+                <span className="rounded-xl bg-white p-2 text-blue-600 shadow-sm"><Mail className="h-5 w-5" /></span>
+                <span><strong className="block text-sm text-slate-900">Visual Steps Weekly</strong><small className="text-slate-600">Updates, ideas, and family resources</small></span>
+                <ArrowUpRight className="ml-auto h-4 w-4 text-blue-500" />
+              </Link>
+              {publicLinks.facebook ? <a href={publicLinks.facebook} target="_blank" rel="noreferrer" className="group flex items-center gap-3 rounded-2xl border border-sky-100 bg-sky-50/70 p-4 transition hover:-translate-y-0.5 hover:bg-sky-50">
+                <span className="rounded-xl bg-white p-2 text-sky-700 shadow-sm"><Facebook className="h-5 w-5" /></span><span><strong className="block text-sm text-slate-900">Facebook</strong><small className="text-slate-600">Follow Visual Steps updates</small></span><ArrowUpRight className="ml-auto h-4 w-4 text-sky-600" />
+              </a> : <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-slate-500"><span className="rounded-xl bg-white p-2 shadow-sm"><Facebook className="h-5 w-5" /></span><span><strong className="block text-sm">Facebook</strong><small>Page coming soon</small></span></div>}
+              {publicLinks.instagram ? <a href={publicLinks.instagram} target="_blank" rel="noreferrer" className="group flex items-center gap-3 rounded-2xl border border-rose-100 bg-rose-50/70 p-4 transition hover:-translate-y-0.5 hover:bg-rose-50">
+                <span className="rounded-xl bg-white p-2 text-rose-600 shadow-sm"><Instagram className="h-5 w-5" /></span><span><strong className="block text-sm text-slate-900">Instagram</strong><small className="text-slate-600">See welcoming visual ideas</small></span><ArrowUpRight className="ml-auto h-4 w-4 text-rose-500" />
+              </a> : <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-slate-500"><span className="rounded-xl bg-white p-2 shadow-sm"><Instagram className="h-5 w-5" /></span><span><strong className="block text-sm">Instagram</strong><small>Page coming soon</small></span></div>}
+            </div>
+          </section>
+
+          <section className="mt-8 space-y-5">
+            <div className="max-w-3xl">
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-brand-700">Built for the way families really work</p>
+              <h2 className="mt-2 text-3xl font-black text-slate-950">Practical support for meaningful everyday progress</h2>
+              <p className="mt-2 text-sm leading-7 text-slate-600">Every feature is designed to help autistic people of all ages and the parents and caregivers growing alongside them.</p>
+            </div>
+            <FeatureHighlights surface="home" limit={10} detailed columns={2} />
+          </section>
         </div>
       </section>
     </div>

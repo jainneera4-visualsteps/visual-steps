@@ -211,7 +211,7 @@ This section is generated from `feature-registry.json`. Update the registry when
 
 | Feature | Plan | Introduced | Current description |
 | --- | --- | --- | --- |
-| Clear visual activities | starter | 2026-03-01 | Build scheduled routines with small, image-supported steps children can follow. |
+| Clear visual activities | starter | 2026-03-01 | Build scheduled routines with small steps and illustrations that match what the child is being asked to do. |
 | Parent activity verification | starter | 2026-08-20 | Choose which activities require parent approval before rewards are earned. |
 | Positive behavior bonuses | starter | 2026-08-20 | Parents can recognize a specific calm, focused, helpful, or persistent behavior. |
 | Fair quiz attempts | starter | 2026-08-20 | Each assigned quiz allows one submitted attempt until a parent deliberately reassigns it. |
