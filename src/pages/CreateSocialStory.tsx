@@ -349,7 +349,7 @@ export default function CreateSocialStory() {
       } catch (error: any) {
         const errString = error instanceof Error ? error.message : (typeof error === 'string' ? error : JSON.stringify(error));
         if (errString.toLowerCase().includes('quota') || errString.toLowerCase().includes('billing')) {
-          throw new Error('You have exceeded your AI service quota. Please try again later or check your API key billing details.');
+          throw new Error('The creation service is temporarily unavailable or today’s allowance has been reached. Please try again later.');
         }
         if (retries > 0) {
           console.warn(`Retrying after error: ${errString}. Retries left: ${retries}`);

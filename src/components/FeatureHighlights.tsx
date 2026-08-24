@@ -1,4 +1,6 @@
 import { Activity, BookOpen, Bot, Gift, HelpCircle, Link2, ShieldCheck, Sparkles, UserRound, Gamepad2 } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { FeatureSurface, featuresForSurface, isFeatureNew, isIntroducedRecently } from '../content/featureRegistry';
 import { Tooltip } from './ui/Tooltip';
 
@@ -19,7 +21,7 @@ export function NewFeatureBadge({ introducedOn }: { introducedOn: string }) {
   return <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-800">New</span>;
 }
 
-export function FeatureHighlights({ surface, limit, compact = false, onlyNew = false, detailed = false, columns = 3, sortByTitle = false }: { surface: FeatureSurface; limit?: number; compact?: boolean; onlyNew?: boolean; detailed?: boolean; columns?: 1 | 2 | 3; sortByTitle?: boolean }) {
+export function FeatureHighlights({ surface, limit, compact = false, onlyNew = false, detailed = false, columns = 3, sortByTitle = false, readMore = false }: { surface: FeatureSurface; limit?: number; compact?: boolean; onlyNew?: boolean; detailed?: boolean; columns?: 1 | 2 | 3; sortByTitle?: boolean; readMore?: boolean }) {
   const matchingFeatures = featuresForSurface(surface).filter((feature) => !onlyNew || isFeatureNew(feature));
   const features = (sortByTitle ? [...matchingFeatures].sort((a, b) => a.title.localeCompare(b.title)) : matchingFeatures).slice(0, limit);
   const gridColumns = columns === 1
@@ -36,6 +38,7 @@ export function FeatureHighlights({ surface, limit, compact = false, onlyNew = f
         </div>
         <h3 className="mt-4 text-lg font-bold text-slate-950">{feature.title}</h3>
         <p className="mt-2 text-sm leading-7 text-slate-600">{detailed ? feature.details : feature.summary}</p>
+        {readMore && <Link to={`/features/${feature.id}`} className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-brand-700 underline decoration-brand-200 underline-offset-4 transition hover:text-brand-900">Read more <ArrowRight className="h-4 w-4" /></Link>}
       </article>;
     })}
   </div>;

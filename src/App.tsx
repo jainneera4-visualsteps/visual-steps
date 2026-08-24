@@ -31,6 +31,7 @@ import Testimonials from './pages/Testimonials';
 import Contact from './pages/Contact';
 import Newsletter from './pages/Newsletter';
 import NewsletterAdmin from './pages/NewsletterAdmin';
+import FeatureDetail from './pages/FeatureDetail';
 import { NetworkStatusBanner } from './components/NetworkStatusBanner';
 import { GuestWorkspace } from './components/GuestWorkspace';
 
@@ -54,6 +55,7 @@ export default function App() {
             <Route path="testimonials" element={<Testimonials />} />
             <Route path="contact" element={<Contact />} />
             <Route path="newsletter" element={<Newsletter />} />
+            <Route path="features/:featureId" element={<FeatureDetail />} />
             
             <Route element={<ProtectedRoute />}>
               <Route path="dashboard" element={<Dashboard />} />

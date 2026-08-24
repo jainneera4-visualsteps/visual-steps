@@ -1,7 +1,18 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { access, readFile, writeFile } from 'node:fs/promises';
 
 const root = new URL('../', import.meta.url);
 const registry = JSON.parse(await readFile(new URL('feature-registry.json', root), 'utf8'));
+
+const screenshotPaths = new Set();
+for (const feature of registry) {
+  if (!feature.guideParagraphs?.length || !feature.screenshot?.src || !feature.screenshot?.alt || !feature.screenshot?.caption) {
+    throw new Error(`${feature.id} must include article paragraphs and complete screenshot metadata`);
+  }
+  if (screenshotPaths.has(feature.screenshot.src)) throw new Error(`Feature screenshot is reused: ${feature.screenshot.src}`);
+  screenshotPaths.add(feature.screenshot.src);
+  if (!feature.screenshot.src.startsWith('/onboarding/')) throw new Error(`${feature.id} must use a captured application screenshot`);
+  await access(new URL(`public${feature.screenshot.src}`, root));
+}
 
 const start = '<!-- FEATURE_REGISTRY:START -->';
 const end = '<!-- FEATURE_REGISTRY:END -->';

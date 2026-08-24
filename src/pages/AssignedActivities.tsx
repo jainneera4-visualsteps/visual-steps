@@ -1960,9 +1960,6 @@ export default function AssignedActivities() {
                                     <span className="text-sm font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
                                       Timezone: {kid.timezone}
                                     </span>
-                                    <span className="text-sm font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
-                                      UTC Date: {new Date().toISOString().split('T')[0]}
-                                    </span>
                                   </div>
                                 )}
                               </div>

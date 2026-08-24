@@ -8,7 +8,10 @@ export interface ProductFeature {
   title: string;
   summary: string;
   details: string;
+  familyImpact: string;
+  guideParagraphs: string[];
   help: string;
+  screenshot: { src: string; alt: string; caption: string };
   introducedOn: string;
   plan: FeaturePlan;
   icon: string;

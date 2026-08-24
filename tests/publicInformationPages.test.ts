@@ -26,8 +26,9 @@ test('public contact and newsletter pages keep SMTP secrets on the server', asyn
 });
 
 test('home links to the newsletter and safely exposes configured social pages', async () => {
-  const [home, server] = await Promise.all([
+  const [home, layout, server] = await Promise.all([
     readFile(new URL('../src/pages/Home.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/components/Layout.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../server.ts', import.meta.url), 'utf8'),
   ]);
   assert.match(home, /Subscribe to the newsletter/);
@@ -35,6 +36,9 @@ test('home links to the newsletter and safely exposes configured social pages', 
   assert.match(server, /app\.get\('\/api\/public-links'/);
   assert.match(server, /cleanEnvVar\('FACEBOOK_URL'\)/);
   assert.match(server, /cleanEnvVar\('INSTAGRAM_URL'\)/);
+  assert.match(layout, /publicLinks\.facebook/);
+  assert.match(layout, /publicLinks\.instagram/);
+  assert.match(layout, /text-sm font-bold text-slate-600/);
   assert.doesNotMatch(home, /SMTP_PASS|service_role/);
 });
 

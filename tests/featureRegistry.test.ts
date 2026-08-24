@@ -8,7 +8,12 @@ const requiredSurfaces = ['home', 'about', 'onboarding', 'chatbot', 'pricing', '
 test('every product feature supplies synchronization metadata for all required surfaces', () => {
   assert.ok(productFeatures.length > 0);
   for (const feature of productFeatures) {
-    assert.ok(feature.id && feature.title && feature.summary && feature.details && feature.help);
+    assert.ok(feature.id && feature.title && feature.summary && feature.details && feature.familyImpact && feature.help);
+    assert.ok(feature.screenshot.src && feature.screenshot.alt && feature.screenshot.caption, `${feature.id} needs screenshot metadata`);
+    assert.ok(feature.guideParagraphs.length >= 2, `${feature.id} needs feature-specific guide paragraphs`);
+    for (const paragraph of feature.guideParagraphs) {
+      assert.ok(paragraph.length >= 250, `${feature.id} guide paragraphs should provide substantial detail`);
+    }
     const sentenceCount = feature.details.match(/[.!?](?:\s|$)/g)?.length ?? 0;
     assert.ok(sentenceCount >= 4 && sentenceCount <= 5, `${feature.id} must have a four- or five-sentence explanation`);
     assert.match(feature.introducedOn, /^\d{4}-\d{2}-\d{2}$/);
@@ -17,6 +22,16 @@ test('every product feature supplies synchronization metadata for all required s
   }
   for (const surface of requiredSurfaces) assert.equal(featuresForSurface(surface).length, productFeatures.length);
   assert.equal(featuresForSurface('home').length, 10);
+});
+
+test('family-facing feature guidance avoids implementation and billing terminology', () => {
+  const familyFacingCopy = productFeatures
+    .flatMap((feature) => [feature.summary, feature.details, ...feature.guideParagraphs, feature.familyImpact, feature.help])
+    .join(' ');
+  assert.doesNotMatch(
+    familyFacingCopy,
+    /Supabase|API key|API costs?|database-backed|database writes?|AI spending|service role|row-level security|\bRLS\b|Vercel/i,
+  );
 });
 
 test('new badges last 30 days and never appear before release', () => {
@@ -43,6 +58,41 @@ test('required product surfaces consume the shared feature registry', async () =
   assert.match(onboarding, /featuresForSurface\('onboarding'\)/);
   assert.match(server, /FEATURE_REGISTRY_SERVER:START/);
   assert.doesNotMatch(server, /import productFeatureRegistry/);
+});
+
+test('home feature cards link to catalog-backed detailed feature guides', async () => {
+  const [app, home, about, newsletter, highlights, detail, syncScript] = await Promise.all([
+    readFile(new URL('../src/App.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/pages/Home.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/pages/About.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/pages/Newsletter.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/components/FeatureHighlights.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/pages/FeatureDetail.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../scripts/sync-feature-docs.mjs', import.meta.url), 'utf8'),
+  ]);
+  assert.match(app, /path="features\/:featureId"/);
+  assert.match(home, /readMore/);
+  assert.match(about, /sortByTitle readMore/);
+  assert.match(newsletter, /featureIdFor/);
+  assert.match(newsletter, /Read more/);
+  assert.match(highlights, /Read more/);
+  assert.match(highlights, /features\/\$\{feature\.id\}/);
+  assert.doesNotMatch(
+    detail,
+    /What is this feature\?|How can it help autistic people\?|How can it help parents and caregivers\?|How to use it in Visual Steps/,
+  );
+  assert.match(detail, /feature\.guideParagraphs/);
+  assert.match(detail, /feature\.screenshot/);
+  const screenshotPaths = productFeatures.map(feature => feature.screenshot.src);
+  assert.equal(new Set(screenshotPaths).size, screenshotPaths.length, 'feature guides must not reuse screenshots');
+  assert.equal(screenshotPaths.length, 10, 'every feature guide should use its own accurate real application capture');
+  assert.match(syncScript, /feature\.guideParagraphs/);
+  assert.match(syncScript, /feature\.screenshot/);
+  assert.match(syncScript, /Feature screenshot is reused/);
+  assert.doesNotMatch(detail, /This feature is part of the connected Visual Steps workflow/);
+  assert.doesNotMatch(detail, /A useful starting point is one meaningful goal/);
+  assert.doesNotMatch(detail, /After using the feature, review the outcome together/);
+  assert.match(detail, /newsletter-copy surface/);
 });
 
 test('generated documentation includes every registered feature', async () => {

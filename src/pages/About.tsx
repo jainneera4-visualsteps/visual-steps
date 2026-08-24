@@ -68,7 +68,7 @@ export default function About() {
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-700">What families can do today</p>
             <h2 className="mt-2 text-3xl font-bold">Practical tools for everyday life</h2>
           </div>
-          <FeatureHighlights surface="about" detailed columns={1} sortByTitle />
+          <FeatureHighlights surface="about" detailed columns={1} sortByTitle readMore />
         </section>
 
         <section className="surface flex flex-col items-start gap-5 bg-slate-900 p-7 text-white sm:flex-row sm:items-center sm:justify-between sm:p-10">

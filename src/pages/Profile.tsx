@@ -94,7 +94,7 @@ export default function Profile() {
 
       if (!res.ok) {
         if (Array.isArray(data?.missingVariables) && data.missingVariables.length > 0) {
-          throw new Error(`Missing Vercel variables: ${data.missingVariables.join(', ')}`);
+          throw new Error('Email delivery is not configured yet. Please contact Visual Steps support.');
         }
 
         const errorCode = data?.smtpError?.code || 'SMTP_CONNECTION_FAILED';

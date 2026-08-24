@@ -583,7 +583,7 @@ export default function SocialStories() {
                   <div className="break-all rounded-lg bg-slate-100 p-3 text-sm text-slate-700">{shareUrl}</div>
                   {/^https?:\/\/(localhost|127\.0\.0\.1)(:|\/)/.test(shareUrl) && (
                     <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
-                      This local link works only on this computer. To open it on a phone or another device, create the link from the deployed Vercel website.
+                      This preview link works only on this computer. To open it on a phone or another device, create the link from the live Visual Steps website.
                     </p>
                   )}
                   <Button

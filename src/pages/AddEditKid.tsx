@@ -205,7 +205,7 @@ export default function AddEditKid() {
         
         // If we have detailed error info from the server, show it
         if (data.message && data.code) {
-          throw new Error(`Server Error (${data.code}): ${data.message}${data.hint ? ` - Hint: ${data.hint}` : ''}${data.details ? ` - Details: ${data.details}` : ''}`);
+          throw new Error(data.message || 'We could not save this child profile. Please review the form and try again.');
         }
         
         throw new Error(data.error || data.message || 'Failed to save');

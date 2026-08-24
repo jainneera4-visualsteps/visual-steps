@@ -55,12 +55,15 @@ test('newsletter combines feature guidance, hides empty sections, and explains p
   const [server, page, adminPage, styles, membershipPlans, migration, envExample] = await Promise.all([read('server.ts'), read('src/pages/Newsletter.tsx'), read('src/pages/NewsletterAdmin.tsx'), read('src/index.css'), read('src/content/membershipPlans.ts'), read('database_updates/2026-08-21_weekly_newsletters.sql'), read('.env.example')]);
   assert.match(membershipPlans, /import type \{ FeaturePlan \}/);
   assert.doesNotMatch(server, /from '\.\/src\/content\/membershipPlans'/);
-  assert.match(server, /new_features: features\.map\(feature => \(\{ title: feature\.title, summary: feature\.summary, details: feature\.details, familyImpact: getNewsletterFeatureImpact\(feature\), help: feature\.help/);
+  assert.match(server, /new_features: features\.map\(feature => \(\{ id: feature\.id, title: feature\.title, summary: feature\.summary, details: feature\.details, familyImpact: getNewsletterFeatureImpact\(feature\), help: feature\.help/);
   assert.match(server, /newsletterSectionHtml = \(title: string, items: string\[\], columns = 1, bulleted = false\) => items\.length \?/);
   assert.doesNotMatch(page, /uses recorded/);
   assert.doesNotMatch(page, /visible\('feature_details'\)/);
   assert.match(page, /if\(!items\.length\)return null/);
   assert.match(page, /Newly Added Feature Details/);
+  assert.match(page, /featureIdFor/);
+  assert.match(page, /to=\{`\/features\/\$\{featureId\}`\}/);
+  assert.match(server, /\/features\/\$\{encodeURIComponent\(item\.id\)\}/);
   assert.match(page, /visible\('feature_previews'\).*fullWidth/);
   assert.match(page, /visible\('new_features'\).*fullWidth itemColumns=\{2\}/);
   assert.ok(page.indexOf("visible('feature_previews')") < page.indexOf("visible('new_features')"));

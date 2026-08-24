@@ -1,7 +1,7 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from './Button';
-import { LogOut, Menu, X, Lightbulb, ChevronDown, BookOpen, FileText, Gamepad2, Activity, TrendingUp } from 'lucide-react';
+import { LogOut, Menu, X, Lightbulb, ChevronDown, BookOpen, FileText, Gamepad2, Activity, TrendingUp, Facebook, Instagram } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Tooltip } from './ui/Tooltip';
 import { ParentAssistant } from './ParentAssistant';
@@ -13,9 +13,17 @@ export function Layout() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isActivitiesOpen, setIsActivitiesOpen] = useState(false);
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
+  const [publicLinks, setPublicLinks] = useState<{ facebook?: string; instagram?: string }>({});
   const [selectedKidId, setSelectedKidId] = useState<string | null>(localStorage.getItem('dashboard_selected_kid_id') || localStorage.getItem('analysis_selected_kid_id'));
 
   const isActive = (path: string) => location.pathname === path;
+
+  useEffect(() => {
+    fetch('/api/public-links')
+      .then(response => response.ok ? response.json() : Promise.reject())
+      .then(data => setPublicLinks({ facebook: data.facebook, instagram: data.instagram }))
+      .catch(() => setPublicLinks({}));
+  }, []);
 
   useEffect(() => {
     // Sync selected kid ID from localStorage
@@ -57,6 +65,7 @@ export function Layout() {
     else if (path === '/contact') title = 'Contact | Visual Steps';
     else if (path === '/newsletter') title = 'Weekly Newsletter | Visual Steps';
     else if (path === '/newsletter-admin') title = 'Newsletter Administration | Visual Steps';
+    else if (path.startsWith('/features/')) title = 'Feature Guide | Visual Steps';
 
     document.title = title;
   }, [location.pathname]);
@@ -343,13 +352,15 @@ export function Layout() {
         </div>
       </main>
       
-      <footer className="border-t border-slate-200 bg-white py-1 mt-auto no-print">
-        <div className="w-full flex flex-col items-center gap-1 px-4">
-          <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] font-semibold text-slate-500" aria-label="Public information">
+      <footer className="mt-auto border-t border-slate-200 bg-white py-3 no-print">
+        <div className="flex w-full flex-col items-center gap-2 px-4">
+          <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm font-bold text-slate-600" aria-label="Public information">
             <Link to="/about" className="hover:text-brand-600">About</Link>
             <Link to="/testimonials" className="hover:text-brand-600">Family Stories</Link>
             <Link to="/newsletter" target="_blank" rel="noopener noreferrer" className="hover:text-brand-600">Newsletter</Link>
             <Link to="/contact" className="hover:text-brand-600">Contact</Link>
+            {publicLinks.facebook && <a href={publicLinks.facebook} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 hover:text-brand-600"><Facebook className="h-4 w-4" />Facebook</a>}
+            {publicLinks.instagram && <a href={publicLinks.instagram} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 hover:text-brand-600"><Instagram className="h-4 w-4" />Instagram</a>}
           </nav>
           <div className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">
             &copy; {new Date().getFullYear()} Visual Steps.
