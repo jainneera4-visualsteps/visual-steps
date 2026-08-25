@@ -125,10 +125,27 @@ test('home feature cards link to catalog-backed detailed feature guides', async 
 });
 
 test('feature articles break detailed guidance into short readable paragraphs', async () => {
-  const featureDetail = await readFile(new URL('../src/pages/FeatureDetail.tsx', import.meta.url), 'utf8');
+  const [featureDetail, highlights] = await Promise.all([
+    readFile(new URL('../src/pages/FeatureDetail.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/components/FeatureHighlights.tsx', import.meta.url), 'utf8'),
+  ]);
   assert.match(featureDetail, /splitIntoReadableParagraphs/);
   assert.match(featureDetail, /index \+= 2/);
   assert.match(featureDetail, /\.flatMap\(splitIntoReadableParagraphs\)/);
+  assert.match(highlights, /readableBlocks/);
+  assert.match(highlights, /index \+= 2/);
+});
+
+test('family documentation avoids internal history and confusing reward language', async () => {
+  const sources = await Promise.all([
+    readFile(new URL('../feature-registry.json', import.meta.url), 'utf8'),
+    readFile(new URL('../src/pages/About.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/pages/Legal.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/components/ParentOnboarding.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/components/GuestWorkspace.tsx', import.meta.url), 'utf8'),
+  ]);
+  const copy = sources.join('\n');
+  assert.doesNotMatch(copy, /assuming Grade 1|free points?|free tokens?|coding problems?|technical problems?|internal changes?/i);
 });
 
 test('generated documentation includes every registered feature', async () => {

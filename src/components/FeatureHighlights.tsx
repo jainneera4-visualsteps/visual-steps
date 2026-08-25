@@ -16,6 +16,13 @@ const icons = {
   guest: UserRound,
 } as const;
 
+const readableBlocks = (copy: string) => {
+  const sentences = copy.match(/[^.!?]+[.!?]+(?:[”’'\"])?|[^.!?]+$/g)?.map(sentence => sentence.trim()).filter(Boolean) || [copy];
+  const blocks: string[] = [];
+  for (let index = 0; index < sentences.length; index += 2) blocks.push(sentences.slice(index, index + 2).join(' '));
+  return blocks;
+};
+
 export function NewFeatureBadge({ introducedOn }: { introducedOn: string }) {
   if (!isIntroducedRecently(introducedOn)) return null;
   return <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-800">New</span>;
@@ -37,7 +44,9 @@ export function FeatureHighlights({ surface, limit, compact = false, onlyNew = f
           <div className="flex items-center gap-2"><NewFeatureBadge introducedOn={feature.introducedOn} /><Tooltip content={feature.help} variant="help"><HelpCircle className="h-4 w-4 cursor-help text-brand-500" /></Tooltip></div>
         </div>
         <h3 className="mt-4 text-lg font-bold text-slate-950">{feature.title}</h3>
-        <p className="mt-2 text-sm leading-7 text-slate-600">{detailed ? feature.details : feature.summary}</p>
+        <div className="mt-2 space-y-2 text-sm leading-7 text-slate-600">
+          {readableBlocks(detailed ? feature.details : feature.summary).map((block, index) => <p key={`${feature.id}-copy-${index}`}>{block}</p>)}
+        </div>
         {readMore && <Link to={`/features/${feature.id}`} className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-brand-700 underline decoration-brand-200 underline-offset-4 transition hover:text-brand-900">Read more <ArrowRight className="h-4 w-4" /></Link>}
       </article>;
     })}

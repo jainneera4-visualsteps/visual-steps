@@ -17,14 +17,15 @@ function PrivacyPolicy() {
   return <>
     <Section title="Information Visual Steps handles">
       <p>Parents and caregivers may provide an account name and email address and create profiles for autistic children or adults. A family profile may contain a name, date of birth, grade or learning level, interests, strengths, support needs, routines, timezone, avatar, activities, messages, rewards, quiz responses, worksheets, social stories, and progress records. Please enter only information that is useful for providing support and avoid unnecessary medical, government-identification, financial, school, location, or other highly sensitive details.</p>
-      <p>Newsletter subscriptions use an email address. Community stories, testimonials, tips, news, and advertisements are collected only when a signed-in parent deliberately submits them with publication consent. Guest Login information remains in the current browser session and is not intentionally saved to the Visual Steps database.</p>
+      <p>Newsletter subscriptions use an email address. Community stories, testimonials, tips, news, and advertisements are collected only when a signed-in parent submits them with publication consent. Guest Login information remains in the current browser session and is not saved with a family account.</p>
     </Section>
     <Section title="How information is used">
       <p>Family information is used to provide the features a parent or caregiver chooses, including schedules, visual activities, learning materials, rewards, reports, sharing links, account messages, and support. It is not sold. Visual Steps does not use family profiles for behavioral advertising.</p>
       <p>When a parent asks for AI-assisted material or guidance, the information needed for that request may be sent to the configured AI service to generate the response. Parents should remove unnecessary identifying details, review every result, and avoid using Visual Steps as medical, diagnostic, emergency, or clinical advice.</p>
     </Section>
     <Section title="Service providers and limited sharing">
-      <p>Visual Steps relies on carefully scoped service providers for account authentication, database and file storage, website hosting, AI generation, and transactional or newsletter email. Those providers process information only as needed to operate the selected feature and are governed by their own security and privacy terms. Information may also be disclosed when legally required, to protect people or the service, or as part of a business transfer with appropriate notice and safeguards.</p>
+      <p>Visual Steps uses carefully selected service providers for sign-in, secure storage, website delivery, optional AI features, and email. They process information only as needed to provide the feature a family chooses and operate under their own security and privacy terms.</p>
+      <p>Information may also be disclosed when legally required, when needed to protect people or the service, or as part of a business transfer with appropriate notice and safeguards.</p>
       <p>A social story is private unless a parent creates an expiring share link. Anyone who receives a valid link may view the shared story until it expires or is revoked, so links should be shared only with trusted people.</p>
       <p>Uploaded images use long, randomly generated addresses and only the owning parent may upload or delete them. However, an image can be viewed by someone who obtains its exact address. Do not upload photographs or documents that reveal private locations, schools, medical information, identity documents, or anything that should remain strictly confidential.</p>
     </Section>
@@ -35,7 +36,8 @@ function PrivacyPolicy() {
       <p>Parents can review saved records through Data Management and can delete supported records they no longer need. Messages follow the retention setting selected by the parent. Newsletter subscribers can unsubscribe through the link in every issue. Account deletion or a copy/correction request can be made through <Link to="/contact" className="font-bold text-brand-700 underline">Contact</Link>. Some limited records may be retained when required for security, legal compliance, fraud prevention, or reliable backups.</p>
     </Section>
     <Section title="Security and limits">
-      <p>Visual Steps uses authenticated access, family-scoped permissions, restricted child sessions, protected administrative functions, upload validation, private-by-default records, and safeguards against caching sensitive API responses. No internet service can promise absolute security. Use a unique password, protect child access codes and sharing links, sign out on shared devices, and contact us promptly if access may have been compromised.</p>
+      <p>Visual Steps uses protected sign-in, family-specific access, restricted child sessions, private-by-default records, and careful checks for uploaded files. Sensitive family information is not intended to be stored in public or shared browser caches.</p>
+      <p>No online service can promise absolute security. Use a unique password, protect child access codes and sharing links, sign out on shared devices, and contact us promptly if access may have been compromised.</p>
     </Section>
     <Section title="Questions and policy updates">
       <p>Contact <a className="font-bold text-brand-700 underline" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> with a privacy request. Material changes will be reflected on this page by updating the effective date and, when appropriate, by providing an additional notice.</p>
@@ -74,7 +76,8 @@ function CookieDisclosure() {
       <p>Visual Steps currently does not install advertising cookies and does not include a product analytics or cross-site behavioral tracking service. Because no optional analytics or advertising cookies are intentionally used, the app does not currently display a consent banner for them. If optional analytics or advertising technology is introduced, it must remain disabled until any legally required choice is presented, and this disclosure must be updated.</p>
     </Section>
     <Section title="Essential browser storage">
-      <p>The authentication provider stores session information in the browser so a signed-in parent can remain authenticated and securely call protected features. Visual Steps also uses browser storage for limited interface preferences, selected profiles, walkthrough status, child sessions, and the temporary Guest Login. Production browsers may keep an application-shell cache so the installed web app can open more reliably; protected API responses and family records are not intentionally placed in that cache.</p>
+      <p>The sign-in service stores session information in the browser so a parent can remain securely signed in. Visual Steps also uses browser storage for interface preferences, selected profiles, walkthrough status, child sessions, and the temporary Guest Login.</p>
+      <p>A browser may keep basic application files so the installed app opens more reliably. Private family records are not intentionally placed in that cache.</p>
       <p>The hosting or security provider may use strictly necessary cookies or similar signals to deliver the site, prevent abuse, or verify requests. Blocking essential storage may prevent sign-in, learner access, preferences, or installed-app behavior from working.</p>
     </Section>
     <Section title="How to control stored information">

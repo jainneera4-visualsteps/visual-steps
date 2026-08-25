@@ -59,7 +59,7 @@ const steps = [
     title: 'Recognize observed positive behavior',
     description: 'Parents can award a small bonus for a specific behavior they personally observed without creating a reward-request system.',
     bullets: ['Write the real reason, such as calm communication, focused effort, or trying again.', 'Choose a limited bonus amount and keep the reason visible to the learner.', 'Children and adults cannot request or award these bonuses themselves.'],
-    tip: 'Describe what the person did well so the bonus reinforces meaningful effort rather than feeling like free points.',
+    tip: 'Describe what the person did well so the bonus clearly recognizes meaningful effort and growth.',
   },
   {
     icon: BarChart3,
