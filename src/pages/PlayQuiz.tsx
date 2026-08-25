@@ -340,11 +340,15 @@ export default function PlayQuiz() {
   };
 
   const handleGoBack = () => {
-    if (kidId) {
-      navigate(`/kids-dashboard/${kidId}`);
-    } else {
-      navigate('/dashboard');
+    // A quiz can be opened from either the parent or child experience. Going
+    // back through browser history preserves the screen and account context
+    // that actually opened it instead of guessing from the presence of kidId.
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
     }
+
+    navigate(kidId ? `/kids-dashboard/${kidId}` : '/dashboard', { replace: true });
   };
 
   const handleRestart = () => {

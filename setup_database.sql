@@ -111,6 +111,7 @@ CREATE TABLE public.activities (
     due_date DATE,
     completion_date TIMESTAMP WITH TIME ZONE,
     attempt_generation INTEGER NOT NULL DEFAULT 1,
+    last_quiz_attempt_generation INTEGER,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 

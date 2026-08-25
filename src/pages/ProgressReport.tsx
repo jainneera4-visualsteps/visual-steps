@@ -33,6 +33,7 @@ import { formatAppDateTime, formatInTimezone } from '../utils/dateUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Pagination } from '../components/Pagination';
+import { QuizLearningInsights } from '../components/QuizLearningInsights';
 
 interface Activity {
   id: string;
@@ -399,6 +400,7 @@ export default function ProgressReport() {
             </p>
           </CardHeader>
           <CardContent className="px-4 pb-4 space-y-4">
+            <QuizLearningInsights result={viewingQuizResult} learnerName={kid?.name || 'The learner'} />
             {viewingQuizResult.questions && viewingQuizResult.questions.map((q: any, idx: number) => {
               const kidResponse = viewingQuizResult.responses ? viewingQuizResult.responses[idx] : null;
               

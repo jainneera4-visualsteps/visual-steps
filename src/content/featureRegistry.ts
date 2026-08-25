@@ -3,6 +3,14 @@ import registry from '../../feature-registry.json';
 export type FeatureSurface = 'home' | 'about' | 'onboarding' | 'chatbot' | 'pricing' | 'guest' | 'help';
 export type FeaturePlan = 'starter' | 'family' | 'family-plus';
 
+export interface ProductFeatureUpdate {
+  updatedOn: string;
+  title: string;
+  summary: string;
+  details: string;
+  familyImpact: string;
+}
+
 export interface ProductFeature {
   id: string;
   title: string;
@@ -13,6 +21,7 @@ export interface ProductFeature {
   help: string;
   screenshot: { src: string; alt: string; caption: string };
   introducedOn: string;
+  updates?: ProductFeatureUpdate[];
   plan: FeaturePlan;
   icon: string;
   routes: string[];

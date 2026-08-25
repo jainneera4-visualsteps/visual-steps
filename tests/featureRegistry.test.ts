@@ -17,6 +17,11 @@ test('every product feature supplies synchronization metadata for all required s
     const sentenceCount = feature.details.match(/[.!?](?:\s|$)/g)?.length ?? 0;
     assert.ok(sentenceCount >= 4 && sentenceCount <= 5, `${feature.id} must have a four- or five-sentence explanation`);
     assert.match(feature.introducedOn, /^\d{4}-\d{2}-\d{2}$/);
+    for (const update of feature.updates || []) {
+      assert.match(update.updatedOn, /^\d{4}-\d{2}-\d{2}$/);
+      assert.ok(update.title && update.summary && update.details && update.familyImpact, `${feature.id} has incomplete update history`);
+      assert.ok(update.updatedOn >= feature.introducedOn, `${feature.id} cannot be updated before it was introduced`);
+    }
     assert.ok(feature.routes.length > 0);
     for (const surface of requiredSurfaces) assert.ok(feature.surfaces.includes(surface), `${feature.id} is missing ${surface}`);
   }
@@ -79,6 +84,7 @@ test('required product surfaces consume the shared feature registry', async () =
   assert.match(server, /productFeatureRegistry\.filter\(feature => feature\.surfaces\.includes\('home'\)\)/);
   assert.match(server, /welcomeFeatures\.text/);
   assert.match(server, /welcomeFeatures\.html/);
+  assert.match(server, /const latestUpdate = \('updates' in feature \? feature\.updates : \[\]\)/);
   assert.match(server, /features\/\$\{encodeURIComponent\(feature\.id\)\}/);
 });
 
@@ -126,4 +132,8 @@ test('generated documentation includes every registered feature', async () => {
     assert.match(readme, new RegExp(feature.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     assert.match(prd, new RegExp(feature.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
+  const quizUpdate = productFeatures.find(feature => feature.id === 'quiz-attempt-locking')?.updates?.[0];
+  assert.equal(quizUpdate?.updatedOn, '2026-08-24');
+  assert.match(readme, /Feature update history/);
+  assert.match(prd, /Clearer quiz goals, learner preview, learning insights, and thoughtful illustrations/);
 });

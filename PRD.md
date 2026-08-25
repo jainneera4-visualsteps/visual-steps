@@ -255,16 +255,22 @@ Metrics should be privacy-conscious, aggregated where possible, and avoid unnece
 
 This section is generated from `feature-registry.json`. Update the registry when a feature is added, changed, or removed; normal lint, test, development, and build commands refresh this table.
 
-| Feature | Plan | Introduced | Current description |
+| Feature | Plan | Introduced | Latest update | Current description |
+| --- | --- | --- | --- | --- |
+| Clear visual activities | starter | 2026-03-01 | — | Build scheduled routines with small steps and illustrations that match what the child / adult is being asked to do. |
+| Parent activity verification | starter | 2026-08-20 | — | Choose which activities require parent approval before rewards are earned. |
+| Positive behavior bonuses | starter | 2026-08-20 | — | Parents can recognize a specific calm, focused, helpful, or persistent behavior. |
+| Personalized, fair quizzes | starter | 2026-08-20 | 2026-08-24 | Create an age-respectful quiz around a measurable learning objective, with careful illustration use and one meaningful attempt per assignment. |
+| Curated learning samples | starter | 2026-08-21 | — | Preview a quiz, printable worksheet, and social story without using AI or saving data. |
+| Replayable parent tour | starter | 2026-08-20 | — | New parents receive a guided introduction, and existing parents can replay it anytime. |
+| Visual Steps Parent Assistant | family | 2026-08-20 | — | Ask app how-to questions and receive answers grounded in owned family data. |
+| Controlled social-story sharing | family | 2026-08-19 | — | Share a story using a private link that can expire or be revoked. |
+| Temporary guest demonstration | starter | 2026-08-21 | — | Explore realistic caregiver and child / adult workflows without creating an account or keeping any changes. |
+| Learning, progress, and meaningful rewards | starter | 2026-03-15 | — | Create personalized resources, understand progress, and connect earned rewards to meaningful goals. |
+
+### Feature update history
+
+| Updated | Feature | Improvement | Family-facing summary |
 | --- | --- | --- | --- |
-| Clear visual activities | starter | 2026-03-01 | Build scheduled routines with small steps and illustrations that match what the child / adult is being asked to do. |
-| Parent activity verification | starter | 2026-08-20 | Choose which activities require parent approval before rewards are earned. |
-| Positive behavior bonuses | starter | 2026-08-20 | Parents can recognize a specific calm, focused, helpful, or persistent behavior. |
-| Personalized, fair quizzes | starter | 2026-08-20 | Create an age-respectful quiz around a measurable learning objective, with careful illustration use and one meaningful attempt per assignment. |
-| Curated learning samples | starter | 2026-08-21 | Preview a quiz, printable worksheet, and social story without using AI or saving data. |
-| Replayable parent tour | starter | 2026-08-20 | New parents receive a guided introduction, and existing parents can replay it anytime. |
-| Visual Steps Parent Assistant | family | 2026-08-20 | Ask app how-to questions and receive answers grounded in owned family data. |
-| Controlled social-story sharing | family | 2026-08-19 | Share a story using a private link that can expire or be revoked. |
-| Temporary guest demonstration | starter | 2026-08-21 | Explore realistic caregiver and child / adult workflows without creating an account or keeping any changes. |
-| Learning, progress, and meaningful rewards | starter | 2026-03-15 | Create personalized resources, understand progress, and connect earned rewards to meaningful goals. |
+| 2026-08-24 | Personalized, fair quizzes | Clearer quiz goals, learner preview, learning insights, and thoughtful illustrations | Quiz creation now connects every quiz to a measurable learning objective, lets parents privately try it as the learner, controls illustration use, and turns completed answers into practical planning guidance. |
 <!-- FEATURE_REGISTRY:END -->

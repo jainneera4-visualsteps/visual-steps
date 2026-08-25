@@ -125,19 +125,28 @@ const productFeatureRegistry = [
     "id": "quiz-attempt-locking",
     "title": "Personalized, fair quizzes",
     "summary": "Create an age-respectful quiz around a measurable learning objective, with careful illustration use and one meaningful attempt per assignment.",
-    "details": "Parents and caregivers select a child / adult profile, topic, measurable learning objective, purpose, question format, challenge level, and a focused three-to-twenty-question length. The generator uses recorded age, learning level, interests, strengths, and support context instead of assuming Grade 1 or applying a school standard automatically. Optional controls adjust reading level, clue support, curriculum alignment, instructions, and complete uncropped illustrations, while a visible daily allowance and confirmation step help families generate images selectively. Before saving, a review workspace lets the parent edit the content, resolve automatic quality-check items, and privately experience the questions, learning goal, and feedback through Preview as Learner without recording a result. Once assigned, the learner sees the same goal and receives one submitted attempt until a parent deliberately reassigns the quiz, preserving earlier results for honest progress planning.",
+    "details": "Parents and caregivers select a child / adult profile, topic, measurable learning objective, purpose, question format, challenge level, and a focused three-to-twenty-question length. The generator uses recorded age, learning level, interests, strengths, and support context instead of assuming Grade 1 or applying a school standard automatically. Optional controls adjust reading level, clue support, curriculum alignment, instructions, and complete uncropped illustrations, while a visible daily allowance and confirmation step help families generate images selectively. Before saving, a review workspace lets the parent edit the content, resolve automatic quality-check items, and privately experience the questions, learning goal, and feedback through Preview as Learner without recording a result. Once assigned, the learner sees the same goal and receives one submitted attempt until a parent deliberately reassigns the quiz; each detailed result identifies demonstrated understanding, concepts to review, and a suggested next support level, while Activities > Quiz Results lets parents review attempts and permanently delete an old result with confirmation when it is no longer useful.",
     "familyImpact": "Personalized setup can make questions understandable without making material unnecessarily childish for teenagers or autistic adults. A single meaningful attempt then gives families a clearer picture of current understanding, helping parents, teachers, and caregivers select an appropriate lesson, worksheet, explanation, or supported second attempt while respecting the learner’s earlier effort.",
     "guideParagraphs": [
       "Quiz creation begins with both a topic and an observable learning objective rather than a broad request for generic questions. For example, a topic might be workplace safety signs, while the objective asks the learner to identify four common signs and their meanings. The selected profile supplies age, recorded learning level, interests, strengths, and areas needing support, while the parent chooses whether the quiz should introduce, practice, review, or check understanding. Challenge and reading level are controlled separately, which allows an intellectually meaningful question to use accessible language without talking down to a teenager or autistic adult.",
-      "Optional settings let a caregiver request more clues, balanced support, or independent work; override the reading level; add concise instructions; explicitly choose Common Core when it is relevant; and request illustrations only when they improve understanding. The page shows the family’s remaining daily illustration allowance and asks for confirmation before generating several images, so a parent can create the quiz without images and add only the most useful ones later. Generated illustrations are shown in full so an important object, person, label, or visual cue is not lost at the edge of a cropped frame. Before saving, the review workspace allows the caregiver to correct wording, answer choices, marked answers, explanations, and the learning objective, while a quality check flags repeated questions and incomplete formats. Preview as Learner then opens the child-friendly quiz experience so the caregiver can try answers, read feedback, inspect mobile-friendly controls, and see results without creating a real attempt, saving a score, or changing rewards. After assignment, the objective remains visible and one submitted attempt makes the result a useful snapshot for planning the next lesson, worksheet, explanation, or supported reassignment."
+      "Optional settings let a caregiver request more clues, balanced support, or independent work; override the reading level; add concise instructions; explicitly choose Common Core when it is relevant; and request illustrations only when they improve understanding. The page shows the family’s remaining daily illustration allowance and asks for confirmation before generating several images, so a parent can create the quiz without images and add only the most useful ones later. Generated illustrations are shown in full so an important object, person, label, or visual cue is not lost at the edge of a cropped frame. Before saving, the review workspace allows the caregiver to correct wording, answer choices, marked answers, explanations, and the learning objective, while a quality check flags repeated questions and incomplete formats. Preview as Learner then opens the child-friendly quiz experience so the caregiver can try answers, read feedback, inspect mobile-friendly controls, and see results without creating a real attempt, saving a score, or changing rewards. After assignment, the objective remains visible and one submitted attempt makes the result a useful snapshot; opening that result now separates questions showing demonstrated understanding from concepts needing review and recommends whether to add support, practice at the same level, or extend the challenge."
     ],
-    "help": "Open Activities > Quizzes > Quiz Generator. Select a child / adult profile, subject, learning goal or topic, required Learning objective, purpose, question type, challenge level, and 3–20 questions. Under Optional learning and accessibility settings, review the remaining daily illustration allowance before enabling illustrations, then select Generate Quiz. Select Review & Edit to change the content and resolve quality-check items, then select Preview as Learner to privately try the quiz without saving a score or changing rewards. Close the preview, select Finish Review, and select Save Quiz; the learner sees the objective and submits an assigned quiz once, while parent reassignment permits another attempt and keeps the earlier result.",
+    "help": "Open Activities > Quizzes > Quiz Generator. Select a child / adult profile, subject, learning goal or topic, required Learning objective, purpose, question type, challenge level, and 3–20 questions. Under Optional learning and accessibility settings, review the remaining daily illustration allowance before enabling illustrations, then select Generate Quiz. Select Review & Edit to change the content and resolve quality-check items, then select Preview as Learner to privately try the quiz without saving a score or changing rewards. Close the preview, select Finish Review, and select Save Quiz. After the learner submits the assigned quiz once, open Activities for that profile, select Quiz Results, and select View Result; the Back button returns to the screen that opened the quiz. Results are also available in Progress Report and show demonstrated understanding, concepts to revisit, and a recommended next support level. To remove an old result that is no longer useful, select its trash button and confirm the permanent deletion.",
     "screenshot": {
       "src": "/onboarding/quiz-attempt.png",
       "alt": "Visual Steps one-attempt quiz",
       "caption": "An assigned quiz provides one focused attempt, with a fresh opportunity available when a parent intentionally reassigns it."
     },
     "introducedOn": "2026-08-20",
+    "updates": [
+      {
+        "updatedOn": "2026-08-24",
+        "title": "Clearer quiz goals, learner preview, learning insights, and thoughtful illustrations",
+        "summary": "Quiz creation now connects every quiz to a measurable learning objective, lets parents privately try it as the learner, controls illustration use, and turns completed answers into practical planning guidance.",
+        "details": "Parents and caregivers can define exactly what the learner should understand or demonstrate, then review and edit the generated questions before saving. Preview as Learner shows the real question, feedback, and result experience without recording an attempt or changing rewards. Optional illustrations remain fully visible, and the remaining daily allowance plus a confirmation step helps families request images only when they meaningfully support understanding. Completed results now separate demonstrated understanding from concepts needing review and recommend additional support, same-level practice, or careful extension without using another AI request.",
+        "familyImpact": "These improvements help families create age-respectful quizzes with a clearer purpose, check the experience before assignment, and translate each result into a practical next lesson, worksheet, explanation, activity, or supported attempt."
+      }
+    ],
     "plan": "starter",
     "icon": "quiz",
     "routes": [
@@ -1192,7 +1201,7 @@ const currentMembershipDetails = [
   { name: 'Family Plus', price: '$19/ month', status: 'Coming soon', details: 'Planned for families who need additional sharing, storage, and support tools as goals and caregiving teams change from childhood through adulthood. No payment is collected yet.' },
 ];
 const newsletterSectionTitles = {
-  new_features: 'Newly Added Feature Details', feature_previews: 'Feature Previews',
+  new_features: 'New and Updated Feature Details', feature_previews: 'Feature Previews',
   community_posts: 'Parent Stories, News, Information, Tips and Tricks', parent_testimonials: 'Parent Testimonials',
   popular_features: 'Most Popular Features', recommended_resources: 'Suggested Activities, Games and Websites',
   suggested_books_resources: 'Suggested Books and Resources',
@@ -1273,9 +1282,24 @@ const buildWeeklyNewsletter = async (now = new Date(), published = false, delive
   const previouslyUsedActivities = new Set((pastIssues || []).flatMap(issue => Array.isArray(issue.recommended_resources) ? issue.recommended_resources.map((item: any) => item.title) : []));
   const previouslyUsedBooks = new Set((pastIssues || []).flatMap(issue => Array.isArray(issue.suggested_books_resources) ? issue.suggested_books_resources.map((item: any) => item.title) : []));
   const previouslyUsedPopularFeatures = new Set((pastIssues || []).flatMap(issue => Array.isArray(issue.popular_features) ? issue.popular_features.map((item: any) => item.title) : []));
-  const features = productFeatureRegistry.filter(feature =>
+  const newlyIntroducedFeatures = productFeatureRegistry.filter(feature =>
     feature.introducedOn >= period.periodStart && feature.introducedOn <= period.periodEnd
   );
+  const newlyIntroducedIds = new Set(newlyIntroducedFeatures.map(feature => feature.id));
+  const featureChanges = [
+    ...newlyIntroducedFeatures.map(feature => ({
+      id: feature.id, title: feature.title, summary: feature.summary, details: feature.details,
+      familyImpact: getNewsletterFeatureImpact(feature), help: feature.help,
+      changeType: 'new' as const, changedOn: feature.introducedOn, screenshot: feature.screenshot,
+    })),
+    ...productFeatureRegistry.flatMap(feature => ('updates' in feature ? feature.updates : [])
+      .filter(update => !newlyIntroducedIds.has(feature.id) && update.updatedOn >= period.periodStart && update.updatedOn <= period.periodEnd)
+      .map(update => ({
+        id: feature.id, title: update.title, summary: update.summary, details: update.details,
+        familyImpact: update.familyImpact, help: feature.help,
+        changeType: 'updated' as const, changedOn: update.updatedOn, screenshot: feature.screenshot,
+      }))),
+  ].sort((a, b) => a.changedOn.localeCompare(b.changedOn));
   const { data: testimonials, error: testimonialError } = await admin
     .from('parent_testimonials').select('display_name,quote,feature_title,approved_at')
     .gte('approved_at', `${period.periodStart}T00:00:00.000Z`)
@@ -1313,9 +1337,9 @@ const buildWeeklyNewsletter = async (now = new Date(), published = false, delive
     period_end: period.periodEnd,
     title: `Visual Steps Weekly — ${formatNewsletterDate(period.issueDate)}`,
     introduction: `A practical summary of Visual Steps updates from ${formatNewsletterDate(period.periodStart)} through ${formatNewsletterDate(period.periodEnd)}, with suggestions centered on ${newsletterEditorialFocus}.`,
-    new_features: features.map(feature => ({ id: feature.id, title: feature.title, summary: feature.summary, details: feature.details, familyImpact: getNewsletterFeatureImpact(feature), help: feature.help, introducedOn: feature.introducedOn })),
+    new_features: featureChanges.map(({ screenshot: _screenshot, ...change }) => change),
     feature_details: [],
-    feature_previews: features.slice(0, 2).map(feature => ({ id: feature.id, title: feature.title, caption: feature.summary, familyImpact: getNewsletterFeatureImpact(feature), imageUrl: feature.screenshot.src })),
+    feature_previews: featureChanges.slice(0, 2).map(change => ({ id: change.id, title: change.title, caption: change.summary, familyImpact: change.familyImpact, changeType: change.changeType, changedOn: change.changedOn, imageUrl: change.screenshot.src })),
     parent_testimonials: [...(testimonials || []).map(item => ({ displayName: item.display_name, quote: item.quote, featureTitle: item.feature_title, editorialContext: newsletterTestimonialContext })), ...(communityPosts || []).filter(item => item.contribution_type === 'testimonial').map(item => ({ displayName: item.display_name, quote: item.content, featureTitle: item.title, editorialContext: newsletterTestimonialContext }))],
     community_posts: (communityPosts || []).filter(item => !['testimonial', 'advertisement'].includes(item.contribution_type)).map(item => ({ type: item.contribution_type, title: item.title, content: item.content, displayName: item.display_name, sourceUrl: item.source_url, editorialContext: newsletterCommunityContext })),
     popular_features: popularFeatures,
@@ -1374,7 +1398,7 @@ const sendNewsletterIssue = async (issue: any, appOrigin: string) => {
     const unsubscribeHash = hashNewsletterToken(unsubscribeToken);
     const unsubscribeUrl = `${appOrigin}/api/newsletter/unsubscribe?token=${encodeURIComponent(unsubscribeToken)}`;
     const archiveUrl = `${appOrigin}/newsletter`;
-    const featureItems = (issue.new_features || []).map((item: any) => `<strong>${escapeEmailHtml(item.title)}</strong><br>${escapeEmailHtml(item.summary)}<br>${escapeEmailHtml(item.details)}<br><strong>How this supports growth:</strong> ${escapeEmailHtml(item.familyImpact)}<br><em>Where to find it:</em> ${escapeEmailHtml(item.help)}${item.id ? `<br><a href="${appOrigin}/features/${encodeURIComponent(item.id)}">Read more</a>` : ''}`);
+    const featureItems = (issue.new_features || []).map((item: any) => `<span style="display:inline-block;background:#dbeafe;color:#1e40af;border-radius:999px;padding:3px 9px;font-size:11px;font-weight:bold;text-transform:uppercase">${item.changeType === 'updated' ? 'Feature update' : 'New feature'}</span><br><strong>${escapeEmailHtml(item.title)}</strong><br>${escapeEmailHtml(item.summary)}<br>${escapeEmailHtml(item.details)}<br><strong>How this supports growth:</strong> ${escapeEmailHtml(item.familyImpact)}<br><em>Where to find it:</em> ${escapeEmailHtml(item.help)}${item.id ? `<br><a href="${appOrigin}/features/${encodeURIComponent(item.id)}">Read more</a>` : ''}`);
     const testimonialItems = (issue.parent_testimonials || []).map((item: any) => `“${escapeEmailHtml(item.quote)}” — ${escapeEmailHtml(item.displayName)}${item.editorialContext ? `<br><em>${escapeEmailHtml(item.editorialContext)}</em>` : ''}`);
     const tipItems = (issue.parent_tips || []).map((item: string) => escapeEmailHtml(item));
     const previewItems = (issue.feature_previews || []).map((item: any) => `<strong>${escapeEmailHtml(item.title)}</strong><br>${escapeEmailHtml(item.caption)}${item.familyImpact ? `<br><strong>Why it matters:</strong> ${escapeEmailHtml(item.familyImpact)}` : ''}${item.id ? `<br><a href="${appOrigin}/features/${encodeURIComponent(item.id)}">Read more</a>` : ''}`);
@@ -2139,7 +2163,7 @@ app.post('/api/quiz-results', authenticateToken, async (req: any, res) => {
   if (activityId) {
     const { data: activity, error: activityError } = await supabase
       .from('activities')
-      .select('id, kid_id, link, attempt_generation, kids!inner(user_id)')
+      .select('id, kid_id, link, attempt_generation, last_quiz_attempt_generation, kids!inner(user_id)')
       .eq('id', activityId)
       .eq('kid_id', kidId)
       .eq('kids.user_id', req.user.id)
@@ -2154,6 +2178,9 @@ app.post('/api/quiz-results', authenticateToken, async (req: any, res) => {
     }
 
     attemptGeneration = Math.max(1, Number(activity.attempt_generation) || 1);
+    if (Number(activity.last_quiz_attempt_generation) === attemptGeneration) {
+      return res.status(409).json({ error: 'This assigned quiz has already been completed', code: 'QUIZ_ATTEMPT_LOCKED' });
+    }
     const { data: existingResult } = await supabase
       .from('quiz_results')
       .select('id')
@@ -2194,7 +2221,7 @@ app.get('/api/quiz-attempts/:activityId', authenticateToken, async (req: any, re
   const { activityId } = req.params;
   const { data: activity, error: activityError } = await supabase
     .from('activities')
-    .select('id, kid_id, attempt_generation, kids!inner(user_id)')
+    .select('id, kid_id, attempt_generation, last_quiz_attempt_generation, kids!inner(user_id)')
     .eq('id', activityId)
     .eq('kids.user_id', req.user.id)
     .single();
@@ -2212,7 +2239,8 @@ app.get('/api/quiz-attempts/:activityId', authenticateToken, async (req: any, re
     .maybeSingle();
   if (resultError) return res.status(500).json({ error: 'Unable to check quiz attempt' });
 
-  res.json({ locked: Boolean(result), attemptGeneration, result: result || null });
+  const submissionRemembered = Number(activity.last_quiz_attempt_generation) === attemptGeneration;
+  res.json({ locked: submissionRemembered || Boolean(result), attemptGeneration, result: result || null });
 });
 
 app.get('/api/kids/:kidId/quiz-results', authenticateToken, async (req: any, res) => {
@@ -2240,6 +2268,40 @@ app.get('/api/kids/:kidId/quiz-results', authenticateToken, async (req: any, res
     res.json({ results: data });
   } catch (err) {
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.delete('/api/kids/:kidId/quiz-results/:quizResultId', authenticateToken, async (req: any, res) => {
+  if (req.user.role === 'kid') return res.status(403).json({ error: 'Parent access required' });
+
+  const supabase = getSupabaseForUser(req);
+  const { kidId, quizResultId } = req.params;
+
+  try {
+    const { data: kid, error: kidError } = await supabase
+      .from('kids')
+      .select('id')
+      .eq('id', kidId)
+      .eq('user_id', req.user.id)
+      .maybeSingle();
+
+    if (kidError || !kid) return res.status(403).json({ error: 'Forbidden' });
+
+    const { data: deletedResult, error: deleteError } = await supabase
+      .from('quiz_results')
+      .delete()
+      .eq('id', quizResultId)
+      .eq('kid_id', kidId)
+      .select('id')
+      .maybeSingle();
+
+    if (deleteError) return res.status(500).json({ error: 'Unable to delete quiz result' });
+    if (!deletedResult) return res.status(404).json({ error: 'Quiz result not found' });
+
+    res.json({ success: true, deletedId: deletedResult.id });
+  } catch (error) {
+    console.error('Quiz result deletion failed:', error);
+    res.status(500).json({ error: 'Unable to delete quiz result' });
   }
 });
 
@@ -5124,7 +5186,13 @@ const parentAssistantSafetySettings = [
 ];
 
 export const PARENT_ASSISTANT_KNOWLEDGE_VERSION = productFeatureRegistry.reduce(
-  (latest, feature) => feature.introducedOn > latest ? feature.introducedOn : latest,
+  (latest, feature) => {
+    const latestUpdate = ('updates' in feature ? feature.updates : []).reduce(
+      (date, update) => update.updatedOn > date ? update.updatedOn : date,
+      feature.introducedOn,
+    );
+    return latestUpdate > latest ? latestUpdate : latest;
+  },
   '2026-03-01',
 );
 

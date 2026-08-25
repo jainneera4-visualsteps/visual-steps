@@ -12,12 +12,24 @@ for (const feature of registry) {
   screenshotPaths.add(feature.screenshot.src);
   if (!feature.screenshot.src.startsWith('/onboarding/')) throw new Error(`${feature.id} must use a captured application screenshot`);
   await access(new URL(`public${feature.screenshot.src}`, root));
+  for (const update of feature.updates || []) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(update.updatedOn) || !update.title || !update.summary || !update.details || !update.familyImpact) {
+      throw new Error(`${feature.id} has incomplete feature-update metadata`);
+    }
+  }
 }
 
 const start = '<!-- FEATURE_REGISTRY:START -->';
 const end = '<!-- FEATURE_REGISTRY:END -->';
-const rows = registry.map((feature) => `| ${feature.title} | ${feature.plan} | ${feature.introducedOn} | ${feature.summary} |`).join('\n');
-const generated = `${start}\n## Synchronized feature registry\n\nThis section is generated from \`feature-registry.json\`. Update the registry when a feature is added, changed, or removed; normal lint, test, development, and build commands refresh this table.\n\n| Feature | Plan | Introduced | Current description |\n| --- | --- | --- | --- |\n${rows}\n${end}`;
+const rows = registry.map((feature) => {
+  const latestUpdate = [...(feature.updates || [])].sort((a, b) => b.updatedOn.localeCompare(a.updatedOn))[0];
+  return `| ${feature.title} | ${feature.plan} | ${feature.introducedOn} | ${latestUpdate?.updatedOn || '—'} | ${feature.summary} |`;
+}).join('\n');
+const updateRows = registry.flatMap((feature) => (feature.updates || []).map((update) =>
+  `| ${update.updatedOn} | ${feature.title} | ${update.title} | ${update.summary} |`,
+)).sort().reverse().join('\n');
+const updateHistory = updateRows ? `\n\n### Feature update history\n\n| Updated | Feature | Improvement | Family-facing summary |\n| --- | --- | --- | --- |\n${updateRows}` : '';
+const generated = `${start}\n## Synchronized feature registry\n\nThis section is generated from \`feature-registry.json\`. Update the registry when a feature is added, changed, or removed; normal lint, test, development, and build commands refresh this table.\n\n| Feature | Plan | Introduced | Latest update | Current description |\n| --- | --- | --- | --- | --- |\n${rows}${updateHistory}\n${end}`;
 
 for (const filename of ['README.md', 'PRD.md']) {
   const url = new URL(filename, root);

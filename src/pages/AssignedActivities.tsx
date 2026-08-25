@@ -7,8 +7,9 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import { ArrowLeft, Plus, Trash2, Edit2, CheckCircle, Circle, Calendar, Clock, Image as ImageIcon, Eye, Sparkles, Loader2, LayoutList, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Activity, Award, History, Lock, HelpCircle, X, WifiOff, ShieldCheck, RotateCcw, PauseCircle, Ban } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Edit2, CheckCircle, Circle, Calendar, Clock, Image as ImageIcon, Eye, Sparkles, Loader2, LayoutList, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Activity, Award, History, Lock, HelpCircle, X, WifiOff, ShieldCheck, RotateCcw, PauseCircle, Ban, ClipboardCheck } from 'lucide-react';
 import { ActivityDetailModal } from '../components/ActivityDetailModal';
+import { QuizLearningInsights } from '../components/QuizLearningInsights';
 import { formatAppDateTime, formatInTimezone, getZonedTime, convertDateToTimeZone } from '../utils/dateUtils';
 
 interface ActivityStep {
@@ -134,7 +135,7 @@ export default function AssignedActivities() {
     return new Date(zoned.year, zoned.month - 1, 1);
   });
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'activities' | 'verification' | 'completed' | 'on_hold' | 'ended' | 'history' | 'rewards'>((searchParams.get('tab') as any) || 'activities');
+  const [activeTab, setActiveTab] = useState<'activities' | 'verification' | 'completed' | 'on_hold' | 'ended' | 'history' | 'quiz_results' | 'rewards'>((searchParams.get('tab') as any) || 'activities');
 
   const [templates, setTemplates] = useState<ActivityTemplate[]>([]);
   const [socialStories, setSocialStories] = useState<any[]>([]);
@@ -166,6 +167,9 @@ export default function AssignedActivities() {
   const [purchaseItemsPerPage, setPurchaseItemsPerPage] = useState(10);
   const [activitiesPage, setActivitiesPage] = useState(1);
   const [activitiesItemsPerPage, setActivitiesItemsPerPage] = useState(10);
+  const [quizResultsPage, setQuizResultsPage] = useState(1);
+  const [quizResultsItemsPerPage, setQuizResultsItemsPerPage] = useState(10);
+  const [deletingQuizResultId, setDeletingQuizResultId] = useState<string | null>(null);
   const [viewingQuizResult, setViewingQuizResult] = useState<any | null>(null);
 
   useEffect(() => {
@@ -186,6 +190,10 @@ export default function AssignedActivities() {
   useEffect(() => {
     setPurchasePage(1);
   }, [reportDuration, purchaseItemsPerPage]);
+
+  useEffect(() => {
+    setQuizResultsPage(1);
+  }, [quizResultsItemsPerPage, quizResults.length]);
   const [completedSearchQuery, setCompletedSearchQuery] = useState('');
   const [completedCategoryFilter, setCompletedCategoryFilter] = useState('All');
   const [completedDateFilter, setCompletedDateFilter] = useState('');
@@ -1927,6 +1935,150 @@ export default function AssignedActivities() {
     );
   };
 
+  const renderQuizResultsTab = () => {
+    const sortedResults = [...quizResults].sort(
+      (a, b) => new Date(b.completed_at || 0).getTime() - new Date(a.completed_at || 0).getTime(),
+    );
+    const totalPages = Math.max(1, Math.ceil(sortedResults.length / quizResultsItemsPerPage));
+    const currentPage = Math.min(quizResultsPage, totalPages);
+    const paginatedResults = sortedResults.slice(
+      (currentPage - 1) * quizResultsItemsPerPage,
+      currentPage * quizResultsItemsPerPage,
+    );
+    const oldResultCount = sortedResults.filter(result => {
+      const completedAt = new Date(result.completed_at || 0).getTime();
+      return completedAt > 0 && Date.now() - completedAt > 365 * 24 * 60 * 60 * 1000;
+    }).length;
+
+    const deleteQuizResult = async (result: any) => {
+      const title = result.quizzes?.title || 'this quiz';
+      if (!window.confirm(`Delete the saved result for “${title}”? This removes the answers and learning record permanently and cannot be undone.`)) return;
+
+      setDeletingQuizResultId(result.id);
+      try {
+        const response = await apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/quiz-results/${encodeURIComponent(result.id)}`, { method: 'DELETE' });
+        const payload = await safeJson(response);
+        if (!response.ok) throw new Error(payload?.error || 'Unable to delete quiz result');
+        setQuizResults(current => current.filter(item => item.id !== result.id));
+        if (viewingQuizResult?.id === result.id) setViewingQuizResult(null);
+      } catch (error: any) {
+        alert(error?.message || 'Unable to delete quiz result.');
+      } finally {
+        setDeletingQuizResultId(null);
+      }
+    };
+
+    return (
+      <Card className="border-none ring-1 ring-slate-200 shadow-sm">
+        <CardContent className="p-0">
+          <div className="flex flex-col gap-2 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-base font-black text-slate-900">Completed Quiz Results</h2>
+              <p className="text-xs text-slate-500">Open a result to review answers and learning insights.</p>
+            </div>
+            {sortedResults.length > 0 && (
+              <div className="flex items-center gap-2">
+                <label className="text-[10px] font-bold uppercase text-slate-500" htmlFor="quiz-results-per-page">Per page</label>
+                <select
+                  id="quiz-results-per-page"
+                  className="h-8 rounded border border-slate-300 bg-white px-2 text-xs"
+                  value={quizResultsItemsPerPage}
+                  onChange={event => setQuizResultsItemsPerPage(Number(event.target.value))}
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
+            )}
+          </div>
+
+          {oldResultCount > 0 && (
+            <div className="border-b border-amber-100 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+              <strong>{oldResultCount} {oldResultCount === 1 ? 'result is' : 'results are'} more than one year old.</strong>{' '}
+              Review them and delete only records your family no longer needs.
+            </div>
+          )}
+
+          {sortedResults.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="mb-3 rounded-full bg-blue-50 p-4">
+                <ClipboardCheck className="h-8 w-8 text-blue-300" />
+              </div>
+              <p className="text-sm font-bold text-slate-700">No completed quiz results yet</p>
+              <p className="mt-1 text-xs text-slate-500">A result will appear after an assigned quiz is submitted.</p>
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
+                    <tr>
+                      <th className="px-4 py-3 font-bold">Quiz</th>
+                      <th className="px-4 py-3 font-bold">Score</th>
+                      <th className="px-4 py-3 font-bold">Accuracy</th>
+                      <th className="px-4 py-3 font-bold">Completed</th>
+                      <th className="px-4 py-3 text-right font-bold">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {paginatedResults.map(result => {
+                      const score = Number(result.score) || 0;
+                      const total = Number(result.total_questions) || 0;
+                      const accuracy = total > 0 ? Math.round((score / total) * 100) : 0;
+                      return (
+                        <tr key={result.id} className="transition-colors hover:bg-slate-50">
+                          <td className="px-4 py-3 font-bold text-slate-900">{result.quizzes?.title || 'Quiz'}</td>
+                          <td className="px-4 py-3 text-slate-700">{score} / {total}</td>
+                          <td className="px-4 py-3">
+                            <span className={`rounded-full px-2 py-1 text-xs font-black ${accuracy >= 80 ? 'bg-emerald-50 text-emerald-700' : accuracy >= 60 ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>
+                              {accuracy}%
+                            </span>
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3 text-slate-600">{formatAppDateTime(result.completed_at, kid?.timezone)}</td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button size="xs" variant="outline" onClick={() => setViewingQuizResult(result)}>
+                                <Eye className="mr-1 h-3.5 w-3.5" /> View Result
+                              </Button>
+                              <CustomTooltip content="Delete quiz result permanently">
+                                <Button
+                                  size="xs"
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                                  disabled={deletingQuizResultId === result.id}
+                                  onClick={() => void deleteQuizResult(result)}
+                                  aria-label={`Delete result for ${result.quizzes?.title || 'quiz'}`}
+                                >
+                                  {deletingQuizResultId === result.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                                </Button>
+                              </CustomTooltip>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {totalPages > 1 && (
+                <div className="flex items-center justify-end gap-2 border-t border-slate-100 px-4 py-3">
+                  <Button variant="ghost" size="xs" disabled={currentPage === 1} onClick={() => setQuizResultsPage(page => Math.max(1, page - 1))}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-xs font-bold text-slate-600">Page {currentPage} of {totalPages}</span>
+                  <Button variant="ghost" size="xs" disabled={currentPage === totalPages} onClick={() => setQuizResultsPage(page => Math.min(totalPages, page + 1))}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <div className="space-y-3 w-full">
       {!isModalOpen && !previewActivity && !viewingQuizResult && !isRewardModalOpen ? (
@@ -1948,6 +2100,8 @@ export default function AssignedActivities() {
                           ? <div className="flex items-center gap-4"><PauseCircle className="h-12 w-12 text-amber-500" /> {kid?.name ? `${kid.name}'s ` : ''}On Hold Activities</div>
                           : activeTab === 'ended'
                             ? <div className="flex items-center gap-4"><Ban className="h-12 w-12 text-slate-500" /> {kid?.name ? `${kid.name}'s ` : ''}Discontinued / Ended Activities</div>
+                          : activeTab === 'quiz_results'
+                            ? <div className="flex items-center gap-4"><ClipboardCheck className="h-12 w-12 text-indigo-600" /> {kid?.name ? `${kid.name}'s ` : ''}Quiz Results</div>
                         : activeTab === 'history'
                             ? <div className="flex flex-col gap-1">
                                 <div className="flex items-center gap-4">
@@ -1976,6 +2130,8 @@ export default function AssignedActivities() {
                           ? 'Paused activities can be opened and reassigned whenever the child is ready.'
                           : activeTab === 'ended'
                             ? 'Ended activities remain available and can be started again later.'
+                          : activeTab === 'quiz_results'
+                            ? 'Review completed quiz attempts, answers, and practical learning insights.'
                         : activeTab === 'history'
                             ? 'View past activity and reward history.'
                             : 'Add or edit reward items'}
@@ -2048,6 +2204,17 @@ export default function AssignedActivities() {
                     >
                       <History className="h-3 w-3" />
                       History
+                    </button>
+                  </CustomTooltip>
+                  <CustomTooltip content="Review completed quiz attempts and answers">
+                    <button
+                      onClick={() => setActiveTab('quiz_results')}
+                      className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
+                        activeTab === 'quiz_results' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+                      }`}
+                    >
+                      <ClipboardCheck className="h-3 w-3" />
+                      Quiz Results ({quizResults.length})
                     </button>
                   </CustomTooltip>
                   <CustomTooltip content={`Manage ${kid?.name || 'Kid'}'s Rewards`}>
@@ -2502,6 +2669,8 @@ export default function AssignedActivities() {
           renderCompletedTab('on_hold')
         ) : activeTab === 'ended' ? (
           renderCompletedTab('ended')
+        ) : activeTab === 'quiz_results' ? (
+          renderQuizResultsTab()
         ) : activeTab === 'history' ? (
         <Card className="border-none ring-1 ring-slate-200 shadow-sm">
           <CardContent className="p-0">
@@ -3009,7 +3178,7 @@ export default function AssignedActivities() {
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="xs" onClick={() => setViewingQuizResult(null)} className="pl-0 h-7 hover:bg-transparent hover:text-blue-600 text-[12px] font-bold uppercase">
           <ArrowLeft className="mr-1 h-3 w-3" />
-          Back to Reports
+          Back to Quiz Results
         </Button>
         <h1 className="text-xl font-bold tracking-tight text-slate-900 leading-none">
           Quiz Detail: {viewingQuizResult.quizzes?.title || 'Quiz'}
@@ -3029,6 +3198,7 @@ export default function AssignedActivities() {
           </p>
         </CardHeader>
         <CardContent className="px-4 pb-4 space-y-4">
+          <QuizLearningInsights result={viewingQuizResult} learnerName={kid?.name || 'The learner'} />
           {viewingQuizResult.questions && viewingQuizResult.questions.map((q: any, idx: number) => {
             const kidResponse = viewingQuizResult.responses ? viewingQuizResult.responses[idx] : null;
             

@@ -2,6 +2,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { NewFeatureBadge } from '../components/FeatureHighlights';
 import { productFeatures } from '../content/featureRegistry';
+import { formatAppDate } from '../utils/dateUtils';
 
 export default function FeatureDetail() {
   const { featureId } = useParams();
@@ -33,6 +34,18 @@ export default function FeatureDetail() {
               <figcaption className="border-t border-slate-200 bg-white px-5 py-4 text-sm leading-6 text-slate-600">{screen.caption}</figcaption>
             </figure>}
           </div>)}
+
+          {feature.updates?.length ? <section className="rounded-2xl border border-blue-200 bg-blue-50/70 p-6">
+            <h2 className="text-xl font-black text-slate-950">Recent improvements</h2>
+            <div className="mt-4 space-y-5">
+              {[...feature.updates].sort((a, b) => b.updatedOn.localeCompare(a.updatedOn)).map(update => <div key={`${feature.id}-${update.updatedOn}`}>
+                <p className="text-xs font-black uppercase tracking-wider text-brand-700">{formatAppDate(`${update.updatedOn}T12:00:00Z`, 'UTC')}</p>
+                <h3 className="mt-1 text-lg font-black text-slate-900">{update.title}</h3>
+                <p className="mt-2 text-base leading-8 text-slate-700">{update.details}</p>
+                <p className="mt-2 text-base leading-8 text-slate-700"><strong>How this supports families:</strong> {update.familyImpact}</p>
+              </div>)}
+            </div>
+          </section> : null}
 
           <aside className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm leading-7 text-amber-950">
             <strong>Important:</strong> Visual Steps supports organization, participation, and family planning. It does not diagnose, provide medical or clinical treatment, or replace individualized guidance from qualified professionals when that guidance is needed.
