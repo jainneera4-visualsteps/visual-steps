@@ -221,6 +221,7 @@ This section is generated from `feature-registry.json`. Update the registry when
 | Controlled social-story sharing | family | 2026-08-19 | — | Share a story using a private link that can expire or be revoked. |
 | Temporary guest demonstration | starter | 2026-08-21 | — | Explore realistic caregiver and child / adult workflows without creating an account or keeping any changes. |
 | Learning, progress, and meaningful rewards | starter | 2026-03-15 | — | Create personalized resources, understand progress, and connect earned rewards to meaningful goals. |
+| Parent-controlled data management | starter | 2026-08-24 | — | Review saved family records, set a reminder period, and selectively remove history that is no longer useful. |
 
 ### Feature update history
 

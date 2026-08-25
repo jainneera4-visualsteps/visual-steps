@@ -29,6 +29,13 @@ test('quiz result deletion is parent-only and scoped to the selected child', () 
   assert.match(route, /\.eq\('kid_id', kidId\)/);
 });
 
+test('quiz result retention migration grants deletion only to the owning parent', () => {
+  const migration = readFileSync('database_updates/2026-08-24_quiz_result_retention.sql', 'utf8');
+  assert.match(migration, /CREATE POLICY "Users can delete their kids quiz results"/);
+  assert.match(migration, /FOR DELETE USING/);
+  assert.match(migration, /WHERE user_id = auth\.uid\(\)/);
+});
+
 test('deleting detailed answers does not unlock the submitted assignment', () => {
   const serverSource = readFileSync('server.ts', 'utf8');
   const migration = readFileSync('database_updates/2026-08-24_quiz_result_retention.sql', 'utf8');

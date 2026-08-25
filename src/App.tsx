@@ -32,6 +32,7 @@ import Contact from './pages/Contact';
 import Newsletter from './pages/Newsletter';
 import NewsletterAdmin from './pages/NewsletterAdmin';
 import FeatureDetail from './pages/FeatureDetail';
+import DataManagement from './pages/DataManagement';
 import { NetworkStatusBanner } from './components/NetworkStatusBanner';
 import { GuestWorkspace } from './components/GuestWorkspace';
 
@@ -69,6 +70,7 @@ export default function App() {
               <Route path="edit-kid/:id" element={<AddEditKid />} />
               <Route path="assigned-activities/:kidId" element={<AssignedActivities />} />
               <Route path="profile" element={<Profile />} />
+              <Route path="data-management" element={<DataManagement />} />
               <Route path="social-stories" element={<SocialStories />} />
               <Route path="social-stories/create" element={<CreateSocialStory />} />
               <Route path="social-stories/edit/:id" element={<CreateSocialStory />} />

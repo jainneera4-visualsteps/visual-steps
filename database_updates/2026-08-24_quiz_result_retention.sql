@@ -31,3 +31,11 @@ DROP TRIGGER IF EXISTS remember_quiz_attempt_submission_trigger ON public.quiz_r
 CREATE TRIGGER remember_quiz_attempt_submission_trigger
 AFTER INSERT ON public.quiz_results
 FOR EACH ROW EXECUTE FUNCTION public.remember_quiz_attempt_submission();
+
+-- Existing projects may predate parent-controlled result deletion. Keep the
+-- result private to the owning family while allowing that parent to remove it.
+DROP POLICY IF EXISTS "Users can delete their kids quiz results" ON public.quiz_results;
+CREATE POLICY "Users can delete their kids quiz results"
+  ON public.quiz_results FOR DELETE USING (
+    kid_id IN (SELECT id FROM public.kids WHERE user_id = auth.uid())
+  );

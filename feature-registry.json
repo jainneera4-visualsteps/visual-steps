@@ -187,5 +187,23 @@
     "icon": "book",
     "routes": ["/saved-quizzes", "/saved-worksheets", "/social-stories", "/progress-report/:kidId", "/newsletter", "/newsletter/subscribe", "/newsletter/community", "/newsletter/archive/:month", "/newsletter/issues/:issueDate"],
     "surfaces": ["home", "about", "onboarding", "chatbot", "pricing", "guest", "help"]
+  },
+  {
+    "id": "parent-data-management",
+    "title": "Parent-controlled data management",
+    "summary": "Review saved family records, set a reminder period, and selectively remove history that is no longer useful.",
+    "details": "Parents and caregivers can open Data Management to understand how many profiles, activities, learning resources, results, messages, rewards, and history records their family has saved. A review period from three to thirty-six months identifies older quiz results, activity history, and reward purchases without removing anything automatically. Sortable columns, standard pagination, individual checkboxes, and page-level selection help families work through the list at a comfortable pace. A clear confirmation appears before selected records are permanently removed. Deleting an old detailed quiz result does not reopen its submitted assignment, so the child / adult cannot repeat a locked attempt simply because the family cleaned up earlier answers.",
+    "familyImpact": "Families can keep useful evidence of growth while removing detailed records they no longer need. Parent-controlled review supports thoughtful planning for a child / adult without turning retention into an automatic decision made by the app.",
+    "guideParagraphs": [
+      "Over time, everyday planning can create many activity records, quiz results, reward purchases, messages, worksheets, stories, and other learning materials. Data Management brings the main record totals into one parent-only view so a family can understand what has accumulated before deciding whether anything should be removed. The review period is a reminder filter rather than an expiration rule, allowing one family to review after a few months and another to preserve information for much longer.",
+      "The older-record list can be sorted by record, type, learner, or date and divided into standard pages of ten, twenty, or fifty rows. Parents can select one row, select every row visible on the current page, continue selecting on other pages, and then permanently delete the chosen group after reading a confirmation. Visual Steps does not automatically remove these records, because an older quiz result or activity history entry may still help caregivers understand the child / adult’s strengths, support needs, repeated practice, and longer-term progress."
+    ],
+    "help": "Select Data beside the parent name, or open the mobile menu and select Data Management. Choose a Review reminder period, sort the Older records to review grid from its column headings, choose Per page, select individual rows or all rows on the current page, then select Delete selected and confirm.",
+    "screenshot": { "src": "/onboarding/data-management.png", "alt": "Visual Steps parent-controlled data-management page", "caption": "Parents can review record totals, choose an age threshold, sort older records, select rows by page, and remove only the information they deliberately choose." },
+    "introducedOn": "2026-08-24",
+    "plan": "starter",
+    "icon": "shield",
+    "routes": ["/data-management"],
+    "surfaces": ["home", "about", "onboarding", "chatbot", "pricing", "guest", "help"]
   }
 ]

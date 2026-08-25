@@ -1,7 +1,7 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from './Button';
-import { LogOut, Menu, X, Lightbulb, ChevronDown, BookOpen, FileText, Gamepad2, Activity, TrendingUp, Facebook, Instagram, Mail, Newspaper, Users, Settings } from 'lucide-react';
+import { LogOut, Menu, X, Lightbulb, ChevronDown, BookOpen, FileText, Gamepad2, Activity, TrendingUp, Facebook, Instagram, Mail, Newspaper, Users, Settings, Database } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Tooltip } from './ui/Tooltip';
 import { ParentAssistant } from './ParentAssistant';
@@ -70,6 +70,7 @@ export function Layout() {
     
     if (path === '/dashboard') title = 'Dashboard | Visual Steps';
     else if (path === '/profile') title = 'Profile | Visual Steps';
+    else if (path === '/data-management') title = 'Data Management | Visual Steps';
     else if (path === '/activity-library') title = 'Activity Library | Visual Steps';
     else if (path === '/saved-quizzes') title = 'Saved Quizzes | Visual Steps';
     else if (path === '/social-stories') title = 'Social Stories | Visual Steps';
@@ -294,6 +295,7 @@ export function Layout() {
                 <span className="text-sm font-medium text-slate-500">
                   Hi, <Link to="/profile" className="text-slate-900 font-bold hover:text-brand-600 transition-colors">{user.name.split(' ')[0]}</Link>
                 </span>
+                <Tooltip content="Review and clean up saved family data"><Link to="/data-management" className="inline-flex items-center gap-1 text-sm font-bold text-slate-600 hover:text-brand-600"><Database className="h-4 w-4" /> Data</Link></Tooltip>
                 <Tooltip content="Sign Out">
                   <Button variant="outline" size="sm" onClick={logout} className="h-9">
                     <LogOut className="mr-2 h-4 w-4" />
@@ -337,6 +339,7 @@ export function Layout() {
                   <Link to="/dashboard" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>
                     Dashboard
                   </Link>
+                  <Link to="/data-management" className="text-[12px] font-bold text-slate-600 uppercase flex items-center gap-2" onClick={() => setIsMenuOpen(false)}><Database size={14} className="text-blue-600" /> Data Management</Link>
                   <div className="flex flex-col gap-1.5 pl-2 border-l-2 border-blue-100">
                     <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Activities</span>
                     <Link to="/saved-quizzes" className="text-[12px] font-bold text-slate-600 uppercase flex items-center gap-2" onClick={() => setIsMenuOpen(false)}>

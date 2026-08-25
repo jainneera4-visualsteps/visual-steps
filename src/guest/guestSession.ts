@@ -52,6 +52,13 @@ const seedActivities = structuredClone(activities);
 
 const seedMessages = [{ id: '91111111-1111-4111-8111-111111111111', kid_id: GUEST_KID_ID, user_id: GUEST_PARENT_ID, message: kid.parent_message, created_at: now() }];
 let messages = structuredClone(seedMessages);
+const seedReviewItems = [
+  { id: 'a1111111-1111-4111-8111-111111111111', type: 'quiz_result', title: 'Reading Comprehension Check', date: '2025-04-14T15:00:00.000Z', learner: 'Alex' },
+  { id: 'a2222222-2222-4222-8222-222222222222', type: 'activity_history', title: 'Morning routine practice', date: '2025-05-08T14:30:00.000Z', learner: 'Alex' },
+  { id: 'a3333333-3333-4333-8333-333333333333', type: 'reward_purchase', title: 'Choose family game', date: '2025-06-02T19:15:00.000Z', learner: 'Alex' },
+];
+let reviewItems = structuredClone(seedReviewItems);
+let dataReviewMonths = 12;
 
 const rewardItems = [{ id: '41111111-1111-4111-8111-111111111111', kid_id: GUEST_KID_ID, name: 'Choose family game', cost: 6, location: 'Home', is_active: true, image_url: '' }];
 const bonuses = [{ id: '51111111-1111-4111-8111-111111111111', kid_id: GUEST_KID_ID, behavior_reason: 'Trying again calmly', reward_amount: 2, awarded_at: now() }];
@@ -62,6 +69,8 @@ const sampleStory = { id: '81111111-1111-4111-8111-111111111111', user_id: GUEST
 export function startGuestSession() {
   activities = structuredClone(seedActivities);
   messages = structuredClone(seedMessages);
+  reviewItems = structuredClone(seedReviewItems);
+  dataReviewMonths = 12;
   active = true;
   window.dispatchEvent(new Event(CHANGE_EVENT));
 }
@@ -91,6 +100,20 @@ export async function guestApiFetch(input: RequestInfo | URL, init?: RequestInit
 
   if (/generate|gemini|ai-assistant|generate-image/.test(path)) return json({ error: 'AI generation is unavailable in guest mode.' }, 403);
   if (path === '/api/user/profile') return json(method === 'GET' ? { user: guestProfile } : { user: { ...guestProfile, ...body } });
+  if (path === '/api/data-management' && method === 'GET') return json({
+    settings: { reviewMonths: dataReviewMonths, lastReviewedAt: null, cutoff: '2025-08-24T00:00:00.000Z' },
+    counts: { children: 1, activities: 14, activityHistory: 38, quizResults: 9, savedQuizzes: 4, worksheets: 6, socialStories: 5, rewardPurchases: 7, parentMessages: 3, behaviorBonuses: 8 },
+    reviewItems,
+  });
+  if (path === '/api/data-management/settings' && method === 'PUT') {
+    dataReviewMonths = Number(body.reviewMonths) || 12;
+    return json({ success: true, reviewMonths: dataReviewMonths });
+  }
+  if (path === '/api/data-management/records' && method === 'DELETE') {
+    const keys = new Set((body.records || []).map((record: any) => `${record.type}:${record.id}`));
+    reviewItems = reviewItems.filter(item => !keys.has(`${item.type}:${item.id}`));
+    return json({ success: true, deleted: keys.size });
+  }
   if (path === '/api/kids' && method === 'GET') return json({ kids: [kid] });
   if (path === '/api/kids' && method === 'POST') return json({ kid: { ...kid, ...body } }, 201);
   if (path === `/api/kids/${GUEST_KID_ID}`) return json(method === 'DELETE' ? { success: true } : { kid: { ...kid, ...body } });

@@ -3,6 +3,7 @@ import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 const baseUrl = process.env.ONBOARDING_CAPTURE_URL || 'http://127.0.0.1:4173';
+const captureOnly = process.env.ONBOARDING_CAPTURE_ONLY || '';
 const outputDirectory = resolve('public/onboarding');
 const captures = [
   ['dashboard', '/dashboard'],
@@ -10,6 +11,7 @@ const captures = [
   ['activities', '/assigned-activities/22222222-2222-4222-8222-222222222222'],
   ['learning', '/saved-quizzes'],
   ['progress', '/progress-report/22222222-2222-4222-8222-222222222222'],
+  ['data-management', '/data-management'],
 ];
 
 const featureCaptures = [
@@ -32,7 +34,7 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 await page.goto(baseUrl, { waitUntil: 'networkidle' });
 
 const assistantButton = page.getByRole('button', { name: /open parent ai assistant/i });
-if (await assistantButton.count()) {
+if (!captureOnly && await assistantButton.count()) {
   await assistantButton.click();
   await page.waitForTimeout(350);
   await page.screenshot({ path: resolve(outputDirectory, 'parent-assistant.png'), fullPage: false });
@@ -58,11 +60,13 @@ const visit = async (route) => {
 };
 
 for (const [name, route] of captures) {
+  if (captureOnly && name !== captureOnly) continue;
   await visit(route);
   await page.screenshot({ path: resolve(outputDirectory, `${name}.png`), fullPage: false });
 }
 
 for (const [name, route, prepare] of featureCaptures) {
+  if (captureOnly && name !== captureOnly) continue;
   await visit(route);
   await prepare(page);
   await page.waitForTimeout(350);

@@ -26,7 +26,7 @@ test('every product feature supplies synchronization metadata for all required s
     for (const surface of requiredSurfaces) assert.ok(feature.surfaces.includes(surface), `${feature.id} is missing ${surface}`);
   }
   for (const surface of requiredSurfaces) assert.equal(featuresForSurface(surface).length, productFeatures.length);
-  assert.equal(featuresForSurface('home').length, 10);
+  assert.equal(featuresForSurface('home').length, 11);
 });
 
 test('family-facing feature guidance avoids implementation and billing terminology', () => {
@@ -113,7 +113,7 @@ test('home feature cards link to catalog-backed detailed feature guides', async 
   assert.match(detail, /feature\.screenshot/);
   const screenshotPaths = productFeatures.map(feature => feature.screenshot.src);
   assert.equal(new Set(screenshotPaths).size, screenshotPaths.length, 'feature guides must not reuse screenshots');
-  assert.equal(screenshotPaths.length, 10, 'every feature guide should use its own accurate real application capture');
+  assert.equal(screenshotPaths.length, 11, 'every feature guide should use its own accurate real application capture');
   assert.match(syncScript, /feature\.guideParagraphs/);
   assert.match(syncScript, /feature\.screenshot/);
   assert.match(syncScript, /Feature screenshot is reused/);

@@ -368,6 +368,38 @@ const productFeatureRegistry = [
       "guest",
       "help"
     ]
+  },
+  {
+    "id": "parent-data-management",
+    "title": "Parent-controlled data management",
+    "summary": "Review saved family records, set a reminder period, and selectively remove history that is no longer useful.",
+    "details": "Parents and caregivers can open Data Management to understand how many profiles, activities, learning resources, results, messages, rewards, and history records their family has saved. A review period from three to thirty-six months identifies older quiz results, activity history, and reward purchases without removing anything automatically. Sortable columns, standard pagination, individual checkboxes, and page-level selection help families work through the list at a comfortable pace. A clear confirmation appears before selected records are permanently removed. Deleting an old detailed quiz result does not reopen its submitted assignment, so the child / adult cannot repeat a locked attempt simply because the family cleaned up earlier answers.",
+    "familyImpact": "Families can keep useful evidence of growth while removing detailed records they no longer need. Parent-controlled review supports thoughtful planning for a child / adult without turning retention into an automatic decision made by the app.",
+    "guideParagraphs": [
+      "Over time, everyday planning can create many activity records, quiz results, reward purchases, messages, worksheets, stories, and other learning materials. Data Management brings the main record totals into one parent-only view so a family can understand what has accumulated before deciding whether anything should be removed. The review period is a reminder filter rather than an expiration rule, allowing one family to review after a few months and another to preserve information for much longer.",
+      "The older-record list can be sorted by record, type, learner, or date and divided into standard pages of ten, twenty, or fifty rows. Parents can select one row, select every row visible on the current page, continue selecting on other pages, and then permanently delete the chosen group after reading a confirmation. Visual Steps does not automatically remove these records, because an older quiz result or activity history entry may still help caregivers understand the child / adult’s strengths, support needs, repeated practice, and longer-term progress."
+    ],
+    "help": "Select Data beside the parent name, or open the mobile menu and select Data Management. Choose a Review reminder period, sort the Older records to review grid from its column headings, choose Per page, select individual rows or all rows on the current page, then select Delete selected and confirm.",
+    "screenshot": {
+      "src": "/onboarding/data-management.png",
+      "alt": "Visual Steps parent-controlled data-management page",
+      "caption": "Parents can review record totals, choose an age threshold, sort older records, select rows by page, and remove only the information they deliberately choose."
+    },
+    "introducedOn": "2026-08-24",
+    "plan": "starter",
+    "icon": "shield",
+    "routes": [
+      "/data-management"
+    ],
+    "surfaces": [
+      "home",
+      "about",
+      "onboarding",
+      "chatbot",
+      "pricing",
+      "guest",
+      "help"
+    ]
   }
 ] as const;
 // FEATURE_REGISTRY_SERVER:END
@@ -2287,6 +2319,16 @@ app.delete('/api/kids/:kidId/quiz-results/:quizResultId', authenticateToken, asy
 
     if (kidError || !kid) return res.status(403).json({ error: 'Forbidden' });
 
+    const { data: existingResult, error: resultError } = await supabase
+      .from('quiz_results')
+      .select('id')
+      .eq('id', quizResultId)
+      .eq('kid_id', kidId)
+      .maybeSingle();
+
+    if (resultError) return res.status(500).json({ error: 'Unable to check quiz result' });
+    if (!existingResult) return res.status(404).json({ error: 'Quiz result not found' });
+
     const { data: deletedResult, error: deleteError } = await supabase
       .from('quiz_results')
       .delete()
@@ -2296,13 +2338,107 @@ app.delete('/api/kids/:kidId/quiz-results/:quizResultId', authenticateToken, asy
       .maybeSingle();
 
     if (deleteError) return res.status(500).json({ error: 'Unable to delete quiz result' });
-    if (!deletedResult) return res.status(404).json({ error: 'Quiz result not found' });
+    if (!deletedResult) return res.status(403).json({ error: 'Quiz-result deletion is not enabled yet. Apply the latest quiz-result retention migration and try again.' });
 
     res.json({ success: true, deletedId: deletedResult.id });
   } catch (error) {
     console.error('Quiz result deletion failed:', error);
     res.status(500).json({ error: 'Unable to delete quiz result' });
   }
+});
+
+app.get('/api/data-management', authenticateToken, async (req: any, res) => {
+  if (req.user.role === 'kid') return res.status(403).json({ error: 'Parent access required' });
+  const supabase = getSupabaseForUser(req);
+
+  try {
+    const { data: profile, error: profileError } = await supabase
+      .from('users')
+      .select('data_review_months, last_data_review_at')
+      .eq('id', req.user.id)
+      .single();
+    if (profileError) return res.status(500).json({ error: 'Unable to load data-management settings' });
+
+    const reviewMonths = Math.max(3, Math.min(36, Number(profile?.data_review_months) || 12));
+    const cutoff = new Date();
+    cutoff.setUTCMonth(cutoff.getUTCMonth() - reviewMonths);
+    const cutoffIso = cutoff.toISOString();
+
+    const { data: kids, error: kidsError } = await supabase.from('kids').select('id, name').eq('user_id', req.user.id);
+    if (kidsError) return res.status(500).json({ error: 'Unable to load family data' });
+    const kidIds = (kids || []).map(kid => kid.id);
+    const empty = Promise.resolve({ count: 0, data: [], error: null } as any);
+    const count = (table: string, byKid = false) => {
+      if (byKid && kidIds.length === 0) return empty;
+      let query: any = supabase.from(table).select('id', { count: 'exact', head: true });
+      query = byKid ? query.in('kid_id', kidIds) : query.eq('user_id', req.user.id);
+      return query;
+    };
+
+    const [activities, history, quizResults, quizzes, worksheets, stories, purchases, messages, bonuses] = await Promise.all([
+      count('activities', true), count('activity_history', true), count('quiz_results', true), count('quizzes'),
+      count('worksheets'), count('social_stories'), count('reward_purchases', true), count('parent_messages'), count('behavior_bonus_awards', true),
+    ]);
+
+    const oldQuizPromise = kidIds.length ? supabase.from('quiz_results').select('id, kid_id, completed_at, quizzes(title)').in('kid_id', kidIds).lt('completed_at', cutoffIso).order('completed_at', { ascending: true }).limit(100) : empty;
+    const oldHistoryPromise = kidIds.length ? supabase.from('activity_history').select('id, kid_id, activity_type, description, completion_date, created_at').in('kid_id', kidIds).lt('created_at', cutoffIso).order('created_at', { ascending: true }).limit(100) : empty;
+    const oldPurchasePromise = kidIds.length ? supabase.from('reward_purchases').select('id, kid_id, item_name, purchased_at').in('kid_id', kidIds).lt('purchased_at', cutoffIso).order('purchased_at', { ascending: true }).limit(100) : empty;
+    const [oldQuiz, oldHistory, oldPurchases] = await Promise.all([oldQuizPromise, oldHistoryPromise, oldPurchasePromise]);
+    const kidNames = new Map((kids || []).map(kid => [kid.id, kid.name]));
+
+    res.json({
+      settings: { reviewMonths, lastReviewedAt: profile?.last_data_review_at || null, cutoff: cutoffIso },
+      counts: {
+        children: kidIds.length, activities: activities.count || 0, activityHistory: history.count || 0,
+        quizResults: quizResults.count || 0, savedQuizzes: quizzes.count || 0, worksheets: worksheets.count || 0,
+        socialStories: stories.count || 0, rewardPurchases: purchases.count || 0, parentMessages: messages.count || 0,
+        behaviorBonuses: bonuses.count || 0,
+      },
+      reviewItems: [
+        ...(oldQuiz.data || []).map((item: any) => ({ id: item.id, type: 'quiz_result', title: item.quizzes?.title || 'Quiz result', date: item.completed_at, learner: kidNames.get(item.kid_id) || 'Learner' })),
+        ...(oldHistory.data || []).map((item: any) => ({ id: item.id, type: 'activity_history', title: item.activity_type || item.description || 'Activity history', date: item.completion_date || item.created_at, learner: kidNames.get(item.kid_id) || 'Learner' })),
+        ...(oldPurchases.data || []).map((item: any) => ({ id: item.id, type: 'reward_purchase', title: item.item_name || 'Reward purchase', date: item.purchased_at, learner: kidNames.get(item.kid_id) || 'Learner' })),
+      ].sort((a, b) => new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime()),
+    });
+  } catch (error) {
+    console.error('Data management summary failed:', error);
+    res.status(500).json({ error: 'Unable to load data-management summary' });
+  }
+});
+
+app.put('/api/data-management/settings', authenticateToken, async (req: any, res) => {
+  if (req.user.role === 'kid') return res.status(403).json({ error: 'Parent access required' });
+  const reviewMonths = Number(req.body?.reviewMonths);
+  if (!Number.isInteger(reviewMonths) || reviewMonths < 3 || reviewMonths > 36) return res.status(400).json({ error: 'Review period must be between 3 and 36 months' });
+  const supabase = getSupabaseForUser(req);
+  const { error } = await supabase.from('users').update({ data_review_months: reviewMonths, last_data_review_at: new Date().toISOString() }).eq('id', req.user.id);
+  if (error) return res.status(500).json({ error: 'Unable to save review settings' });
+  res.json({ success: true, reviewMonths });
+});
+
+app.delete('/api/data-management/records', authenticateToken, async (req: any, res) => {
+  if (req.user.role === 'kid') return res.status(403).json({ error: 'Parent access required' });
+  const records = Array.isArray(req.body?.records) ? req.body.records : [];
+  if (!records.length) return res.status(400).json({ error: 'Select at least one record' });
+  if (records.length > 300) return res.status(400).json({ error: 'Select no more than 300 records at a time' });
+  const allowedTables: Record<string, string> = { quiz_result: 'quiz_results', activity_history: 'activity_history', reward_purchase: 'reward_purchases' };
+  if (records.some((record: any) => !allowedTables[record.type] || typeof record.id !== 'string')) return res.status(400).json({ error: 'Invalid cleanup selection' });
+
+  const supabase = getSupabaseForUser(req);
+  const { data: kids } = await supabase.from('kids').select('id').eq('user_id', req.user.id);
+  const kidIds = (kids || []).map(kid => kid.id);
+  if (!kidIds.length) return res.status(403).json({ error: 'Forbidden' });
+
+  let deleted = 0;
+  for (const [type, table] of Object.entries(allowedTables)) {
+    const ids = records.filter((record: any) => record.type === type).map((record: any) => record.id);
+    if (!ids.length) continue;
+    const { data, error } = await supabase.from(table).delete().in('id', ids).in('kid_id', kidIds).select('id');
+    if (error) return res.status(500).json({ error: 'Unable to delete selected records' });
+    deleted += data?.length || 0;
+  }
+  await supabase.from('users').update({ last_data_review_at: new Date().toISOString() }).eq('id', req.user.id);
+  res.json({ success: true, deleted });
 });
 
 // Kid Management Routes
@@ -5216,6 +5352,7 @@ export const parentAssistantFeatureCatalog = [
   { area: 'Progress and summary reports', routes: ['/progress-report/:kidId', '/summary-report/:kidId'], help: 'Select a child, open the top Analytics menu, and choose Progress Report or Summary Report. Progress Report supports Last 24 Hours, Last 7 Days, Last 30 Days, or All Time and includes completion and category charts, planning signals, completed activity history, quiz results, activities that needed another try, and reward purchase history. Every report table uses the standard Per page and Page controls. Summary Report combines the last 30 days into completion, quiz, retry, category, purchase, and reward patterns with practical ideas for planning the next activities, worksheets, difficulty level, and rewards.' },
   { area: 'Summary report', routes: ['/summary-report/:kidId'], help: 'Select a child, open Analytics, and select Summary Report. It combines activity and quiz entries with type, title, details, reward, and date for a concise overview.' },
   { area: 'Parent account settings', routes: ['/profile'], help: 'Select the parent name in the top navigation to open Account Settings. In Profile Information update Full Name or Email. In Change Password enter a new password or leave it blank to keep the current password. In Parent Messaging set Days to Keep Messages. Select Save Changes. Profile also provides welcome-email resend and email-delivery checks when configured.' },
+  { area: 'Parent-controlled data management', routes: ['/data-management'], help: 'Select Data beside the parent name in the desktop navigation, or open the mobile menu and select Data Management. Saved record overview shows totals for profiles, activities, activity history, quiz results, saved learning resources, reward purchases, parent messages, and behavior bonuses. Under Review reminder choose a period from 3 to 36 months; this changes the review list and never deletes records automatically. In Older records to review, select a Record, Type, Learner, or Date heading to sort. Use Per page and the previous or next controls to move through the list. Select individual checkboxes or the header checkbox to select all rows on the current page; selections remain selected across pages. Select Delete selected and confirm permanent deletion only for records the family no longer needs.' },
   { area: 'Parent and caregiver testimonials', routes: ['/testimonials'], help: 'Open Testimonials from the footer or mobile menu to read reviewed experiences that families and caregivers explicitly permitted Visual Steps to publish. Signed-in parents can use Public display name, Experience title, and Your testimonial, confirm publication permission, then select Submit privately for review. The submission remains private until an administrator reviews and approves it in Newsletter Administration. Visual Steps never converts private profiles, child records, messages, or activities into public quotes.' },
   { area: 'Contact Visual Steps', routes: ['/contact'], help: 'Open Contact from the top navigation, footer, or mobile menu. Enter your name, reply email, subject, and message, then select Open email to send. The form opens the visitor’s own email application and does not store the fields in the Visual Steps database. Never include passwords, API keys, child login codes, or sensitive clinical information.' },
   { area: 'Visual Steps weekly newsletter', routes: ['/newsletter', '/newsletter/subscribe', '/newsletter/community', '/newsletter/archive/:month', '/newsletter/issues/:issueDate', '/newsletter-admin'], help: 'Open the Newsletter menu in the main navigation. Choose Subscribe to open the dedicated signup page, enter Email address, and select Subscribe; confirm the subscription from the email you receive. Choose Weekly archive, then select a month; months and issues are ordered latest first. A month opens its issue list in the current tab, and selecting an issue opens the complete newsletter in a new tab. Choose Share with the community to open its dedicated submission page, or Manage newsletter when signed in as an approved administrator. Each weekly issue includes new features and details, illustrated previews, approved parent stories/news/information/tips, testimonials, popular features, curated activities and games, suggested books and family resources, current membership details, parent tips, and clearly labeled mission-aligned advertisements when approved. General non-clinical topics may include communication and speech support, occupational support, positive behavior support, daily living, learning, work, leisure, and community participation for autistic people of all ages. Submissions remain private until reviewed and approved. The protected Newsletter Administration page lets administrators manage submissions, change the weekly delivery day and time in their timezone, edit and save the next issue template, preview it without publishing, and send a prepared issue. Every issue includes Subscribe Newsletter, optional configured Facebook and Instagram links, and one-click unsubscribe.' },
