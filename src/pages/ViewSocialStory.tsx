@@ -319,6 +319,9 @@ export default function ViewSocialStory() {
               white-space: pre-wrap;
               font-weight: 700;
               text-align: justify;
+              hyphens: none;
+              word-break: normal;
+              overflow-wrap: normal;
             }
             
             @media (max-width: 600px) {
@@ -475,14 +478,14 @@ export default function ViewSocialStory() {
                       const text = pages[currentPage].text;
                       if (!narratorSettings?.highlightWords || currentWordIndex === null || !isPlaying) {
                         return text.split('\n').map((paragraph, i) => (
-                          paragraph.trim() ? <p key={i} className="mb-4 text-justify w-full break-words hyphens-auto">{paragraph}</p> : null
+                          paragraph.trim() ? <p key={i} className="mb-4 w-full text-justify [hyphens:none] [overflow-wrap:normal] [word-break:normal]">{paragraph}</p> : null
                         ));
                       }
                       const before = text.substring(0, currentWordIndex);
                       const word = text.substring(currentWordIndex, currentWordIndex + currentWordLength);
                       const after = text.substring(currentWordIndex + currentWordLength);
                       return (
-                        <p className="mb-4 text-justify w-full break-words hyphens-auto">
+                        <p className="mb-4 w-full text-justify [hyphens:none] [overflow-wrap:normal] [word-break:normal]">
                           {before}
                           <span className="bg-yellow-200 rounded px-0.5 transition-colors duration-150">{word}</span>
                           {after}

@@ -297,6 +297,9 @@ export default function SocialStories() {
                   white-space: pre-wrap;
                   font-weight: 700;
                   text-align: justify;
+                  hyphens: none;
+                  word-break: normal;
+                  overflow-wrap: normal;
                   break-inside: auto;
                 }
                 

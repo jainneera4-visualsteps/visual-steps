@@ -148,6 +148,17 @@ test('family documentation avoids internal history and confusing reward language
   assert.doesNotMatch(copy, /assuming Grade 1|free points?|free tokens?|coding problems?|technical problems?|internal changes?/i);
 });
 
+test('justified family copy keeps complete words intact', async () => {
+  const [styles, storyView] = await Promise.all([
+    readFile(new URL('../src/index.css', import.meta.url), 'utf8'),
+    readFile(new URL('../src/pages/ViewSocialStory.tsx', import.meta.url), 'utf8'),
+  ]);
+  assert.match(styles, /text-align:\s*justify/);
+  assert.match(styles, /hyphens:\s*none/);
+  assert.match(styles, /word-break:\s*normal/);
+  assert.doesNotMatch(storyView, /hyphens-auto|break-words/);
+});
+
 test('generated documentation includes every registered feature', async () => {
   const [readme, prd] = await Promise.all([
     readFile(new URL('../README.md', import.meta.url), 'utf8'),
