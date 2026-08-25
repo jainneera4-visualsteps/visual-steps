@@ -28,11 +28,13 @@ CREATE TABLE public.users (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     email TEXT UNIQUE NOT NULL,
     name TEXT,
-    password_hash TEXT,
     max_parent_message_days INTEGER DEFAULT 20,
     max_parent_messages INTEGER DEFAULT 20,
     data_review_months INTEGER NOT NULL DEFAULT 12 CHECK (data_review_months BETWEEN 3 AND 36),
     last_data_review_at TIMESTAMP WITH TIME ZONE,
+    privacy_accepted_at TIMESTAMP WITH TIME ZONE,
+    terms_accepted_at TIMESTAMP WITH TIME ZONE,
+    legal_version TEXT,
     onboarding_completed BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );

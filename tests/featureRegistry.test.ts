@@ -73,11 +73,12 @@ test('required product surfaces consume the shared feature registry', async () =
   }
   const guestWorkspace = await readFile(new URL('../src/components/GuestWorkspace.tsx', import.meta.url), 'utf8');
   assert.match(guestWorkspace, /Guest tour/);
-  assert.match(guestWorkspace, /featuresForSurface\('guest'\)/);
+  assert.doesNotMatch(guestWorkspace, /Current Visual Steps feature guide/);
   const onboarding = await readFile(new URL('../src/components/ParentOnboarding.tsx', import.meta.url), 'utf8');
   const server = await readFile(new URL('../server.ts', import.meta.url), 'utf8');
-  assert.match(onboarding, /newFeatures/);
-  assert.match(onboarding, /featuresForSurface\('onboarding'\)/);
+  assert.doesNotMatch(onboarding, /Current Visual Steps feature guide/);
+  assert.match(onboarding, /Review and remove data you no longer need/);
+  assert.match(onboarding, /Ask the Visual Steps Parent Assistant/);
   assert.match(server, /FEATURE_REGISTRY_SERVER:START/);
   assert.doesNotMatch(server, /import productFeatureRegistry/);
   assert.match(server, /buildWelcomeFeatureContent/);
@@ -121,6 +122,13 @@ test('home feature cards link to catalog-backed detailed feature guides', async 
   assert.doesNotMatch(detail, /A useful starting point is one meaningful goal/);
   assert.doesNotMatch(detail, /After using the feature, review the outcome together/);
   assert.match(detail, /newsletter-copy surface/);
+});
+
+test('feature articles break detailed guidance into short readable paragraphs', async () => {
+  const featureDetail = await readFile(new URL('../src/pages/FeatureDetail.tsx', import.meta.url), 'utf8');
+  assert.match(featureDetail, /splitIntoReadableParagraphs/);
+  assert.match(featureDetail, /index \+= 2/);
+  assert.match(featureDetail, /\.flatMap\(splitIntoReadableParagraphs\)/);
 });
 
 test('generated documentation includes every registered feature', async () => {

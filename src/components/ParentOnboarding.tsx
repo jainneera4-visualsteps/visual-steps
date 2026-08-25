@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Activity, BarChart3, BookOpen, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Gift, UserPlus, X } from 'lucide-react';
+import { Activity, BarChart3, BookOpen, Bot, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Database, Gift, PauseCircle, RotateCcw, Share2, UserPlus, X } from 'lucide-react';
 import { Button } from './Button';
-import { featuresForSurface, newFeatures } from '../content/featureRegistry';
-import { NewFeatureBadge } from './FeatureHighlights';
 
 const steps = [
   {
@@ -32,6 +30,14 @@ const steps = [
     tip: 'If submitted work needs another try, reassign it without granting the reward.',
   },
   {
+    icon: PauseCircle,
+    eyebrow: 'Keep an honest activity record',
+    title: 'Choose what happens after completed work',
+    description: 'When reviewing completed work, choose whether it is finished, needs another attempt, should pause, or has ended.',
+    bullets: ['Reassign at the same, higher, or lower level when another attempt is useful.', 'Place an activity On Hold without losing its details.', 'Move ended work to Discontinued / Ended and restart it later if needs change.'],
+    tip: 'A same-level reassignment is counted as a repeat so reports can reveal skills that need a different teaching approach.',
+  },
+  {
     icon: BookOpen,
     eyebrow: 'Personalized learning',
     title: 'Create quizzes, worksheets, and social stories',
@@ -40,12 +46,52 @@ const steps = [
     tip: 'Assigned quizzes allow one attempt; reassignment opens one fresh attempt.',
   },
   {
+    icon: RotateCcw,
+    eyebrow: 'Fair learning attempts',
+    title: 'Preview quizzes and learn from each result',
+    description: 'Parents can review a quiz exactly as a learner will see it, while assigned quiz attempts remain fair and useful for planning.',
+    bullets: ['Use Preview as Learner without saving a score or consuming an attempt.', 'Each assignment accepts one submitted quiz attempt.', 'Review strengths and support needs, then reassign only when a fresh attempt is appropriate.'],
+    tip: 'Create a new assignment attempt after teaching or practice—not simply to replace an earlier score.',
+  },
+  {
+    icon: Gift,
+    eyebrow: 'Meaningful encouragement',
+    title: 'Recognize observed positive behavior',
+    description: 'Parents can award a small bonus for a specific behavior they personally observed without creating a reward-request system.',
+    bullets: ['Write the real reason, such as calm communication, focused effort, or trying again.', 'Choose a limited bonus amount and keep the reason visible to the learner.', 'Children and adults cannot request or award these bonuses themselves.'],
+    tip: 'Describe what the person did well so the bonus reinforces meaningful effort rather than feeling like free points.',
+  },
+  {
     icon: BarChart3,
     eyebrow: 'See the bigger picture',
     title: 'Use reports to notice patterns',
     description: 'Progress and summary reports bring activities, quiz results, rewards, and achievements together.',
     bullets: ['Review activity completion and quiz performance.', 'Notice strengths, patterns, and areas needing more support.', 'Use real progress to plan the next helpful activity.'],
     tip: 'You can replay this tour anytime from the parent dashboard.',
+  },
+  {
+    icon: Database,
+    eyebrow: 'Parent-controlled privacy',
+    title: 'Review and remove data you no longer need',
+    description: 'Data Management helps parents understand saved family records and make deliberate cleanup decisions.',
+    bullets: ['Choose a review age from 3 to 36 months.', 'Sort and paginate older records, then select individual rows or a current page.', 'Nothing is removed automatically from this review list; deletion requires confirmation.'],
+    tip: 'Review records before deleting them and keep independent copies of anything important to your family.',
+  },
+  {
+    icon: Share2,
+    eyebrow: 'Controlled sharing',
+    title: 'Share a social story only when you choose',
+    description: 'Saved social stories remain private unless a parent deliberately creates a time-limited sharing link.',
+    bullets: ['Choose a link lifetime of 1, 7, or 30 days.', 'Send the link only to trusted family members, educators, or caregivers.', 'Revoke an active link when access is no longer needed.'],
+    tip: 'A person with the valid link can view the story until it expires or is revoked.',
+  },
+  {
+    icon: Bot,
+    eyebrow: 'Help inside the app',
+    title: 'Ask the Visual Steps Parent Assistant',
+    description: 'The assistant explains where to go, which fields to use, and what each button does, while staying within Visual Steps.',
+    bullets: ['Ask how to complete a workflow using exact menu and button names.', 'Ask about progress patterns from your own family records.', 'Use the visible daily allowance to keep AI use predictable.'],
+    tip: 'Review AI guidance before acting and use qualified professional support for medical, clinical, crisis, or safety decisions.',
   },
 ];
 
@@ -127,8 +173,14 @@ const realScreenPreviews = [
   '/onboarding/child-profile.png',
   '/onboarding/activities.png',
   '/onboarding/activities.png',
+  '/onboarding/activities.png',
   '/onboarding/learning.png',
+  '/onboarding/quiz-attempt.png',
+  '/onboarding/behavior-bonuses.png',
   '/onboarding/progress.png',
+  '/onboarding/data-management.png',
+  '/onboarding/social-story-sharing.png',
+  '/onboarding/parent-assistant.png',
 ];
 
 function RealScreenPreview({ stepIndex, title }: { stepIndex: number; title: string }) {
@@ -146,8 +198,6 @@ export function ParentOnboarding({ onClose }: { onClose: () => Promise<void> | v
   const [isClosing, setIsClosing] = useState(false);
   const step = steps[stepIndex];
   const Icon = step.icon;
-  const recentFeatures = newFeatures().slice(0, 4);
-  const currentFeatures = featuresForSurface('onboarding');
 
   const closeTour = async () => {
     setIsClosing(true);
@@ -193,24 +243,6 @@ export function ParentOnboarding({ onClose }: { onClose: () => Promise<void> | v
           <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm font-semibold leading-6 text-emerald-900">
             <span className="font-black">Helpful tip:</span> {step.tip}
           </div>
-          {recentFeatures.length > 0 && (
-            <section className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
-              <p className="text-xs font-black uppercase tracking-wider text-blue-700">Recently added to Visual Steps</p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                {recentFeatures.map((feature) => (
-                  <div key={feature.id} className="rounded-xl bg-white px-3 py-2 shadow-sm">
-                    <div className="flex items-center gap-2"><span className="text-sm font-bold text-slate-800">{feature.title}</span><NewFeatureBadge introducedOn={feature.introducedOn} /></div>
-                    <p className="mt-1 text-xs leading-5 text-slate-500">{feature.summary}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-          <details className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-            <summary className="cursor-pointer text-sm font-black text-slate-800">Browse all current Visual Steps capabilities ({currentFeatures.length})</summary>
-            <div className="mt-3 grid max-h-52 gap-2 overflow-y-auto sm:grid-cols-2">{currentFeatures.map(feature => <div key={feature.id} className="rounded-xl bg-white p-3 text-xs leading-5 text-slate-600 shadow-sm"><strong className="block text-sm text-slate-900">{feature.title}</strong>{feature.summary}</div>)}</div>
-          </details>
-
           <div className="flex items-center justify-center gap-2" aria-label={`Step ${stepIndex + 1} of ${steps.length}`}>
             {steps.map((_, index) => (
               <span key={index} className={`h-2.5 rounded-full transition-all ${index === stepIndex ? 'w-8 bg-blue-600' : 'w-2.5 bg-slate-200'}`} />

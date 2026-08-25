@@ -19,6 +19,7 @@ export default function Signup() {
   const [createdAccountEmail, setCreatedAccountEmail] = useState('');
   const [signupCreatedSession, setSignupCreatedSession] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [legalAccepted, setLegalAccepted] = useState(false);
   const signupInProgressRef = useRef(false);
   const { user, refreshProfile } = useAuth();
   const navigate = useNavigate();
@@ -61,7 +62,8 @@ export default function Signup() {
             id: data.user.id,
             email: normalizedEmail,
             name,
-            password,
+            privacyAccepted: legalAccepted,
+            termsAccepted: legalAccepted,
           }),
         });
 
@@ -180,6 +182,10 @@ export default function Signup() {
                 </button>
               }
             />
+            <label className="flex items-start gap-2 rounded-lg bg-slate-50 p-2 text-[11px] leading-5 text-slate-600">
+              <input type="checkbox" className="mt-1" checked={legalAccepted} onChange={event => setLegalAccepted(event.target.checked)} required />
+              <span>I agree to the <Link to="/terms" target="_blank" rel="noopener noreferrer" className="font-bold text-blue-700 underline">Terms of Service</Link> and acknowledge the <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="font-bold text-blue-700 underline">Privacy Policy</Link>.</span>
+            </label>
             <Button type="submit" size="xs" className="w-full mt-1 h-8 text-sm" isLoading={isLoading}>
               Sign Up
             </Button>

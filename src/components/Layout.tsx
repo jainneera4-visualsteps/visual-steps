@@ -90,6 +90,9 @@ export function Layout() {
     else if (path === '/demo' || path === '/guest') title = 'Guest Login | Visual Steps';
     else if (path === '/testimonials') title = 'Testimonials | Visual Steps';
     else if (path === '/contact') title = 'Contact | Visual Steps';
+    else if (path === '/privacy') title = 'Privacy Policy | Visual Steps';
+    else if (path === '/terms') title = 'Terms of Service | Visual Steps';
+    else if (path === '/cookies') title = 'Cookies & Analytics | Visual Steps';
     else if (path.startsWith('/newsletter/issues/')) title = 'Newsletter Issue | Visual Steps';
     else if (path.startsWith('/newsletter/archive/')) title = 'Newsletter Archive | Visual Steps';
     else if (path === '/newsletter/subscribe') title = 'Subscribe to Visual Steps Weekly';
@@ -425,6 +428,9 @@ export function Layout() {
             <Link to="/about" className="hover:text-brand-600">About</Link>
             <Link to="/testimonials" className="hover:text-brand-600">Testimonials</Link>
             <Link to="/contact" className="hover:text-brand-600">Contact</Link>
+            <Link to="/privacy" className="hover:text-brand-600">Privacy</Link>
+            <Link to="/terms" className="hover:text-brand-600">Terms</Link>
+            <Link to="/cookies" className="hover:text-brand-600">Cookies & Analytics</Link>
             {publicLinks.facebook && <a href={publicLinks.facebook} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 hover:text-brand-600"><Facebook className="h-4 w-4" />Facebook</a>}
             {publicLinks.instagram && <a href={publicLinks.instagram} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 hover:text-brand-600"><Instagram className="h-4 w-4" />Instagram</a>}
           </nav>

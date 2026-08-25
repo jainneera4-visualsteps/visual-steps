@@ -5,7 +5,6 @@ import { GoogleGenAI, Type } from '@google/genai';
 import http from 'http';
 import { Server } from 'socket.io';
 import { createClient } from '@supabase/supabase-js';
-import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import cookieParser from 'cookie-parser';
 import { v4 as uuidv4 } from 'uuid';
@@ -559,7 +558,14 @@ const app = express();
 // database, SDK, and stack-trace fields from the response body.
 app.use((req, res, next) => {
   const isApiRequest = req.url.startsWith('/api/') || (Boolean(process.env.VERCEL) && !req.url.includes('.'));
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
   if (!isApiRequest) return next();
+
+  res.setHeader('Cache-Control', 'no-store, private, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
 
   const requestId = uuidv4();
   res.setHeader('X-Request-ID', requestId);
@@ -1848,18 +1854,18 @@ app.post('/api/upload', authenticateToken, (req: any, res) => {
 
 // Create Profile
 app.post('/api/auth/create-profile', async (req: any, res) => {
-  const { id, email, name, password } = req.body;
+  const { id, email, name, privacyAccepted, termsAccepted } = req.body;
   const normalizedEmail = String(email || '').trim().toLowerCase();
-  console.log('create-profile: request body:', { id, email, name, hasPassword: !!password });
   
   if (!id || !normalizedEmail) {
     console.log('create-profile: missing fields');
     return res.status(400).json({ error: 'Missing required fields' });
   }
+  if (privacyAccepted !== true || termsAccepted !== true) {
+    return res.status(400).json({ error: 'Privacy Policy and Terms acceptance is required' });
+  }
 
   try {
-    const hashedPassword = password ? await bcrypt.hash(password, 10) : null;
-
     // Use admin client to bypass RLS during profile creation
     // This is necessary because the user might not have a session yet (e.g. if email confirmation is required)
     // The database foreign key constraint on auth.users(id) ensures only valid users can have profiles.
@@ -1871,7 +1877,9 @@ app.post('/api/auth/create-profile', async (req: any, res) => {
           id, 
           email: normalizedEmail,
           name, 
-          password_hash: hashedPassword
+          privacy_accepted_at: new Date().toISOString(),
+          terms_accepted_at: new Date().toISOString(),
+          legal_version: '2026-08-25'
         }
       ]);
 
@@ -2041,11 +2049,6 @@ app.put('/api/user/profile', authenticateToken, async (req: any, res) => {
           return res.status(400).json({ error: 'Failed to update authentication details', details: authUpdateError.message });
         }
       }
-    }
-
-    if (newPassword) {
-      // Retain the legacy hash for compatibility; login uses Supabase Auth.
-      baseUpdates.password_hash = await bcrypt.hash(newPassword, 10);
     }
 
     if (Object.keys(baseUpdates).length === 0 && parsedRetentionDays === undefined) {
@@ -5355,6 +5358,7 @@ export const parentAssistantFeatureCatalog = [
   { area: 'Parent-controlled data management', routes: ['/data-management'], help: 'Select Data beside the parent name in the desktop navigation, or open the mobile menu and select Data Management. Saved record overview shows totals for profiles, activities, activity history, quiz results, saved learning resources, reward purchases, parent messages, and behavior bonuses. Under Review reminder choose a period from 3 to 36 months; this changes the review list and never deletes records automatically. In Older records to review, select a Record, Type, Learner, or Date heading to sort. Use Per page and the previous or next controls to move through the list. Select individual checkboxes or the header checkbox to select all rows on the current page; selections remain selected across pages. Select Delete selected and confirm permanent deletion only for records the family no longer needs.' },
   { area: 'Parent and caregiver testimonials', routes: ['/testimonials'], help: 'Open Testimonials from the footer or mobile menu to read reviewed experiences that families and caregivers explicitly permitted Visual Steps to publish. Signed-in parents can use Public display name, Experience title, and Your testimonial, confirm publication permission, then select Submit privately for review. The submission remains private until an administrator reviews and approves it in Newsletter Administration. Visual Steps never converts private profiles, child records, messages, or activities into public quotes.' },
   { area: 'Contact Visual Steps', routes: ['/contact'], help: 'Open Contact from the top navigation, footer, or mobile menu. Enter your name, reply email, subject, and message, then select Open email to send. The form opens the visitor’s own email application and does not store the fields in the Visual Steps database. Never include passwords, API keys, child login codes, or sensitive clinical information.' },
+  { area: 'Privacy, terms, cookies, and analytics', routes: ['/privacy', '/terms', '/cookies'], help: 'Open Privacy, Terms, or Cookies & Analytics from the footer on any page. Privacy explains what family information Visual Steps handles, why it is used, limited service-provider processing, AI requests, social-story sharing, uploaded-image links, retention choices, account deletion, and security responsibilities. Terms explains responsible use, caregiver review, community content, availability, and why Visual Steps is not medical or clinical advice. Cookies & Analytics explains essential sign-in and preference storage, the installed-app cache, browser controls, and the current absence of advertising cookies and product analytics. On Create an account, review the Terms and Privacy links and select the agreement checkbox before selecting Sign Up.' },
   { area: 'Visual Steps weekly newsletter', routes: ['/newsletter', '/newsletter/subscribe', '/newsletter/community', '/newsletter/archive/:month', '/newsletter/issues/:issueDate', '/newsletter-admin'], help: 'Open the Newsletter menu in the main navigation. Choose Subscribe to open the dedicated signup page, enter Email address, and select Subscribe; confirm the subscription from the email you receive. Choose Weekly archive, then select a month; months and issues are ordered latest first. A month opens its issue list in the current tab, and selecting an issue opens the complete newsletter in a new tab. Choose Share with the community to open its dedicated submission page, or Manage newsletter when signed in as an approved administrator. Each weekly issue includes new features and details, illustrated previews, approved parent stories/news/information/tips, testimonials, popular features, curated activities and games, suggested books and family resources, current membership details, parent tips, and clearly labeled mission-aligned advertisements when approved. General non-clinical topics may include communication and speech support, occupational support, positive behavior support, daily living, learning, work, leisure, and community participation for autistic people of all ages. Submissions remain private until reviewed and approved. The protected Newsletter Administration page lets administrators manage submissions, change the weekly delivery day and time in their timezone, edit and save the next issue template, preview it without publishing, and send a prepared issue. Every issue includes Subscribe Newsletter, optional configured Facebook and Instagram links, and one-click unsubscribe.' },
   { area: 'Child dashboard', routes: ['/kids-dashboard/:kidId'], help: 'Children sign in with their Kid Code. To Be Done lists pending activities, Waiting for parent verification lists submitted work, Completed shows completed activities, and Rewards shows items they may purchase with earned tokens. Meaningful completions show celebrations. A verification-required submission tells the child to wait and does not award tokens until parent approval.' },
   { area: 'Offline and installation', routes: ['/'], help: 'Visual Steps is installable as a PWA from a supported browser and can be added to an iPhone or iPad Home Screen through Safari Share > Add to Home Screen. When internet access is lost, the app displays an offline notice; database, sign-in, and AI operations require reconnection.' },

@@ -42,7 +42,7 @@ test('parent onboarding uses captured real application screens', async () => {
 
 test('guest login opens real parent and child routes with sequential hints', async () => {
   const [demo, workspace, home] = await Promise.all([readFile(demoPath, 'utf8'), readFile(workspacePath, 'utf8'), readFile(homePath, 'utf8')]);
-  for (const expected of ['Continue as Guest', 'Create a child profile', 'Plan and verify activities', 'Explore quizzes', 'Explore worksheets', 'Explore social stories', 'Plan from progress', 'real child view', 'Replay guest tour']) {
+  for (const expected of ['Continue as Guest', 'Create a child profile', 'Plan and verify activities', 'Review work before granting rewards', 'Pause, end, or restart an activity', 'Recognize meaningful positive behavior', 'Explore quizzes', 'Explore worksheets', 'Explore social stories', 'Plan from progress', 'Keep family data under parent control', 'real child view', 'Replay guest tour']) {
     assert.match(`${demo}\n${workspace}\n${home}`, new RegExp(expected, 'i'));
   }
   assert.match(demo, /navigate\('\/dashboard'/);

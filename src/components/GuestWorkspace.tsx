@@ -2,16 +2,19 @@ import { PointerEvent, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowRight, Eye, RotateCcw, Sparkles, X } from 'lucide-react';
 import { endGuestSession, GUEST_KID_ID, isGuestSession } from '../guest/guestSession';
-import { featuresForSurface } from '../content/featureRegistry';
 
 const steps = [
   { route: '/dashboard', target: '[data-guest-tour="dashboard-menu"]', title: 'Meet the real Parent Dashboard', body: 'This highlighted menu opens the same dashboard signed-in parents use. Review the sample child card, then use its Activities, Learning, Rewards, and Reports controls.' },
   { route: '/add-kid', target: 'form', title: 'Create a child profile', body: 'Use these real profile fields to record strengths, interests, support needs, schedule, and reward preferences. Guest saves remain temporary.' },
   { route: `/assigned-activities/${GUEST_KID_ID}`, target: '[data-guest-tour="activities-menu"]', title: 'Plan and verify activities', body: 'This is the full activity workspace. Add visual steps, require parent verification when appropriate, and review pending, completed, on-hold, or ended work.' },
+  { route: `/assigned-activities/${GUEST_KID_ID}`, target: 'main', title: 'Review work before granting rewards', body: 'Open To Be Verified to see work waiting for a parent. Verify & Complete grants the earned reward; Reassign returns the same activity for another attempt without free points.' },
+  { route: `/assigned-activities/${GUEST_KID_ID}`, target: 'main', title: 'Pause, end, or restart an activity', body: 'Completed Activity Review records whether work is finished, reassigned at the same or a different level, placed On Hold, or Discontinued / Ended. On-hold and ended grids preserve the activity so a parent can restart it later.' },
+  { route: `/assigned-activities/${GUEST_KID_ID}`, target: 'main', title: 'Recognize meaningful positive behavior', body: 'A parent may record an observed behavior such as focused effort or trying again and award a small bonus with the reason attached. The learner has no control for requesting these points.' },
   { route: '/saved-quizzes', target: 'main', title: 'Explore quizzes', body: 'Open the Quiz Generator from this real learning area. Guests can inspect the sample quiz; AI creation stays disabled to protect usage costs.' },
   { route: '/saved-worksheets', target: 'main', title: 'Explore worksheets', body: 'Review the sample worksheet and the same save, print, and assignment workflow available to authenticated parents.' },
   { route: '/social-stories', target: 'main', title: 'Explore social stories', body: 'See a sample supportive story and the real story library. Guest mode prevents AI generation and permanent sharing.' },
   { route: `/progress-report/${GUEST_KID_ID}`, target: 'main', title: 'Plan from progress', body: 'Reports combine activity, quiz, repeat, and reward information to help caregivers choose meaningful next steps.' },
+  { route: '/data-management', target: 'main', title: 'Keep family data under parent control', body: 'Review saved record totals, choose when older records should be shown for review, sort and paginate the list, and deliberately select records for deletion. Nothing in this review is deleted automatically.' },
   { route: `/kids-dashboard/${GUEST_KID_ID}`, target: 'main', title: 'Now see the real child view', body: 'This is the same inviting dashboard the child sees, including assigned work, verification waiting states, celebrations, rewards, and positive-behavior bonuses.' },
 ];
 
@@ -24,7 +27,6 @@ export function GuestWorkspace() {
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
   const dragOffset = useRef({ x: 0, y: 0 });
   const step = steps[index];
-  const guestFeatures = featuresForSurface('guest');
 
   useEffect(() => {
     const sync = () => setActive(isGuestSession());
@@ -70,10 +72,6 @@ export function GuestWorkspace() {
           <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600">Guest tour · {index + 1} of {steps.length} · Drag to move</p><h2 className="mt-2 pr-8 text-xl font-black text-slate-950">{step.title}</h2>
         </div>
         <p className="mt-2 text-sm leading-6 text-slate-600">{step.body}</p>
-        <details className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-          <summary className="cursor-pointer font-bold text-slate-800">Current Visual Steps feature guide ({guestFeatures.length})</summary>
-          <div className="mt-2 max-h-36 space-y-2 overflow-y-auto pr-1">{guestFeatures.map(feature => <p key={feature.id}><strong className="text-slate-900">{feature.title}:</strong> {feature.summary}</p>)}</div>
-        </details>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><button onClick={() => navigate(step.route)} className="inline-flex items-center gap-1 text-sm font-bold text-slate-600"><Eye className="h-4 w-4" /> Show this page</button><div className="flex gap-2">{index > 0 && <button onClick={() => setIndex(v => v - 1)} className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700">Back</button>}<button onClick={() => index === steps.length - 1 ? setOpen(false) : setIndex(v => v + 1)} className="inline-flex items-center gap-1 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white">{index === steps.length - 1 ? 'Explore child view' : 'Next'} <ArrowRight className="h-4 w-4" /></button></div></div>
       </div>}
   </>;

@@ -4,13 +4,23 @@ import { NewFeatureBadge } from '../components/FeatureHighlights';
 import { productFeatures } from '../content/featureRegistry';
 import { formatAppDate } from '../utils/dateUtils';
 
+function splitIntoReadableParagraphs(copy: string) {
+  const sentences = copy.match(/[^.!?]+[.!?]+(?:[”’'\"])?|[^.!?]+$/g)?.map(sentence => sentence.trim()).filter(Boolean) || [copy];
+  const paragraphs: string[] = [];
+  for (let index = 0; index < sentences.length; index += 2) {
+    paragraphs.push(sentences.slice(index, index + 2).join(' '));
+  }
+  return paragraphs;
+}
+
 export default function FeatureDetail() {
   const { featureId } = useParams();
   const feature = productFeatures.find(item => item.id === featureId);
 
   if (!feature) return <Navigate to="/" replace />;
 
-  const paragraphs = [feature.details, ...feature.guideParagraphs, feature.familyImpact, feature.help];
+  const paragraphs = [feature.details, ...feature.guideParagraphs, feature.familyImpact, feature.help]
+    .flatMap(splitIntoReadableParagraphs);
   const screen = feature.screenshot;
 
   return <div className="page-shell">

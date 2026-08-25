@@ -33,6 +33,7 @@ import Newsletter from './pages/Newsletter';
 import NewsletterAdmin from './pages/NewsletterAdmin';
 import FeatureDetail from './pages/FeatureDetail';
 import DataManagement from './pages/DataManagement';
+import Legal from './pages/Legal';
 import { NetworkStatusBanner } from './components/NetworkStatusBanner';
 import { GuestWorkspace } from './components/GuestWorkspace';
 
@@ -55,6 +56,9 @@ export default function App() {
             <Route path="guest" element={<GuestDemo />} />
             <Route path="testimonials" element={<Testimonials />} />
             <Route path="contact" element={<Contact />} />
+            <Route path="privacy" element={<Legal kind="privacy" />} />
+            <Route path="terms" element={<Legal kind="terms" />} />
+            <Route path="cookies" element={<Legal kind="cookies" />} />
             <Route path="newsletter" element={<Newsletter />} />
             <Route path="newsletter/subscribe" element={<Newsletter />} />
             <Route path="newsletter/community" element={<Newsletter />} />
