@@ -84,6 +84,9 @@ test('newsletter combines feature guidance, hides empty sections, and explains p
   assert.match(page, /if\(!items\.length\)return null/);
   assert.match(page, /New and Updated Feature Details/);
   assert.match(page, /Feature update/);
+  assert.match(styles, /\.newsletter-page/);
+  assert.match(styles, /break-after: page/);
+  assert.doesNotMatch(page, /mt-6 grid gap-5 lg:grid-cols-2/);
   assert.match(adminPage, /item\.changeType === 'updated' \? 'Feature update' : 'New feature'/);
   assert.match(page, /featureIdFor/);
   assert.match(page, /to=\{`\/features\/\$\{featureId\}`\}/);
@@ -119,7 +122,7 @@ test('newsletter combines feature guidance, hides empty sections, and explains p
   assert.match(server, /newsletterCommunityContext/);
   assert.match(server, /newsletterTestimonialContext/);
   assert.match(page, /How this supports growth:/);
-  assert.match(page, /newsletter-copy surface/);
+  assert.match(page, /newsletter-copy newsletter-book/);
   assert.match(styles, /\.newsletter-copy p,[\s\S]*\.newsletter-copy li[\s\S]*text-align: justify/);
   assert.match(server, /text-align:justify;text-justify:inter-word/);
   assert.match(server, /display:grid;grid-template-columns:1fr;gap:14px/);

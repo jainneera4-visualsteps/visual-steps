@@ -100,6 +100,14 @@ ALTER TABLE public.newsletter_community_submissions
   ADD CONSTRAINT newsletter_community_submissions_contribution_type_check
   CHECK (contribution_type IN ('story', 'news', 'information', 'tip', 'testimonial', 'advertisement'));
 
+-- Family stories may need more room than a short testimonial or tip. Keep a
+-- bounded long-form limit while allowing parents to share a complete account.
+ALTER TABLE public.newsletter_community_submissions
+  DROP CONSTRAINT IF EXISTS newsletter_community_submissions_content_check;
+ALTER TABLE public.newsletter_community_submissions
+  ADD CONSTRAINT newsletter_community_submissions_content_check
+  CHECK (length(btrim(content)) BETWEEN 20 AND 10000);
+
 ALTER TABLE public.newsletter_subscribers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.newsletters ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.parent_testimonials ENABLE ROW LEVEL SECURITY;

@@ -1498,7 +1498,10 @@ const sendNewsletterIssue = async (issue: any, appOrigin: string) => {
     const testimonialItems = (issue.parent_testimonials || []).map((item: any) => `“${escapeEmailHtml(item.quote)}” — ${escapeEmailHtml(item.displayName)}${item.editorialContext ? `<br><em>${escapeEmailHtml(item.editorialContext)}</em>` : ''}`);
     const tipItems = (issue.parent_tips || []).map((item: string) => escapeEmailHtml(item));
     const previewItems = (issue.feature_previews || []).map((item: any) => `<strong>${escapeEmailHtml(item.title)}</strong><br>${escapeEmailHtml(item.caption)}${item.familyImpact ? `<br><strong>Why it matters:</strong> ${escapeEmailHtml(item.familyImpact)}` : ''}${item.id ? `<br><a href="${appOrigin}/features/${encodeURIComponent(item.id)}">Read more</a>` : ''}`);
-    const communityItems = (issue.community_posts || []).map((item: any) => `<strong>${escapeEmailHtml(item.title)}</strong> (${escapeEmailHtml(item.type)}) — ${escapeEmailHtml(item.content)} — ${escapeEmailHtml(item.displayName)}${item.editorialContext ? `<br><em>${escapeEmailHtml(item.editorialContext)}</em>` : ''}`);
+    const communityItemsFor = (type: string) => (issue.community_posts || []).filter((item: any) => item.type === type).map((item: any) => `<article><strong style="font-size:20px;color:#172033">${escapeEmailHtml(item.title)}</strong><br><span style="font-size:14px;font-weight:bold;color:#475569">By ${escapeEmailHtml(item.displayName)}</span><div style="margin-top:14px;white-space:pre-wrap;text-align:left;line-height:1.7">${escapeEmailHtml(item.content)}</div>${item.sourceUrl ? `<br><a href="${escapeEmailHtml(item.sourceUrl)}">Source</a>` : ''}${item.editorialContext ? `<br><em>${escapeEmailHtml(item.editorialContext)}</em>` : ''}</article>`);
+    const communitySectionsHtml = [
+      ['story', 'Parent Stories'], ['news', 'Community News'], ['information', 'Helpful Information'], ['tip', 'Community Tips and Tricks'],
+    ].map(([type, fallbackTitle]) => newsletterSectionHtml(issue.section_titles?.[`community_${type}`] || fallbackTitle, communityItemsFor(type))).join('');
     const popularItems = (issue.popular_features || []).map((item: any) => `<strong>${escapeEmailHtml(item.title)}</strong> — ${escapeEmailHtml(item.explanation)}`);
     const resourceItems = (issue.recommended_resources || []).map((item: any) => `<strong>${escapeEmailHtml(item.title)}</strong> (${escapeEmailHtml(item.type)}) — ${escapeEmailHtml(item.description)}`);
     const bookResourceItems = (issue.suggested_books_resources || []).map((item: any) => `<strong>${escapeEmailHtml(item.title)}</strong> (${escapeEmailHtml(item.type)})${item.creator ? ` by ${escapeEmailHtml(item.creator)}` : ''} — ${escapeEmailHtml(item.description)}${item.url ? `<br><a href="${escapeEmailHtml(item.url)}">Visit resource</a>` : ''}`);
@@ -1514,7 +1517,7 @@ const sendNewsletterIssue = async (issue: any, appOrigin: string) => {
       await transporter.sendMail({
         from, to: subscriber.email, subject: issue.title,
         text: `${issue.introduction}\n\nRead this issue: ${archiveUrl}\n\nUnsubscribe: ${unsubscribeUrl}`,
-        html: `<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;color:#334155;line-height:1.6;background:#fffdf7;padding:24px"><div style="background:linear-gradient(135deg,#dbeafe,#d1fae5);border-radius:18px;padding:24px"><h1 style="color:#176b87;margin-top:0">${escapeEmailHtml(issue.title)}</h1><p style="text-align:justify;text-justify:inter-word">${escapeEmailHtml(issue.introduction)}</p></div>${issue.section_visibility?.feature_previews === false ? '' : newsletterSectionHtml(issue.section_titles?.feature_previews || newsletterSectionTitles.feature_previews, previewItems)}${issue.section_visibility?.new_features === false ? '' : newsletterSectionHtml(issue.section_titles?.new_features || newsletterSectionTitles.new_features, featureItems, 2)}${issue.section_visibility?.community_posts === false ? '' : newsletterSectionHtml(issue.section_titles?.community_posts || newsletterSectionTitles.community_posts, communityItems)}${issue.section_visibility?.parent_testimonials === false ? '' : newsletterSectionHtml(issue.section_titles?.parent_testimonials || newsletterSectionTitles.parent_testimonials, testimonialItems)}${issue.section_visibility?.popular_features === false ? '' : newsletterSectionHtml(issue.section_titles?.popular_features || newsletterSectionTitles.popular_features, popularItems)}${issue.section_visibility?.recommended_resources === false ? '' : newsletterSectionHtml(issue.section_titles?.recommended_resources || newsletterSectionTitles.recommended_resources, resourceItems)}${issue.section_visibility?.suggested_books_resources === false ? '' : newsletterSectionHtml(issue.section_titles?.suggested_books_resources || newsletterSectionTitles.suggested_books_resources, bookResourceItems, 2)}${issue.section_visibility?.advertisements === false ? '' : newsletterSectionHtml(issue.section_titles?.advertisements || newsletterSectionTitles.advertisements, advertisementItems, 2)}${issue.section_visibility?.parent_tips === false ? '' : newsletterSectionHtml(issue.section_titles?.parent_tips || newsletterSectionTitles.parent_tips, tipItems, 1, true)}${issue.section_visibility?.membership_details === false ? '' : newsletterSectionHtml(issue.section_titles?.membership_details || newsletterSectionTitles.membership_details, membershipItems)}<p style="margin-top:32px">${footerLinksHtml}</p><p><a href="${archiveUrl}">Read the illustrated newsletter archive</a></p><p style="font-size:12px;color:#64748b">You received this because you confirmed a Visual Steps newsletter subscription. <a href="${unsubscribeUrl}">Unsubscribe with one click</a>.</p></div>`,
+        html: `<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;color:#334155;line-height:1.6;background:#fffdf7;padding:24px"><div style="background:linear-gradient(135deg,#dbeafe,#d1fae5);border-radius:18px;padding:24px"><h1 style="color:#176b87;margin-top:0">${escapeEmailHtml(issue.title)}</h1><p style="text-align:justify;text-justify:inter-word">${escapeEmailHtml(issue.introduction)}</p></div>${issue.section_visibility?.feature_previews === false ? '' : newsletterSectionHtml(issue.section_titles?.feature_previews || newsletterSectionTitles.feature_previews, previewItems)}${issue.section_visibility?.new_features === false ? '' : newsletterSectionHtml(issue.section_titles?.new_features || newsletterSectionTitles.new_features, featureItems, 2)}${issue.section_visibility?.community_posts === false ? '' : communitySectionsHtml}${issue.section_visibility?.parent_testimonials === false ? '' : newsletterSectionHtml(issue.section_titles?.parent_testimonials || newsletterSectionTitles.parent_testimonials, testimonialItems)}${issue.section_visibility?.popular_features === false ? '' : newsletterSectionHtml(issue.section_titles?.popular_features || newsletterSectionTitles.popular_features, popularItems)}${issue.section_visibility?.recommended_resources === false ? '' : newsletterSectionHtml(issue.section_titles?.recommended_resources || newsletterSectionTitles.recommended_resources, resourceItems)}${issue.section_visibility?.suggested_books_resources === false ? '' : newsletterSectionHtml(issue.section_titles?.suggested_books_resources || newsletterSectionTitles.suggested_books_resources, bookResourceItems, 2)}${issue.section_visibility?.advertisements === false ? '' : newsletterSectionHtml(issue.section_titles?.advertisements || newsletterSectionTitles.advertisements, advertisementItems, 2)}${issue.section_visibility?.parent_tips === false ? '' : newsletterSectionHtml(issue.section_titles?.parent_tips || newsletterSectionTitles.parent_tips, tipItems, 1, true)}${issue.section_visibility?.membership_details === false ? '' : newsletterSectionHtml(issue.section_titles?.membership_details || newsletterSectionTitles.membership_details, membershipItems)}<p style="margin-top:32px">${footerLinksHtml}</p><p><a href="${archiveUrl}">Read the illustrated newsletter archive</a></p><p style="font-size:12px;color:#64748b">You received this because you confirmed a Visual Steps newsletter subscription. <a href="${unsubscribeUrl}">Unsubscribe with one click</a>.</p></div>`,
       });
       await admin.from('newsletter_subscribers').update({ last_sent_issue_date: issue.issue_date, unsubscribe_token_hash: unsubscribeHash, updated_at: new Date().toISOString() }).eq('id', subscriber.id);
       delivered += 1;
@@ -1576,6 +1579,15 @@ app.post('/api/newsletter/subscribe', async (req, res) => {
   }
 });
 
+app.get('/api/newsletter/community-submissions/mine', authenticateToken, async (req: any, res) => {
+  if (req.user?.role === 'kid') return res.status(403).json({ error: 'Parent access required' });
+  const { data, error } = await getAdminSupabaseClient().from('newsletter_community_submissions')
+    .select('id,contribution_type,title,content,display_name,source_url,status,submitted_at,reviewed_at')
+    .eq('user_id', req.user.id).order('submitted_at', { ascending: false }).limit(30);
+  if (error) return res.status(500).json({ error: 'Unable to load your newsletter submissions.' });
+  return res.json(data || []);
+});
+
 app.post('/api/newsletter/community-submissions', authenticateToken, async (req: any, res) => {
   if (req.user?.role === 'kid') return res.status(403).json({ error: 'Parent access required' });
   const contributionType = String(req.body?.contributionType || '');
@@ -1583,12 +1595,26 @@ app.post('/api/newsletter/community-submissions', authenticateToken, async (req:
   const content = String(req.body?.content || '').trim();
   const displayName = String(req.body?.displayName || '').trim();
   const sourceUrl = String(req.body?.sourceUrl || '').trim() || null;
+  const submissionId = String(req.body?.submissionId || '').trim();
   const allowedTypes = new Set(['story', 'news', 'information', 'tip', 'testimonial', 'advertisement']);
-  if (!allowedTypes.has(contributionType) || title.length < 3 || title.length > 120 || content.length < 20 || content.length > 2000 || displayName.length < 2 || displayName.length > 80 || req.body?.consentToPublish !== true) {
-    return res.status(400).json({ error: 'Complete all required fields and confirm permission to publish.' });
-  }
+  if (!allowedTypes.has(contributionType)) return res.status(400).json({ error: 'Choose what you would like to share.' });
+  if (displayName.length < 2 || displayName.length > 80) return res.status(400).json({ error: 'Enter a public display name between 2 and 80 characters.' });
+  if (title.length < 3 || title.length > 120) return res.status(400).json({ error: 'Enter a title between 3 and 120 characters.' });
+  if (content.length < 20 || content.length > 10000) return res.status(400).json({ error: 'Your contribution must be between 20 and 10,000 characters.' });
+  if (req.body?.consentToPublish !== true) return res.status(400).json({ error: 'Confirm that Visual Steps may review and publish your contribution.' });
   if (['news', 'advertisement'].includes(contributionType) && !sourceUrl) return res.status(400).json({ error: contributionType === 'news' ? 'News submissions require a trustworthy source link.' : 'Advertisements require a destination link.' });
   if (sourceUrl) { try { const parsed = new URL(sourceUrl); if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error(); } catch { return res.status(400).json({ error: 'Enter a valid source link beginning with http:// or https://.' }); } }
+  if (submissionId) {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(submissionId)) return res.status(400).json({ error: 'Choose a valid submission to revise.' });
+    const { data, error } = await getAdminSupabaseClient().from('newsletter_community_submissions').update({
+      contribution_type: contributionType, title, content, display_name: displayName,
+      source_url: sourceUrl, consent_to_publish: true, status: 'pending',
+      submitted_at: new Date().toISOString(), reviewed_at: null,
+    }).eq('id', submissionId).eq('user_id', req.user.id).select('id').maybeSingle();
+    if (error) return res.status(500).json({ error: 'Unable to resubmit this contribution.' });
+    if (!data) return res.status(404).json({ error: 'This submission was not found.' });
+    return res.json({ message: 'Updated and resubmitted for review. Previously published newsletters remain unchanged.' });
+  }
   const supabase = getSupabaseForUser(req);
   const { error } = await supabase.from('newsletter_community_submissions').insert({ user_id: req.user.id, contribution_type: contributionType, title, content, display_name: displayName, source_url: sourceUrl, consent_to_publish: true, status: 'pending' });
   if (error) return res.status(500).json({ error: 'Unable to submit this contribution.' });
@@ -1634,7 +1660,7 @@ app.patch('/api/newsletter/admin/submissions/:id', authenticateToken, requireNew
   const content = String(req.body?.content || '').trim();
   const displayName = String(req.body?.displayName || '').trim();
   const sourceUrl = String(req.body?.sourceUrl || '').trim() || null;
-  if (!['approved', 'rejected'].includes(status) || title.length < 3 || title.length > 120 || content.length < 20 || content.length > 2000 || displayName.length < 2 || displayName.length > 80) {
+  if (!['approved', 'rejected'].includes(status) || title.length < 3 || title.length > 120 || content.length < 20 || content.length > 10000 || displayName.length < 2 || displayName.length > 80) {
     return res.status(400).json({ error: 'Review details are incomplete or invalid' });
   }
   if (sourceUrl) { try { const parsed = new URL(sourceUrl); if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error(); } catch { return res.status(400).json({ error: 'Enter a valid source link' }); } }
