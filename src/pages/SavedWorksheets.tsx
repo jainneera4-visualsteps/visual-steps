@@ -7,6 +7,7 @@ import { ArrowLeft, FileText, Trash2, Sparkles, Eye, Edit2, HelpCircle, Loader2 
 import { Tooltip } from '../components/ui/Tooltip';
 import { Pagination } from '../components/Pagination';
 import { SampleLearningContent } from '../components/SampleLearningContent';
+import { usePageSelection } from '../hooks/usePageSelection';
 
 interface Worksheet {
   id: string;
@@ -36,6 +37,7 @@ export default function SavedWorksheets() {
 
   const totalPages = Math.ceil(worksheets.length / itemsPerPage) || 1;
   const paginatedWorksheets = worksheets.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const selection = usePageSelection(paginatedWorksheets.map(worksheet => worksheet.id));
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -88,6 +90,16 @@ export default function SavedWorksheets() {
     }
   };
 
+  const deleteSelected = async () => {
+    const ids = selection.selectedIds;
+    if (!ids.length || !window.confirm(`Delete ${ids.length} selected ${ids.length === 1 ? 'worksheet' : 'worksheets'}? This cannot be undone.`)) return;
+    const results = await Promise.all(ids.map(async id => ({ id, response: await apiFetch(`/api/worksheets/${encodeURIComponent(id)}`, { method: 'DELETE' }) })));
+    const deleted = results.filter(result => result.response.ok).map(result => result.id);
+    setWorksheets(current => current.filter(worksheet => !deleted.includes(worksheet.id)));
+    selection.removeSelected(deleted);
+    if (deleted.length !== ids.length) alert(`${ids.length - deleted.length} selected ${ids.length - deleted.length === 1 ? 'worksheet was' : 'worksheets were'} not deleted.`);
+  };
+
   return (
     <div className="space-y-6 w-full pb-10">
       <div className="mb-6">
@@ -127,12 +139,14 @@ export default function SavedWorksheets() {
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-3"><p className="text-sm font-bold text-slate-600">{selection.selectedIds.length} selected</p><Button size="sm" variant="danger" disabled={!selection.selectedIds.length} onClick={() => void deleteSelected()}><Trash2 className="mr-2 h-4 w-4"/>Delete selected</Button></div>
           <Pagination currentPage={currentPage} totalPages={totalPages} pageSize={itemsPerPage} onPageChange={setCurrentPage} onPageSizeChange={(size) => { setItemsPerPage(size); setCurrentPage(1); }} />
 
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/50">
+                  <th className="px-4 py-3"><input type="checkbox" aria-label="Select all worksheets on this page" checked={selection.allPageSelected} ref={input => { if (input) input.indeterminate = selection.somePageSelected && !selection.allPageSelected; }} onChange={event => selection.togglePage(event.target.checked)}/></th>
                   <th className="px-4 py-3">
                     <div className="flex items-center gap-1.5">
                       <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Kid Name</span>
@@ -186,6 +200,7 @@ export default function SavedWorksheets() {
               <tbody>
                 {paginatedWorksheets.map((worksheet) => (
                   <tr key={worksheet.id} className="group hover:bg-slate-50/80 transition-colors border-b border-slate-100 last:border-0">
+                    <td className="px-4 py-3"><input type="checkbox" aria-label={`Select ${worksheet.title}`} checked={selection.selectedSet.has(worksheet.id)} onChange={event => selection.toggleOne(worksheet.id, event.target.checked)}/></td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         {worksheet.kid_id && kids[worksheet.kid_id] ? (

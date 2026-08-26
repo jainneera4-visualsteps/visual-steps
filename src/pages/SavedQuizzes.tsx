@@ -7,6 +7,7 @@ import { ArrowLeft, Gamepad2, Trash2, Plus, Pencil, HelpCircle, Eye } from 'luci
 import { Tooltip } from '../components/ui/Tooltip';
 import { Pagination } from '../components/Pagination';
 import { SampleLearningContent } from '../components/SampleLearningContent';
+import { usePageSelection } from '../hooks/usePageSelection';
 
 export default function SavedQuizzes() {
   const navigate = useNavigate();
@@ -24,6 +25,7 @@ export default function SavedQuizzes() {
 
   const totalPages = Math.ceil(quizzes.length / itemsPerPage) || 1;
   const paginatedQuizzes = quizzes.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const selection = usePageSelection(paginatedQuizzes.map(quiz => quiz.id));
 
   const fetchQuizzes = async () => {
     setError(null);
@@ -75,6 +77,16 @@ export default function SavedQuizzes() {
     } catch (err) {
       console.error('Failed to delete quiz', err);
     }
+  };
+
+  const deleteSelected = async () => {
+    const ids = selection.selectedIds;
+    if (!ids.length || !window.confirm(`Delete ${ids.length} selected ${ids.length === 1 ? 'quiz' : 'quizzes'}? This cannot be undone.`)) return;
+    const results = await Promise.all(ids.map(async id => ({ id, response: await apiFetch(`/api/quizzes/${encodeURIComponent(id)}`, { method: 'DELETE' }) })));
+    const deleted = results.filter(result => result.response.ok).map(result => result.id);
+    setQuizzes(current => current.filter(quiz => !deleted.includes(quiz.id)));
+    selection.removeSelected(deleted);
+    if (deleted.length !== ids.length) setError(`${ids.length - deleted.length} selected ${ids.length - deleted.length === 1 ? 'quiz was' : 'quizzes were'} not deleted.`);
   };
 
   if (isLoading) {
@@ -135,12 +147,14 @@ export default function SavedQuizzes() {
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-3"><p className="text-sm font-bold text-slate-600">{selection.selectedIds.length} selected</p><Button size="sm" variant="danger" disabled={!selection.selectedIds.length} onClick={() => void deleteSelected()}><Trash2 className="mr-2 h-4 w-4"/>Delete selected</Button></div>
           <Pagination currentPage={currentPage} totalPages={totalPages} pageSize={itemsPerPage} onPageChange={setCurrentPage} onPageSizeChange={(size) => { setItemsPerPage(size); setCurrentPage(1); }} />
 
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50/50">
+                    <th className="px-4 py-3"><input type="checkbox" aria-label="Select all quizzes on this page" checked={selection.allPageSelected} ref={input => { if (input) input.indeterminate = selection.somePageSelected && !selection.allPageSelected; }} onChange={event => selection.togglePage(event.target.checked)}/></th>
                     <th className="px-4 py-3">
                       <div className="flex items-center gap-1.5">
                         <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Kid Name</span>
@@ -197,6 +211,7 @@ export default function SavedQuizzes() {
                     const kid = kids[quiz.kid_id];
                     return (
                       <tr key={quiz.id} className="group hover:bg-slate-50/80 transition-colors border-b border-slate-100 last:border-0">
+                        <td className="px-4 py-3"><input type="checkbox" aria-label={`Select ${quiz.title}`} checked={selection.selectedSet.has(quiz.id)} onChange={event => selection.toggleOne(quiz.id, event.target.checked)}/></td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             {kid?.avatar ? (

@@ -77,6 +77,7 @@ export default function ActivityLibrary() {
   const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false);
   const [predefinedType, setPredefinedType] = useState<string>('');
   const [predefinedId, setPredefinedId] = useState<string>('');
+  const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
   
   const [formData, setFormData] = useState({
     activityType: '',
@@ -142,6 +143,23 @@ export default function ActivityLibrary() {
     } catch (error) {
       console.error('Failed to delete template', error);
     }
+  };
+
+  const handleDeleteSelectedTemplates = async () => {
+    if (selectedTemplateIds.length === 0 || !window.confirm(`Delete ${selectedTemplateIds.length} selected library ${selectedTemplateIds.length === 1 ? 'item' : 'items'}?`)) return;
+    const results = await Promise.all(selectedTemplateIds.map(async id => {
+      try {
+        const response = await apiFetch(`/api/activity-templates/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        return { id, ok: response.ok };
+      } catch {
+        return { id, ok: false };
+      }
+    }));
+    const deletedIds = new Set(results.filter(result => result.ok).map(result => result.id));
+    setTemplates(current => current.filter(template => !deletedIds.has(template.id)));
+    setSelectedTemplateIds(current => current.filter(id => !deletedIds.has(id)));
+    const failed = results.length - deletedIds.size;
+    if (failed > 0) alert(`${failed} selected library ${failed === 1 ? 'item could' : 'items could'} not be deleted.`);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -774,7 +792,33 @@ export default function ActivityLibrary() {
           </Button>
         </div>
       ) : (
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+              <input
+                type="checkbox"
+                aria-label="Select all visible library items"
+                checked={filteredTemplates.length > 0 && filteredTemplates.every(template => selectedTemplateIds.includes(template.id))}
+                ref={element => {
+                  if (element) {
+                    const count = filteredTemplates.filter(template => selectedTemplateIds.includes(template.id)).length;
+                    element.indeterminate = count > 0 && count < filteredTemplates.length;
+                  }
+                }}
+                onChange={event => {
+                  const visibleIds = filteredTemplates.map(template => template.id);
+                  setSelectedTemplateIds(current => event.target.checked
+                    ? Array.from(new Set([...current, ...visibleIds]))
+                    : current.filter(id => !visibleIds.includes(id)));
+                }}
+              />
+              Select all visible ({selectedTemplateIds.length} selected)
+            </label>
+            <Button variant="danger" size="xs" disabled={selectedTemplateIds.length === 0} onClick={handleDeleteSelectedTemplates}>
+              <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete selected
+            </Button>
+          </div>
+          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
           {filteredTemplates.map((template) => (
             <motion.div
               layout
@@ -782,7 +826,16 @@ export default function ActivityLibrary() {
               animate={{ opacity: 1, scale: 1 }}
               key={template.id}
             >
-              <Card className="group border-none shadow-xl hover:shadow-2xl hover:shadow-brand-500/10 transition-all duration-500 bg-white hover:-translate-y-2 rounded-[3rem] overflow-hidden flex flex-col h-full ring-1 ring-slate-100">
+              <Card className="group relative border-none shadow-xl hover:shadow-2xl hover:shadow-brand-500/10 transition-all duration-500 bg-white hover:-translate-y-2 rounded-[3rem] overflow-hidden flex flex-col h-full ring-1 ring-slate-100">
+                <input
+                  type="checkbox"
+                  aria-label={`Select ${template.activity_type}`}
+                  checked={selectedTemplateIds.includes(template.id)}
+                  onChange={event => setSelectedTemplateIds(current => event.target.checked
+                    ? Array.from(new Set([...current, template.id]))
+                    : current.filter(id => id !== template.id))}
+                  className="absolute right-6 top-6 z-20 h-5 w-5 rounded border-white bg-white text-brand-600 shadow"
+                />
                 <div className="relative h-48 overflow-hidden">
                   {template.image_url ? (
                     <img src={template.image_url} alt={template.activity_type} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" referrerPolicy="no-referrer" />
@@ -870,6 +923,7 @@ export default function ActivityLibrary() {
               </Card>
             </motion.div>
           ))}
+          </div>
         </div>
       )}
     </div>

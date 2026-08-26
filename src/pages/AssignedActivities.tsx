@@ -153,6 +153,7 @@ export default function AssignedActivities() {
   const [activityToDelete, setActivityToDelete] = useState<string | null>(null);
   const [locationFilter, setLocationFilter] = useState('');
   const [rewardToDelete, setRewardToDelete] = useState<string | null>(null);
+  const [selectedRewardIds, setSelectedRewardIds] = useState<string[]>([]);
   const [newReward, setNewReward] = useState({ name: '', cost: 1, imageUrl: '', location: '', is_active: true });
   const [editingReward, setEditingReward] = useState<RewardItem | null>(null);
   const [isSavingReward, setIsSavingReward] = useState(false);
@@ -170,6 +171,7 @@ export default function AssignedActivities() {
   const [quizResultsPage, setQuizResultsPage] = useState(1);
   const [quizResultsItemsPerPage, setQuizResultsItemsPerPage] = useState(10);
   const [deletingQuizResultId, setDeletingQuizResultId] = useState<string | null>(null);
+  const [selectedQuizResultIds, setSelectedQuizResultIds] = useState<string[]>([]);
   const [viewingQuizResult, setViewingQuizResult] = useState<any | null>(null);
 
   useEffect(() => {
@@ -202,6 +204,11 @@ export default function AssignedActivities() {
   const [historySearchQuery, setHistorySearchQuery] = useState('');
   const [historyDateFilter, setHistoryDateFilter] = useState('');
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([]);
+  const [selectedActivityIds, setSelectedActivityIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    setSelectedActivityIds([]);
+  }, [activeTab]);
 
   const rewardImages: Record<string, string> = {
     'Penny': 'https://cdn-icons-png.flaticon.com/512/2489/2489756.png',
@@ -260,6 +267,25 @@ export default function AssignedActivities() {
         : activeTab === 'ended'
           ? activities.filter(a => a.status === 'ended')
       : historyActivities;
+
+  const visibleActivityRows = (() => {
+    const filtered = activitiesToRender.filter(activity => !selectedDate || activity.due_date === selectedDate);
+    const sorted = [...filtered].sort((a, b) => {
+      if (!activitiesSortConfig.key) {
+        if (a.status === b.status) return 0;
+        return a.status === 'completed' ? 1 : -1;
+      }
+      const aValue = a[activitiesSortConfig.key];
+      const bValue = b[activitiesSortConfig.key];
+      if (aValue === bValue) return 0;
+      const comparison = aValue! < bValue! ? -1 : 1;
+      return activitiesSortConfig.direction === 'asc' ? comparison : -comparison;
+    });
+    return sorted.slice((activitiesPage - 1) * activitiesItemsPerPage, activitiesPage * activitiesItemsPerPage);
+  })();
+  const visibleRewardItems = rewardItems
+    .filter(item => !locationFilter || item.location === locationFilter)
+    .sort((a, b) => Number(b.is_active !== false) - Number(a.is_active !== false) || a.cost - b.cost);
 
   const fixedBuiltInActivities = [
     {
@@ -1253,6 +1279,23 @@ export default function AssignedActivities() {
     }
   };
 
+  const deleteSelectedActivities = async () => {
+    if (selectedActivityIds.length === 0 || !window.confirm(`Delete ${selectedActivityIds.length} selected ${selectedActivityIds.length === 1 ? 'activity' : 'activities'}?`)) return;
+    const results = await Promise.all(selectedActivityIds.map(async id => {
+      try {
+        const response = await apiFetch(`/api/activities/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        return { id, ok: response.ok };
+      } catch {
+        return { id, ok: false };
+      }
+    }));
+    const deletedIds = new Set(results.filter(result => result.ok).map(result => result.id));
+    setActivities(current => current.filter(activity => !deletedIds.has(activity.id)));
+    setSelectedActivityIds(current => current.filter(id => !deletedIds.has(id)));
+    const failed = results.length - deletedIds.size;
+    if (failed > 0) alert(`${failed} selected ${failed === 1 ? 'activity could' : 'activities could'} not be deleted.`);
+  };
+
   const handleSaveReward = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newReward.name || newReward.cost <= 0) return;
@@ -1319,6 +1362,23 @@ export default function AssignedActivities() {
     } catch (error) {
       console.error('Failed to delete reward', error);
     }
+  };
+
+  const deleteSelectedRewards = async () => {
+    if (selectedRewardIds.length === 0 || !window.confirm(`Delete ${selectedRewardIds.length} selected reward ${selectedRewardIds.length === 1 ? 'item' : 'items'}?`)) return;
+    const results = await Promise.all(selectedRewardIds.map(async id => {
+      try {
+        const response = await apiFetch(`/api/reward-items/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        return { id, ok: response.ok };
+      } catch {
+        return { id, ok: false };
+      }
+    }));
+    const deletedIds = new Set(results.filter(result => result.ok).map(result => result.id));
+    setRewardItems(current => current.filter(item => !deletedIds.has(item.id)));
+    setSelectedRewardIds(current => current.filter(id => !deletedIds.has(id)));
+    const failed = results.length - deletedIds.size;
+    if (failed > 0) alert(`${failed} selected reward ${failed === 1 ? 'item could' : 'items could'} not be deleted.`);
   };
 
   const toggleStatus = async (activity: Activity) => {
@@ -1703,10 +1763,36 @@ export default function AssignedActivities() {
               <p className="text-xs mt-1">{selectedDate ? 'Try selecting another date or clear the filter.' : `Activities marked ${statusLabel} will appear here.`}</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/70 px-4 py-3">
+                <span className="text-sm font-semibold text-slate-600">{selectedActivityIds.length} selected</span>
+                <Button variant="danger" size="xs" disabled={selectedActivityIds.length === 0} onClick={deleteSelectedActivities}>
+                  <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete selected
+                </Button>
+              </div>
+              <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
                 <thead className="text-xs text-slate-500 bg-slate-50 uppercase border-y border-slate-200">
                   <tr>
+                    <th className="w-12 px-4 py-3">
+                      <input
+                        type="checkbox"
+                        aria-label={`Select all ${statusLabel} activities on this page`}
+                        checked={paginatedCompleted.length > 0 && paginatedCompleted.every(activity => selectedActivityIds.includes(activity.id))}
+                        ref={element => {
+                          if (element) {
+                            const count = paginatedCompleted.filter(activity => selectedActivityIds.includes(activity.id)).length;
+                            element.indeterminate = count > 0 && count < paginatedCompleted.length;
+                          }
+                        }}
+                        onChange={event => {
+                          const pageIds = paginatedCompleted.map(activity => activity.id);
+                          setSelectedActivityIds(current => event.target.checked
+                            ? Array.from(new Set([...current, ...pageIds]))
+                            : current.filter(id => !pageIds.includes(id)));
+                        }}
+                      />
+                    </th>
                     <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortCompleted('status')}>
                       <div className="flex items-center gap-1.5">
                         <span>Status</span>
@@ -1852,6 +1938,16 @@ export default function AssignedActivities() {
                   {paginatedCompleted.map((activity) => (
                     <tr key={activity.id} className="hover:bg-slate-50 transition-colors bg-white">
                       <td className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          aria-label={`Select ${activity.activity_type}`}
+                          checked={selectedActivityIds.includes(activity.id)}
+                          onChange={event => setSelectedActivityIds(current => event.target.checked
+                            ? Array.from(new Set([...current, activity.id]))
+                            : current.filter(id => id !== activity.id))}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
                         <div className={status === 'completed' ? 'text-emerald-500' : status === 'on_hold' ? 'text-amber-500' : 'text-slate-500'}>
                           {status === 'completed' ? <CheckCircle className="h-5 w-5" /> : status === 'on_hold' ? <PauseCircle className="h-5 w-5" /> : <Ban className="h-5 w-5" />}
                         </div>
@@ -1928,6 +2024,7 @@ export default function AssignedActivities() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </CardContent>
@@ -1968,6 +2065,25 @@ export default function AssignedActivities() {
       }
     };
 
+    const deleteSelectedQuizResults = async () => {
+      if (selectedQuizResultIds.length === 0 || !window.confirm(`Delete ${selectedQuizResultIds.length} selected quiz ${selectedQuizResultIds.length === 1 ? 'result' : 'results'}? This cannot be undone.`)) return;
+      setDeletingQuizResultId('bulk');
+      const results = await Promise.all(selectedQuizResultIds.map(async id => {
+        try {
+          const response = await apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/quiz-results/${encodeURIComponent(id)}`, { method: 'DELETE' });
+          return { id, ok: response.ok };
+        } catch {
+          return { id, ok: false };
+        }
+      }));
+      const deletedIds = new Set(results.filter(result => result.ok).map(result => result.id));
+      setQuizResults(current => current.filter(result => !deletedIds.has(result.id)));
+      setSelectedQuizResultIds(current => current.filter(id => !deletedIds.has(id)));
+      setDeletingQuizResultId(null);
+      const failed = results.length - deletedIds.size;
+      if (failed > 0) alert(`${failed} selected quiz ${failed === 1 ? 'result could' : 'results could'} not be deleted.`);
+    };
+
     return (
       <Card className="border-none ring-1 ring-slate-200 shadow-sm">
         <CardContent className="p-0">
@@ -1992,6 +2108,12 @@ export default function AssignedActivities() {
               </div>
             )}
           </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/70 px-4 py-3">
+            <span className="text-sm font-semibold text-slate-600">{selectedQuizResultIds.length} selected</span>
+            <Button variant="danger" size="xs" disabled={selectedQuizResultIds.length === 0 || deletingQuizResultId === 'bulk'} onClick={() => void deleteSelectedQuizResults()}>
+              {deletingQuizResultId === 'bulk' ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1 h-3.5 w-3.5" />} Delete selected
+            </Button>
+          </div>
 
           {oldResultCount > 0 && (
             <div className="border-b border-amber-100 bg-amber-50 px-4 py-3 text-xs text-amber-900">
@@ -2014,6 +2136,25 @@ export default function AssignedActivities() {
                 <table className="w-full text-left text-sm">
                   <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
                     <tr>
+                      <th className="w-12 px-4 py-3">
+                        <input
+                          type="checkbox"
+                          aria-label="Select all quiz results on this page"
+                          checked={paginatedResults.length > 0 && paginatedResults.every(result => selectedQuizResultIds.includes(result.id))}
+                          ref={element => {
+                            if (element) {
+                              const count = paginatedResults.filter(result => selectedQuizResultIds.includes(result.id)).length;
+                              element.indeterminate = count > 0 && count < paginatedResults.length;
+                            }
+                          }}
+                          onChange={event => {
+                            const pageIds = paginatedResults.map(result => result.id);
+                            setSelectedQuizResultIds(current => event.target.checked
+                              ? Array.from(new Set([...current, ...pageIds]))
+                              : current.filter(id => !pageIds.includes(id)));
+                          }}
+                        />
+                      </th>
                       <th className="px-4 py-3 font-bold">Quiz</th>
                       <th className="px-4 py-3 font-bold">Score</th>
                       <th className="px-4 py-3 font-bold">Accuracy</th>
@@ -2028,6 +2169,16 @@ export default function AssignedActivities() {
                       const accuracy = total > 0 ? Math.round((score / total) * 100) : 0;
                       return (
                         <tr key={result.id} className="transition-colors hover:bg-slate-50">
+                          <td className="px-4 py-3">
+                            <input
+                              type="checkbox"
+                              aria-label={`Select result for ${result.quizzes?.title || 'quiz'}`}
+                              checked={selectedQuizResultIds.includes(result.id)}
+                              onChange={event => setSelectedQuizResultIds(current => event.target.checked
+                                ? Array.from(new Set([...current, result.id]))
+                                : current.filter(id => id !== result.id))}
+                            />
+                          </td>
                           <td className="px-4 py-3 font-bold text-slate-900">{result.quizzes?.title || 'Quiz'}</td>
                           <td className="px-4 py-3 text-slate-700">{score} / {total}</td>
                           <td className="px-4 py-3">
@@ -2343,6 +2494,12 @@ export default function AssignedActivities() {
                     </Button>
                   </div>
                 )}
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/70 px-4 py-3">
+                  <span className="text-sm font-semibold text-slate-600">{selectedActivityIds.length} selected</span>
+                  <Button variant="danger" size="xs" disabled={selectedActivityIds.length === 0} onClick={deleteSelectedActivities}>
+                    <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete selected
+                  </Button>
+                </div>
                 {(() => {
                   const filteredCount = activitiesToRender.filter(a => !selectedDate || a.due_date === selectedDate).length;
                   const totalActivitiesPages = Math.ceil(filteredCount / activitiesItemsPerPage);
@@ -2395,6 +2552,26 @@ export default function AssignedActivities() {
                   <table className="w-full text-sm text-left">
                     <thead className="text-xs text-slate-500 bg-slate-50 uppercase border-y border-slate-200">
                     <tr>
+                      <th className="w-12 px-4 py-3">
+                        <input
+                          type="checkbox"
+                          aria-label="Select all activities on this page"
+                          checked={visibleActivityRows.length > 0 && visibleActivityRows.every(activity => selectedActivityIds.includes(activity.id))}
+                          ref={element => {
+                            if (element) {
+                              const selectedOnPage = visibleActivityRows.filter(activity => selectedActivityIds.includes(activity.id)).length;
+                              element.indeterminate = selectedOnPage > 0 && selectedOnPage < visibleActivityRows.length;
+                            }
+                          }}
+                          onChange={event => {
+                            const pageIds = visibleActivityRows.map(activity => activity.id);
+                            setSelectedActivityIds(current => event.target.checked
+                              ? Array.from(new Set([...current, ...pageIds]))
+                              : current.filter(id => !pageIds.includes(id)));
+                          }}
+                          className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                        />
+                      </th>
                       <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSort('status')}>
                         <div className="flex items-center gap-1.5">
                           <span>Status</span>
@@ -2517,26 +2694,19 @@ export default function AssignedActivities() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {(() => {
-                      const filtered = activitiesToRender.filter(a => !selectedDate || a.due_date === selectedDate);
-                      
-                      const sorted = [...filtered].sort((a, b) => {
-                        if (!activitiesSortConfig.key) {
-                          if (a.status === b.status) return 0;
-                          return a.status === 'completed' ? 1 : -1;
-                        }
-                        const aValue = a[activitiesSortConfig.key];
-                        const bValue = b[activitiesSortConfig.key];
-                        if (aValue === bValue) return 0;
-                        const comparison = aValue! < bValue! ? -1 : 1;
-                        return activitiesSortConfig.direction === 'asc' ? comparison : -comparison;
-                      });
-
-                      const totalActivitiesPages = Math.ceil(sorted.length / activitiesItemsPerPage);
-                      const paginated = sorted.slice((activitiesPage - 1) * activitiesItemsPerPage, activitiesPage * activitiesItemsPerPage);
-
-                      return paginated.map((activity) => (
+                    {visibleActivityRows.map((activity) => (
                       <tr key={activity.id} className={`hover:bg-slate-50 transition-colors ${activity.status === 'completed' ? 'bg-slate-50 opacity-75' : 'bg-white'}`}>
+                        <td className="px-4 py-3">
+                          <input
+                            type="checkbox"
+                            aria-label={`Select ${activity.activity_type}`}
+                            checked={selectedActivityIds.includes(activity.id)}
+                            onChange={event => setSelectedActivityIds(current => event.target.checked
+                              ? Array.from(new Set([...current, activity.id]))
+                              : current.filter(id => id !== activity.id))}
+                            className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                          />
+                        </td>
                         <td className="px-4 py-3">
                           <button 
                             onClick={() => {
@@ -2625,8 +2795,7 @@ export default function AssignedActivities() {
                           </div>
                         </td>
                       </tr>
-                    ));
-                    })()}
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -2835,14 +3004,22 @@ export default function AssignedActivities() {
                             <div className="flex items-center gap-2">
                               <input
                                 type="checkbox"
-                                checked={selectedHistoryIds.length === filteredHistory.length && filteredHistory.length > 0}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setSelectedHistoryIds(filteredHistory.map(a => a.id));
-                                  } else {
-                                    setSelectedHistoryIds([]);
+                                checked={paginatedHistory.length > 0 && paginatedHistory.every(activity => selectedHistoryIds.includes(activity.id))}
+                                ref={(element) => {
+                                  if (element) {
+                                    const selectedOnPage = paginatedHistory.filter(activity => selectedHistoryIds.includes(activity.id)).length;
+                                    element.indeterminate = selectedOnPage > 0 && selectedOnPage < paginatedHistory.length;
                                   }
                                 }}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedHistoryIds(current => Array.from(new Set([...current, ...paginatedHistory.map(activity => activity.id)])));
+                                  } else {
+                                    const pageIds = new Set(paginatedHistory.map(activity => activity.id));
+                                    setSelectedHistoryIds(current => current.filter(id => !pageIds.has(id)));
+                                  }
+                                }}
+                                aria-label="Select all activity history rows on this page"
                               />
                               <button
                                 type="button"
@@ -3096,12 +3273,43 @@ export default function AssignedActivities() {
                   <Button size="xs" className="h-9" onClick={() => setIsRewardModalOpen(true)}><Plus className="mr-1 h-3.5 w-3.5" /> Add Reward Item</Button>
                 </div>
               </div>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                  <input
+                    type="checkbox"
+                    aria-label="Select all visible reward items"
+                    checked={visibleRewardItems.length > 0 && visibleRewardItems.every(item => selectedRewardIds.includes(item.id))}
+                    ref={element => {
+                      if (element) {
+                        const count = visibleRewardItems.filter(item => selectedRewardIds.includes(item.id)).length;
+                        element.indeterminate = count > 0 && count < visibleRewardItems.length;
+                      }
+                    }}
+                    onChange={event => {
+                      const visibleIds = visibleRewardItems.map(item => item.id);
+                      setSelectedRewardIds(current => event.target.checked
+                        ? Array.from(new Set([...current, ...visibleIds]))
+                        : current.filter(id => !visibleIds.includes(id)));
+                    }}
+                  />
+                  Select all visible ({selectedRewardIds.length} selected)
+                </label>
+                <Button variant="danger" size="xs" disabled={selectedRewardIds.length === 0} onClick={deleteSelectedRewards}>
+                  <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete selected
+                </Button>
+              </div>
               <div className="grid gap-3 md:grid-cols-2">
-            {rewardItems
-              .filter(item => !locationFilter || item.location === locationFilter)
-              .sort((a, b) => Number(b.is_active !== false) - Number(a.is_active !== false) || a.cost - b.cost)
-              .map((item) => (
-              <Card key={item.id} className="overflow-hidden border-slate-200 shadow-sm hover:shadow-md transition-shadow bg-green-50">
+            {visibleRewardItems.map((item) => (
+              <Card key={item.id} className="relative overflow-hidden border-slate-200 shadow-sm hover:shadow-md transition-shadow bg-green-50">
+                <input
+                  type="checkbox"
+                  aria-label={`Select ${item.name}`}
+                  checked={selectedRewardIds.includes(item.id)}
+                  onChange={event => setSelectedRewardIds(current => event.target.checked
+                    ? Array.from(new Set([...current, item.id]))
+                    : current.filter(id => id !== item.id))}
+                  className="absolute left-2 top-2 z-10 h-4 w-4 rounded border-slate-300 bg-white text-blue-600 shadow"
+                />
                 <CardContent className="p-0">
                   <div className="flex h-28">
                     <div className="h-28 w-28 flex-shrink-0 bg-slate-100 border-r border-slate-100">
@@ -3155,7 +3363,7 @@ export default function AssignedActivities() {
                 </CardContent>
               </Card>
             ))}
-            {rewardItems.filter(item => !locationFilter || item.location === locationFilter).length === 0 && (
+            {visibleRewardItems.length === 0 && (
               <div className="col-span-full py-12 text-center rounded-lg border-2 border-dashed border-slate-200 bg-slate-50">
                 <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
                   <Sparkles className="h-6 w-6 text-slate-400" />

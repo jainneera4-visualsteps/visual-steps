@@ -9,6 +9,7 @@ import { Pagination } from '../components/Pagination';
 import { Tooltip } from '../components/ui/Tooltip';
 import { SocialStoryModal } from '../components/SocialStoryModal';
 import { SampleLearningContent } from '../components/SampleLearningContent';
+import { usePageSelection } from '../hooks/usePageSelection';
 
 interface SocialStory {
   id: string;
@@ -46,6 +47,7 @@ export default function SocialStories() {
 
   const totalPages = Math.ceil(stories.length / itemsPerPage) || 1;
   const paginatedStories = stories.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const selection = usePageSelection(paginatedStories.map(story => story.id));
 
   const fetchStories = async () => {
     setError(null);
@@ -364,6 +366,24 @@ export default function SocialStories() {
     }
   };
 
+  const deleteSelectedStories = async () => {
+    const ids = Array.from(selection.selectedSet);
+    if (ids.length === 0 || !window.confirm(`Delete ${ids.length} selected ${ids.length === 1 ? 'story' : 'stories'}?`)) return;
+    const results = await Promise.all(ids.map(async id => {
+      try {
+        const response = await apiFetch(`/api/social-stories/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        return { id, ok: response.ok };
+      } catch {
+        return { id, ok: false };
+      }
+    }));
+    const deletedIds = results.filter(result => result.ok).map(result => result.id);
+    setStories(current => current.filter(story => !deletedIds.includes(story.id)));
+    selection.removeSelected(deletedIds);
+    const failed = results.length - deletedIds.length;
+    if (failed > 0) setError(`${failed} selected ${failed === 1 ? 'story could' : 'stories could'} not be deleted.`);
+  };
+
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -422,12 +442,28 @@ export default function SocialStories() {
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/70 px-4 py-3">
+            <span className="text-sm font-semibold text-slate-600">{selection.selectedSet.size} selected</span>
+            <Button variant="danger" size="xs" disabled={selection.selectedSet.size === 0} onClick={deleteSelectedStories}>
+              <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete selected
+            </Button>
+          </div>
           <Pagination currentPage={currentPage} totalPages={totalPages} pageSize={itemsPerPage} onPageChange={setCurrentPage} onPageSizeChange={(size) => { setItemsPerPage(size); setCurrentPage(1); }} />
 
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50/50">
+                    <th className="w-12 px-4 py-3">
+                      <input
+                        type="checkbox"
+                        aria-label="Select all social stories on this page"
+                        checked={selection.allPageSelected}
+                        ref={element => { if (element) element.indeterminate = selection.somePageSelected; }}
+                        onChange={event => selection.togglePage(event.target.checked)}
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                      />
+                    </th>
                     <th className="px-4 py-3">
                       <div className="flex items-center gap-1.5">
                         <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Kid Name</span>
@@ -477,6 +513,15 @@ export default function SocialStories() {
                     const kid = kids[story.kid_id || ''];
                     return (
                       <tr key={story.id} className="group hover:bg-slate-50/80 transition-colors border-b border-slate-100 last:border-0">
+                        <td className="px-4 py-3">
+                          <input
+                            type="checkbox"
+                            aria-label={`Select ${story.title}`}
+                            checked={selection.selectedSet.has(story.id)}
+                            onChange={event => selection.toggleOne(story.id, event.target.checked)}
+                            className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                          />
+                        </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             {kid?.avatar ? (
