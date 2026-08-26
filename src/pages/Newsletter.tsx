@@ -54,7 +54,37 @@ export default function Newsletter(){
   return null;
 }
 
-function CommunitySubmission({user,post,setPost,submit,busy}:{user:any;post:any;setPost:(value:any)=>void;submit:(event:FormEvent)=>Promise<void>;busy:boolean}){return <section className="surface w-full max-w-4xl p-7 sm:p-10"><h1 className="text-3xl font-black sm:text-4xl">Share with the community</h1><p className="mt-3 text-sm leading-7 text-slate-600">Signed-in parents may submit autism-related stories, news, information, tips, testimonials, or mission-aligned advertisements. Everything is reviewed before publication. Content must be non-medical and non-clinical, and must never include identifying information about an autistic person.</p>{user?<form onSubmit={submit} className="mt-6 grid gap-4 md:grid-cols-2"><Select label="Type" value={post.contributionType} onChange={e=>setPost({...post,contributionType:e.target.value})}>{['story','news','information','tip','testimonial','advertisement'].map(type=><option key={type}>{type}</option>)}</Select><Input label="Public display name or advertiser" value={post.displayName} onChange={e=>setPost({...post,displayName:e.target.value})} placeholder="First name, initials, organization, or Visual Steps parent" required/><Input label="Title" value={post.title} onChange={e=>setPost({...post,title:e.target.value})} required className="md:col-span-2"/><Input label="Source or destination link (required for news and ads)" type="url" value={post.sourceUrl} onChange={e=>setPost({...post,sourceUrl:e.target.value})} className="md:col-span-2"/><Textarea label="Content" rows={7} value={post.content} onChange={e=>setPost({...post,content:e.target.value})} required className="md:col-span-2"/><label className="flex gap-3 text-sm md:col-span-2"><input type="checkbox" checked={post.consentToPublish} onChange={e=>setPost({...post,consentToPublish:e.target.checked})} required/><span>I created or may share this content and permit Visual Steps to review, edit for clarity, and publish it.</span></label><Button disabled={busy}><Send className="mr-2 h-4 w-4"/>Submit for review</Button></form>:<p className="mt-6 rounded-xl bg-brand-50 p-4 text-sm">Sign in as a parent to submit content. Reading remains public. Organizations may also <Link to="/contact" className="font-bold underline">contact Visual Steps</Link> about a mission-aligned advertisement.</p>}</section>}
+function CommunitySubmission({user,post,setPost,submit,busy}:{user:any;post:any;setPost:(value:any)=>void;submit:(event:FormEvent)=>Promise<void>;busy:boolean}) {
+  const linkRequired = post.contributionType === 'news' || post.contributionType === 'advertisement';
+  const typeLabels: Record<string, string> = {
+    story: 'Personal story', news: 'News', information: 'Information', tip: 'Tip', testimonial: 'Testimonial', advertisement: 'Advertisement',
+  };
+
+  return <section className="surface w-full max-w-4xl p-7 sm:p-10">
+    <h1 className="text-3xl font-black sm:text-4xl">Share with the community</h1>
+    <p className="mt-3 text-sm leading-7 text-slate-600">Signed-in parents may submit autism-related stories, news, information, tips, testimonials, or mission-aligned advertisements. Everything is reviewed before publication. Content must be non-medical and non-clinical, and must never include identifying information about an autistic person.</p>
+    {user ? <form onSubmit={submit} className="mt-6 grid gap-4 md:grid-cols-2">
+      <Select label="Type" value={post.contributionType} onChange={e=>setPost({...post, contributionType:e.target.value, sourceUrl:''})}>
+        {Object.entries(typeLabels).map(([value, label])=><option key={value} value={value}>{label}</option>)}
+      </Select>
+      <Input label="Public display name or advertiser" value={post.displayName} onChange={e=>setPost({...post,displayName:e.target.value})} placeholder="First name, initials, organization, or Visual Steps parent" required/>
+      <Input label="Title" value={post.title} onChange={e=>setPost({...post,title:e.target.value})} required className="md:col-span-2"/>
+      {linkRequired && <Input
+        label={post.contributionType === 'news' ? 'Source link' : 'Advertisement destination link'}
+        type="url"
+        value={post.sourceUrl}
+        onChange={e=>setPost({...post,sourceUrl:e.target.value})}
+        placeholder="https://example.com"
+        required
+        className="md:col-span-2"
+      />}
+      {!linkRequired && <p className="md:col-span-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">No website link is needed for this type of submission.</p>}
+      <Textarea label="Content" rows={7} value={post.content} onChange={e=>setPost({...post,content:e.target.value})} required className="md:col-span-2"/>
+      <label className="flex gap-3 text-sm md:col-span-2"><input type="checkbox" checked={post.consentToPublish} onChange={e=>setPost({...post,consentToPublish:e.target.checked})} required/><span>I created or may share this content and permit Visual Steps to review, edit for clarity, and publish it.</span></label>
+      <Button disabled={busy}><Send className="mr-2 h-4 w-4"/>Submit for review</Button>
+    </form> : <p className="mt-6 rounded-xl bg-brand-50 p-4 text-sm">Sign in as a parent to submit content. Reading remains public. Organizations may also <Link to="/contact" className="font-bold underline">contact Visual Steps</Link> about a mission-aligned advertisement.</p>}
+  </section>;
+}
 
 export function IssueCard({issue}:{issue:Issue}){
   const title=(key:string,fallback:string)=>issue.section_titles?.[key]||fallback;

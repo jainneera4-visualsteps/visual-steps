@@ -41,6 +41,17 @@ test('public contact and newsletter pages keep SMTP secrets on the server', asyn
   assert.doesNotMatch(`${contact}\n${newsletter}`, /SMTP_PASS|SMTP_USER|service_role/);
 });
 
+test('community stories do not require a source link', async () => {
+  const [newsletter, server] = await Promise.all([
+    readFile(new URL('../src/pages/Newsletter.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../server.ts', import.meta.url), 'utf8'),
+  ]);
+  assert.match(newsletter, /post\.contributionType === 'news' \|\| post\.contributionType === 'advertisement'/);
+  assert.match(newsletter, /\{linkRequired && <Input/);
+  assert.match(newsletter, /No website link is needed for this type of submission/);
+  assert.match(server, /\['news', 'advertisement'\]\.includes\(contributionType\) && !sourceUrl/);
+});
+
 test('newsletter navigation groups issues by newest month and opens individual issues in a new tab', async () => {
   const [app, layout, newsletter] = await Promise.all([
     readFile(new URL('../src/App.tsx', import.meta.url), 'utf8'),
