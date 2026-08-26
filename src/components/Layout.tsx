@@ -1,7 +1,7 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from './Button';
-import { LogOut, Menu, X, Lightbulb, ChevronDown, BookOpen, FileText, Gamepad2, Activity, TrendingUp, Facebook, Instagram, Mail, Newspaper, Users, Settings, Database } from 'lucide-react';
+import { LogOut, Menu, X, Lightbulb, ChevronDown, BookOpen, FileText, Gamepad2, Activity, TrendingUp, Facebook, Instagram, Mail, Newspaper, Users, Settings, Database, ShieldCheck, BarChart3 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Tooltip } from './ui/Tooltip';
 import { ParentAssistant } from './ParentAssistant';
@@ -15,6 +15,7 @@ export function Layout() {
   const [isActivitiesOpen, setIsActivitiesOpen] = useState(false);
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
   const [isNewsletterOpen, setIsNewsletterOpen] = useState(false);
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isArchiveMonthsOpen, setIsArchiveMonthsOpen] = useState(false);
   const [isMobileArchiveOpen, setIsMobileArchiveOpen] = useState(false);
   const [newsletterMonths, setNewsletterMonths] = useState<{ value: string; label: string }[]>([]);
@@ -32,6 +33,24 @@ export function Layout() {
   }, []);
 
   useEffect(() => {
+    if (navigator.doNotTrack === '1' || location.pathname.startsWith('/admin') || location.pathname === '/newsletter-admin') return;
+    const storageKey = 'visual_steps_analytics_session';
+    let sessionId = sessionStorage.getItem(storageKey);
+    if (!sessionId) {
+      sessionId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      sessionStorage.setItem(storageKey, sessionId);
+    }
+    const width = window.innerWidth;
+    const deviceCategory = width < 640 ? 'mobile' : width < 1024 ? 'tablet' : 'desktop';
+    void fetch('/api/analytics/page-view', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pagePath: location.pathname, sessionId, referrer: document.referrer, deviceCategory }),
+      keepalive: true,
+    }).catch(() => undefined);
+  }, [location.pathname]);
+
+  useEffect(() => {
     fetch('/api/newsletters')
       .then(response => response.ok ? response.json() : Promise.reject())
       .then((issues: { issue_date?: string }[]) => {
@@ -46,7 +65,7 @@ export function Layout() {
 
   useEffect(() => {
     if (!user || isGuestSession()) { setIsNewsletterAdmin(false); return; }
-    apiFetch('/api/newsletter/admin/status', {}, 0)
+    apiFetch('/api/admin/status', {}, 0)
       .then(response => setIsNewsletterAdmin(response.ok))
       .catch(() => setIsNewsletterAdmin(false));
   }, [user]);
@@ -98,6 +117,7 @@ export function Layout() {
     else if (path === '/newsletter/subscribe') title = 'Subscribe to Visual Steps Weekly';
     else if (path === '/newsletter') title = 'Weekly Newsletter | Visual Steps';
     else if (path === '/newsletter-admin') title = 'Newsletter Administration | Visual Steps';
+    else if (path === '/admin/insights') title = 'Administrator Insights | Visual Steps';
     else if (path.startsWith('/features/')) title = 'Feature Guide | Visual Steps';
 
     document.title = title;
@@ -288,10 +308,16 @@ export function Layout() {
                   </div>}
                 </div>
                 <Link to="/newsletter/community" className="app-menu-item" onClick={() => setIsNewsletterOpen(false)}><Users size={18} className="text-emerald-600" /> Share with the community</Link>
-                {isNewsletterAdmin && <Link to="/newsletter-admin" className="app-menu-item" onClick={() => setIsNewsletterOpen(false)}><Settings size={18} className="text-violet-600" /> Manage newsletter</Link>}
                 <Link to="/newsletter/subscribe" className="app-menu-item" onClick={() => setIsNewsletterOpen(false)}><Mail size={18} className="text-blue-600"/> Subscribe</Link>
               </div>}
             </div>
+            {isNewsletterAdmin && <div className="relative">
+              <button onMouseEnter={() => setIsAdminOpen(true)} onMouseLeave={() => setIsAdminOpen(false)} onClick={() => setIsAdminOpen(value => !value)} className={`flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-semibold transition-all hover:bg-slate-100 ${location.pathname.startsWith('/admin') || location.pathname === '/newsletter-admin' ? 'bg-violet-50 text-violet-700' : 'text-slate-600'}`} aria-expanded={isAdminOpen}><ShieldCheck size={16}/> Admin <ChevronDown size={14} className={isAdminOpen ? 'rotate-180' : ''}/></button>
+              {isAdminOpen && <div onMouseEnter={() => setIsAdminOpen(true)} onMouseLeave={() => setIsAdminOpen(false)} className="app-menu absolute right-0 z-[60] mt-0 w-56">
+                <Link to="/admin/insights" className="app-menu-item" onClick={() => setIsAdminOpen(false)}><BarChart3 size={18} className="text-blue-600"/> Insights</Link>
+                <Link to="/newsletter-admin" className="app-menu-item" onClick={() => setIsAdminOpen(false)}><Settings size={18} className="text-violet-600"/> Manage newsletter</Link>
+              </div>}
+            </div>}
             <div className="h-4 w-px bg-slate-200" />
             {user ? (
               <div className="flex items-center gap-4">
@@ -381,9 +407,9 @@ export function Layout() {
                     <button type="button" className="flex items-center gap-1 text-left text-[11px] font-bold text-slate-600 uppercase" onClick={() => setIsMobileArchiveOpen(value => !value)}>Weekly archive <ChevronDown size={12} className={isMobileArchiveOpen ? 'rotate-180' : ''}/></button>
                     {isMobileArchiveOpen && newsletterMonths.map(month => <Link key={month.value} to={`/newsletter/archive/${month.value}`} className="pl-3 text-[11px] font-semibold text-slate-500" onClick={() => setIsMenuOpen(false)}>{month.label}</Link>)}
                     <Link to="/newsletter/community" className="text-[11px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Share with community</Link>
-                    {isNewsletterAdmin && <Link to="/newsletter-admin" className="text-[11px] font-bold text-violet-700 uppercase" onClick={() => setIsMenuOpen(false)}>Manage newsletter</Link>}
                     <Link to="/newsletter/subscribe" className="text-[11px] font-bold text-blue-700 uppercase" onClick={() => setIsMenuOpen(false)}>Subscribe</Link>
                   </div>
+                  {isNewsletterAdmin && <div className="flex flex-col gap-1.5 border-l-2 border-violet-100 pl-2"><span className="text-[11px] font-bold uppercase tracking-wider text-violet-700">Admin</span><Link to="/admin/insights" className="text-[11px] font-bold uppercase text-slate-600" onClick={() => setIsMenuOpen(false)}>Insights</Link><Link to="/newsletter-admin" className="text-[11px] font-bold uppercase text-slate-600" onClick={() => setIsMenuOpen(false)}>Manage newsletter</Link></div>}
                   <Link to="/contact" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Contact</Link>
                 </>
               ) : (

@@ -31,6 +31,7 @@ import Testimonials from './pages/Testimonials';
 import Contact from './pages/Contact';
 import Newsletter from './pages/Newsletter';
 import NewsletterAdmin from './pages/NewsletterAdmin';
+import AdminInsights from './pages/AdminInsights';
 import FeatureDetail from './pages/FeatureDetail';
 import DataManagement from './pages/DataManagement';
 import Legal from './pages/Legal';
@@ -86,6 +87,7 @@ export default function App() {
               <Route path="edit-quiz/:id" element={<EditQuiz />} />
               <Route path="activity-library" element={<ActivityLibrary />} />
               <Route path="newsletter-admin" element={<NewsletterAdmin />} />
+              <Route path="admin/insights" element={<AdminInsights />} />
             </Route>
             <Route path="social-stories/view/:id" element={<ViewSocialStory />} />
             <Route path="social-stories/shared/:shareToken" element={<ViewSocialStory />} />

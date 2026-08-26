@@ -22,6 +22,7 @@ function PrivacyPolicy() {
     <Section title="How information is used">
       <p>Family information is used to provide the features a parent or caregiver chooses, including schedules, visual activities, learning materials, rewards, reports, sharing links, account messages, and support. It is not sold. Visual Steps does not use family profiles for behavioral advertising.</p>
       <p>When a parent asks for AI-assisted material or guidance, the information needed for that request may be sent to the configured AI service to generate the response. Parents should remove unnecessary identifying details, review every result, and avoid using Visual Steps as medical, diagnostic, emergency, or clinical advice.</p>
+      <p>Visual Steps records limited service activity to understand feature use, support accounts, protect the service, and plan improvements. Administrator insights do not include child / adult profiles, family content, request text, or raw IP addresses. Authorized administrators may see a parent account’s name, email address, account status, general features used, and action times.</p>
     </Section>
     <Section title="Service providers and limited sharing">
       <p>Visual Steps uses carefully selected service providers for sign-in, secure storage, website delivery, optional AI features, and email. They process information only as needed to provide the feature a family chooses and operate under their own security and privacy terms.</p>
@@ -73,7 +74,8 @@ function TermsOfService() {
 function CookieDisclosure() {
   return <>
     <Section title="Current cookie and analytics practice">
-      <p>Visual Steps currently does not install advertising cookies and does not include a product analytics or cross-site behavioral tracking service. Because no optional analytics or advertising cookies are intentionally used, the app does not currently display a consent banner for them. If optional analytics or advertising technology is introduced, it must remain disabled until any legally required choice is presented, and this disclosure must be updated.</p>
+      <p>Visual Steps does not install advertising cookies or use cross-site behavioral advertising. It records privacy-conscious first-party page visits to understand visitor totals, general country or region, referring website, device category, pages visited, and features explored. The service hashes a temporary browser-session identifier and does not retain raw IP addresses, form contents, search text, or child / adult information in website traffic reports.</p>
+      <p>The measurement request is not sent when the browser communicates a Do Not Track preference. The information is used for service planning, reliability, and understanding which Visual Steps areas are useful. It is not used to create advertising profiles or follow visitors across unrelated websites.</p>
     </Section>
     <Section title="Essential browser storage">
       <p>The sign-in service stores session information in the browser so a parent can remain securely signed in. Visual Steps also uses browser storage for interface preferences, selected profiles, walkthrough status, child sessions, and the temporary Guest Login.</p>

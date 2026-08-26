@@ -11,7 +11,9 @@ test('privacy, terms, and cookie disclosures are permanently routed and linked',
     assert.match(layout, new RegExp(`to="/${path}"`));
   }
   assert.match(legal, /does not install advertising cookies/);
-  assert.match(legal, /does not include a product analytics/);
+  assert.match(legal, /privacy-conscious first-party page visits/);
+  assert.match(legal, /does not retain raw IP addresses/);
+  assert.match(legal, /Do Not Track/);
   assert.match(legal, /Guest Login information remains in the current browser session/);
   assert.match(legal, /AI service/);
 });

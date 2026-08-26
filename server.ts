@@ -806,6 +806,7 @@ export const isKidApiRequestAllowed = (method: string, pathName: string, kidId: 
 };
 
 const authenticateToken = async (req: any, res: any, next: any) => {
+  req.insightsStartedAt = Date.now();
   console.log(`[AUTH_DEBUG] Request: ${req.method} ${req.url}`);
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : req.cookies.token;
@@ -933,6 +934,19 @@ const authenticateToken = async (req: any, res: any, next: any) => {
       });
     }
 
+    // Membership cancellation blocks protected application use while keeping
+    // family records intact for a later administrator-approved reactivation.
+    if (supabaseServiceKey) {
+      const { data: membership } = await getAdminSupabaseClient()
+        .from('users')
+        .select('membership_status')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (membership?.membership_status === 'cancelled') {
+        return res.status(403).json({ error: 'This membership is cancelled. Contact Visual Steps if you would like it reactivated.' });
+      }
+    }
+
     // Set user with more info
     req.user = { 
         id: user.id, 
@@ -941,6 +955,7 @@ const authenticateToken = async (req: any, res: any, next: any) => {
         name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0]
     };
     req.token = token;
+    res.once('finish', () => recordParentAction(req, res.statusCode));
     console.log(`[AUTH_DEBUG] Success: Supabase token for ${user.email}`);
     next();
   } catch (err: any) {
@@ -961,6 +976,49 @@ const requireNewsletterAdmin = async (req: any, res: any, next: any) => {
   } catch {
     return res.status(403).json({ error: 'Newsletter administrator access required' });
   }
+};
+
+const requireAppAdmin = requireNewsletterAdmin;
+
+const normalizeAnalyticsPath = (input: string) => {
+  const pathname = String(input || '/').split('?')[0].slice(0, 180);
+  return pathname
+    .replace(/[0-9a-f]{8}-[0-9a-f-]{27,}/gi, ':id')
+    .replace(/\/newsletter\/issues\/[^/]+/g, '/newsletter/issues/:date')
+    .replace(/\/newsletter\/archive\/[^/]+/g, '/newsletter/archive/:month');
+};
+
+const featureForPath = (pathName: string) => {
+  const pathValue = normalizeAnalyticsPath(pathName);
+  if (pathValue.includes('newsletter')) return 'Newsletter';
+  if (pathValue.includes('quiz')) return 'Quizzes';
+  if (pathValue.includes('worksheet')) return 'Worksheets';
+  if (pathValue.includes('social-stor')) return 'Social stories';
+  if (pathValue.includes('activit')) return 'Activities';
+  if (pathValue.includes('reward') || pathValue.includes('behavior-bonus')) return 'Rewards';
+  if (pathValue.includes('report')) return 'Reports';
+  if (pathValue.includes('data-management')) return 'Data management';
+  if (pathValue.includes('profile') || pathValue.includes('/kids')) return 'Profiles';
+  if (pathValue.includes('assistant')) return 'Parent assistant';
+  if (pathValue === '/' || pathValue.includes('about') || pathValue.includes('features')) return 'Public information';
+  return 'Other';
+};
+
+const recordParentAction = (req: any, statusCode: number) => {
+  if (!supabaseServiceKey || req.user?.role !== 'parent' || req.path.startsWith('/api/admin/')) return;
+  const routeTemplate = normalizeAnalyticsPath(req.path);
+  const action = req.method === 'GET' ? 'viewed' : req.method === 'POST' ? 'created' : req.method === 'DELETE' ? 'deleted' : 'updated';
+  const outcome = statusCode >= 500 ? 'server_error' : statusCode >= 400 ? 'client_error' : 'success';
+  const durationMs = Math.min(120000, Math.max(0, Date.now() - Number(req.insightsStartedAt || Date.now())));
+  void getAdminSupabaseClient().from('parent_activity_events').insert({
+    user_id: req.user.id,
+    feature: featureForPath(routeTemplate),
+    action,
+    route_template: routeTemplate,
+    outcome,
+    response_status: statusCode,
+    duration_ms: durationMs,
+  }).then(({ error }) => { if (error && !isProduction) console.warn('Parent analytics event skipped:', error.message); });
 };
 
 // Helper Functions
@@ -1686,6 +1744,11 @@ app.get(['/api/cron/weekly-newsletter', '/api/cron/weekly-newsletter/:utcHour'],
   const cronSecret = cleanEnvVar('CRON_SECRET');
   if (!cronSecret || req.get('authorization') !== `Bearer ${cronSecret}`) return res.status(401).json({ error: 'Unauthorized' });
   try {
+    // Reuse the existing protected hourly schedule for once-daily analytics
+    // maintenance. A missing migration must not interrupt newsletter delivery.
+    if (String(req.params.utcHour || '') === '7') {
+      await getAdminSupabaseClient().rpc('rollup_and_prune_admin_analytics');
+    }
     const now = new Date();
     const settings = await getNewsletterDeliverySettings();
     const local = getNewsletterLocalParts(now, settings.deliveryTimezone);
@@ -1811,6 +1874,345 @@ const moveOverdueActivities = async (supabase: any, kidId: string, kid: any, tod
 };
 
 // API Routes
+
+app.post('/api/analytics/page-view', async (req, res) => {
+  if (!supabaseServiceKey) return res.status(204).end();
+  const pagePath = normalizeAnalyticsPath(req.body?.pagePath || '/');
+  if (!pagePath.startsWith('/') || pagePath.startsWith('/api/')) return res.status(400).json({ error: 'Invalid page' });
+  const sessionId = String(req.body?.sessionId || '').slice(0, 100);
+  if (!sessionId) return res.status(204).end();
+  let referrerDomain: string | null = null;
+  try { referrerDomain = req.body?.referrer ? new URL(String(req.body.referrer)).hostname.slice(0, 120) : null; } catch { referrerDomain = null; }
+  const deviceCategory = ['mobile', 'tablet', 'desktop'].includes(req.body?.deviceCategory) ? req.body.deviceCategory : 'unknown';
+  const analyticsSalt = cleanEnvVar('ANALYTICS_SALT') || JWT_SECRET;
+  const visitorHash = createHash('sha256').update(`${analyticsSalt}:${sessionId}`).digest('hex');
+  const admin = getAdminSupabaseClient();
+  const { error } = await admin.from('site_analytics_events').insert({
+    visitor_hash: visitorHash,
+    page_path: pagePath,
+    feature: featureForPath(pagePath),
+    country_code: String(req.headers['x-vercel-ip-country'] || '').slice(0, 8) || null,
+    region_code: String(req.headers['x-vercel-ip-country-region'] || '').slice(0, 24) || null,
+    referrer_domain: referrerDomain,
+    device_category: deviceCategory,
+  });
+  if (error) return res.status(204).end();
+  return res.status(201).json({ recorded: true });
+});
+
+app.get('/api/admin/status', authenticateToken, requireAppAdmin, (_req, res) => res.json({ admin: true }));
+
+app.get('/api/admin/parents', authenticateToken, requireAppAdmin, async (req, res) => {
+  const page = Math.max(1, Number.parseInt(String(req.query.page || '1'), 10) || 1);
+  const pageSize = Math.min(50, Math.max(5, Number.parseInt(String(req.query.pageSize || '10'), 10) || 10));
+  const search = String(req.query.search || '').trim().slice(0, 100);
+  const from = (page - 1) * pageSize;
+  const admin = getAdminSupabaseClient();
+  let query = admin.from('users').select('id,email,name,created_at,membership_status,membership_cancelled_at', { count: 'exact' });
+  if (search) query = query.or(`email.ilike.%${search.replace(/[%(),]/g, '')}%,name.ilike.%${search.replace(/[%(),]/g, '')}%`);
+  const { data, error, count } = await query.order('created_at', { ascending: false }).range(from, from + pageSize - 1);
+  if (error) return res.status(500).json({ error: 'Unable to load parent accounts' });
+  const ids = (data || []).map((parent: any) => parent.id);
+  const { data: admins } = ids.length ? await admin.from('app_admins').select('user_id').in('user_id', ids) : { data: [] as any[] };
+  const adminIds = new Set((admins || []).map((row: any) => row.user_id));
+  res.json({ items: (data || []).map((parent: any) => ({ ...parent, is_admin: adminIds.has(parent.id) })), total: count || 0, page, pageSize });
+});
+
+app.get('/api/admin/parents/:userId', authenticateToken, requireAppAdmin, async (req, res) => {
+  const admin = getAdminSupabaseClient();
+  const { data: parent, error } = await admin.from('users').select('id,email,name,created_at,membership_status,membership_cancelled_at,membership_cancelled_reason').eq('id', req.params.userId).maybeSingle();
+  if (error || !parent) return res.status(404).json({ error: 'Parent account not found' });
+  const [{ data: events }, { data: adminRow }, { data: audit }] = await Promise.all([
+    admin.from('parent_activity_events').select('id,feature,action,route_template,occurred_at').eq('user_id', parent.id).order('occurred_at', { ascending: false }).limit(250),
+    admin.from('app_admins').select('user_id').eq('user_id', parent.id).maybeSingle(),
+    admin.from('admin_audit_events').select('action,reason,occurred_at').eq('target_user_id', parent.id).order('occurred_at', { ascending: false }).limit(30),
+  ]);
+  const featureCounts = new Map<string, number>();
+  (events || []).forEach((event: any) => featureCounts.set(event.feature, (featureCounts.get(event.feature) || 0) + 1));
+  const features = [...featureCounts.entries()].map(([feature, count]) => ({ feature, count })).sort((a, b) => b.count - a.count);
+  res.json({ parent: { ...parent, is_admin: Boolean(adminRow) }, events: events || [], features, audit: audit || [] });
+});
+
+app.get('/api/admin/overview', authenticateToken, requireAppAdmin, async (_req, res) => {
+  const admin = getAdminSupabaseClient();
+  const now = new Date();
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000).toISOString();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000).toISOString();
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+  const [
+    totalParentsResult, newWeekResult, newMonthResult, cancelledResult,
+    registrationResult, activityResult, visitResult, subscriberResult,
+  ] = await Promise.all([
+    admin.from('users').select('id', { count: 'exact', head: true }),
+    admin.from('users').select('id', { count: 'exact', head: true }).gte('created_at', sevenDaysAgo),
+    admin.from('users').select('id', { count: 'exact', head: true }).gte('created_at', monthStart),
+    admin.from('users').select('id', { count: 'exact', head: true }).eq('membership_status', 'cancelled'),
+    admin.from('users').select('created_at').gte('created_at', thirtyDaysAgo).order('created_at', { ascending: true }).limit(10000),
+    admin.from('parent_activity_events').select('user_id,feature,occurred_at').gte('occurred_at', thirtyDaysAgo).limit(10000),
+    admin.from('site_analytics_events').select('visitor_hash,page_path,feature,country_code,visited_at').gte('visited_at', thirtyDaysAgo).limit(10000),
+    admin.from('newsletter_subscribers').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+  ]);
+  const failed = [totalParentsResult, newWeekResult, newMonthResult, cancelledResult, registrationResult, activityResult, visitResult, subscriberResult].find(result => result.error);
+  if (failed?.error) return res.status(500).json({ error: 'Unable to load administrator overview' });
+  const activities = activityResult.data || [];
+  const visits = visitResult.data || [];
+  const activeSeven = new Set(activities.filter((item: any) => item.occurred_at >= sevenDaysAgo).map((item: any) => item.user_id)).size;
+  const activeThirty = new Set(activities.map((item: any) => item.user_id)).size;
+  const guestVisitors = new Set(visits.filter((item: any) => item.page_path === '/guest' || item.page_path === '/demo').map((item: any) => item.visitor_hash)).size;
+  const countBy = (items: any[], key: string, fallback = 'Unknown') => {
+    const counts = new Map<string, number>();
+    items.forEach(item => { const value = String(item[key] || fallback); counts.set(value, (counts.get(value) || 0) + 1); });
+    return [...counts.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+  };
+  const registrationsByDay = new Map<string, number>();
+  (registrationResult.data || []).forEach((item: any) => { const date = item.created_at.slice(0, 10); registrationsByDay.set(date, (registrationsByDay.get(date) || 0) + 1); });
+  const dailyRegistrations = Array.from({ length: 30 }, (_, offset) => {
+    const date = new Date(now.getTime() - (29 - offset) * 86400000).toISOString().slice(0, 10);
+    return { date, registrations: registrationsByDay.get(date) || 0 };
+  });
+  const activeCountries = countBy(visits, 'country_code').slice(0, 8);
+  const featureUse = countBy(activities, 'feature').slice(0, 8);
+  res.json({
+    totals: {
+      parents: totalParentsResult.count || 0,
+      newParentsSevenDays: newWeekResult.count || 0,
+      newParentsThisMonth: newMonthResult.count || 0,
+      activeParentsSevenDays: activeSeven,
+      activeParentsThirtyDays: activeThirty,
+      cancelledMemberships: cancelledResult.count || 0,
+      newsletterSubscribers: subscriberResult.count || 0,
+      visitorsThirtyDays: new Set(visits.map((item: any) => item.visitor_hash)).size,
+      recordedVisitsThirtyDays: visits.length,
+      guestVisitorsThirtyDays: guestVisitors,
+    },
+    dailyRegistrations,
+    featureUse,
+    countries: activeCountries,
+    definitions: {
+      activeParent: 'A parent who completed at least one successful protected app request during the period.',
+      visitor: 'A privacy-protected browser session seen during the period.',
+      recordedVisit: 'At most one visit to the same page per browser session in each hour.',
+    },
+  });
+});
+
+app.get('/api/admin/funnel', authenticateToken, requireAppAdmin, async (req, res) => {
+  const days = Math.min(90, Math.max(7, Number.parseInt(String(req.query.days || '30'), 10) || 30));
+  const since = new Date(Date.now() - days * 86400000).toISOString();
+  const admin = getAdminSupabaseClient();
+  const [accountsResult, eventsResult, visitsResult] = await Promise.all([
+    admin.from('users').select('id,created_at').gte('created_at', since).limit(10000),
+    admin.from('parent_activity_events').select('user_id,action,route_template,occurred_at').gte('occurred_at', since).limit(20000),
+    admin.from('site_analytics_events').select('visitor_hash,page_path,visited_at').gte('visited_at', since).limit(20000),
+  ]);
+  if (accountsResult.error || eventsResult.error || visitsResult.error) {
+    return res.status(500).json({ error: 'Unable to load the parent journey' });
+  }
+  const accounts = accountsResult.data || [];
+  const events = eventsResult.data || [];
+  const visits = visitsResult.data || [];
+  const visitorsFor = (test: (path: string) => boolean) => new Set(visits.filter((visit: any) => test(visit.page_path)).map((visit: any) => visit.visitor_hash)).size;
+  const usersFor = (test: (event: any) => boolean) => new Set(events.filter(test).map((event: any) => event.user_id)).size;
+  const activeDates = new Map<string, Set<string>>();
+  events.forEach((event: any) => {
+    if (!activeDates.has(event.user_id)) activeDates.set(event.user_id, new Set());
+    activeDates.get(event.user_id)!.add(event.occurred_at.slice(0, 10));
+  });
+  const returningParents = [...activeDates.values()].filter(dates => dates.size >= 2).length;
+  const stages = [
+    { id: 'visitors', label: 'Website visitors', value: new Set(visits.map((visit: any) => visit.visitor_hash)).size, explanation: 'Privacy-protected browser sessions that opened any recorded page.' },
+    { id: 'guest', label: 'Guest explorers', value: visitorsFor(path => path === '/guest' || path === '/demo'), explanation: 'Visitors who opened the temporary guest workspace.' },
+    { id: 'signup_interest', label: 'Signup-page visitors', value: visitorsFor(path => path === '/signup'), explanation: 'Visitors who opened Create an account.' },
+    { id: 'accounts', label: 'Accounts created', value: accounts.length, explanation: 'Parent accounts created during the reporting period.' },
+    { id: 'profiles', label: 'Profiles created', value: usersFor(event => event.action === 'created' && event.route_template === '/api/kids'), explanation: 'Parents who created at least one child / adult profile during the period.' },
+    { id: 'activities', label: 'Activities created', value: usersFor(event => event.action === 'created' && event.route_template === '/api/activities'), explanation: 'Parents who created at least one activity during the period.' },
+    { id: 'returning', label: 'Returning parents', value: returningParents, explanation: 'Parents with successful app activity on at least two different days.' },
+  ];
+  res.json({
+    days,
+    stages,
+    note: 'Anonymous browsing and signed-in milestones are aggregated separately. Counts show journey signals, not tracking of an individual visitor into a parent account.',
+  });
+});
+
+app.get('/api/admin/feature-health', authenticateToken, requireAppAdmin, async (req, res) => {
+  const days = Math.min(90, Math.max(7, Number.parseInt(String(req.query.days || '30'), 10) || 30));
+  const since = new Date(Date.now() - days * 86400000).toISOString();
+  const admin = getAdminSupabaseClient();
+  const [eventsResult, gapsResult] = await Promise.all([
+    admin.from('parent_activity_events').select('user_id,feature,outcome,response_status,occurred_at').gte('occurred_at', since).limit(20000),
+    admin.from('parent_ai_knowledge_gaps').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+  ]);
+  if (eventsResult.error || gapsResult.error) return res.status(500).json({ error: 'Unable to load feature health' });
+  const events = eventsResult.data || [];
+  const byFeature = new Map<string, any[]>();
+  events.forEach((event: any) => {
+    if (!byFeature.has(event.feature)) byFeature.set(event.feature, []);
+    byFeature.get(event.feature)!.push(event);
+  });
+  const features = [...byFeature.entries()].map(([feature, featureEvents]) => {
+    const successful = featureEvents.filter(event => event.outcome === 'success').length;
+    const clientErrors = featureEvents.filter(event => event.outcome === 'client_error').length;
+    const serverErrors = featureEvents.filter(event => event.outcome === 'server_error').length;
+    const users = new Map<string, Set<string>>();
+    featureEvents.forEach(event => {
+      if (!users.has(event.user_id)) users.set(event.user_id, new Set());
+      users.get(event.user_id)!.add(event.outcome);
+    });
+    return {
+      feature,
+      attempts: featureEvents.length,
+      successful,
+      clientErrors,
+      serverErrors,
+      successRate: featureEvents.length ? Math.round((successful / featureEvents.length) * 100) : 0,
+      parents: users.size,
+      recoveredParents: [...users.values()].filter(outcomes => outcomes.has('success') && (outcomes.has('client_error') || outcomes.has('server_error'))).length,
+    };
+  }).sort((a, b) => b.attempts - a.attempts);
+  res.json({
+    days,
+    features,
+    totals: {
+      attempts: events.length,
+      successful: events.filter((event: any) => event.outcome === 'success').length,
+      clientErrors: events.filter((event: any) => event.outcome === 'client_error').length,
+      serverErrors: events.filter((event: any) => event.outcome === 'server_error').length,
+      pendingAssistantKnowledgeGaps: gapsResult.count || 0,
+    },
+    definitions: {
+      successRate: 'The percentage of recorded parent requests completed without an error response.',
+      clientError: 'A request the app could not accept, such as missing information, expired access, or an unavailable action. No entered values are retained here.',
+      serverError: 'A request that could not be completed because of a server or service problem. Detailed error messages are not retained in this report.',
+      recoveredParent: 'A parent who encountered an error in a feature and also completed a successful request in that feature during the period.',
+    },
+  });
+});
+
+app.get('/api/admin/operations', authenticateToken, requireAppAdmin, async (req, res) => {
+  const days = Math.min(30, Math.max(1, Number.parseInt(String(req.query.days || '7'), 10) || 7));
+  const since = new Date(Date.now() - days * 86400000).toISOString();
+  const lastDay = new Date(Date.now() - 86400000).toISOString();
+  const admin = getAdminSupabaseClient();
+  const { data, error } = await admin.from('parent_activity_events').select('feature,outcome,response_status,duration_ms,occurred_at').gte('occurred_at', since).limit(20000);
+  if (error) return res.status(500).json({ error: 'Unable to load operational health' });
+  const events = data || [];
+  const percentile = (values: number[], portion: number) => {
+    if (!values.length) return 0;
+    const sorted = [...values].sort((a, b) => a - b);
+    return sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * portion) - 1)];
+  };
+  const byFeature = new Map<string, any[]>();
+  events.forEach((event: any) => {
+    if (!byFeature.has(event.feature)) byFeature.set(event.feature, []);
+    byFeature.get(event.feature)!.push(event);
+  });
+  const features = [...byFeature.entries()].map(([feature, featureEvents]) => {
+    const durations = featureEvents.map(event => Number(event.duration_ms)).filter(Number.isFinite);
+    const serverErrors = featureEvents.filter(event => event.outcome === 'server_error').length;
+    return { feature, requests: featureEvents.length, averageMs: durations.length ? Math.round(durations.reduce((sum, value) => sum + value, 0) / durations.length) : 0, p95Ms: percentile(durations, 0.95), serverErrors, serverErrorRate: featureEvents.length ? Math.round((serverErrors / featureEvents.length) * 100) : 0 };
+  }).sort((a, b) => b.requests - a.requests);
+  const durations = events.map((event: any) => Number(event.duration_ms)).filter(Number.isFinite);
+  const serverErrors = events.filter((event: any) => event.outcome === 'server_error');
+  const serverErrorsLastDay = serverErrors.filter((event: any) => event.occurred_at >= lastDay).length;
+  const alerts: { severity: 'high' | 'medium'; title: string; detail: string }[] = [];
+  if (serverErrorsLastDay >= 5) alerts.push({ severity: 'high', title: 'Elevated service errors', detail: `${serverErrorsLastDay} server-error responses were recorded during the last 24 hours.` });
+  features.filter(feature => feature.requests >= 10 && feature.serverErrorRate >= 10).forEach(feature => alerts.push({ severity: 'high', title: `${feature.feature} reliability needs attention`, detail: `${feature.serverErrorRate}% of recorded requests returned a server error during this period.` }));
+  features.filter(feature => feature.requests >= 10 && feature.p95Ms >= 3000).forEach(feature => alerts.push({ severity: 'medium', title: `${feature.feature} may feel slow`, detail: `Its slower requests took about ${(feature.p95Ms / 1000).toFixed(1)} seconds or longer.` }));
+  const dailyMap = new Map<string, number>();
+  serverErrors.forEach((event: any) => { const date = event.occurred_at.slice(0, 10); dailyMap.set(date, (dailyMap.get(date) || 0) + 1); });
+  const dailyErrors = Array.from({ length: days }, (_, offset) => { const date = new Date(Date.now() - (days - 1 - offset) * 86400000).toISOString().slice(0, 10); return { date, errors: dailyMap.get(date) || 0 }; });
+  res.json({ days, totals: { requests: events.length, averageMs: durations.length ? Math.round(durations.reduce((sum, value) => sum + value, 0) / durations.length) : 0, p95Ms: percentile(durations, 0.95), serverErrors: serverErrors.length, serverErrorsLastDay }, features, dailyErrors, alerts, definitions: { p95: 'Ninety-five percent of recorded requests completed within this time. It highlights slower experiences better than a simple average.', alert: 'Alerts are generated from current aggregate thresholds. They do not expose family content or detailed error messages.' } });
+});
+
+app.get('/api/admin/analytics-retention', authenticateToken, requireAppAdmin, async (_req, res) => {
+  const admin = getAdminSupabaseClient();
+  const since = new Date(Date.now() - 24 * 31 * 86400000).toISOString().slice(0, 10);
+  const [settingsResult, summariesResult, parentCountResult, siteCountResult] = await Promise.all([
+    admin.from('analytics_retention_settings').select('raw_retention_days,summary_retention_months,last_maintenance_at,updated_at').eq('id', true).maybeSingle(),
+    admin.from('analytics_daily_summaries').select('summary_date,source,total_count,unique_count,success_count,server_error_count').gte('summary_date', since).order('summary_date', { ascending: true }).limit(20000),
+    admin.from('parent_activity_events').select('id', { count: 'exact', head: true }),
+    admin.from('site_analytics_events').select('id', { count: 'exact', head: true }),
+  ]);
+  if (settingsResult.error || summariesResult.error || parentCountResult.error || siteCountResult.error) return res.status(500).json({ error: 'Unable to load analytics retention' });
+  const months = new Map<string, { month: string; parentActions: number; visitors: number; visits: number; serverErrors: number }>();
+  (summariesResult.data || []).forEach((row: any) => {
+    const month = row.summary_date.slice(0, 7);
+    const entry = months.get(month) || { month, parentActions: 0, visitors: 0, visits: 0, serverErrors: 0 };
+    if (row.source === 'parent') { entry.parentActions += row.total_count || 0; entry.serverErrors += row.server_error_count || 0; }
+    else { entry.visits += row.total_count || 0; entry.visitors += row.unique_count || 0; }
+    months.set(month, entry);
+  });
+  res.json({ settings: settingsResult.data, rawCounts: { parentEvents: parentCountResult.count || 0, siteEvents: siteCountResult.count || 0 }, monthly: [...months.values()] });
+});
+
+app.patch('/api/admin/analytics-retention', authenticateToken, requireAppAdmin, async (req, res) => {
+  const rawRetentionDays = Number.parseInt(String(req.body?.rawRetentionDays), 10);
+  const summaryRetentionMonths = Number.parseInt(String(req.body?.summaryRetentionMonths), 10);
+  if (![30, 60, 90, 180, 365].includes(rawRetentionDays)) return res.status(400).json({ error: 'Choose an available raw analytics retention period' });
+  if (![12, 24, 36, 60].includes(summaryRetentionMonths)) return res.status(400).json({ error: 'Choose an available summary retention period' });
+  const { error } = await getAdminSupabaseClient().from('analytics_retention_settings').upsert({ id: true, raw_retention_days: rawRetentionDays, summary_retention_months: summaryRetentionMonths, updated_at: new Date().toISOString() });
+  if (error) return res.status(500).json({ error: 'Unable to update analytics retention' });
+  res.json({ updated: true });
+});
+
+app.post('/api/admin/analytics-maintenance', authenticateToken, requireAppAdmin, async (_req, res) => {
+  const { data, error } = await getAdminSupabaseClient().rpc('rollup_and_prune_admin_analytics');
+  if (error) return res.status(500).json({ error: 'Unable to complete analytics maintenance' });
+  res.json({ completed: true, result: data?.[0] || null });
+});
+
+app.patch('/api/admin/parents/:userId/admin-role', authenticateToken, requireAppAdmin, async (req: any, res) => {
+  const enabled = req.body?.enabled === true;
+  const targetUserId = req.params.userId;
+  if (!enabled && targetUserId === req.user.id) return res.status(400).json({ error: 'You cannot remove your own administrator access' });
+  const admin = getAdminSupabaseClient();
+  const result = enabled
+    ? await admin.from('app_admins').upsert({ user_id: targetUserId })
+    : await admin.from('app_admins').delete().eq('user_id', targetUserId);
+  if (result.error) return res.status(500).json({ error: 'Unable to update administrator access' });
+  await admin.from('admin_audit_events').insert({ admin_user_id: req.user.id, target_user_id: targetUserId, action: enabled ? 'admin_granted' : 'admin_removed' });
+  res.json({ isAdmin: enabled });
+});
+
+app.patch('/api/admin/parents/:userId/membership', authenticateToken, requireAppAdmin, async (req: any, res) => {
+  const status = req.body?.status === 'active' ? 'active' : req.body?.status === 'cancelled' ? 'cancelled' : null;
+  const reason = String(req.body?.reason || '').trim().slice(0, 500);
+  if (!status) return res.status(400).json({ error: 'Choose active or cancelled membership' });
+  if (status === 'cancelled' && !reason) return res.status(400).json({ error: 'Enter a reason for cancelling membership' });
+  if (req.params.userId === req.user.id && status === 'cancelled') return res.status(400).json({ error: 'You cannot cancel your own administrator membership' });
+  const admin = getAdminSupabaseClient();
+  const { error } = await admin.from('users').update({
+    membership_status: status,
+    membership_cancelled_at: status === 'cancelled' ? new Date().toISOString() : null,
+    membership_cancelled_reason: status === 'cancelled' ? reason : null,
+  }).eq('id', req.params.userId);
+  if (error) return res.status(500).json({ error: 'Unable to update membership' });
+  await admin.from('admin_audit_events').insert({ admin_user_id: req.user.id, target_user_id: req.params.userId, action: status === 'cancelled' ? 'membership_cancelled' : 'membership_reactivated', reason: reason || null });
+  res.json({ membershipStatus: status });
+});
+
+app.get('/api/admin/traffic', authenticateToken, requireAppAdmin, async (req, res) => {
+  const days = Math.min(90, Math.max(7, Number.parseInt(String(req.query.days || '30'), 10) || 30));
+  const since = new Date(Date.now() - days * 86400000).toISOString();
+  const admin = getAdminSupabaseClient();
+  const { data, error } = await admin.from('site_analytics_events').select('visitor_hash,page_path,feature,country_code,region_code,referrer_domain,device_category,visited_at').gte('visited_at', since).order('visited_at', { ascending: true }).limit(10000);
+  if (error) return res.status(500).json({ error: 'Unable to load website traffic' });
+  const events = data || [];
+  const group = (key: string) => {
+    const counts = new Map<string, number>();
+    events.forEach((row: any) => { const value = String(row[key] || 'Unknown'); counts.set(value, (counts.get(value) || 0) + 1); });
+    return [...counts.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 12);
+  };
+  const dailyMap = new Map<string, { views: number; visitors: Set<string> }>();
+  events.forEach((row: any) => { const date = row.visited_at.slice(0, 10); const item = dailyMap.get(date) || { views: 0, visitors: new Set<string>() }; item.views += 1; item.visitors.add(row.visitor_hash); dailyMap.set(date, item); });
+  res.json({
+    days,
+    totals: { views: events.length, visitors: new Set(events.map((row: any) => row.visitor_hash)).size },
+    daily: [...dailyMap.entries()].map(([date, item]) => ({ date, views: item.views, visitors: item.visitors.size })),
+    countries: group('country_code'), regions: group('region_code'), features: group('feature'), pages: group('page_path'), referrers: group('referrer_domain'), devices: group('device_category'),
+  });
+});
 
 // Upload File Endpoint
 app.post('/api/upload', authenticateToken, (req: any, res) => {
@@ -5359,7 +5761,8 @@ export const parentAssistantFeatureCatalog = [
   { area: 'Parent and caregiver testimonials', routes: ['/testimonials'], help: 'Open Testimonials from the footer or mobile menu to read reviewed experiences that families and caregivers explicitly permitted Visual Steps to publish. Signed-in parents can use Public display name, Experience title, and Your testimonial, confirm publication permission, then select Submit privately for review. The submission remains private until an administrator reviews and approves it in Newsletter Administration. Visual Steps never converts private profiles, child records, messages, or activities into public quotes.' },
   { area: 'Contact Visual Steps', routes: ['/contact'], help: 'Open Contact from the top navigation, footer, or mobile menu. Enter your name, reply email, subject, and message, then select Open email to send. The form opens your own email application and does not save the form with a Visual Steps account. Never include passwords, child login codes, or sensitive clinical information.' },
   { area: 'Privacy, terms, cookies, and analytics', routes: ['/privacy', '/terms', '/cookies'], help: 'Open Privacy, Terms, or Cookies & Analytics from the footer on any page. Privacy explains what family information Visual Steps handles, why it is used, limited service-provider processing, AI requests, social-story sharing, uploaded-image links, retention choices, account deletion, and security responsibilities. Terms explains responsible use, caregiver review, community content, availability, and why Visual Steps is not medical or clinical advice. Cookies & Analytics explains essential sign-in and preference storage, the installed-app cache, browser controls, and the current absence of advertising cookies and product analytics. On Create an account, review the Terms and Privacy links and select the agreement checkbox before selecting Sign Up.' },
-  { area: 'Visual Steps weekly newsletter', routes: ['/newsletter', '/newsletter/subscribe', '/newsletter/community', '/newsletter/archive/:month', '/newsletter/issues/:issueDate', '/newsletter-admin'], help: 'Open the Newsletter menu in the main navigation. Choose Subscribe to open the dedicated signup page, enter Email address, and select Subscribe; confirm the subscription from the email you receive. Choose Weekly archive, then select a month; months and issues are ordered latest first. A month opens its issue list in the current tab, and selecting an issue opens the complete newsletter in a new tab. Choose Share with the community to open its dedicated submission page, or Manage newsletter when signed in as an approved administrator. Each weekly issue includes new features and details, illustrated previews, approved parent stories/news/information/tips, testimonials, popular features, curated activities and games, suggested books and family resources, current membership details, parent tips, and clearly labeled mission-aligned advertisements when approved. General non-clinical topics may include communication and speech support, occupational support, positive behavior support, daily living, learning, work, leisure, and community participation for autistic people of all ages. Submissions remain private until reviewed and approved. The protected Newsletter Administration page lets administrators manage submissions, change the weekly delivery day and time in their timezone, edit and save the next issue template, preview it without publishing, and send a prepared issue. Every issue includes Subscribe Newsletter, optional configured Facebook and Instagram links, and one-click unsubscribe.' },
+  { area: 'Visual Steps weekly newsletter', routes: ['/newsletter', '/newsletter/subscribe', '/newsletter/community', '/newsletter/archive/:month', '/newsletter/issues/:issueDate', '/newsletter-admin'], help: 'Open the Newsletter menu in the main navigation. Choose Subscribe to open the dedicated signup page, enter Email address, and select Subscribe; confirm the subscription from the email you receive. Choose Weekly archive, then select a month; months and issues are ordered latest first. A month opens its issue list in the current tab, and selecting an issue opens the complete newsletter in a new tab. Choose Share with the community to open its dedicated submission page. Approved administrators open Admin and choose Manage newsletter for publication controls. Each weekly issue includes new features and details, illustrated previews, approved parent stories/news/information/tips, testimonials, popular features, curated activities and games, suggested books and family resources, current membership details, parent tips, and clearly labeled mission-aligned advertisements when approved. General non-clinical topics may include communication and speech support, occupational support, positive behavior support, daily living, learning, work, leisure, and community participation for autistic people of all ages. Submissions remain private until reviewed and approved. The protected Newsletter Administration page lets administrators manage submissions, change the weekly delivery day and time in their timezone, edit and save the next issue template, preview it without publishing, and send a prepared issue. Every issue includes Subscribe Newsletter, optional configured Facebook and Instagram links, and one-click unsubscribe.' },
+  { area: 'Protected administration', routes: ['/admin/insights', '/newsletter-admin'], help: 'The Admin menu appears only for approved administrators. Choose Insights to review paginated parent accounts, account-level feature-use patterns, action dates and times, membership status, and privacy-conscious website traffic. Child / adult profiles and family content are intentionally excluded. Choose Manage newsletter for publication and subscriber controls. Administrator and membership changes require confirmation and are recorded for accountability.' },
   { area: 'Child dashboard', routes: ['/kids-dashboard/:kidId'], help: 'Children sign in with their Kid Code. To Be Done lists pending activities, Waiting for parent verification lists submitted work, Completed shows completed activities, and Rewards shows items they may purchase with earned tokens. Meaningful completions show celebrations. A verification-required submission tells the child to wait and does not award tokens until parent approval.' },
   { area: 'Offline and installation', routes: ['/'], help: 'Visual Steps can be installed from a supported browser. On an iPhone or iPad, use Safari Share > Add to Home Screen. When internet access is lost, the app displays an offline notice. Sign-in, saved family information, and AI features become available again after reconnection.' },
 ] as const;
