@@ -35,6 +35,7 @@ import AdminInsights from './pages/AdminInsights';
 import FeatureDetail from './pages/FeatureDetail';
 import DataManagement from './pages/DataManagement';
 import Legal from './pages/Legal';
+import DemoWatch from './pages/DemoWatch';
 import { NetworkStatusBanner } from './components/NetworkStatusBanner';
 import { GuestWorkspace } from './components/GuestWorkspace';
 
@@ -46,6 +47,7 @@ export default function App() {
           <NetworkStatusBanner />
           <GuestWorkspace />
           <Routes>
+          <Route path="/watch" element={<DemoWatch />} />
           <Route path="/" element={<Layout />}>
             <Route index element={<Home />} />
             <Route path="login" element={<Home />} />

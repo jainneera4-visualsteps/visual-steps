@@ -5,9 +5,11 @@ import test from 'node:test';
 const read = (path: string) => readFile(new URL(path, import.meta.url), 'utf8');
 
 test('home presents a user-started narrated experience below guest login', async () => {
-  const [home, demo] = await Promise.all([
+  const [home, demo, app, watchPage] = await Promise.all([
     read('../src/pages/Home.tsx'),
     read('../src/components/ProductDemoVideo.tsx'),
+    read('../src/App.tsx'),
+    read('../src/pages/DemoWatch.tsx'),
   ]);
 
   assert.match(home, /<ProductDemoVideo \/>/);
@@ -29,6 +31,11 @@ test('home presents a user-started narrated experience below guest login', async
   assert.match(demo, /Exit full screen/);
   assert.match(demo, /navigator\.share/);
   assert.match(demo, /navigator\.clipboard\.writeText/);
+  assert.match(demo, /window\.location\.origin}\/watch/);
+  assert.doesNotMatch(demo, /\?demo=1/);
+  assert.match(app, /path="\/watch" element=\{<DemoWatch \/>\}/);
+  assert.ok(app.indexOf('path="/watch"') < app.indexOf('path="/" element={<Layout />}'), 'the shared video route must not use the full website layout');
+  assert.match(watchPage, /<ProductDemoVideo autoOpen standalone \/>/);
   assert.doesNotMatch(demo, /\/api\/testimonials/);
   assert.match(demo, /sceneFocusPoints/);
   assert.match(demo, /narrationSegments/);

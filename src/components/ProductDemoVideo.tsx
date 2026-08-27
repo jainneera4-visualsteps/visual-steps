@@ -127,9 +127,9 @@ export function demoNarrationText(sceneIndex: number) {
   return demoScenes[sceneIndex].narration;
 }
 
-export function ProductDemoVideo() {
+export function ProductDemoVideo({ autoOpen = false, standalone = false }: { autoOpen?: boolean; standalone?: boolean }) {
   const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(autoOpen);
   const [sceneIndex, setSceneIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
@@ -271,7 +271,7 @@ export function ProductDemoVideo() {
   };
   const enterGuest = () => { close(); startGuestSession(); navigate('/dashboard'); };
   const share = async () => {
-    const url = `${window.location.origin}/?demo=1`;
+    const url = `${window.location.origin}/watch`;
     try {
       if (navigator.share) await navigator.share({ title: 'Visual Steps', text: 'See how Visual Steps supports clearer routines, learning, progress, and meaningful rewards.', url });
       else await navigator.clipboard.writeText(url);
@@ -313,14 +313,14 @@ export function ProductDemoVideo() {
         </div>
         <div className="product-demo__viewer-footer">
           <div className="flex flex-wrap items-center gap-3"><p>{voiceEnabled ? (audioManifest?.scenes?.[scene.id] ? `${audioManifest.voice} AI-generated narration · generated once and replayed` : 'Recorded narration is not installed yet; using a voice from this device.') : 'Narration is off. Use the chapter controls at your own pace.'}</p>{voiceEnabled && !audioManifest?.scenes?.[scene.id] && <DeviceVoiceSelector onChange={() => { setPlaying(false); setProgressKey(current => current + 1); }} />}</div>
-          <button type="button" onClick={enterGuest}>Try Guest Login <ArrowRight className="h-4 w-4" /></button>
+          {!standalone && <button type="button" onClick={enterGuest}>Try Guest Login <ArrowRight className="h-4 w-4" /></button>}
         </div>
       </div>
     </div>, document.body
   ) : null;
 
   return <>
-    <figure className="product-demo__poster">
+    <figure className={`product-demo__poster ${standalone ? 'product-demo__poster--standalone' : ''}`}>
       <button type="button" onClick={() => setOpen(true)} aria-label="Open Visual Steps video">
         <img src="/onboarding/dashboard.png" alt="Visual Steps parent dashboard video preview" />
         <span className="product-demo__poster-shade" />

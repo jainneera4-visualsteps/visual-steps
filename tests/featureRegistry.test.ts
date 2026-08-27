@@ -133,6 +133,22 @@ test('home highlights stay focused on eight top features', async () => {
   assert.match(home, /FeatureHighlights surface="home" limit=\{8\}/);
 });
 
+test('current demo and curated samples flow into synchronized documentation', async () => {
+  const [appGuide, server] = await Promise.all([
+    readFile(new URL('../src/constants/appGuide.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../server.ts', import.meta.url), 'utf8'),
+  ]);
+  const guestDemo = productFeatures.find(feature => feature.id === 'guest-demo');
+  const samples = productFeatures.find(feature => feature.id === 'curated-samples');
+  assert.ok(guestDemo?.updates?.some(update => update.updatedOn === '2026-08-27' && /narrated Visual Steps tour/i.test(update.title)));
+  assert.ok(samples?.updates?.some(update => update.updatedOn === '2026-08-27' && /current samples/i.test(update.title)));
+  assert.match(appGuide, /featuresForSurface\('help'\)/);
+  assert.match(appGuide, /currentFeatures\.map/);
+  assert.doesNotMatch(appGuide, /already working beautifully|Student Dashboard|token economies/i);
+  assert.match(server, /const featureChanges =/);
+  assert.match(server, /feature\.updates/);
+});
+
 test('feature articles break detailed guidance into short readable paragraphs', async () => {
   const [featureDetail, highlights] = await Promise.all([
     readFile(new URL('../src/pages/FeatureDetail.tsx', import.meta.url), 'utf8'),

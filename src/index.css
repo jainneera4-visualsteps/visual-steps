@@ -821,6 +821,7 @@ p.text-right {
 .product-demo__poster-copy small { margin-top: 0.1rem; font-size: 0.62rem; color: rgb(226 232 240); }
 .product-demo__poster-play { position: absolute; right: 0.85rem; top: 50%; display: flex; height: 2.65rem; width: 2.65rem; transform: translateY(-50%); align-items: center; justify-content: center; border-radius: 999px; background: rgb(37 99 235); box-shadow: 0 7px 20px rgb(37 99 235 / 0.45); }
 .product-demo__poster figcaption { background: white; padding: 0.4rem 0.65rem; color: rgb(71 85 105); font-size: 0.6rem; line-height: 1.4; }
+.product-demo__poster--standalone { border-color: rgb(71 85 105); box-shadow: 0 20px 50px rgb(0 0 0 / 0.35); }
 
 .product-demo__overlay {
   position: fixed;

@@ -66,7 +66,7 @@ export function GuestWorkspace() {
       document.querySelector<HTMLElement>(step.target)?.classList.remove('ring-4', 'ring-blue-400', 'ring-offset-4');
     };
   }, [active, open, location.pathname, index]);
-  if (!active) return null;
+  if (!active || location.pathname === '/watch') return null;
   const leave = () => { endGuestSession(); navigate('/'); };
   const startDrag = (event: PointerEvent<HTMLDivElement>) => {
     if ((event.target as HTMLElement).closest('button')) return;
