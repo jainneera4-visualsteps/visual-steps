@@ -26,7 +26,7 @@ test('every product feature supplies synchronization metadata for all required s
     for (const surface of requiredSurfaces) assert.ok(feature.surfaces.includes(surface), `${feature.id} is missing ${surface}`);
   }
   for (const surface of requiredSurfaces) assert.equal(featuresForSurface(surface).length, productFeatures.length);
-  assert.equal(featuresForSurface('home').length, 11);
+  assert.equal(featuresForSurface('home').length, 12);
 });
 
 test('family-facing feature guidance avoids implementation and billing terminology', () => {
@@ -73,10 +73,14 @@ test('required product surfaces consume the shared feature registry', async () =
   }
   const guestWorkspace = await readFile(new URL('../src/components/GuestWorkspace.tsx', import.meta.url), 'utf8');
   assert.match(guestWorkspace, /Guest tour/);
+  assert.match(guestWorkspace, /featuresForSurface\('guest'\)/);
+  assert.match(guestWorkspace, /guestFeatures\.filter/);
   assert.doesNotMatch(guestWorkspace, /Current Visual Steps feature guide/);
   const onboarding = await readFile(new URL('../src/components/ParentOnboarding.tsx', import.meta.url), 'utf8');
   const server = await readFile(new URL('../server.ts', import.meta.url), 'utf8');
   assert.doesNotMatch(onboarding, /Current Visual Steps feature guide/);
+  assert.match(onboarding, /featuresForSurface\('onboarding'\)/);
+  assert.match(onboarding, /onboardingFeatures\.filter/);
   assert.match(onboarding, /Review and remove data you no longer need/);
   assert.match(onboarding, /Ask the Visual Steps Parent Assistant/);
   assert.match(server, /FEATURE_REGISTRY_SERVER:START/);
@@ -114,7 +118,7 @@ test('home feature cards link to catalog-backed detailed feature guides', async 
   assert.match(detail, /feature\.screenshot/);
   const screenshotPaths = productFeatures.map(feature => feature.screenshot.src);
   assert.equal(new Set(screenshotPaths).size, screenshotPaths.length, 'feature guides must not reuse screenshots');
-  assert.equal(screenshotPaths.length, 11, 'every feature guide should use its own accurate real application capture');
+  assert.equal(screenshotPaths.length, productFeatures.length, 'every feature guide should use its own accurate real application capture');
   assert.match(syncScript, /feature\.guideParagraphs/);
   assert.match(syncScript, /feature\.screenshot/);
   assert.match(syncScript, /Feature screenshot is reused/);
@@ -122,6 +126,11 @@ test('home feature cards link to catalog-backed detailed feature guides', async 
   assert.doesNotMatch(detail, /A useful starting point is one meaningful goal/);
   assert.doesNotMatch(detail, /After using the feature, review the outcome together/);
   assert.match(detail, /newsletter-copy surface/);
+});
+
+test('home highlights stay focused on eight top features', async () => {
+  const home = await readFile(new URL('../src/pages/Home.tsx', import.meta.url), 'utf8');
+  assert.match(home, /FeatureHighlights surface="home" limit=\{8\}/);
 });
 
 test('feature articles break detailed guidance into short readable paragraphs', async () => {
@@ -172,4 +181,16 @@ test('generated documentation includes every registered feature', async () => {
   assert.equal(quizUpdate?.updatedOn, '2026-08-24');
   assert.match(readme, /Feature update history/);
   assert.match(prd, /Clearer quiz goals, learner preview, learning insights, and thoughtful illustrations/);
+});
+
+test('private social stories and public parent stories remain separate current features', async () => {
+  const socialStories = productFeatures.find(feature => feature.id === 'controlled-sharing');
+  const parentStories = productFeatures.find(feature => feature.id === 'community-publishing');
+  const featureDetail = await readFile(new URL('../src/pages/FeatureDetail.tsx', import.meta.url), 'utf8');
+  assert.equal(socialStories?.title, 'Controlled social-story sharing');
+  assert.deepEqual(socialStories?.routes, ['/social-stories', '/social-stories/shared/:shareToken']);
+  assert.equal(parentStories?.title, 'Parent stories and community publishing');
+  assert.deepEqual(parentStories?.routes, ['/newsletter/community', '/testimonials']);
+  assert.notEqual(socialStories?.screenshot.src, parentStories?.screenshot.src);
+  assert.doesNotMatch(featureDetail, /Recent improvements|updatedOn/);
 });

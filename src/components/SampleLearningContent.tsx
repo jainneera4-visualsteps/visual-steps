@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BookOpen, CheckCircle2, FileText, Gamepad2, Printer, Sparkles, X } from 'lucide-react';
+import { BookOpen, CheckCircle2, ChevronLeft, ChevronRight, FileText, Gamepad2, Printer, Sparkles, Volume2, X, XCircle } from 'lucide-react';
 
 export type SampleContentType = 'quiz' | 'story' | 'worksheet';
 
@@ -67,14 +67,41 @@ const quizQuestions = [
 ];
 
 function SampleQuiz() {
-  const [answers, setAnswers] = useState<Record<number, string>>({});
-  const [submitted, setSubmitted] = useState(false);
-  const score = quizQuestions.filter((question, index) => answers[index] === question.answer).length;
-  return <div>
-    <p className="rounded-2xl bg-indigo-50 p-4 text-sm text-indigo-950">A real quiz can be personalized, assigned to a child, read aloud, scored, and limited to one attempt per assignment.</p>
-    <div className="mt-5 space-y-5">{quizQuestions.map((item, index) => <fieldset key={item.question} className="rounded-2xl border border-slate-200 p-4"><legend className="px-1 font-black text-slate-950">{index + 1}. {item.question}</legend><div className="mt-3 grid gap-2">{item.choices.map((choice) => <label key={choice} className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-semibold ${answers[index] === choice ? 'border-indigo-500 bg-indigo-50 text-indigo-950' : 'border-slate-200'}`}><input type="radio" name={`sample-question-${index}`} checked={answers[index] === choice} onChange={() => { setAnswers((current) => ({ ...current, [index]: choice })); setSubmitted(false); }} />{choice}</label>)}</div>{submitted && <p className={`mt-3 text-sm font-bold ${answers[index] === item.answer ? 'text-emerald-700' : 'text-rose-700'}`}>{answers[index] === item.answer ? 'Correct! ' : `The answer is ${item.answer}. `}<span className="font-medium text-slate-600">{item.explanation}</span></p>}</fieldset>)}</div>
-    <button onClick={() => setSubmitted(true)} disabled={Object.keys(answers).length !== quizQuestions.length} className="mt-5 rounded-xl bg-indigo-600 px-5 py-2.5 font-bold text-white disabled:cursor-not-allowed disabled:opacity-40">Check my answers</button>
-    {submitted && <p className="mt-3 flex items-center gap-2 font-black text-emerald-700"><CheckCircle2 className="h-5 w-5" /> Sample score: {score} of {quizQuestions.length}</p>}
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const [selected, setSelected] = useState('');
+  const [checked, setChecked] = useState(false);
+  const [score, setScore] = useState(0);
+  const question = quizQuestions[questionIndex];
+  const progress = (questionIndex / quizQuestions.length) * 100;
+  const correct = selected === question.answer;
+  const next = () => {
+    if (questionIndex < quizQuestions.length - 1) {
+      setQuestionIndex(current => current + 1);
+      setSelected('');
+      setChecked(false);
+    }
+  };
+  return <div className="overflow-hidden rounded-2xl border border-indigo-100 bg-white">
+    <div className="child-header flex items-center gap-4 px-4 py-3 text-white">
+      <div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-3"><h3 className="truncate text-lg font-black">Space Explorer Quiz</h3><span className="rounded-full bg-white/20 px-3 py-1 text-xs font-black">{questionIndex + 1} / {quizQuestions.length}</span></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-white/25"><div className="h-full rounded-full bg-amber-300" style={{ width: `${progress}%` }} /></div></div>
+      <button type="button" aria-label="Listen to sample question" className="rounded-full border-2 border-white/60 bg-white/20 p-2"><Volume2 className="h-4 w-4" /></button>
+    </div>
+    <div className="grid md:grid-cols-4">
+      <div className="space-y-5 p-5 md:col-span-3 md:p-7">
+        <p className="rounded-xl border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold text-violet-900"><strong>Today’s goal:</strong> Identify basic facts about the solar system.</p>
+        <div><span className="rounded-full bg-violet-100 px-3 py-1 text-[11px] font-black uppercase tracking-widest text-violet-700">Question</span><h3 className="mt-2 text-2xl font-bold text-slate-900">{question.question}</h3></div>
+        <div className="grid gap-2 sm:grid-cols-2">{question.choices.map(choice => {
+          const isSelected = selected === choice;
+          const isCorrect = choice === question.answer;
+          return <button key={choice} type="button" disabled={checked} onClick={() => setSelected(choice)} className={`flex min-h-14 items-center justify-between rounded-2xl border-2 px-4 py-3 text-left text-lg font-extrabold transition ${checked ? isCorrect ? 'border-emerald-500 bg-emerald-50 text-emerald-900' : isSelected ? 'border-red-500 bg-red-50 text-red-900' : 'border-slate-100 text-slate-300' : isSelected ? 'border-violet-500 bg-violet-50 text-violet-950' : 'border-indigo-100 bg-white text-slate-700'}`}><span>{choice}</span>{checked && isCorrect ? <CheckCircle2 className="h-5 w-5 text-emerald-500" /> : checked && isSelected ? <XCircle className="h-5 w-5 text-red-500" /> : <span className={`h-4 w-4 rounded-full border-2 ${isSelected ? 'border-violet-500 bg-violet-500' : 'border-slate-300'}`} />}</button>;
+        })}</div>
+      </div>
+      <aside className="border-t border-indigo-100 bg-gradient-to-b from-violet-50 to-sky-50 p-5 md:border-l md:border-t-0">
+        {!checked ? <button type="button" disabled={!selected} onClick={() => { setChecked(true); if (correct) setScore(current => current + 1); }} className="w-full rounded-2xl bg-violet-600 px-4 py-3 font-black uppercase tracking-wider text-white disabled:opacity-40">Check Answer</button> : questionIndex < quizQuestions.length - 1 ? <button type="button" onClick={next} className="w-full rounded-2xl bg-slate-900 px-4 py-3 font-black uppercase tracking-wider text-white">Next Question</button> : <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-center"><p className="font-black text-emerald-800">Sample complete</p><p className="mt-1 text-sm text-emerald-700">Score: {score} of {quizQuestions.length}</p></div>}
+        <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4"><p className="text-xs font-black uppercase tracking-widest text-slate-400">Progress</p><p className="mt-2 text-3xl font-black text-slate-800">{score}</p><p className="text-sm text-slate-500">correct so far</p></div>
+        {checked && <div className={`mt-4 rounded-xl border-2 p-4 ${correct ? 'border-emerald-100 bg-emerald-50' : 'border-red-100 bg-red-50'}`}><p className={`font-black ${correct ? 'text-emerald-700' : 'text-red-700'}`}>{correct ? 'Correct!' : `The answer is ${question.answer}.`}</p><p className="mt-2 text-sm leading-6 text-slate-600">{question.explanation}</p></div>}
+      </aside>
+    </div>
   </div>;
 }
 
@@ -86,7 +113,17 @@ const storyPages = [
 ];
 
 function SampleStory() {
-  return <div><p className="rounded-2xl bg-rose-50 p-4 text-sm text-rose-950">Social stories use calm, concrete language. Parents can edit every sentence before sharing or assigning a story.</p><div className="mt-5 grid gap-4 sm:grid-cols-2">{storyPages.map((page, index) => <article key={page.title} className="rounded-2xl border border-rose-100 bg-gradient-to-br from-white to-rose-50 p-5"><div className="text-5xl" aria-hidden="true">{page.emoji}</div><p className="mt-3 text-xs font-black uppercase tracking-wider text-rose-500">Page {index + 1}</p><h3 className="mt-1 text-lg font-black text-slate-950">{page.title}</h3><p className="mt-2 leading-7 text-slate-700">{page.text}</p></article>)}</div></div>;
+  const [pageIndex, setPageIndex] = useState(0);
+  const page = storyPages[pageIndex];
+  return <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 p-4 sm:p-7">
+    <article className="flex min-h-[28rem] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+      <div className="flex w-[42%] items-center justify-center border-r border-slate-100 bg-gradient-to-br from-rose-50 to-sky-50 p-6"><span className="text-8xl" aria-hidden="true">{page.emoji}</span></div>
+      <div className="flex flex-1 flex-col p-7 sm:p-10"><div className="flex items-center justify-between"><span className="flex items-center gap-2 text-sm font-bold text-blue-900"><span className="rounded-lg bg-blue-600 p-1.5 text-white"><BookOpen className="h-4 w-4" /></span>Visual Steps</span><span className="text-xs font-black uppercase tracking-[0.3em] text-slate-400">{pageIndex + 1}</span></div><div className="flex flex-1 flex-col justify-center"><h3 className="text-2xl font-black text-slate-950">{page.title}</h3><p className="mt-4 text-xl font-bold leading-9 text-slate-700">{page.text}</p>{pageIndex === storyPages.length - 1 && <span className="mt-7 w-fit rounded-full border border-emerald-100 bg-emerald-50 px-5 py-2 text-sm font-black uppercase tracking-wider text-emerald-700">The End!</span>}</div></div>
+    </article>
+    <button type="button" aria-label="Previous story page" disabled={pageIndex === 0} onClick={() => setPageIndex(current => Math.max(0, current - 1))} className="absolute left-5 top-1/2 -translate-y-1/2 rounded-full border border-slate-200 bg-white p-3 text-blue-600 shadow-lg disabled:opacity-0"><ChevronLeft className="h-7 w-7" /></button>
+    <button type="button" aria-label="Next story page" disabled={pageIndex === storyPages.length - 1} onClick={() => setPageIndex(current => Math.min(storyPages.length - 1, current + 1))} className="absolute right-5 top-1/2 -translate-y-1/2 rounded-full border border-slate-200 bg-white p-3 text-blue-600 shadow-lg disabled:opacity-0"><ChevronRight className="h-7 w-7" /></button>
+    <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-200"><div className="h-full bg-blue-600 transition-all" style={{ width: `${((pageIndex + 1) / storyPages.length) * 100}%` }} /></div>
+  </div>;
 }
 
 function SampleWorksheet() {

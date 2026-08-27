@@ -26,8 +26,8 @@ test('newsletter administrator page is nested under the parent protected route',
   assert.match(protectedBlock, /newsletter-admin/);
   assert.match(page, /\/api\/newsletter\/admin\/submissions/);
   assert.match(page, /\/api\/newsletter\/admin\/preview/);
-  assert.match(page, /method: 'DELETE'/);
-  assert.match(page, /Permanently delete/);
+  assert.doesNotMatch(page, /Permanently delete/);
+  assert.match(page, /Administrators can approve or reject a submission, but cannot delete it/);
   assert.match(page, /Save newsletter template/);
   assert.match(page, /Email delivery preview/);
   assert.match(page, /Weekly delivery day/);
@@ -36,6 +36,9 @@ test('newsletter administrator page is nested under the parent protected route',
   assert.match(page, /Send newsletter now/);
   assert.match(page, /Subscriber delivery status/);
   assert.match(page, /last_sent_issue_date/);
+  assert.match(page, /CommunityRichTextEditor/);
+  assert.match(page, /same formatting is preserved/);
+  assert.match(page, /FormattedNewsletterContent content=\{item\.content\}/);
 });
 
 test('delivery weekday, local hour and timezone are database-backed and editable only by an administrator', async () => {
@@ -49,9 +52,24 @@ test('delivery weekday, local hour and timezone are database-backed and editable
   crons.forEach((cron: { path: string; schedule: string }, hour: number) => assert.deepEqual(cron, { path: `/api/cron/weekly-newsletter/${hour}`, schedule: `0 ${hour} * * *` }));
 });
 
-test('permanent submission deletion is administrator protected', async () => {
-  const server = await read('server.ts');
-  assert.match(server, /app\.delete\('\/api\/newsletter\/admin\/submissions\/:id', authenticateToken, requireNewsletterAdmin/);
+test('administrators can approve or reject but cannot delete parent submissions', async () => {
+  const [server, page] = await Promise.all([read('server.ts'), read('src/pages/NewsletterAdmin.tsx')]);
+  assert.doesNotMatch(server, /app\.delete\('\/api\/newsletter\/admin\/submissions\/:id'/);
+  assert.match(page, /review\('approved'\)/);
+  assert.match(page, /review\('rejected'\)/);
+  assert.doesNotMatch(page, /deleteSubmission/);
+});
+
+test('parents can save drafts and delete only their own draft or rejected submissions', async () => {
+  const [server, page, migration] = await Promise.all([read('server.ts'), read('src/pages/Newsletter.tsx'), read('database_updates/2026-08-21_weekly_newsletters.sql')]);
+  assert.match(server, /app\.put\('\/api\/newsletter\/community-submissions\/draft', authenticateToken/);
+  assert.match(server, /app\.delete\('\/api\/newsletter\/community-submissions\/:id', authenticateToken/);
+  assert.match(server, /\.delete\(\)\.eq\('id', submissionId\)\.eq\('user_id', req\.user\.id\)\.in\('status', \['draft', 'rejected'\]\)/);
+  assert.match(server, /Only drafts and rejected submissions can be deleted/);
+  assert.match(migration, /status IN \('draft', 'pending', 'approved', 'rejected'\)/);
+  assert.match(page, /Save draft/);
+  assert.match(page, /onDelete=\{deleteMySubmission\}/);
+  assert.match(page, /item\.status==='draft'\|\|item\.status==='rejected'/);
 });
 
 test('saved newsletter drafts are protected and used by scheduled publication', async () => {
@@ -155,6 +173,7 @@ test('newsletter combines feature guidance, hides empty sections, and explains p
   assert.match(page, /NewsletterLinks/);
   assert.match(page, /isSubscribePage/);
   assert.match(page, /\['Visual Steps Home',links\?\.mainPage\|\|'\/'\]/);
+  assert.match(page, /\['Pricing',links\?\.pricing\|\|'\/pricing'\]/);
   assert.match(page, /\['Subscribe Newsletter','\/newsletter\/subscribe'\]/);
   assert.match(envExample, /FACEBOOK_URL=/);
   assert.match(envExample, /INSTAGRAM_URL=/);

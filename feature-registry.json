@@ -84,13 +84,13 @@
     "id": "curated-samples",
     "title": "Curated learning samples",
     "summary": "Preview a quiz, printable worksheet, and social story without using AI or saving data.",
-    "details": "Families can open a complete sample quiz, printable worksheet, and social story before creating their own material. The samples show the expected format, level of detail, and accessible presentation for a child / adult. They are available to signed-in parents and visitors using the guest experience. Opening a sample does not reduce the family's daily creation allowance or add anything to their saved work.",
+    "details": "Families can open a complete sample quiz, printable worksheet, and social story before creating their own material. The samples use the same current child / adult viewing layout as family-created content while keeping stable example data. They are available to signed-in parents and visitors using the guest experience. Opening a sample does not reduce the family's daily creation allowance or add anything to their saved work.",
     "familyImpact": "Samples let parents and caregivers judge whether a learning format suits the autistic person before spending time creating new material. They can preview supportive language, visual organization, print layout, and question style, then decide how to adapt future resources for the person’s age, interests, communication, and learning goals.",
     "guideParagraphs": [
       "The sample quiz demonstrates a clear question-and-answer format, the worksheet shows how printable learning can be organized, and the social story illustrates supportive language presented in manageable sections. Families can open each example in full rather than judging the feature from a short description. This makes it easier to decide which format matches the person’s attention, reading, communication, and learning preferences.",
-      "Samples are starting points rather than prescriptions for a particular age or support level. A caregiver might borrow the visual structure while simplifying the language, increase the challenge for an older learner, or use a familiar interest to make a new topic more approachable. Because opening a sample does not add it to saved work, families can explore freely before creating something personal."
+      "Samples are starting points rather than prescriptions for a particular age or support level. A caregiver might borrow the visual structure while simplifying the language, increase the challenge for an older learner, or use a familiar interest to make a new topic more approachable. The example data stays unchanged while its presentation follows the current quiz, worksheet, and social-story viewing experience."
     ],
-    "help": "Open the Guest Demo or the saved Quiz, Worksheet, or Social Story page and select Open sample. Samples never consume the AI allowance.",
+    "help": "Open the saved Quiz, Worksheet, or Social Story page and select Open sample. The sample uses the current viewing layout without using the family’s creation allowance or saving a record.",
     "screenshot": { "src": "/onboarding/learning.png", "alt": "Visual Steps sample learning resources", "caption": "Families can inspect complete learning examples before creating personalized materials." },
     "introducedOn": "2026-08-21",
     "plan": "starter",
@@ -114,6 +114,15 @@
     "plan": "starter",
     "icon": "sparkles",
     "routes": ["/dashboard"],
+    "updates": [
+      {
+        "updatedOn": "2026-08-27",
+        "title": "Guidance that stays current across the app",
+        "summary": "Parent and guest tours now include current feature guidance from the shared Visual Steps catalog.",
+        "details": "When an approved feature description changes, the Home and About pages, guided tours, Parent Assistant knowledge, upcoming newsletter, welcome information, and project guides receive the same wording through the documentation checks. Newly registered features can also be added to the tours without maintaining a separate list of feature cards.",
+        "familyImpact": "Parents and caregivers receive consistent instructions wherever they learn about Visual Steps, making newer workflows easier to discover and reducing conflicting guidance."
+      }
+    ],
     "surfaces": ["home", "about", "onboarding", "chatbot", "pricing", "guest", "help"]
   },
   {
@@ -137,7 +146,7 @@
   {
     "id": "controlled-sharing",
     "title": "Controlled social-story sharing",
-    "summary": "Share a story using a private link that can expire or be revoked.",
+    "summary": "Share one social story using a private link that can expire or be revoked.",
     "details": "A parent can share a social story with a teacher, therapist, caregiver, or family member without making it permanently public. Each private link has a parent-selected expiration period. The parent can revoke access earlier whenever circumstances change. The shared viewer receives only the intended story and does not gain access to the family dashboard.",
     "familyImpact": "A controlled link helps the autistic person receive more consistent preparation and language across the people supporting them. Parents can coordinate with teachers, therapists, relatives, job coaches, or other caregivers while limiting the shared information to one intended story and ending access when it is no longer appropriate.",
     "guideParagraphs": [
@@ -150,6 +159,24 @@
     "plan": "family",
     "icon": "link",
     "routes": ["/social-stories", "/social-stories/shared/:shareToken"],
+    "surfaces": ["home", "about", "onboarding", "chatbot", "pricing", "guest", "help"]
+  },
+  {
+    "id": "community-publishing",
+    "title": "Parent stories and community publishing",
+    "summary": "Write, preview, and submit family experiences or practical ideas through a reviewed community publishing process.",
+    "details": "Parents and caregivers can contribute family stories, testimonials, tips, relevant news, helpful information, or mission-aligned advertisements. A visual editor supports headings, bold and italic text, lists, quotations, and links while showing the finished style directly. Writers can save an incomplete private draft, preview the contribution, and delete drafts or rejected submissions. Submitted work is reviewed before publication, and approved content keeps its title, author credit, paragraphs, lists, and styling.",
+    "familyImpact": "Lived experiences and practical ideas can help other families feel understood and discover approaches they may adapt to their own circumstances. Preview, author control, and review before publication encourage respectful sharing without requiring any child / adult profile, schedule, activity, or other private family record to be published.",
+    "guideParagraphs": [
+      "The community area gives parents and caregivers a dedicated place to share experience without mixing that writing with a child / adult’s private workspace. A contribution may describe a family routine, an encouraging experience, a practical strategy, a testimonial, relevant non-clinical news, or a helpful resource. The writer chooses the public display name and decides what personal details are appropriate to include.",
+      "The editor displays headings, emphasis, lists, quotations, and links as they will appear to readers. A contribution can remain an incomplete private draft until the writer is ready, and a preview provides a final check before submission. Administrators review submitted material for relevance and clarity, while approved writing retains its original organization and author credit in Parent Stories and the Visual Steps newsletter."
+    ],
+    "help": "Open Newsletter and choose Share with the Community. Select the contribution type, add a title and display name, write and format the content, save a draft if needed, preview it, confirm permission, and submit it for review.",
+    "screenshot": { "src": "/onboarding/community-publishing.png", "alt": "Visual Steps Parent Stories and community publishing page", "caption": "Parent Stories presents approved family experiences with the title and author kept visible while readers explore the story." },
+    "introducedOn": "2026-08-25",
+    "plan": "starter",
+    "icon": "book",
+    "routes": ["/newsletter/community", "/testimonials"],
     "surfaces": ["home", "about", "onboarding", "chatbot", "pricing", "guest", "help"]
   },
   {

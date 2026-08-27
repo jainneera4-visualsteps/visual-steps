@@ -386,7 +386,7 @@ export default function Home() {
               <h2 className="mt-2 text-3xl font-black text-slate-950">Practical support for meaningful everyday progress</h2>
               <p className="mt-2 text-sm leading-7 text-slate-600">Every feature is designed to help autistic people of all ages and the parents and caregivers growing alongside them.</p>
             </div>
-            <FeatureHighlights surface="home" limit={10} detailed columns={2} readMore />
+            <FeatureHighlights surface="home" limit={8} detailed columns={2} readMore />
           </section>
         </div>
       </section>

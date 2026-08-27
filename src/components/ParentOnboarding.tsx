@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Activity, BarChart3, BookOpen, Bot, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Database, Gift, PauseCircle, RotateCcw, Share2, UserPlus, X } from 'lucide-react';
 import { Button } from './Button';
+import { featuresForSurface } from '../content/featureRegistry';
 
-const steps = [
+const guidedSteps = [
   {
     icon: UserPlus,
     eyebrow: 'Welcome to Visual Steps',
@@ -95,6 +96,26 @@ const steps = [
   },
 ];
 
+const guidedFeatureIds = ['parent-onboarding','visual-activities','activity-verification',null,'curated-samples','quiz-attempt-locking','behavior-bonuses','learning-progress-rewards','parent-data-management','controlled-sharing','parent-assistant'];
+const onboardingFeatures = featuresForSurface('onboarding');
+const guidedFeatureIdSet = new Set(guidedFeatureIds.filter(Boolean));
+const steps = [
+  ...guidedSteps.map((step, index) => {
+    const feature = onboardingFeatures.find(item => item.id === guidedFeatureIds[index]);
+    return { ...step, action: 'action' in step ? step.action : undefined, description: feature?.summary || step.description, screenshot: feature?.screenshot.src };
+  }),
+  ...onboardingFeatures.filter(feature => !guidedFeatureIdSet.has(feature.id)).map(feature => ({
+    icon: Activity,
+    eyebrow: 'Explore a Visual Steps feature',
+    title: feature.title,
+    description: feature.summary,
+    bullets: [feature.familyImpact, feature.help],
+    tip: feature.familyImpact || feature.help,
+    screenshot: feature.screenshot.src,
+    action: undefined,
+  })),
+];
+
 function ProductPreview({ stepIndex }: { stepIndex: number }) {
   if (stepIndex === 0) {
     return (
@@ -183,10 +204,10 @@ const realScreenPreviews = [
   '/onboarding/parent-assistant.png',
 ];
 
-function RealScreenPreview({ stepIndex, title }: { stepIndex: number; title: string }) {
+function RealScreenPreview({ stepIndex, title, screenshot }: { stepIndex: number; title: string; screenshot?: string }) {
   return (
     <img
-      src={realScreenPreviews[stepIndex]}
+      src={screenshot || realScreenPreviews[stepIndex]}
       alt={`Real Visual Steps screen showing ${title}`}
       className="aspect-[16/10] w-full rounded-xl border border-slate-200 bg-white object-cover object-top shadow-sm"
     />
@@ -237,7 +258,7 @@ export function ParentOnboarding({ onClose }: { onClose: () => Promise<void> | v
             </div>
             <div className="rounded-2xl border border-blue-100 bg-slate-50/90 p-4 shadow-inner" aria-label={`${step.title} preview`}>
               <div className="mb-3 flex items-center gap-1.5 border-b border-slate-200 pb-3"><span className="h-2.5 w-2.5 rounded-full bg-red-300" /><span className="h-2.5 w-2.5 rounded-full bg-amber-300" /><span className="h-2.5 w-2.5 rounded-full bg-emerald-300" /><span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Visual Steps preview</span></div>
-              <RealScreenPreview stepIndex={stepIndex} title={step.title} />
+              <RealScreenPreview stepIndex={stepIndex} title={step.title} screenshot={step.screenshot} />
             </div>
           </div>
           <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm font-semibold leading-6 text-emerald-900">

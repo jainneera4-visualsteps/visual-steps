@@ -43,11 +43,11 @@ CREATE TABLE IF NOT EXISTS public.newsletter_community_submissions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   contribution_type TEXT NOT NULL CHECK (contribution_type IN ('story', 'news', 'information', 'tip', 'testimonial', 'advertisement')),
-  title TEXT NOT NULL CHECK (length(btrim(title)) BETWEEN 3 AND 120),
-  content TEXT NOT NULL CHECK (length(btrim(content)) BETWEEN 20 AND 2000),
-  display_name TEXT NOT NULL CHECK (length(btrim(display_name)) BETWEEN 2 AND 80),
+  title TEXT NOT NULL,
+  content TEXT NOT NULL,
+  display_name TEXT NOT NULL,
   source_url TEXT,
-  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('draft', 'pending', 'approved', 'rejected')),
   consent_to_publish BOOLEAN NOT NULL DEFAULT false,
   submitted_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   reviewed_at TIMESTAMP WITH TIME ZONE
@@ -106,7 +106,26 @@ ALTER TABLE public.newsletter_community_submissions
   DROP CONSTRAINT IF EXISTS newsletter_community_submissions_content_check;
 ALTER TABLE public.newsletter_community_submissions
   ADD CONSTRAINT newsletter_community_submissions_content_check
-  CHECK (length(btrim(content)) BETWEEN 20 AND 10000);
+  CHECK (
+    (status = 'draft' AND length(btrim(content)) BETWEEN 0 AND 10000)
+    OR (status <> 'draft' AND length(btrim(content)) BETWEEN 20 AND 10000)
+  );
+
+-- Drafts may be incomplete. Full publishing requirements apply when a parent
+-- submits the contribution for review.
+ALTER TABLE public.newsletter_community_submissions
+  DROP CONSTRAINT IF EXISTS newsletter_community_submissions_status_check,
+  DROP CONSTRAINT IF EXISTS newsletter_community_submissions_title_check,
+  DROP CONSTRAINT IF EXISTS newsletter_community_submissions_display_name_check;
+ALTER TABLE public.newsletter_community_submissions
+  ADD CONSTRAINT newsletter_community_submissions_status_check
+    CHECK (status IN ('draft', 'pending', 'approved', 'rejected')),
+  ADD CONSTRAINT newsletter_community_submissions_title_check
+    CHECK ((status = 'draft' AND length(btrim(title)) BETWEEN 0 AND 120)
+      OR (status <> 'draft' AND length(btrim(title)) BETWEEN 3 AND 120)),
+  ADD CONSTRAINT newsletter_community_submissions_display_name_check
+    CHECK ((status = 'draft' AND length(btrim(display_name)) BETWEEN 0 AND 80)
+      OR (status <> 'draft' AND length(btrim(display_name)) BETWEEN 2 AND 80));
 
 ALTER TABLE public.newsletter_subscribers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.newsletters ENABLE ROW LEVEL SECURITY;

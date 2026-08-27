@@ -33,7 +33,9 @@ export function Layout() {
   }, []);
 
   useEffect(() => {
-    if (navigator.doNotTrack === '1' || location.pathname.startsWith('/admin') || location.pathname === '/newsletter-admin') return;
+    const hostname = window.location.hostname.toLowerCase();
+    const isLocalDevelopment = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname.endsWith('.localhost');
+    if (isLocalDevelopment || navigator.doNotTrack === '1' || location.pathname.startsWith('/admin') || location.pathname === '/newsletter-admin') return;
     const storageKey = 'visual_steps_analytics_session';
     let sessionId = sessionStorage.getItem(storageKey);
     if (!sessionId) {

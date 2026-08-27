@@ -57,7 +57,11 @@ test('feature health records coarse outcomes without request content or error me
   assert.match(page, /Feature success and struggle signals/);
   assert.match(server, /outcome = statusCode >= 500/);
   assert.match(server, /pendingAssistantKnowledgeGaps/);
+  assert.match(server, /workflowStepForRequest/);
+  assert.match(server, /reasonCodeForResponse/);
   assert.match(migration, /parent_activity_events_outcome_date_idx/);
+  assert.match(migration, /parent_activity_events_struggle_idx/);
+  assert.match(page, /Where parents encountered difficulty/);
   const recorder = server.slice(server.indexOf('const recordParentAction'), server.indexOf('// Helper Functions'));
   assert.doesNotMatch(recorder, /req\.body|error_message|child|kid/i);
 });
@@ -82,6 +86,17 @@ test('administrator overview uses privacy-safe, hourly visit measurement', async
   assert.match(server, /recordedVisitThirtyDays|recordedVisitsThirtyDays/);
   assert.match(migration, /site_analytics_events_session_page_hour_unique/);
   assert.doesNotMatch(migration, /CREATE UNIQUE INDEX IF NOT EXISTS site_analytics_events_session_page_day_unique/);
+});
+
+test('development traffic is excluded from website analytics', async () => {
+  const [layout, server] = await Promise.all([
+    readFile(new URL('../src/components/Layout.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../server.ts', import.meta.url), 'utf8'),
+  ]);
+  assert.match(layout, /isLocalDevelopment/);
+  assert.match(layout, /hostname === 'localhost'/);
+  assert.match(server, /isLocalHostname\(requestHostname\)/);
+  assert.match(server, /isLocalHostname\(originHostname\)/);
 });
 
 test('administrator insights exclude child records and raw network addresses', async () => {

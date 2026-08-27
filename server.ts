@@ -167,13 +167,13 @@ const productFeatureRegistry = [
     "id": "curated-samples",
     "title": "Curated learning samples",
     "summary": "Preview a quiz, printable worksheet, and social story without using AI or saving data.",
-    "details": "Families can open a complete sample quiz, printable worksheet, and social story before creating their own material. The samples show the expected format, level of detail, and accessible presentation for a child / adult. They are available to signed-in parents and visitors using the guest experience. Opening a sample does not reduce the family's daily creation allowance or add anything to their saved work.",
+    "details": "Families can open a complete sample quiz, printable worksheet, and social story before creating their own material. The samples use the same current child / adult viewing layout as family-created content while keeping stable example data. They are available to signed-in parents and visitors using the guest experience. Opening a sample does not reduce the family's daily creation allowance or add anything to their saved work.",
     "familyImpact": "Samples let parents and caregivers judge whether a learning format suits the autistic person before spending time creating new material. They can preview supportive language, visual organization, print layout, and question style, then decide how to adapt future resources for the person’s age, interests, communication, and learning goals.",
     "guideParagraphs": [
       "The sample quiz demonstrates a clear question-and-answer format, the worksheet shows how printable learning can be organized, and the social story illustrates supportive language presented in manageable sections. Families can open each example in full rather than judging the feature from a short description. This makes it easier to decide which format matches the person’s attention, reading, communication, and learning preferences.",
-      "Samples are starting points rather than prescriptions for a particular age or support level. A caregiver might borrow the visual structure while simplifying the language, increase the challenge for an older learner, or use a familiar interest to make a new topic more approachable. Because opening a sample does not add it to saved work, families can explore freely before creating something personal."
+      "Samples are starting points rather than prescriptions for a particular age or support level. A caregiver might borrow the visual structure while simplifying the language, increase the challenge for an older learner, or use a familiar interest to make a new topic more approachable. The example data stays unchanged while its presentation follows the current quiz, worksheet, and social-story viewing experience."
     ],
-    "help": "Open the Guest Demo or the saved Quiz, Worksheet, or Social Story page and select Open sample. Samples never consume the AI allowance.",
+    "help": "Open the saved Quiz, Worksheet, or Social Story page and select Open sample. The sample uses the current viewing layout without using the family’s creation allowance or saving a record.",
     "screenshot": {
       "src": "/onboarding/learning.png",
       "alt": "Visual Steps sample learning resources",
@@ -220,6 +220,15 @@ const productFeatureRegistry = [
     "routes": [
       "/dashboard"
     ],
+    "updates": [
+      {
+        "updatedOn": "2026-08-27",
+        "title": "Guidance that stays current across the app",
+        "summary": "Parent and guest tours now include current feature guidance from the shared Visual Steps catalog.",
+        "details": "When an approved feature description changes, the Home and About pages, guided tours, Parent Assistant knowledge, upcoming newsletter, welcome information, and project guides receive the same wording through the documentation checks. Newly registered features can also be added to the tours without maintaining a separate list of feature cards.",
+        "familyImpact": "Parents and caregivers receive consistent instructions wherever they learn about Visual Steps, making newer workflows easier to discover and reducing conflicting guidance."
+      }
+    ],
     "surfaces": [
       "home",
       "about",
@@ -265,7 +274,7 @@ const productFeatureRegistry = [
   {
     "id": "controlled-sharing",
     "title": "Controlled social-story sharing",
-    "summary": "Share a story using a private link that can expire or be revoked.",
+    "summary": "Share one social story using a private link that can expire or be revoked.",
     "details": "A parent can share a social story with a teacher, therapist, caregiver, or family member without making it permanently public. Each private link has a parent-selected expiration period. The parent can revoke access earlier whenever circumstances change. The shared viewer receives only the intended story and does not gain access to the family dashboard.",
     "familyImpact": "A controlled link helps the autistic person receive more consistent preparation and language across the people supporting them. Parents can coordinate with teachers, therapists, relatives, job coaches, or other caregivers while limiting the shared information to one intended story and ending access when it is no longer appropriate.",
     "guideParagraphs": [
@@ -284,6 +293,39 @@ const productFeatureRegistry = [
     "routes": [
       "/social-stories",
       "/social-stories/shared/:shareToken"
+    ],
+    "surfaces": [
+      "home",
+      "about",
+      "onboarding",
+      "chatbot",
+      "pricing",
+      "guest",
+      "help"
+    ]
+  },
+  {
+    "id": "community-publishing",
+    "title": "Parent stories and community publishing",
+    "summary": "Write, preview, and submit family experiences or practical ideas through a reviewed community publishing process.",
+    "details": "Parents and caregivers can contribute family stories, testimonials, tips, relevant news, helpful information, or mission-aligned advertisements. A visual editor supports headings, bold and italic text, lists, quotations, and links while showing the finished style directly. Writers can save an incomplete private draft, preview the contribution, and delete drafts or rejected submissions. Submitted work is reviewed before publication, and approved content keeps its title, author credit, paragraphs, lists, and styling.",
+    "familyImpact": "Lived experiences and practical ideas can help other families feel understood and discover approaches they may adapt to their own circumstances. Preview, author control, and review before publication encourage respectful sharing without requiring any child / adult profile, schedule, activity, or other private family record to be published.",
+    "guideParagraphs": [
+      "The community area gives parents and caregivers a dedicated place to share experience without mixing that writing with a child / adult’s private workspace. A contribution may describe a family routine, an encouraging experience, a practical strategy, a testimonial, relevant non-clinical news, or a helpful resource. The writer chooses the public display name and decides what personal details are appropriate to include.",
+      "The editor displays headings, emphasis, lists, quotations, and links as they will appear to readers. A contribution can remain an incomplete private draft until the writer is ready, and a preview provides a final check before submission. Administrators review submitted material for relevance and clarity, while approved writing retains its original organization and author credit in Parent Stories and the Visual Steps newsletter."
+    ],
+    "help": "Open Newsletter and choose Share with the Community. Select the contribution type, add a title and display name, write and format the content, save a draft if needed, preview it, confirm permission, and submit it for review.",
+    "screenshot": {
+      "src": "/onboarding/community-publishing.png",
+      "alt": "Visual Steps Parent Stories and community publishing page",
+      "caption": "Parent Stories presents approved family experiences with the title and author kept visible while readers explore the story."
+    },
+    "introducedOn": "2026-08-25",
+    "plan": "starter",
+    "icon": "book",
+    "routes": [
+      "/newsletter/community",
+      "/testimonials"
     ],
     "surfaces": [
       "home",
@@ -570,9 +612,13 @@ app.use((req, res, next) => {
   const requestId = uuidv4();
   res.setHeader('X-Request-ID', requestId);
   const originalJson = res.json.bind(res);
-  res.json = ((payload: unknown) => originalJson(
-    sanitizeApiErrorResponse(res.statusCode, payload, requestId),
-  )) as typeof res.json;
+  res.json = ((payload: unknown) => {
+    if (res.statusCode >= 400 && payload && typeof payload === 'object') {
+      const errorLabel = (payload as Record<string, unknown>).error;
+      (req as any).insightsErrorHint = typeof errorLabel === 'string' ? errorLabel.slice(0, 240) : '';
+    }
+    return originalJson(sanitizeApiErrorResponse(res.statusCode, payload, requestId));
+  }) as typeof res.json;
   res.on('finish', () => {
     if (isProduction && res.statusCode >= 500) {
       productionErrorOutput(`[API_ERROR] ${requestId} ${req.method} ${req.path} ${res.statusCode}`);
@@ -1004,6 +1050,39 @@ const featureForPath = (pathName: string) => {
   return 'Other';
 };
 
+const workflowStepForRequest = (routeTemplate: string, method: string) => {
+  const route = routeTemplate.toLowerCase();
+  const verb = method.toUpperCase();
+  if (route.includes('generate-art') || route.includes('generate-image') || route.includes('/upload')) return route.includes('/upload') ? 'Upload' : 'Create illustration';
+  if (route.includes('generate')) return 'Generate';
+  if (route.includes('preview')) return 'Preview';
+  if (route.includes('quiz-results') || route.includes('quiz-attempt')) return verb === 'GET' ? 'Review result' : 'Submit attempt';
+  if (route.includes('assign')) return 'Assign';
+  if (route.includes('verif') || route.includes('complete')) return 'Review completion';
+  if (route.includes('behavior-bonus')) return 'Award bonus';
+  if (verb === 'DELETE') return 'Delete';
+  if (verb === 'GET') return 'Open or load';
+  if (verb === 'POST') return 'Create or submit';
+  return 'Update';
+};
+
+const reasonCodeForResponse = (req: any, statusCode: number) => {
+  if (statusCode < 400) return 'none';
+  const hint = String(req.insightsErrorHint || '').toLowerCase();
+  if (statusCode === 401) return 'session_or_sign_in_required';
+  if (statusCode === 403) return 'permission_denied';
+  if (statusCode === 404) return 'record_not_found';
+  if (statusCode === 409) return 'conflict_or_already_exists';
+  if (statusCode === 413 || /file.*(large|size)|mb or smaller/.test(hint)) return 'file_too_large';
+  if (statusCode === 429 || /(allowance|daily limit|limit reached|too many)/.test(hint)) return 'allowance_reached';
+  if (statusCode >= 500) return /generat|gemini|illustration|image/.test(`${req.path} ${hint}`) ? 'generation_or_ai_service_failed' : 'service_unavailable';
+  if (/(required|missing|complete all|choose|enter a|confirm)/.test(hint)) return 'required_information_missing';
+  if (/(invalid|valid |unsupported|must be|between)/.test(hint)) return 'invalid_information_or_format';
+  if (/(expired|no longer available)/.test(hint)) return 'expired_or_unavailable';
+  if (/(already|submitted|completed|duplicate)/.test(hint)) return 'already_completed_or_exists';
+  return 'request_not_accepted';
+};
+
 const recordParentAction = (req: any, statusCode: number) => {
   if (!supabaseServiceKey || req.user?.role !== 'parent' || req.path.startsWith('/api/admin/')) return;
   const routeTemplate = normalizeAnalyticsPath(req.path);
@@ -1015,8 +1094,10 @@ const recordParentAction = (req: any, statusCode: number) => {
     feature: featureForPath(routeTemplate),
     action,
     route_template: routeTemplate,
+    workflow_step: workflowStepForRequest(routeTemplate, req.method),
     outcome,
     response_status: statusCode,
+    reason_code: reasonCodeForResponse(req, statusCode),
     duration_ms: durationMs,
   }).then(({ error }) => { if (error && !isProduction) console.warn('Parent analytics event skipped:', error.message); });
 };
@@ -1226,6 +1307,49 @@ const hashNewsletterToken = (token: string) => createHash('sha256').update(token
 const escapeEmailHtml = (value: unknown) => String(value ?? '')
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+const renderNewsletterInlineMarkdown = (value: string) => {
+  const renderText = (text: string) => escapeEmailHtml(text)
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>');
+  let cursor = 0;
+  let output = '';
+  const linkPattern = /\[([^\]]+)\]\(([^)]+)\)/g;
+  for (const match of value.matchAll(linkPattern)) {
+    const index = match.index || 0;
+    output += renderText(value.slice(cursor, index));
+    let safeUrl = '';
+    try { const parsed = new URL(match[2]); if (['http:', 'https:'].includes(parsed.protocol)) safeUrl = parsed.toString(); } catch { safeUrl = ''; }
+    output += safeUrl ? `<a href="${escapeEmailHtml(safeUrl)}">${renderText(match[1])}</a>` : renderText(match[1]);
+    cursor = index + match[0].length;
+  }
+  return output + renderText(value.slice(cursor));
+};
+const renderNewsletterMarkdownForEmail = (value: unknown) => {
+  const lines = String(value ?? '').replace(/\r\n/g, '\n').split('\n');
+  const blocks: string[] = [];
+  let listType: 'ul' | 'ol' | null = null;
+  const closeList = () => { if (listType) blocks.push(`</${listType}>`); listType = null; };
+  lines.forEach(line => {
+    const trimmed = line.trim();
+    const unordered = trimmed.match(/^[-*•]\s+(.+)/);
+    const ordered = trimmed.match(/^\d+\.\s+(.+)/);
+    if (unordered || ordered) {
+      const nextType = unordered ? 'ul' : 'ol';
+      if (listType !== nextType) { closeList(); blocks.push(`<${nextType} style="padding-left:24px">`); listType = nextType; }
+      blocks.push(`<li>${renderNewsletterInlineMarkdown((unordered || ordered)![1])}</li>`);
+      return;
+    }
+    closeList();
+    if (!trimmed) return;
+    const heading = trimmed.match(/^(#{1,3})\s+(.+)/);
+    if (heading) { const level = Math.min(4, heading[1].length + 1); blocks.push(`<h${level}>${renderNewsletterInlineMarkdown(heading[2])}</h${level}>`); return; }
+    const quote = trimmed.match(/^>\s*(.+)/);
+    if (quote) { blocks.push(`<blockquote style="border-left:4px solid #93c5fd;margin:14px 0;padding-left:14px;color:#475569">${renderNewsletterInlineMarkdown(quote[1])}</blockquote>`); return; }
+    blocks.push(`<p style="margin:10px 0;text-align:justify;text-justify:inter-word">${renderNewsletterInlineMarkdown(trimmed)}</p>`);
+  });
+  closeList();
+  return blocks.join('');
+};
 const newsletterEmailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Editorial standard for every generated newsletter suggestion. In Visual
@@ -1445,6 +1569,7 @@ const buildWeeklyNewsletter = async (now = new Date(), published = false, delive
     membership_details: membershipWasPublished ? [] : currentMembershipDetails,
     footer_links: {
       mainPage: cleanEnvVar('APP_URL') || PRODUCTION_APP_URL,
+      pricing: `${cleanEnvVar('APP_URL') || PRODUCTION_APP_URL}/pricing`,
       subscribe: `${cleanEnvVar('APP_URL') || PRODUCTION_APP_URL}/newsletter/subscribe`,
       facebook: cleanEnvVar('FACEBOOK_URL'),
       instagram: cleanEnvVar('INSTAGRAM_URL'),
@@ -1495,10 +1620,10 @@ const sendNewsletterIssue = async (issue: any, appOrigin: string) => {
     const unsubscribeUrl = `${appOrigin}/api/newsletter/unsubscribe?token=${encodeURIComponent(unsubscribeToken)}`;
     const archiveUrl = `${appOrigin}/newsletter`;
     const featureItems = (issue.new_features || []).map((item: any) => `<span style="display:inline-block;background:#dbeafe;color:#1e40af;border-radius:999px;padding:3px 9px;font-size:11px;font-weight:bold;text-transform:uppercase">${item.changeType === 'updated' ? 'Feature update' : 'New feature'}</span><br><strong>${escapeEmailHtml(item.title)}</strong><br>${escapeEmailHtml(item.summary)}<br>${escapeEmailHtml(item.details)}<br><strong>How this supports growth:</strong> ${escapeEmailHtml(item.familyImpact)}<br><em>Where to find it:</em> ${escapeEmailHtml(item.help)}${item.id ? `<br><a href="${appOrigin}/features/${encodeURIComponent(item.id)}">Read more</a>` : ''}`);
-    const testimonialItems = (issue.parent_testimonials || []).map((item: any) => `“${escapeEmailHtml(item.quote)}” — ${escapeEmailHtml(item.displayName)}${item.editorialContext ? `<br><em>${escapeEmailHtml(item.editorialContext)}</em>` : ''}`);
+    const testimonialItems = (issue.parent_testimonials || []).map((item: any) => `<strong>By ${escapeEmailHtml(item.displayName)}</strong>${renderNewsletterMarkdownForEmail(item.quote)}${item.editorialContext ? `<br><em>${escapeEmailHtml(item.editorialContext)}</em>` : ''}`);
     const tipItems = (issue.parent_tips || []).map((item: string) => escapeEmailHtml(item));
     const previewItems = (issue.feature_previews || []).map((item: any) => `<strong>${escapeEmailHtml(item.title)}</strong><br>${escapeEmailHtml(item.caption)}${item.familyImpact ? `<br><strong>Why it matters:</strong> ${escapeEmailHtml(item.familyImpact)}` : ''}${item.id ? `<br><a href="${appOrigin}/features/${encodeURIComponent(item.id)}">Read more</a>` : ''}`);
-    const communityItemsFor = (type: string) => (issue.community_posts || []).filter((item: any) => item.type === type).map((item: any) => `<article><strong style="font-size:20px;color:#172033">${escapeEmailHtml(item.title)}</strong><br><span style="font-size:14px;font-weight:bold;color:#475569">By ${escapeEmailHtml(item.displayName)}</span><div style="margin-top:14px;white-space:pre-wrap;text-align:left;line-height:1.7">${escapeEmailHtml(item.content)}</div>${item.sourceUrl ? `<br><a href="${escapeEmailHtml(item.sourceUrl)}">Source</a>` : ''}${item.editorialContext ? `<br><em>${escapeEmailHtml(item.editorialContext)}</em>` : ''}</article>`);
+    const communityItemsFor = (type: string) => (issue.community_posts || []).filter((item: any) => item.type === type).map((item: any) => `<article><strong style="font-size:20px;color:#172033">${escapeEmailHtml(item.title)}</strong><br><span style="font-size:14px;font-weight:bold;color:#475569">By ${escapeEmailHtml(item.displayName)}</span><div style="margin-top:14px;text-align:left;line-height:1.7">${renderNewsletterMarkdownForEmail(item.content)}</div>${item.sourceUrl ? `<br><a href="${escapeEmailHtml(item.sourceUrl)}">Source</a>` : ''}${item.editorialContext ? `<br><em>${escapeEmailHtml(item.editorialContext)}</em>` : ''}</article>`);
     const communitySectionsHtml = [
       ['story', 'Parent Stories'], ['news', 'Community News'], ['information', 'Helpful Information'], ['tip', 'Community Tips and Tricks'],
     ].map(([type, fallbackTitle]) => newsletterSectionHtml(issue.section_titles?.[`community_${type}`] || fallbackTitle, communityItemsFor(type))).join('');
@@ -1509,6 +1634,7 @@ const sendNewsletterIssue = async (issue: any, appOrigin: string) => {
     const membershipItems = (issue.membership_details || []).map((item: any) => `<strong>${escapeEmailHtml(item.name)}: ${escapeEmailHtml(item.price)}</strong> — ${escapeEmailHtml(item.status)}. ${escapeEmailHtml(item.details)}`);
     const footerLinks = [
       ['Visual Steps Home', appOrigin],
+      ['Pricing', `${appOrigin}/pricing`],
       ['Subscribe Newsletter', `${appOrigin}/newsletter/subscribe`],
       ['Facebook', issue.footer_links?.facebook], ['Instagram', issue.footer_links?.instagram],
     ].filter((item): item is [string, string] => Boolean(item[1]));
@@ -1588,6 +1714,34 @@ app.get('/api/newsletter/community-submissions/mine', authenticateToken, async (
   return res.json(data || []);
 });
 
+app.put('/api/newsletter/community-submissions/draft', authenticateToken, async (req: any, res) => {
+  if (req.user?.role === 'kid') return res.status(403).json({ error: 'Parent access required' });
+  const contributionType = String(req.body?.contributionType || 'story');
+  const title = String(req.body?.title || '').trim();
+  const content = String(req.body?.content || '').trim();
+  const displayName = String(req.body?.displayName || '').trim();
+  const sourceUrl = String(req.body?.sourceUrl || '').trim() || null;
+  const submissionId = String(req.body?.submissionId || '').trim();
+  const allowedTypes = new Set(['story', 'news', 'information', 'tip', 'testimonial', 'advertisement']);
+  if (!allowedTypes.has(contributionType)) return res.status(400).json({ error: 'Choose what you would like to save.' });
+  if (title.length > 120 || content.length > 10000 || displayName.length > 80) return res.status(400).json({ error: 'Shorten the draft before saving it.' });
+  if (sourceUrl) { try { const parsed = new URL(sourceUrl); if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error(); } catch { return res.status(400).json({ error: 'Enter a valid link beginning with http:// or https://.' }); } }
+  const draftValues = { contribution_type: contributionType, title, content, display_name: displayName, source_url: sourceUrl, consent_to_publish: false, status: 'draft', reviewed_at: null };
+  const admin = getAdminSupabaseClient();
+  if (submissionId) {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(submissionId)) return res.status(400).json({ error: 'Choose a valid draft.' });
+    const { data, error } = await admin.from('newsletter_community_submissions').update(draftValues)
+      .eq('id', submissionId).eq('user_id', req.user.id).in('status', ['draft', 'rejected']).select('id').maybeSingle();
+    if (error) return res.status(500).json({ error: 'Unable to save this draft.' });
+    if (!data) return res.status(409).json({ error: 'Only a draft or rejected submission can be saved as a draft.' });
+    return res.json({ id: data.id, message: 'Draft saved privately. It has not been sent for review.' });
+  }
+  const { data, error } = await admin.from('newsletter_community_submissions')
+    .insert({ user_id: req.user.id, ...draftValues }).select('id').single();
+  if (error) return res.status(500).json({ error: 'Unable to save this draft.' });
+  return res.status(201).json({ id: data.id, message: 'Draft saved privately. It has not been sent for review.' });
+});
+
 app.post('/api/newsletter/community-submissions', authenticateToken, async (req: any, res) => {
   if (req.user?.role === 'kid') return res.status(403).json({ error: 'Parent access required' });
   const contributionType = String(req.body?.contributionType || '');
@@ -1621,6 +1775,17 @@ app.post('/api/newsletter/community-submissions', authenticateToken, async (req:
   return res.status(201).json({ message: 'Submitted for review. It will not be public unless approved.' });
 });
 
+app.delete('/api/newsletter/community-submissions/:id', authenticateToken, async (req: any, res) => {
+  if (req.user?.role === 'kid') return res.status(403).json({ error: 'Parent access required' });
+  const submissionId = String(req.params.id || '');
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(submissionId)) return res.status(400).json({ error: 'Choose a valid submission to delete.' });
+  const { data, error } = await getAdminSupabaseClient().from('newsletter_community_submissions')
+    .delete().eq('id', submissionId).eq('user_id', req.user.id).in('status', ['draft', 'rejected']).select('id').maybeSingle();
+  if (error) return res.status(500).json({ error: 'Unable to delete this submission.' });
+  if (!data) return res.status(403).json({ error: 'Only drafts and rejected submissions can be deleted.' });
+  return res.json({ message: 'Submission deleted.' });
+});
+
 app.get('/api/newsletter/admin/status', authenticateToken, requireNewsletterAdmin, (_req, res) => {
   return res.json({ isAdmin: true });
 });
@@ -1630,6 +1795,7 @@ app.get('/api/newsletter/admin/submissions', authenticateToken, requireNewslette
   if (!['pending', 'approved', 'rejected', 'all'].includes(status)) return res.status(400).json({ error: 'Invalid review status' });
   let query = getAdminSupabaseClient().from('newsletter_community_submissions').select('*').order('submitted_at', { ascending: false }).limit(200);
   if (status !== 'all') query = query.eq('status', status);
+  else query = query.neq('status', 'draft');
   const { data, error } = await query;
   if (error) return res.status(500).json({ error: 'Unable to load newsletter submissions' });
   return res.json(data || []);
@@ -1674,15 +1840,6 @@ app.patch('/api/newsletter/admin/submissions/:id', authenticateToken, requireNew
   }).eq('id', req.params.id).select('*').single();
   if (error) return res.status(500).json({ error: 'Unable to save this review' });
   return res.json(data);
-});
-
-app.delete('/api/newsletter/admin/submissions/:id', authenticateToken, requireNewsletterAdmin, async (req, res) => {
-  const admin = getAdminSupabaseClient();
-  const { data, error } = await admin.from('newsletter_community_submissions')
-    .delete().eq('id', req.params.id).select('id').maybeSingle();
-  if (error) return res.status(500).json({ error: 'Unable to delete this submission' });
-  if (!data) return res.status(404).json({ error: 'Submission not found' });
-  return res.json({ deleted: true });
 });
 
 app.get('/api/newsletter/admin/preview', authenticateToken, requireNewsletterAdmin, async (_req, res) => {
@@ -1903,6 +2060,13 @@ const moveOverdueActivities = async (supabase: any, kidId: string, kid: any, tod
 
 app.post('/api/analytics/page-view', async (req, res) => {
   if (!supabaseServiceKey) return res.status(204).end();
+  const forwardedHost = String(req.headers['x-forwarded-host'] || '').split(',')[0].trim().toLowerCase();
+  const normalizeHostname = (value: string) => { const hostname = value.toLowerCase().replace(/^\[|\]$/g, ''); return hostname === '::1' ? hostname : hostname.split(':')[0]; };
+  const requestHostname = normalizeHostname(String(req.hostname || forwardedHost || ''));
+  let originHostname = '';
+  try { originHostname = req.headers.origin ? normalizeHostname(new URL(String(req.headers.origin)).hostname) : ''; } catch { originHostname = ''; }
+  const isLocalHostname = (hostname: string) => hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname.endsWith('.localhost');
+  if (isLocalHostname(requestHostname) || isLocalHostname(originHostname)) return res.status(204).end();
   const pagePath = normalizeAnalyticsPath(req.body?.pagePath || '/');
   if (!pagePath.startsWith('/') || pagePath.startsWith('/api/')) return res.status(400).json({ error: 'Invalid page' });
   const sessionId = String(req.body?.sessionId || '').slice(0, 100);
@@ -2066,7 +2230,7 @@ app.get('/api/admin/feature-health', authenticateToken, requireAppAdmin, async (
   const since = new Date(Date.now() - days * 86400000).toISOString();
   const admin = getAdminSupabaseClient();
   const [eventsResult, gapsResult] = await Promise.all([
-    admin.from('parent_activity_events').select('user_id,feature,outcome,response_status,occurred_at').gte('occurred_at', since).limit(20000),
+    admin.from('parent_activity_events').select('user_id,feature,workflow_step,outcome,response_status,reason_code,occurred_at').gte('occurred_at', since).limit(20000),
     admin.from('parent_ai_knowledge_gaps').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
   ]);
   if (eventsResult.error || gapsResult.error) return res.status(500).json({ error: 'Unable to load feature health' });
@@ -2096,9 +2260,24 @@ app.get('/api/admin/feature-health', authenticateToken, requireAppAdmin, async (
       recoveredParents: [...users.values()].filter(outcomes => outcomes.has('success') && (outcomes.has('client_error') || outcomes.has('server_error'))).length,
     };
   }).sort((a, b) => b.attempts - a.attempts);
+  const struggleGroups = new Map<string, { feature: string; workflowStep: string; reasonCode: string; occurrences: number; parents: Set<string> }>();
+  events.filter((event: any) => event.outcome !== 'success').forEach((event: any) => {
+    const workflowStep = event.workflow_step || 'Other step';
+    const reasonCode = event.reason_code || 'request_not_accepted';
+    const key = `${event.feature}\u0000${workflowStep}\u0000${reasonCode}`;
+    if (!struggleGroups.has(key)) struggleGroups.set(key, { feature: event.feature, workflowStep, reasonCode, occurrences: 0, parents: new Set() });
+    const group = struggleGroups.get(key)!;
+    group.occurrences += 1;
+    group.parents.add(event.user_id);
+  });
+  const struggles = [...struggleGroups.values()].map(group => ({
+    feature: group.feature, workflowStep: group.workflowStep, reasonCode: group.reasonCode,
+    occurrences: group.occurrences, parents: group.parents.size,
+  })).sort((a, b) => b.occurrences - a.occurrences).slice(0, 30);
   res.json({
     days,
     features,
+    struggles,
     totals: {
       attempts: events.length,
       successful: events.filter((event: any) => event.outcome === 'success').length,
@@ -5787,7 +5966,7 @@ export const parentAssistantFeatureCatalog = [
   { area: 'Parent and caregiver testimonials', routes: ['/testimonials'], help: 'Open Testimonials from the footer or mobile menu to read reviewed experiences that families and caregivers explicitly permitted Visual Steps to publish. Signed-in parents can use Public display name, Experience title, and Your testimonial, confirm publication permission, then select Submit privately for review. The submission remains private until an administrator reviews and approves it in Newsletter Administration. Visual Steps never converts private profiles, child records, messages, or activities into public quotes.' },
   { area: 'Contact Visual Steps', routes: ['/contact'], help: 'Open Contact from the top navigation, footer, or mobile menu. Enter your name, reply email, subject, and message, then select Open email to send. The form opens your own email application and does not save the form with a Visual Steps account. Never include passwords, child login codes, or sensitive clinical information.' },
   { area: 'Privacy, terms, cookies, and analytics', routes: ['/privacy', '/terms', '/cookies'], help: 'Open Privacy, Terms, or Cookies & Analytics from the footer on any page. Privacy explains what family information Visual Steps handles, why it is used, limited service-provider processing, AI requests, social-story sharing, uploaded-image links, retention choices, account deletion, and security responsibilities. Terms explains responsible use, caregiver review, community content, availability, and why Visual Steps is not medical or clinical advice. Cookies & Analytics explains essential sign-in and preference storage, the installed-app cache, browser controls, and the current absence of advertising cookies and product analytics. On Create an account, review the Terms and Privacy links and select the agreement checkbox before selecting Sign Up.' },
-  { area: 'Visual Steps weekly newsletter', routes: ['/newsletter', '/newsletter/subscribe', '/newsletter/community', '/newsletter/archive/:month', '/newsletter/issues/:issueDate', '/newsletter-admin'], help: 'Open the Newsletter menu in the main navigation. Choose Subscribe to open the dedicated signup page, enter Email address, and select Subscribe; confirm the subscription from the email you receive. Choose Weekly archive, then select a month; months and issues are ordered latest first. A month opens its issue list in the current tab, and selecting an issue opens the complete newsletter in a new tab. Choose Share with the community to open its dedicated submission page. Approved administrators open Admin and choose Manage newsletter for publication controls. Each weekly issue includes new features and details, illustrated previews, approved parent stories/news/information/tips, testimonials, popular features, curated activities and games, suggested books and family resources, current membership details, parent tips, and clearly labeled mission-aligned advertisements when approved. General non-clinical topics may include communication and speech support, occupational support, positive behavior support, daily living, learning, work, leisure, and community participation for autistic people of all ages. Submissions remain private until reviewed and approved. The protected Newsletter Administration page lets administrators manage submissions, change the weekly delivery day and time in their timezone, edit and save the next issue template, preview it without publishing, and send a prepared issue. Every issue includes Subscribe Newsletter, optional configured Facebook and Instagram links, and one-click unsubscribe.' },
+  { area: 'Visual Steps weekly newsletter', routes: ['/newsletter', '/newsletter/subscribe', '/newsletter/community', '/newsletter/archive/:month', '/newsletter/issues/:issueDate', '/newsletter-admin'], help: 'Open the Newsletter menu in the main navigation. Choose Subscribe to open the dedicated signup page, enter Email address, and select Subscribe; confirm the subscription from the email you receive. Choose Weekly archive, then select a month; months and issues are ordered latest first. A month opens its issue list in the current tab, and selecting an issue opens the complete newsletter in a new tab. Choose Share with the community to open its dedicated submission page. Approved administrators open Admin and choose Manage newsletter for publication controls. Each weekly issue includes new features and details, illustrated previews, approved parent stories/news/information/tips, testimonials, popular features, curated activities and games, suggested books and family resources, current membership details, parent tips, and clearly labeled mission-aligned advertisements when approved. General non-clinical topics may include communication and speech support, occupational support, positive behavior support, daily living, learning, work, leisure, and community participation for autistic people of all ages. Submissions remain private until reviewed and approved. The protected Newsletter Administration page lets administrators manage submissions, change the weekly delivery day and time in their timezone, edit and save the next issue template, preview it without publishing, and send a prepared issue. Every issue includes Visual Steps Home, Pricing, Subscribe Newsletter, optional configured Facebook and Instagram links, and one-click unsubscribe.' },
   { area: 'Protected administration', routes: ['/admin/insights', '/newsletter-admin'], help: 'The Admin menu appears only for approved administrators. Choose Insights to review paginated parent accounts, account-level feature-use patterns, action dates and times, membership status, and privacy-conscious website traffic. Child / adult profiles and family content are intentionally excluded. Choose Manage newsletter for publication and subscriber controls. Administrator and membership changes require confirmation and are recorded for accountability.' },
   { area: 'Child dashboard', routes: ['/kids-dashboard/:kidId'], help: 'Children sign in with their Kid Code. To Be Done lists pending activities, Waiting for parent verification lists submitted work, Completed shows completed activities, and Rewards shows items they may purchase with earned tokens. Meaningful completions show celebrations. A verification-required submission tells the child to wait and does not award tokens until parent approval.' },
   { area: 'Offline and installation', routes: ['/'], help: 'Visual Steps can be installed from a supported browser. On an iPhone or iPad, use Safari Share > Add to Home Screen. When internet access is lost, the app displays an offline notice. Sign-in, saved family information, and AI features become available again after reconnection.' },

@@ -2,8 +2,9 @@ import { PointerEvent, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowRight, Eye, RotateCcw, Sparkles, X } from 'lucide-react';
 import { endGuestSession, GUEST_KID_ID, isGuestSession } from '../guest/guestSession';
+import { featuresForSurface } from '../content/featureRegistry';
 
-const steps = [
+const guidedSteps = [
   { route: '/dashboard', target: '[data-guest-tour="dashboard-menu"]', title: 'Meet the real Parent Dashboard', body: 'This highlighted menu opens the same dashboard signed-in parents use. Review the sample child card, then use its Activities, Learning, Rewards, and Reports controls.' },
   { route: '/add-kid', target: 'form', title: 'Create a child profile', body: 'Use these real profile fields to record strengths, interests, support needs, schedule, and reward preferences. Guest saves remain temporary.' },
   { route: `/assigned-activities/${GUEST_KID_ID}`, target: '[data-guest-tour="activities-menu"]', title: 'Plan and verify activities', body: 'This is the full activity workspace. Add visual steps, require parent verification when appropriate, and review pending, completed, on-hold, or ended work.' },
@@ -16,6 +17,23 @@ const steps = [
   { route: `/progress-report/${GUEST_KID_ID}`, target: 'main', title: 'Plan from progress', body: 'Reports combine activity, quiz, repeat, and reward information to help caregivers choose meaningful next steps.' },
   { route: '/data-management', target: 'main', title: 'Keep family data under parent control', body: 'Review saved record totals, choose when older records should be shown for review, sort and paginate the list, and deliberately select records for deletion. Nothing in this review is deleted automatically.' },
   { route: `/kids-dashboard/${GUEST_KID_ID}`, target: 'main', title: 'Now see the real child view', body: 'This is the same inviting dashboard the child sees, including assigned work, verification waiting states, celebrations, rewards, and positive-behavior bonuses.' },
+];
+
+const guidedFeatureIds = ['guest-demo','parent-onboarding','visual-activities','activity-verification',null,'behavior-bonuses','quiz-attempt-locking','curated-samples','controlled-sharing','learning-progress-rewards','parent-data-management','learning-progress-rewards'];
+const guestFeatures = featuresForSurface('guest');
+const guidedFeatureIdSet = new Set(guidedFeatureIds.filter(Boolean));
+const routeForGuestFeature = (route: string) => route.replace(':kidId', GUEST_KID_ID);
+const steps = [
+  ...guidedSteps.map((step, index) => {
+    const feature = guestFeatures.find(item => item.id === guidedFeatureIds[index]);
+    return { ...step, body: feature?.summary ? `${step.body} ${feature.summary}` : step.body };
+  }),
+  ...guestFeatures.filter(feature => !guidedFeatureIdSet.has(feature.id)).map(feature => ({
+    route: routeForGuestFeature(feature.routes[0] || '/dashboard'),
+    target: 'main',
+    title: feature.title,
+    body: `${feature.summary} ${feature.help}`,
+  })),
 ];
 
 export function GuestWorkspace() {

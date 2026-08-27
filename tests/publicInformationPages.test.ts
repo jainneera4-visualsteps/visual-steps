@@ -14,14 +14,23 @@ test('public information pages are routed and discoverable', async () => {
 });
 
 test('testimonials are public only after consent and administrator approval', async () => {
-  const [page, server] = await Promise.all([
+  const [page, newsletter, server] = await Promise.all([
     readFile(new URL('../src/pages/Testimonials.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/pages/Newsletter.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../server.ts', import.meta.url), 'utf8'),
   ]);
   assert.match(page, /fetch\('\/api\/testimonials'\)/);
-  assert.match(page, /contributionType: 'testimonial'/);
-  assert.match(page, /consentToPublish/);
-  assert.match(page, /Submit privately for review/);
+  assert.match(page, /Previous family story/);
+  assert.match(page, /Next family story/);
+  assert.match(page, /h-\[36rem\]/);
+  assert.ok(page.indexOf('By {testimonials[visibleStory].displayName}') < page.indexOf('FormattedNewsletterContent content={testimonials[visibleStory].quote}'));
+  assert.match(page, /newsletter\/community\?type=testimonial/);
+  assert.doesNotMatch(page, /<form/);
+  assert.match(newsletter, /consentToPublish/);
+  assert.match(newsletter, /CommunityRichTextEditor/);
+  assert.doesNotMatch(newsletter, /html\.push\('<p><br><\/p>'\)/);
+  assert.match(newsletter, /nestedBlocks\.map\(renderBlock\)/);
+  assert.match(newsletter, /Preview submission/);
   assert.match(server, /app\.get\('\/api\/testimonials'/);
   assert.match(server, /eq\('contribution_type', 'testimonial'\)/);
   assert.match(server, /eq\('status', 'approved'\)/);
@@ -49,11 +58,9 @@ test('community stories do not require a source link', async () => {
   assert.match(newsletter, /post\.contributionType === 'news' \|\| post\.contributionType === 'advertisement'/);
   assert.match(newsletter, /\{linkRequired && <Input/);
   assert.match(newsletter, /No website link is needed for this type of submission/);
-  assert.match(newsletter, /Your contribution \(20–10,000 characters\)/);
-  assert.match(newsletter, /Paragraph breaks, line breaks, headings written on their own lines, and bullet symbols will be preserved/);
-  assert.match(newsletter, /whitespace-pre-wrap/);
+  assert.match(newsletter, /Your contribution \(20–\{maxLength\.toLocaleString\(\)\} characters\)/);
   assert.match(newsletter, /By \{post\.displayName\}/);
-  assert.match(newsletter, /By \{post\.displayName\}.*\{post\.content\}/s);
+  assert.match(newsletter, /FormattedNewsletterContent content=\{post\.content\}/);
   assert.match(newsletter, /communitySectionTypes/);
   assert.match(newsletter, /Submission preview/);
   assert.match(newsletter, /Preview submission/);
@@ -64,6 +71,14 @@ test('community stories do not require a source link', async () => {
   assert.match(newsletter, /newsletter-book/);
   assert.match(newsletter, /newsletter-page/);
   assert.match(newsletter, /NewsletterFlipBook/);
+  assert.match(newsletter, /NewsletterContentsPage/);
+  assert.match(newsletter, />Contents</);
+  assert.match(newsletter, /data-newsletter-section-title/);
+  assert.match(newsletter, /onSectionPages/);
+  assert.match(newsletter, /onSelect\(target\)/);
+  assert.match(newsletter, /newsletter-back-to-contents/);
+  assert.match(newsletter, />Back to contents</);
+  assert.match(newsletter, /onClick=\{\(\)=>turn\(1\)\}/);
   assert.match(newsletter, /newsletter-book-page-left/);
   assert.match(newsletter, /newsletter-book-page-right/);
   assert.match(newsletter, /newsletter-page-turn-zone/);
@@ -84,8 +99,28 @@ test('community stories do not require a source link', async () => {
   assert.match(server, /app\.get\('\/api\/newsletter\/community-submissions\/mine'/);
   assert.match(server, /Updated and resubmitted for review/);
   assert.match(server, /\.eq\('id', submissionId\)\.eq\('user_id', req\.user\.id\)/);
-  assert.match(server, /white-space:pre-wrap/);
+  assert.match(server, /renderNewsletterMarkdownForEmail\(item\.content\)/);
   assert.match(server, /By \$\{escapeEmailHtml\(item\.displayName\)\}/);
+});
+
+test('community publishing uses one formatted, previewed, and moderated workflow', async () => {
+  const [testimonials, newsletter, server] = await Promise.all([
+    readFile(new URL('../src/pages/Testimonials.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/pages/Newsletter.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../server.ts', import.meta.url), 'utf8'),
+  ]);
+  assert.match(testimonials, /newsletter\/community\?type=testimonial/);
+  assert.doesNotMatch(testimonials, /api\/newsletter\/community-submissions/);
+  for (const tool of ['Bold', 'Italic', 'Heading', 'Bulleted list', 'Numbered list', 'Quote', 'Link']) assert.match(newsletter, new RegExp(`label:'${tool}'`));
+  assert.match(newsletter, /contentEditable role="textbox"/);
+  assert.match(newsletter, /h-72 w-full overflow-y-auto overscroll-contain/);
+  assert.match(newsletter, /Scroll inside the writing area to review and format longer content/);
+  assert.match(newsletter, /editorHtmlToMarkdown/);
+  assert.doesNotMatch(newsletter, /run:\(\)=>apply\('\*\*'/);
+  assert.match(newsletter, /ReactMarkdown skipHtml/);
+  assert.match(newsletter, /Submission preview/);
+  assert.match(server, /renderNewsletterMarkdownForEmail/);
+  assert.match(server, /consent_to_publish/);
 });
 
 test('newsletter navigation groups issues by newest month and opens individual issues in a new tab', async () => {
@@ -134,6 +169,7 @@ test('home links to the newsletter and safely exposes configured social pages', 
   assert.match(layout, /text-sm font-bold text-slate-600/);
   assert.match(server, /Subscribe Newsletter', `\$\{appOrigin\}\/newsletter\/subscribe`/);
   assert.match(server, /\['Visual Steps Home', appOrigin\]/);
+  assert.match(server, /\['Pricing', `\$\{appOrigin\}\/pricing`\]/);
   assert.doesNotMatch(home, /SMTP_PASS|service_role/);
 });
 

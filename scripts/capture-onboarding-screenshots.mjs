@@ -6,6 +6,7 @@ const baseUrl = process.env.ONBOARDING_CAPTURE_URL || 'http://127.0.0.1:4173';
 const captureOnly = process.env.ONBOARDING_CAPTURE_ONLY || '';
 const outputDirectory = resolve('public/onboarding');
 const captures = [
+  ['community-publishing', '/testimonials'],
   ['dashboard', '/dashboard'],
   ['child-profile', '/add-kid'],
   ['activities', '/assigned-activities/22222222-2222-4222-8222-222222222222'],

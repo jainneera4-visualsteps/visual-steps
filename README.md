@@ -216,9 +216,10 @@ This section is generated from `feature-registry.json`. Update the registry when
 | Positive behavior bonuses | starter | 2026-08-20 | — | Parents can recognize a specific calm, focused, helpful, or persistent behavior. |
 | Personalized, fair quizzes | starter | 2026-08-20 | 2026-08-24 | Create an age-respectful quiz around a measurable learning objective, with careful illustration use and one meaningful attempt per assignment. |
 | Curated learning samples | starter | 2026-08-21 | — | Preview a quiz, printable worksheet, and social story without using AI or saving data. |
-| Replayable parent tour | starter | 2026-08-20 | — | New parents receive a guided introduction, and existing parents can replay it anytime. |
+| Replayable parent tour | starter | 2026-08-20 | 2026-08-27 | New parents receive a guided introduction, and existing parents can replay it anytime. |
 | Visual Steps Parent Assistant | family | 2026-08-20 | — | Ask app how-to questions and receive answers grounded in owned family data. |
-| Controlled social-story sharing | family | 2026-08-19 | — | Share a story using a private link that can expire or be revoked. |
+| Controlled social-story sharing | family | 2026-08-19 | — | Share one social story using a private link that can expire or be revoked. |
+| Parent stories and community publishing | starter | 2026-08-25 | — | Write, preview, and submit family experiences or practical ideas through a reviewed community publishing process. |
 | Temporary guest demonstration | starter | 2026-08-21 | — | Explore realistic caregiver and child / adult workflows without creating an account or keeping any changes. |
 | Learning, progress, and meaningful rewards | starter | 2026-03-15 | — | Create personalized resources, understand progress, and connect earned rewards to meaningful goals. |
 | Parent-controlled data management | starter | 2026-08-24 | — | Review saved family records, set a reminder period, and selectively remove history that is no longer useful. |
@@ -227,5 +228,6 @@ This section is generated from `feature-registry.json`. Update the registry when
 
 | Updated | Feature | Improvement | Family-facing summary |
 | --- | --- | --- | --- |
+| 2026-08-27 | Replayable parent tour | Guidance that stays current across the app | Parent and guest tours now include current feature guidance from the shared Visual Steps catalog. |
 | 2026-08-24 | Personalized, fair quizzes | Clearer quiz goals, learner preview, learning insights, and thoughtful illustrations | Quiz creation now connects every quiz to a measurable learning objective, lets parents privately try it as the learner, controls illustration use, and turns completed answers into practical planning guidance. |
 <!-- FEATURE_REGISTRY:END -->
