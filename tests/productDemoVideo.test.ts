@@ -21,7 +21,7 @@ test('home presents a user-started narrated experience below guest login', async
   assert.match(demo, /createFriendlyUtterance/);
   assert.match(demo, /demo-audio\/manifest\.json/);
   assert.match(demo, /new Audio\(recordedClip\.url\)/);
-  assert.match(demo, /generated once and replayed/);
+  assert.doesNotMatch(demo, /AI-generated narration|generated once and replayed/);
   assert.match(demo, /Turn narration off/);
   assert.match(demo, /Pause demonstration/);
   assert.match(demo, /Replay demonstration/);

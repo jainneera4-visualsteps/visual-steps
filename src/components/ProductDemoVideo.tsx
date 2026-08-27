@@ -311,10 +311,10 @@ export function ProductDemoVideo({ autoOpen = false, standalone = false }: { aut
             <span className="text-xs font-bold text-slate-300">{progressLabel}</span>
           </div>
         </div>
-        <div className="product-demo__viewer-footer">
-          <div className="flex flex-wrap items-center gap-3"><p>{voiceEnabled ? (audioManifest?.scenes?.[scene.id] ? `${audioManifest.voice} AI-generated narration · generated once and replayed` : 'Recorded narration is not installed yet; using a voice from this device.') : 'Narration is off. Use the chapter controls at your own pace.'}</p>{voiceEnabled && !audioManifest?.scenes?.[scene.id] && <DeviceVoiceSelector onChange={() => { setPlaying(false); setProgressKey(current => current + 1); }} />}</div>
+        {(!standalone || !voiceEnabled || !audioManifest?.scenes?.[scene.id]) && <div className="product-demo__viewer-footer">
+          {(!voiceEnabled || !audioManifest?.scenes?.[scene.id]) && <div className="flex flex-wrap items-center gap-3"><p>{voiceEnabled ? 'Recorded narration is not installed yet; using a voice from this device.' : 'Narration is off. Use the chapter controls at your own pace.'}</p>{voiceEnabled && <DeviceVoiceSelector onChange={() => { setPlaying(false); setProgressKey(current => current + 1); }} />}</div>}
           {!standalone && <button type="button" onClick={enterGuest}>Try Guest Login <ArrowRight className="h-4 w-4" /></button>}
-        </div>
+        </div>}
       </div>
     </div>, document.body
   ) : null;
