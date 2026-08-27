@@ -8,6 +8,7 @@ import { Input } from '../components/Input';
 import { Select } from '../components/Select';
 import { Card, CardContent } from '../components/Card';
 import { FeatureHighlights } from '../components/FeatureHighlights';
+import { ProductDemoVideo } from '../components/ProductDemoVideo';
 import { AlertCircle, ArrowUpRight, Facebook, Instagram, Mail, Search, Eye, EyeOff } from 'lucide-react';
 import { startGuestSession } from '../guest/guestSession';
 
@@ -379,6 +380,8 @@ export default function Home() {
               </a> : <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-slate-500"><span className="rounded-xl bg-white p-2 shadow-sm"><Instagram className="h-5 w-5" /></span><span><strong className="block text-sm">Instagram</strong><small>Page coming soon</small></span></div>}
             </div>
           </section>
+
+          <ProductDemoVideo />
 
           <section className="mt-8 space-y-5">
             <div className="max-w-3xl">

@@ -12,6 +12,7 @@ const captures = [
   ['activities', '/assigned-activities/22222222-2222-4222-8222-222222222222'],
   ['learning', '/saved-quizzes'],
   ['progress', '/progress-report/22222222-2222-4222-8222-222222222222'],
+  ['child-dashboard', '/kids-dashboard/22222222-2222-4222-8222-222222222222'],
   ['data-management', '/data-management'],
 ];
 
