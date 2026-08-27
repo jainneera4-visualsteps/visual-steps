@@ -189,14 +189,13 @@ test('about page navigation and mobile layout remain usable', async ({ page }) =
   await expectNoHorizontalOverflow(page);
 });
 
-test('plans page presents transparent future pricing without an active checkout', async ({ page }) => {
+test('plans page presents only the currently available free membership', async ({ page }) => {
   await page.goto('/pricing');
   await expect(page).toHaveTitle('Plans & Pricing | Visual Steps');
-  await expect(page.getByRole('heading', { name: /Start free/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Start using Visual Steps for free/ })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Starter' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Family', exact: true })).toBeVisible();
-  await expect(page.getByText('no payment will be collected yet', { exact: false })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Coming soon' })).toHaveCount(2);
+  await expect(page.getByRole('heading', { name: 'Family', exact: true })).toHaveCount(0);
+  await expect(page.getByText('There is no checkout or paid subscription.', { exact: false })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
 

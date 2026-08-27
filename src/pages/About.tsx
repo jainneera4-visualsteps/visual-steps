@@ -74,10 +74,10 @@ export default function About() {
         <section className="surface flex flex-col items-start gap-5 bg-slate-900 p-7 text-white sm:flex-row sm:items-center sm:justify-between sm:p-10">
           <div>
             <h2 className="text-2xl font-bold text-white">Ready to make the next step clearer?</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-300">Create a free account, or review the plans for future premium features.</p>
+            <p className="mt-2 text-sm leading-6 text-slate-300">Create a free account, or review what is included in Visual Steps today.</p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Link to="/pricing"><Button variant="outline" className="border-slate-600 bg-slate-800 text-white hover:bg-slate-700">View plans</Button></Link>
+            <Link to="/pricing"><Button variant="outline" className="border-slate-600 bg-slate-800 text-white hover:bg-slate-700">What is included</Button></Link>
             <Link to="/signup"><Button>Get started free</Button></Link>
           </div>
         </section>

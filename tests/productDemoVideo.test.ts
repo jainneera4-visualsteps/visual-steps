@@ -4,20 +4,58 @@ import test from 'node:test';
 
 const read = (path: string) => readFile(new URL(path, import.meta.url), 'utf8');
 
-test('home presents an autoplaying guided experience with a guest handoff', async () => {
+test('home presents a user-started narrated experience below guest login', async () => {
   const [home, demo] = await Promise.all([
     read('../src/pages/Home.tsx'),
     read('../src/components/ProductDemoVideo.tsx'),
   ]);
 
   assert.match(home, /<ProductDemoVideo \/>/);
-  assert.match(demo, /Start Tour and Guest Login/);
+  assert.ok(home.indexOf('Continue as Guest') < home.indexOf('<ProductDemoVideo />'));
+  assert.match(demo, /Open Visual Steps video/);
+  assert.match(demo, /<b>Visual Steps<\/b>/);
+  assert.match(demo, /href="\/" target="_blank" rel="noreferrer" aria-label="Open the Visual Steps website"/);
+  assert.match(demo, /useState\(false\)/, 'the demonstration must not start automatically');
+  assert.match(demo, /createFriendlyUtterance/);
+  assert.match(demo, /demo-audio\/manifest\.json/);
+  assert.match(demo, /new Audio\(recordedClip\.url\)/);
+  assert.match(demo, /generated once and replayed/);
+  assert.match(demo, /Turn narration off/);
   assert.match(demo, /Pause demonstration/);
   assert.match(demo, /Replay demonstration/);
-  assert.match(demo, /View demonstration full screen/);
+  assert.match(demo, /Close demonstration/);
+  assert.match(demo, /createPortal/);
+  assert.match(demo, /requestFullscreen/);
+  assert.match(demo, /Exit full screen/);
+  assert.match(demo, /navigator\.share/);
+  assert.match(demo, /navigator\.clipboard\.writeText/);
+  assert.doesNotMatch(demo, /\/api\/testimonials/);
+  assert.match(demo, /sceneFocusPoints/);
+  assert.match(demo, /narrationSegments/);
+  assert.doesNotMatch(demo, /The pointer is now highlighting/);
+  assert.match(demo, /setPlaying\(false\)/);
+  assert.doesNotMatch(demo, /Families share their experience/);
+  assert.doesNotMatch(demo, /current === demoScenes\.length - 1 \? 0/);
   assert.match(demo, /startGuestSession\(\)/);
   assert.match(demo, /navigate\('\/dashboard'\)/);
-  assert.doesNotMatch(demo, /autoplay/i, 'accessible control labels should describe the action rather than promise uninterruptible playback');
+});
+
+test('demo narration is generated only by an explicit maintenance command', async () => {
+  const [generator, packageJson, manifest] = await Promise.all([
+    read('../scripts/generate-product-demo-audio.ts'),
+    read('../package.json'),
+    read('../public/demo-audio/manifest.json'),
+  ]);
+
+  assert.match(generator, /gemini-3\.1-flash-tts-preview/);
+  assert.match(generator, /const VOICE = 'Leda'/);
+  assert.match(generator, /GEMINI_API_KEY is required/);
+  assert.match(generator, /Unchanged:/);
+  assert.match(generator, /--dry-run/);
+  assert.match(generator, /--confirm-generation/);
+  assert.match(packageJson, /"audio:demo"/);
+  assert.match(manifest, /"voice": "Leda"/);
+  assert.doesNotMatch(await read('../src/components/ProductDemoVideo.tsx'), /GoogleGenAI|generativelanguage\.googleapis\.com/);
 });
 
 test('the demo uses current onboarding captures and the capture workflow includes learner view', async () => {
@@ -26,8 +64,9 @@ test('the demo uses current onboarding captures and the capture workflow include
     read('../scripts/capture-onboarding-screenshots.mjs'),
   ]);
 
-  for (const image of ['dashboard.png', 'child-profile.png', 'activities.png', 'activity-verification.png', 'learning.png', 'quiz-attempt.png', 'progress.png']) {
+  for (const image of ['dashboard.png', 'child-profile.png', 'activities.png', 'activity-verification.png', 'behavior-bonuses.png', 'quiz-attempt.png', 'worksheets.png', 'social-stories.png', 'progress.png', 'newsletter.png', 'community-publishing.png', 'data-management.png', 'child-dashboard.png']) {
     assert.match(demo, new RegExp(image.replace('.', '\\.')));
   }
-  assert.match(capture, /child-dashboard/);
+  for (const captureName of ['worksheets', 'social-stories', 'child-dashboard', 'newsletter']) assert.match(capture, new RegExp(captureName));
+  assert.match(capture, /newsletter\/issues\/2026-08-24/);
 });

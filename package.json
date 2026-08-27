@@ -27,10 +27,12 @@
     "test:browser:mobile": "playwright test tests/browser/pwa-mobile.spec.ts --project=iphone-webkit --project=ipad-webkit",
     "test:browser:ui": "playwright test --ui",
     "screenshots:onboarding": "node scripts/capture-onboarding-screenshots.mjs",
+    "audio:demo": "tsx scripts/generate-product-demo-audio.ts",
+    "audio:demo:check": "tsx scripts/generate-product-demo-audio.ts --dry-run",
     "test:all": "npm run lint && npm test && npm run test:api:mocked && npm run build"
   },
   "dependencies": {
-    "@google/genai": "^1.48.0",
+    "@google/genai": "^2.19.0",
     "@radix-ui/react-tooltip": "^1.1.2",
     "@supabase/supabase-js": "^2.45.4",
     "canvas-confetti": "^1.9.3",

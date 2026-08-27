@@ -11,9 +11,12 @@ const captures = [
   ['child-profile', '/add-kid'],
   ['activities', '/assigned-activities/22222222-2222-4222-8222-222222222222'],
   ['learning', '/saved-quizzes'],
+  ['worksheets', '/saved-worksheets'],
+  ['social-stories', '/social-stories'],
   ['progress', '/progress-report/22222222-2222-4222-8222-222222222222'],
   ['child-dashboard', '/kids-dashboard/22222222-2222-4222-8222-222222222222'],
   ['data-management', '/data-management'],
+  ['newsletter', '/newsletter/issues/2026-08-24'],
 ];
 
 const featureCaptures = [
@@ -33,7 +36,7 @@ const featureCaptures = [
 await mkdir(outputDirectory, { recursive: true });
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-await page.goto(baseUrl, { waitUntil: 'networkidle' });
+await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
 
 const assistantButton = page.getByRole('button', { name: /open parent ai assistant/i });
 if (!captureOnly && await assistantButton.count()) {

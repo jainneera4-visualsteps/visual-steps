@@ -1,4 +1,4 @@
-import { Check, Heart, ShieldCheck, Sparkles } from 'lucide-react';
+import { Check, Heart, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { FeatureHighlights } from '../components/FeatureHighlights';
@@ -17,13 +17,13 @@ export default function Pricing() {
           <span className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 px-4 py-2 text-xs font-bold uppercase tracking-widest text-brand-800">
             <Heart className="h-4 w-4" /> Plans for real family routines
           </span>
-          <h1 className="mt-6 text-4xl font-bold sm:text-6xl">Start free. Grow when your family is ready.</h1>
+          <h1 className="mt-6 text-4xl font-bold sm:text-6xl">Start using Visual Steps for free.</h1>
           <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-slate-600">
-            Visual Steps is currently free to use. These paid plans show the direction of future premium features; no payment will be collected yet.
+            Visual Steps is currently free to use. This page describes the tools families can access now, with no payment required.
           </p>
         </section>
 
-        <section className="grid gap-5 lg:grid-cols-3" aria-label="Visual Steps plans">
+        <section className="mx-auto grid max-w-2xl gap-5" aria-label="Visual Steps plans">
           {plans.map((plan) => (
             <article key={plan.name} className={`relative flex flex-col rounded-3xl border bg-white/90 p-7 shadow-lg shadow-slate-300/20 ${plan.featured ? 'border-brand-300 ring-4 ring-brand-100/70' : 'border-slate-200'}`}>
               {plan.featured && <span className="absolute right-5 top-5 rounded-full bg-brand-600 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-white">Most popular</span>}
@@ -47,19 +47,15 @@ export default function Pricing() {
                   </li>
                 ))}
               </ul>
-              {plan.href ? (
-                <Link to={plan.href}><Button className="w-full">{plan.action}</Button></Link>
-              ) : (
-                <Button variant="outline" className="w-full" disabled>{plan.action}</Button>
-              )}
+              <Link to={plan.href}><Button className="w-full">{plan.action}</Button></Link>
             </article>
           ))}
         </section>
 
         <section>
           <div className="mb-5 text-center">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-brand-700">Current and upcoming capabilities</p>
-            <h2 className="mt-2 text-3xl font-black">Features synchronized with the product</h2>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-brand-700">Included capabilities</p>
+            <h2 className="mt-2 text-3xl font-black">Explore what families can use today</h2>
           </div>
           <FeatureHighlights surface="pricing" compact />
         </section>
@@ -68,9 +64,8 @@ export default function Pricing() {
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-brand-700 shadow-sm"><ShieldCheck className="h-6 w-6" /></div>
           <div className="flex-1">
             <h2 className="text-lg font-bold">Simple and transparent by design</h2>
-            <p className="mt-1 text-sm leading-6 text-brand-900/75">Premium checkout will only be enabled after pricing, billing terms, cancellation and privacy details are finalized. Existing families will see clear notice before anything changes.</p>
+            <p className="mt-1 text-sm leading-6 text-brand-900/75">There is no checkout or paid subscription. If membership terms ever change, families will receive clear information before making any decision.</p>
           </div>
-          <Sparkles className="hidden h-8 w-8 text-brand-400 sm:block" />
         </section>
       </div>
     </div>

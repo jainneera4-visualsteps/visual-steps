@@ -143,6 +143,8 @@ For the Vercel Production environment, set `APP_URL` to `https://visual-steps-si
 | `npm run test:api:mocked` | Run local HTTP API tests with mocked external AI calls and no database writes |
 | `npm run test:browser:ai` | Run the quiz and AI-image browser flow with mocked authentication and AI responses |
 | `npm run test:gemini:smoke` | Run the optional, explicitly enabled one-request Gemini text smoke test |
+| `npm run audio:demo:check` | List missing or changed demo narration clips without calling Gemini or spending money |
+| `npm run audio:demo -- --confirm-generation` | Generate only missing or changed Leda demo clips after explicit confirmation |
 | `npm run test:browser` | Run headless Phase 1 Playwright browser tests with mocked API responses |
 | `npm run test:browser:mobile` | Run PWA and responsive-layout tests using iPhone and iPad WebKit emulation |
 | `npm run test:browser:ui` | Open Playwright's interactive browser-test runner |
@@ -177,6 +179,10 @@ RUN_GEMINI_SMOKE_TEST=true npm run test:gemini:smoke
 ```
 
 Without `RUN_GEMINI_SMOKE_TEST=true`, the test is safely skipped.
+
+### Generate-once demo narration
+
+The public demo video plays approved audio files from `public/demo-audio`. Normal visitors never call the Gemini API. When the narration script changes, first run `npm run audio:demo:check`; it reports only the clips that need refreshing and does not generate audio. After adding `GEMINI_API_KEY` to the local `.env` file and reviewing that list, run `npm run audio:demo -- --confirm-generation`. Gemini 3.1 Flash TTS generates the narration with the Leda voice. Unchanged clips are reused, the new WAV files and manifest are saved with the application, and the browser falls back to a selected device voice until recorded clips are installed.
 
 ## Install on iPhone or iPad
 

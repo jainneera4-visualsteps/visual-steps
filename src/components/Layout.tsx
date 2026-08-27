@@ -277,7 +277,7 @@ export function Layout() {
           </div>
 
           <div className="hidden md:flex items-center gap-4">
-            <Tooltip content="Plans and future premium features">
+            <Tooltip content="What is included in Visual Steps">
               <Link to="/pricing" className="text-sm font-semibold text-slate-600 hover:text-brand-600 transition-all">
                 Plans
               </Link>

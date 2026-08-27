@@ -1,0 +1,60 @@
+{
+  "model": "gemini-3.1-flash-tts-preview",
+  "voice": "Leda",
+  "disclosure": "AI-generated narration",
+  "scenes": {
+    "parent-workspace": {
+      "url": "/demo-audio/parent-workspace.wav",
+      "scriptHash": "6b75bb5a952d0739264949fd1224722827bc2c8d4c48a461d36f30cef7202a88"
+    },
+    "profile": {
+      "url": "/demo-audio/profile.wav",
+      "scriptHash": "ae5fae30784135e61a4f391ec3003661a0cf769e157cea8e23eac83e2ff851f2"
+    },
+    "activities": {
+      "url": "/demo-audio/activities.wav",
+      "scriptHash": "908f890b4c4442c61e12148c610459b0eba1f031059c3319b25e049c1ff6310c"
+    },
+    "verification": {
+      "url": "/demo-audio/verification.wav",
+      "scriptHash": "89ea3bae63c6ff93c6404409a09ce517a27f914518e9873c0bf8871b93a5c3dd"
+    },
+    "rewards": {
+      "url": "/demo-audio/rewards.wav",
+      "scriptHash": "0cec057ead049161f823926dc5da7b850eed5ce183ba40c90cc158d964bf54bb"
+    },
+    "quiz": {
+      "url": "/demo-audio/quiz.wav",
+      "scriptHash": "f1b5e725af336d230fdde497f86dac7518a9b6e1e43b364f67ea55634fd0e0fd"
+    },
+    "worksheets": {
+      "url": "/demo-audio/worksheets.wav",
+      "scriptHash": "710ad487b2c75371fef3d4d2a28d1318f35912ae9b1b625d7db613122e8df1fb"
+    },
+    "social-stories": {
+      "url": "/demo-audio/social-stories.wav",
+      "scriptHash": "464f885ed00df2a3127c7ee2e80386111cdb60e30a91d2f34f09de140506016a"
+    },
+    "reports": {
+      "url": "/demo-audio/reports.wav",
+      "scriptHash": "80ea0ec0452393229d05244121b4d126dd64553f174c6b47d66c7f13ede9f209"
+    },
+    "newsletter": {
+      "url": "/demo-audio/newsletter.wav",
+      "scriptHash": "0073c5691894db5831f3e420ce060672deb4f0326778a2021049019cb3e8fe6e"
+    },
+    "parent-stories": {
+      "url": "/demo-audio/parent-stories.wav",
+      "scriptHash": "c44f26cbaea90aa0be6282b60593b12858b1e7c2c2c89d4ff46f4d06ccce3480"
+    },
+    "data-management": {
+      "url": "/demo-audio/data-management.wav",
+      "scriptHash": "83124f8c8985fd8b265510366fa7c9d29a603cd779da970f033f154ffe50d6fa"
+    },
+    "learner-dashboard": {
+      "url": "/demo-audio/learner-dashboard.wav",
+      "scriptHash": "9fedbef486a0c284b75681ba2c26cc23c88567e4fda1a03237f74fa721ba0675"
+    }
+  },
+  "generatedAt": "2026-08-27T21:38:25.480Z"
+}
