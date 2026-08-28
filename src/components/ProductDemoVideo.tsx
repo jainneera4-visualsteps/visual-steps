@@ -227,11 +227,12 @@ export function ProductDemoVideo({ autoOpen = false, standalone = false }: { aut
         setMaximized(false);
         return;
       }
-      setOpen(false);
+      if (standalone) navigate('/');
+      else setOpen(false);
     };
     window.addEventListener('keydown', escape);
     return () => { document.body.style.overflow = previous; window.removeEventListener('keydown', escape); window.speechSynthesis?.cancel(); };
-  }, [open]);
+  }, [open, standalone, navigate]);
 
   useEffect(() => {
     const documentWithWebkit = document as Document & { webkitFullscreenElement?: Element | null };
@@ -257,7 +258,15 @@ export function ProductDemoVideo({ autoOpen = false, standalone = false }: { aut
     if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
     else if (documentWithWebkit.webkitFullscreenElement) void documentWithWebkit.webkitExitFullscreen?.();
   };
-  const close = () => { exitNativeFullscreen(); setMaximized(false); setOpen(false); setPlaying(false); audioRef.current?.pause(); window.speechSynthesis?.cancel(); };
+  const close = () => {
+    exitNativeFullscreen();
+    setMaximized(false);
+    setOpen(false);
+    setPlaying(false);
+    audioRef.current?.pause();
+    window.speechSynthesis?.cancel();
+    if (standalone) navigate('/');
+  };
   const toggleFullscreen = async () => {
     const target = overlayRef.current as (HTMLDivElement & { webkitRequestFullscreen?: () => Promise<void> | void }) | null;
     const documentWithWebkit = document as Document & { webkitFullscreenElement?: Element | null };

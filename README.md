@@ -145,6 +145,7 @@ For the Vercel Production environment, set `APP_URL` to `https://visual-steps-si
 | `npm run test:gemini:smoke` | Run the optional, explicitly enabled one-request Gemini text smoke test |
 | `npm run audio:demo:check` | List missing or changed demo narration clips without calling Gemini or spending money |
 | `npm run audio:demo -- --confirm-generation` | Generate only missing or changed Leda demo clips after explicit confirmation |
+| `npm run audio:intro -- --confirm-generation` | Generate only missing or changed Orus introductory-video clips after explicit confirmation |
 | `npm run test:browser` | Run headless Phase 1 Playwright browser tests with mocked API responses |
 | `npm run test:browser:mobile` | Run PWA and responsive-layout tests using iPhone and iPad WebKit emulation |
 | `npm run test:browser:ui` | Open Playwright's interactive browser-test runner |
@@ -183,6 +184,8 @@ Without `RUN_GEMINI_SMOKE_TEST=true`, the test is safely skipped.
 ### Generate-once demo narration
 
 The public demo video plays approved audio files from `public/demo-audio`. Normal visitors never call the Gemini API. When the narration script changes, first run `npm run audio:demo:check`; it reports only the clips that need refreshing and does not generate audio. After adding `GEMINI_API_KEY` to the local `.env` file and reviewing that list, run `npm run audio:demo -- --confirm-generation`. Gemini 3.1 Flash TTS generates the narration with the Leda voice. Unchanged clips are reused, the new WAV files and manifest are saved with the application, and the browser falls back to a selected device voice until recorded clips are installed.
+
+The shorter introductory video follows the same one-time workflow but keeps its audio separate in `public/intro-audio`. Run `npm run audio:intro:check` before `npm run audio:intro -- --confirm-generation`. Its saved clips use the Orus voice and are replayed locally; opening or replaying the video does not call Gemini.
 
 ## Install on iPhone or iPad
 
@@ -226,7 +229,7 @@ This section is generated from `feature-registry.json`. Update the registry when
 | Visual Steps Parent Assistant | family | 2026-08-20 | — | Ask app how-to questions and receive answers grounded in owned family data. |
 | Controlled social-story sharing | family | 2026-08-19 | — | Share one social story using a private link that can expire or be revoked. |
 | Parent stories and community publishing | starter | 2026-08-25 | — | Write, preview, and submit family experiences or practical ideas through a reviewed community publishing process. |
-| Narrated tour and temporary Guest Login | starter | 2026-08-21 | 2026-08-27 | Watch a friendly tour of current caregiver and child / adult screens, then explore the same workflows without creating an account or keeping any changes. |
+| Narrated tour and temporary Guest Login | starter | 2026-08-21 | 2026-08-27 | Watch a short illustrated introduction or a detailed tour of current caregiver and child / adult screens, then explore the same workflows without keeping any changes. |
 | Learning, progress, and meaningful rewards | starter | 2026-03-15 | — | Create personalized resources, understand progress, and connect earned rewards to meaningful goals. |
 | Parent-controlled data management | starter | 2026-08-24 | — | Review saved family records, set a reminder period, and selectively remove history that is no longer useful. |
 

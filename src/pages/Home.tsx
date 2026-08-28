@@ -7,9 +7,10 @@ import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Select } from '../components/Select';
 import { Card, CardContent } from '../components/Card';
-import { FeatureHighlights } from '../components/FeatureHighlights';
 import { ProductDemoVideo } from '../components/ProductDemoVideo';
-import { AlertCircle, ArrowUpRight, Facebook, Instagram, Mail, Search, Eye, EyeOff } from 'lucide-react';
+import { IntroVideo } from '../components/IntroVideo';
+import { HomeIllustrationSlideshow } from '../components/HomeIllustrationSlideshow';
+import { AlertCircle, ArrowUpRight, Facebook, Instagram, ListTodo, Mail, Search, ShieldCheck, TrendingUp, UserRound, Eye, EyeOff } from 'lucide-react';
 import { startGuestSession } from '../guest/guestSession';
 
 interface Kid {
@@ -168,19 +169,7 @@ export default function Home() {
               <p className="text-lg leading-8 text-slate-600 max-w-2xl">
                 Visual Steps helps families turn routines, learning and everyday responsibilities into clear visual activities a child / adult can understand, complete and celebrate.
               </p>
-              <figure className="relative overflow-hidden rounded-3xl border border-white/90 bg-white shadow-lg shadow-slate-300/25">
-                <img
-                  src="/illustrations/home-family-routine.webp"
-                  alt="A parent and child calmly organizing picture cards on a visual daily schedule"
-                  className="h-56 w-full object-cover object-center sm:h-72"
-                  width="1440"
-                  height="960"
-                  fetchPriority="high"
-                />
-                <figcaption className="absolute bottom-3 left-3 rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm backdrop-blur-md">
-                  Clear routines. Confident next steps.
-                </figcaption>
-              </figure>
+              <HomeIllustrationSlideshow />
             </div>
 
             {/* Right: Login Card */}
@@ -268,7 +257,7 @@ export default function Home() {
                       <button type="button" onClick={() => { startGuestSession(); navigate('/dashboard'); }} className="flex h-10 w-full items-center justify-center rounded-xl border border-emerald-300 bg-emerald-50 text-sm font-bold text-emerald-800 transition hover:bg-emerald-100">
                         Continue as Guest
                       </button>
-                      <ProductDemoVideo />
+                      <p className="flex items-start gap-2 rounded-xl bg-slate-50 p-3 text-[11px] leading-5 text-slate-600"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />Families choose what to add. A nickname can be used, and private family information is never published automatically.</p>
                     </form>
                   ) : (
                     <form onSubmit={handleKidSubmit} className="space-y-5">
@@ -361,11 +350,63 @@ export default function Home() {
             </div>
           </div>
 
-          <section className="mt-8 rounded-3xl border border-brand-100 bg-white/75 p-5 shadow-sm sm:p-7">
+          <section className="relative mt-8 overflow-hidden rounded-[2rem] border border-amber-200/70 bg-gradient-to-br from-amber-100 via-sky-100 to-emerald-100 px-5 py-9 shadow-xl shadow-slate-300/30 sm:px-8 sm:py-11">
+            <div aria-hidden="true" className="absolute -left-14 top-20 h-40 w-28 rotate-12 rounded-[45%] bg-sky-300/30" />
+            <div aria-hidden="true" className="absolute -bottom-16 -right-8 h-40 w-32 -rotate-12 rounded-[45%] bg-orange-300/30" />
+            <div className="relative mx-auto max-w-6xl">
+              <div className="mx-auto max-w-3xl text-center">
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-brand-700">A calmer way to plan and grow</p>
+                <h2 className="mt-3 text-4xl font-black tracking-tight text-slate-950 sm:text-5xl">Why choose Visual Steps?</h2>
+                <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">A planning and learning companion for autistic children and adults—and the families and caregivers supporting them.</p>
+              </div>
+
+              <div className="mt-8 grid gap-5 md:grid-cols-3">
+                <article className="rounded-3xl border border-white bg-white/90 p-6 shadow-lg shadow-slate-400/10 sm:p-7">
+                  <span className="grid h-14 w-14 place-items-center rounded-2xl bg-sky-100 text-sky-700"><UserRound className="h-7 w-7" /></span>
+                  <h3 className="mt-6 text-2xl font-black leading-tight text-slate-950">Made for each person</h3>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">Bring routines, responsibilities, learning, interests, and personal goals into one calm place. Support can be adapted to the person’s age, abilities, communication, and needs.</p>
+                </article>
+
+                <article className="rounded-3xl border border-white bg-white/90 p-6 shadow-lg shadow-slate-400/10 sm:p-7">
+                  <span className="grid h-14 w-14 place-items-center rounded-2xl bg-emerald-100 text-emerald-700"><ListTodo className="h-7 w-7" /></span>
+                  <h3 className="mt-6 text-2xl font-black leading-tight text-slate-950">Clear, manageable next steps</h3>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">Turn plans into visual activities, schedules, learning resources, and meaningful rewards. The learner sees a focused view of what to do next without unnecessary clutter.</p>
+                </article>
+
+                <article className="rounded-3xl border border-white bg-white/90 p-6 shadow-lg shadow-slate-400/10 sm:p-7">
+                  <span className="grid h-14 w-14 place-items-center rounded-2xl bg-amber-100 text-amber-700"><TrendingUp className="h-7 w-7" /></span>
+                  <h3 className="mt-6 text-2xl font-black leading-tight text-slate-950">Grow with confidence</h3>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">Clear expectations can reduce uncertainty and support participation and independence. Parents and caregivers can notice progress, adjust support, and plan meaningful next activities together.</p>
+                </article>
+              </div>
+
+              <div className="mt-6 rounded-2xl border border-white/80 bg-white/65 px-5 py-4 text-center text-sm font-semibold leading-6 text-slate-700 backdrop-blur-sm">Parents and caregivers create the plan. The child or adult sees a clear, focused schedule on their own device.</div>
+
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+                <Link to="/signup" className="rounded-full bg-brand-700 px-7 py-3 text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-brand-800">Get started</Link>
+                <Link to="/about" className="rounded-full border border-brand-300 bg-white/70 px-7 py-3 text-sm font-black text-brand-800 transition hover:bg-white">Learn more</Link>
+              </div>
+            </div>
+          </section>
+
+          <div className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
+            <section className="min-w-0">
+              <div className="max-w-3xl">
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-brand-700">See how Visual Steps works</p>
+                <h2 className="mt-2 text-3xl font-black text-slate-950">Explore at your own pace</h2>
+                <p className="mt-2 text-sm leading-7 text-slate-600">Start with the short visual introduction, then open the narrated tour for a closer look at the parent and learner experience.</p>
+              </div>
+              <div className="mt-5 space-y-5">
+                <div className="min-w-0"><IntroVideo /></div>
+                <div className="min-w-0"><ProductDemoVideo /></div>
+              </div>
+            </section>
+
+          <section className="rounded-3xl border border-brand-100 bg-white/75 p-5 shadow-sm sm:p-7">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.2em] text-brand-700">Explore, learn, and stay connected</p>
               <h2 className="mt-2 text-2xl font-black text-slate-950 sm:text-3xl">A calmer place for families to grow together</h2>
-              <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">Read practical weekly guidance, connect through available community pages, or explore the current feature set before creating an account.</p>
+              <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">Read practical weekly guidance and connect through available community pages after exploring what Visual Steps can offer your family.</p>
             </div>
             <div className="mt-5 flex flex-wrap gap-3">
               <Link to="/newsletter/subscribe" className="group flex min-w-[16rem] flex-1 items-center gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 p-4 transition hover:-translate-y-0.5 hover:bg-blue-50">
@@ -381,15 +422,7 @@ export default function Home() {
               </a>}
             </div>
           </section>
-
-          <section className="mt-8 space-y-5">
-            <div className="max-w-3xl">
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-brand-700">Built for the way families really work</p>
-              <h2 className="mt-2 text-3xl font-black text-slate-950">Practical support for meaningful everyday progress</h2>
-              <p className="mt-2 text-sm leading-7 text-slate-600">Every feature is designed to help autistic people of all ages and the parents and caregivers growing alongside them.</p>
-            </div>
-            <FeatureHighlights surface="home" limit={8} detailed columns={2} readMore />
-          </section>
+          </div>
         </div>
       </section>
     </div>

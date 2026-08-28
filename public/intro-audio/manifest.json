@@ -1,0 +1,48 @@
+{
+  "model": "gemini-3.1-flash-tts-preview",
+  "voice": "Orus",
+  "disclosure": "AI-generated narration",
+  "scenes": {
+    "busy": {
+      "url": "/intro-audio/busy.wav",
+      "scriptHash": "dae676496dd4cc37f5691b4b18dfa1e81523b17e5f8f483fd889aafbdf0282c4"
+    },
+    "organize": {
+      "url": "/intro-audio/organize.wav",
+      "scriptHash": "a483b83810919c98020dc439e00ea6479a223647ced5029446015175a5cefb18"
+    },
+    "planning": {
+      "url": "/intro-audio/planning.wav",
+      "scriptHash": "68de3175c11dc6b40d30ef2f3c95bb0adadfd429e993715ab1f418e504c7f6cc"
+    },
+    "learner": {
+      "url": "/intro-audio/learner.wav",
+      "scriptHash": "ee5888673138296fe13faae10c58cd3f8f0121e9e03124bbe21b0d1241269d51"
+    },
+    "verification": {
+      "url": "/intro-audio/verification.wav",
+      "scriptHash": "efab2cc306db27fdd7e59429becab590438613d2a43d333cd2b4e8278fdbcfdc"
+    },
+    "learning": {
+      "url": "/intro-audio/learning.wav",
+      "scriptHash": "ac410ffb89a577983fb816c46d0edfb00d7e0ffdf62223a8f3910c960d56c5cb"
+    },
+    "progress": {
+      "url": "/intro-audio/progress.wav",
+      "scriptHash": "c1aa80c61bab8993a20cc06330474b4fcd426152eb7e252af071bdc5da8ed7bb"
+    },
+    "balance": {
+      "url": "/intro-audio/balance.wav",
+      "scriptHash": "4d5242539228009941d9f3630ef5273189c60ad2309a0fffcfe81e80aecd6220"
+    },
+    "together": {
+      "url": "/intro-audio/together.wav",
+      "scriptHash": "bfb7025d5d1c9baa8a037ce6f69361a454ff2185ab279ce3d72ebd7f3fb00b3f"
+    },
+    "finish": {
+      "url": "/intro-audio/finish.wav",
+      "scriptHash": "2b7f330b027619f9e97ee3ff38c9520882ec1b4e1fd300a277143f3e7bea8694"
+    }
+  },
+  "generatedAt": "2026-08-28T19:35:32.791Z"
+}

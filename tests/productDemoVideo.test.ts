@@ -38,6 +38,7 @@ test('home presents a user-started narrated experience below guest login', async
   assert.match(app, /path="\/watch" element=\{<DemoWatch \/>\}/);
   assert.ok(app.indexOf('path="/watch"') < app.indexOf('path="/" element={<Layout />}'), 'the shared video route must not use the full website layout');
   assert.match(watchPage, /<ProductDemoVideo autoOpen standalone \/>/);
+  assert.match(demo, /if \(standalone\) navigate\('\/'\)/);
   assert.doesNotMatch(demo, /\/api\/testimonials/);
   assert.doesNotMatch(demo, /sceneFocusPoints|product-demo__cursor|MousePointer2/);
   assert.match(demo, /DEMO_PLAYBACK_RATE = 1\.08/);

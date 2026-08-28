@@ -266,7 +266,7 @@ This section is generated from `feature-registry.json`. Update the registry when
 | Visual Steps Parent Assistant | family | 2026-08-20 | — | Ask app how-to questions and receive answers grounded in owned family data. |
 | Controlled social-story sharing | family | 2026-08-19 | — | Share one social story using a private link that can expire or be revoked. |
 | Parent stories and community publishing | starter | 2026-08-25 | — | Write, preview, and submit family experiences or practical ideas through a reviewed community publishing process. |
-| Narrated tour and temporary Guest Login | starter | 2026-08-21 | 2026-08-27 | Watch a friendly tour of current caregiver and child / adult screens, then explore the same workflows without creating an account or keeping any changes. |
+| Narrated tour and temporary Guest Login | starter | 2026-08-21 | 2026-08-27 | Watch a short illustrated introduction or a detailed tour of current caregiver and child / adult screens, then explore the same workflows without keeping any changes. |
 | Learning, progress, and meaningful rewards | starter | 2026-03-15 | — | Create personalized resources, understand progress, and connect earned rewards to meaningful goals. |
 | Parent-controlled data management | starter | 2026-08-24 | — | Review saved family records, set a reminder period, and selectively remove history that is no longer useful. |
 

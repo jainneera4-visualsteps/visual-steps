@@ -66,7 +66,7 @@ test('new badges last 30 days and never appear before release', () => {
 });
 
 test('required product surfaces consume the shared feature registry', async () => {
-  const files = ['Home.tsx', 'About.tsx', 'Pricing.tsx'];
+  const files = ['About.tsx', 'Pricing.tsx'];
   for (const file of files) {
     const source = await readFile(new URL(`../src/pages/${file}`, import.meta.url), 'utf8');
     assert.match(source, /FeatureHighlights/, `${file} is not synchronized`);
@@ -93,7 +93,7 @@ test('required product surfaces consume the shared feature registry', async () =
   assert.match(server, /features\/\$\{encodeURIComponent\(feature\.id\)\}/);
 });
 
-test('home feature cards link to catalog-backed detailed feature guides', async () => {
+test('public documentation links to catalog-backed detailed feature guides', async () => {
   const [app, home, about, newsletter, highlights, detail, syncScript] = await Promise.all([
     readFile(new URL('../src/App.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/pages/Home.tsx', import.meta.url), 'utf8'),
@@ -104,7 +104,7 @@ test('home feature cards link to catalog-backed detailed feature guides', async 
     readFile(new URL('../scripts/sync-feature-docs.mjs', import.meta.url), 'utf8'),
   ]);
   assert.match(app, /path="features\/:featureId"/);
-  assert.match(home, /readMore/);
+  assert.match(home, /to="\/about"/);
   assert.match(about, /sortByTitle readMore/);
   assert.match(newsletter, /featureIdFor/);
   assert.match(newsletter, /Read more/);
@@ -128,9 +128,14 @@ test('home feature cards link to catalog-backed detailed feature guides', async 
   assert.match(detail, /newsletter-copy surface/);
 });
 
-test('home highlights stay focused on eight top features', async () => {
+test('home gives families a concise card-based introduction instead of a feature catalog', async () => {
   const home = await readFile(new URL('../src/pages/Home.tsx', import.meta.url), 'utf8');
-  assert.match(home, /FeatureHighlights surface="home" limit=\{8\}/);
+  assert.doesNotMatch(home, /FeatureHighlights surface="home"/);
+  assert.match(home, /Why choose Visual Steps\?/);
+  assert.match(home, /planning and learning companion/);
+  assert.match(home, /Made for each person/);
+  assert.match(home, /Clear, manageable next steps/);
+  assert.match(home, /Grow with confidence/);
 });
 
 test('current demo and curated samples flow into synchronized documentation', async () => {
