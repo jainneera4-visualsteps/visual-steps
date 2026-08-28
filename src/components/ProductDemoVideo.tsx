@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowRight, Check, Maximize2, Minimize2, MousePointer2, Pause, Play, RotateCcw, Share2, Volume2, VolumeX, X } from 'lucide-react';
+import { ArrowRight, Check, Maximize2, Minimize2, Pause, Play, RotateCcw, Share2, Volume2, VolumeX, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { startGuestSession } from '../guest/guestSession';
 import { createFriendlyUtterance } from '../utils/friendlySpeech';
 import { DeviceVoiceSelector } from './DeviceVoiceSelector';
 
 const SILENT_SCENE_DURATION_MS = 9000;
+const DEMO_PLAYBACK_RATE = 1.08;
+const DEMO_PLAYBACK_RATES = [0.75, 1, 1.08, 1.25, 1.5] as const;
 
 const demoScenes = [
   {
@@ -98,33 +100,14 @@ type DemoAudioManifest = {
   scenes: Record<string, { url: string; scriptHash: string }>;
 };
 
-const sceneFocusPoints = [
-  [{ label: 'Profile selector', left: '78%', top: '18%' }, { label: 'Activities menu', left: '30%', top: '5%' }, { label: 'Messages', left: '50%', top: '51%' }],
-  [{ label: 'Name and profile', left: '23%', top: '30%' }, { label: 'Interests and support', left: '48%', top: '47%' }, { label: 'Schedule and theme', left: '77%', top: '64%' }],
-  [{ label: 'Activity workspace', left: '26%', top: '16%' }, { label: 'Add activity', left: '82%', top: '18%' }, { label: 'Activity grids', left: '48%', top: '53%' }],
-  [{ label: 'Verification grid', left: '45%', top: '32%' }, { label: 'Verify or reassign', left: '70%', top: '49%' }, { label: 'Activity status', left: '27%', top: '19%' }],
-  [{ label: 'Positive behavior', left: '26%', top: '35%' }, { label: 'Reward items', left: '68%', top: '34%' }, { label: 'Token amount', left: '78%', top: '57%' }],
-  [{ label: 'Learner preview', left: '52%', top: '57%' }, { label: 'Question and choices', left: '49%', top: '38%' }, { label: 'No saved attempt', left: '44%', top: '20%' }],
-  [{ label: 'Worksheet library', left: '38%', top: '26%' }, { label: 'Print and assign', left: '75%', top: '38%' }, { label: 'Create worksheet', left: '83%', top: '18%' }],
-  [{ label: 'Story library', left: '39%', top: '27%' }, { label: 'Story actions', left: '75%', top: '38%' }, { label: 'Create story', left: '82%', top: '18%' }],
-  [{ label: 'Progress summary', left: '40%', top: '26%' }, { label: 'Charts', left: '54%', top: '53%' }, { label: 'History grids', left: '48%', top: '73%' }],
-  [{ label: 'Newsletter menu', left: '74%', top: '14%' }, { label: 'Weekly archive', left: '37%', top: '31%' }, { label: 'Subscribe', left: '63%', top: '31%' }],
-  [{ label: 'Story title and author', left: '50%', top: '26%' }, { label: 'Story reader', left: '52%', top: '53%' }, { label: 'Share your experience', left: '79%', top: '18%' }],
-  [{ label: 'Saved record overview', left: '34%', top: '31%' }, { label: 'Review reminder', left: '71%', top: '31%' }, { label: 'Older records grid', left: '48%', top: '64%' }],
-  [{ label: 'Today’s schedule', left: '30%', top: '37%' }, { label: 'Activity states', left: '52%', top: '22%' }, { label: 'Rewards and bonuses', left: '78%', top: '25%' }],
-] as const;
-
-function narrationSegments(narration: string, count: number) {
-  const sentences = narration.match(/[^.!?]+[.!?]+|[^.!?]+$/g)?.map(value => value.trim()).filter(Boolean) || [narration];
-  return Array.from({ length: count }, (_, index) => {
-    const start = Math.floor(index * sentences.length / count);
-    const end = Math.floor((index + 1) * sentences.length / count);
-    return sentences.slice(start, Math.max(start + 1, end)).join(' ');
-  });
-}
-
 export function demoNarrationText(sceneIndex: number) {
   return demoScenes[sceneIndex].narration;
+}
+
+function formatDemoTime(seconds: number) {
+  const safeSeconds = Math.max(0, Math.floor(Number.isFinite(seconds) ? seconds : 0));
+  const minutes = Math.floor(safeSeconds / 60);
+  return `${minutes}:${String(safeSeconds % 60).padStart(2, '0')}`;
 }
 
 export function ProductDemoVideo({ autoOpen = false, standalone = false }: { autoOpen?: boolean; standalone?: boolean }) {
@@ -134,18 +117,23 @@ export function ProductDemoVideo({ autoOpen = false, standalone = false }: { aut
   const [playing, setPlaying] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [progressKey, setProgressKey] = useState(0);
-  const [focusIndex, setFocusIndex] = useState(0);
   const [shareStatus, setShareStatus] = useState('');
   const [maximized, setMaximized] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState<number>(DEMO_PLAYBACK_RATE);
   const [audioManifest, setAudioManifest] = useState<DemoAudioManifest | null | undefined>(undefined);
+  const [sceneDurations, setSceneDurations] = useState<Record<string, number>>({});
+  const [sceneElapsed, setSceneElapsed] = useState(0);
   const playState = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const playbackRateRef = useRef(DEMO_PLAYBACK_RATE);
   const overlayRef = useRef<HTMLDivElement>(null);
   const scene = demoScenes[sceneIndex];
-  const focusPoint = sceneFocusPoints[sceneIndex][focusIndex % sceneFocusPoints[sceneIndex].length];
   const progressLabel = useMemo(() => `${sceneIndex + 1} of ${demoScenes.length}`, [sceneIndex]);
+  const fallbackDuration = SILENT_SCENE_DURATION_MS / 1000;
+  const totalTime = demoScenes.reduce((total, item) => total + (sceneDurations[item.id] || fallbackDuration), 0);
+  const elapsedTime = demoScenes.slice(0, sceneIndex).reduce((total, item) => total + (sceneDurations[item.id] || fallbackDuration), 0) + sceneElapsed;
 
-  useEffect(() => { setFocusIndex(0); }, [open, sceneIndex]);
+  useEffect(() => { setSceneElapsed(0); }, [open, sceneIndex]);
 
   useEffect(() => {
     let active = true;
@@ -155,6 +143,22 @@ export function ProductDemoVideo({ autoOpen = false, standalone = false }: { aut
       .catch(() => { if (active) setAudioManifest(null); });
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    if (!audioManifest) return;
+    let active = true;
+    const probes = Object.entries(audioManifest.scenes).map(([id, clip]) => new Promise<void>((resolve) => {
+      const audio = new Audio(clip.url);
+      audio.preload = 'metadata';
+      audio.onloadedmetadata = () => {
+        if (active && Number.isFinite(audio.duration)) setSceneDurations(current => ({ ...current, [id]: audio.duration }));
+        resolve();
+      };
+      audio.onerror = () => resolve();
+    }));
+    void Promise.all(probes);
+    return () => { active = false; };
+  }, [audioManifest]);
 
   const advance = () => {
     if (sceneIndex === demoScenes.length - 1) {
@@ -174,15 +178,13 @@ export function ProductDemoVideo({ autoOpen = false, standalone = false }: { aut
       let cancelled = false;
       let recordedAudio: HTMLAudioElement | null = null;
       const recordedClip = audioManifest?.scenes?.[scene.id];
-      const segments = narrationSegments(scene.narration, sceneFocusPoints[sceneIndex].length);
-      const speakWithDevice = (index: number) => {
+      const speakWithDevice = () => {
         if (cancelled || !playState.current) return;
-        setFocusIndex(index);
-        const utterance = createFriendlyUtterance(segments[index]);
+        const utterance = createFriendlyUtterance(scene.narration);
+        utterance.rate *= playbackRateRef.current;
         utterance.onend = () => {
           if (cancelled || !playState.current) return;
-          if (index < segments.length - 1) speakWithDevice(index + 1);
-          else advance();
+          advance();
         };
         window.speechSynthesis.speak(utterance);
       };
@@ -192,16 +194,16 @@ export function ProductDemoVideo({ autoOpen = false, standalone = false }: { aut
         recordedAudio = audio;
         audioRef.current = audio;
         audio.preload = 'auto';
-        audio.ontimeupdate = () => {
-          if (!Number.isFinite(audio.duration) || audio.duration <= 0) return;
-          const nextFocus = Math.min(segments.length - 1, Math.floor((audio.currentTime / audio.duration) * segments.length));
-          setFocusIndex(nextFocus);
+        audio.playbackRate = playbackRateRef.current;
+        audio.ontimeupdate = () => setSceneElapsed(audio.currentTime);
+        audio.onloadedmetadata = () => {
+          if (Number.isFinite(audio.duration)) setSceneDurations(current => ({ ...current, [scene.id]: audio.duration }));
         };
         audio.onended = () => { if (!cancelled && playState.current) advance(); };
-        audio.onerror = () => { if (!cancelled && playState.current) speakWithDevice(0); };
-        void audio.play().catch(() => { if (!cancelled && playState.current) speakWithDevice(0); });
+        audio.onerror = () => { if (!cancelled && playState.current) speakWithDevice(); };
+        void audio.play().catch(() => { if (!cancelled && playState.current) speakWithDevice(); });
       } else {
-        speakWithDevice(0);
+        speakWithDevice();
       }
       return () => {
         cancelled = true;
@@ -243,6 +245,12 @@ export function ProductDemoVideo({ autoOpen = false, standalone = false }: { aut
   }, []);
 
   const selectScene = (index: number) => { setSceneIndex(index); setProgressKey(current => current + 1); };
+  const changePlaybackRate = (value: number) => {
+    playbackRateRef.current = value;
+    setPlaybackRate(value);
+    if (audioRef.current) audioRef.current.playbackRate = value;
+    else if (playing) setProgressKey(current => current + 1);
+  };
   const replay = () => { setSceneIndex(0); setPlaying(true); setProgressKey(current => current + 1); };
   const exitNativeFullscreen = () => {
     const documentWithWebkit = document as Document & { webkitExitFullscreen?: () => Promise<void> | void; webkitFullscreenElement?: Element | null };
@@ -294,11 +302,10 @@ export function ProductDemoVideo({ autoOpen = false, standalone = false }: { aut
           </div>
         </div>
         <div className="product-demo__frame" aria-label="Visual Steps guided demonstration">
-          <div className="product-demo__browser-bar" aria-hidden="true"><span className="bg-rose-400" /><span className="bg-amber-400" /><span className="bg-emerald-400" /><div>visualsteps.app · guided experience</div></div>
+          <div className="product-demo__browser-bar" aria-hidden="true"><span className="bg-rose-400" /><span className="bg-amber-400" /><span className="bg-emerald-400" /><div>Visual Steps for Kids with Autism</div></div>
           <div className="product-demo__screen">
             <img key={scene.image + sceneIndex} src={scene.image} alt={`Visual Steps screen for ${scene.focus}`} className="product-demo__image" />
             <div className="product-demo__shade" />
-            <div key={`cursor-${sceneIndex}-${focusIndex}`} className="product-demo__cursor" style={{ left: focusPoint.left, top: focusPoint.top }} aria-hidden="true"><span /><MousePointer2 className="h-7 w-7 fill-blue-600 text-white drop-shadow-lg" /><b>{focusPoint.label}</b></div>
             <div key={`caption-${sceneIndex}`} className="product-demo__caption" aria-live="polite"><span>{scene.focus}</span><h3>{scene.title}</h3><p>{scene.description}</p></div>
           </div>
           <div className="product-demo__controls">
@@ -308,7 +315,8 @@ export function ProductDemoVideo({ autoOpen = false, standalone = false }: { aut
               <button type="button" onClick={() => setVoiceEnabled(value => !value)} aria-label={voiceEnabled ? 'Turn narration off' : 'Turn narration on'}>{voiceEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}</button>
             </div>
             <div className="product-demo__timeline" aria-label={`Chapter ${progressLabel}`}>{demoScenes.map((item, index) => <button key={item.title} type="button" onClick={() => selectScene(index)} className={index === sceneIndex ? 'is-active' : index < sceneIndex ? 'is-viewed' : ''} aria-label={`Show chapter ${index + 1}: ${item.title}`}>{index === sceneIndex && playing && !voiceEnabled && <span key={progressKey} style={{ animationDuration: `${SILENT_SCENE_DURATION_MS}ms` }} />}</button>)}</div>
-            <span className="text-xs font-bold text-slate-300">{progressLabel}</span>
+            <span className="product-demo__playback-details"><label><span className="sr-only">Playback speed</span><select value={playbackRate} onChange={event => changePlaybackRate(Number(event.target.value))} aria-label="Playback speed">{DEMO_PLAYBACK_RATES.map(rate => <option key={rate} value={rate}>{rate}×</option>)}</select></label><span>{formatDemoTime(elapsedTime)} / {formatDemoTime(totalTime)}</span><small>{progressLabel}</small></span>
+            <input className="product-demo__scrubber" type="range" min="0" max={demoScenes.length - 1} step="1" value={sceneIndex} onChange={event => selectScene(Number(event.target.value))} aria-label="Move through video chapters" />
           </div>
         </div>
         {(!standalone || !voiceEnabled || !audioManifest?.scenes?.[scene.id]) && <div className="product-demo__viewer-footer">

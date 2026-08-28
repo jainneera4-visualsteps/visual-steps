@@ -16,6 +16,8 @@ test('home presents a user-started narrated experience below guest login', async
   assert.ok(home.indexOf('Continue as Guest') < home.indexOf('<ProductDemoVideo />'));
   assert.match(demo, /Open Visual Steps video/);
   assert.match(demo, /<b>Visual Steps<\/b>/);
+  assert.match(demo, /Visual Steps for Kids with Autism/);
+  assert.doesNotMatch(demo, /visualsteps\.app · guided experience/);
   assert.match(demo, /href="\/" target="_blank" rel="noreferrer" aria-label="Open the Visual Steps website"/);
   assert.match(demo, /useState\(false\)/, 'the demonstration must not start automatically');
   assert.match(demo, /createFriendlyUtterance/);
@@ -37,8 +39,15 @@ test('home presents a user-started narrated experience below guest login', async
   assert.ok(app.indexOf('path="/watch"') < app.indexOf('path="/" element={<Layout />}'), 'the shared video route must not use the full website layout');
   assert.match(watchPage, /<ProductDemoVideo autoOpen standalone \/>/);
   assert.doesNotMatch(demo, /\/api\/testimonials/);
-  assert.match(demo, /sceneFocusPoints/);
-  assert.match(demo, /narrationSegments/);
+  assert.doesNotMatch(demo, /sceneFocusPoints|product-demo__cursor|MousePointer2/);
+  assert.match(demo, /DEMO_PLAYBACK_RATE = 1\.08/);
+  assert.match(demo, /audio\.playbackRate = playbackRateRef\.current/);
+  assert.match(demo, /aria-label="Move through video chapters"/);
+  assert.match(demo, /formatDemoTime\(elapsedTime\)/);
+  assert.match(demo, /formatDemoTime\(totalTime\)/);
+  assert.match(demo, /DEMO_PLAYBACK_RATES = \[0\.75, 1, 1\.08, 1\.25, 1\.5\]/);
+  assert.match(demo, /aria-label="Playback speed"/);
+  assert.match(demo, /audioRef\.current\.playbackRate = value/);
   assert.doesNotMatch(demo, /The pointer is now highlighting/);
   assert.match(demo, /setPlaying\(false\)/);
   assert.doesNotMatch(demo, /Families share their experience/);
