@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Maximize2, Minimize2, Pause, Play, RotateCcw, X } from 'lucide-react';
+import { Check, Maximize2, Minimize2, Pause, Play, RotateCcw, Share2, X } from 'lucide-react';
 
 const INTRO_SCENE_SECONDS = 6;
 
@@ -38,6 +38,7 @@ export function IntroVideo() {
   const [audioManifest, setAudioManifest] = useState<IntroAudioManifest | null | undefined>(undefined);
   const [sceneDurations, setSceneDurations] = useState<Record<string, number>>({});
   const [sceneElapsed, setSceneElapsed] = useState(0);
+  const [shareStatus, setShareStatus] = useState('');
   const overlayRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const scene = introScenes[sceneIndex];
@@ -52,6 +53,10 @@ export function IntroVideo() {
       .then(value => { if (active) setAudioManifest(value); })
       .catch(() => { if (active) setAudioManifest(null); });
     return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('intro') === '1') setOpen(true);
   }, []);
 
   useEffect(() => {
@@ -94,10 +99,22 @@ export function IntroVideo() {
     try { await overlayRef.current?.requestFullscreen(); setMaximized(true); }
     catch { setMaximized(value => !value); }
   };
+  const share = async () => {
+    const url = `${window.location.origin}/?intro=1`;
+    const shareMessage = 'Watch a short introduction to Visual Steps.';
+    try {
+      if (navigator.share) await navigator.share({ title: 'Meet Visual Steps', text: shareMessage, url });
+      else await navigator.clipboard.writeText(url);
+      setShareStatus(navigator.share ? 'Shared' : 'Link copied');
+      window.setTimeout(() => setShareStatus(''), 2500);
+    } catch (error) {
+      if ((error as DOMException)?.name !== 'AbortError') setShareStatus('Unable to share');
+    }
+  };
 
   const viewer = open ? createPortal(<div ref={overlayRef} className={`product-demo__overlay ${maximized ? 'is-maximized' : ''}`} role="dialog" aria-modal="true" aria-label="Visual Steps introductory video">
     <div className="intro-video__viewer">
-      <header><div><p>Visual introduction</p><h2>Meet Visual Steps</h2></div><div><button type="button" onClick={toggleFullscreen} aria-label={maximized ? 'Exit full screen' : 'Enter full screen'}>{maximized ? <Minimize2 /> : <Maximize2 />}</button><button type="button" onClick={close} aria-label="Close introductory video"><X /></button></div></header>
+      <header><div><p>Visual introduction</p><h2>Meet Visual Steps</h2></div><div><button type="button" onClick={share} aria-label="Share Visual Steps introduction">{shareStatus ? <Check /> : <Share2 />}<span>{shareStatus || 'Share'}</span></button><button type="button" onClick={toggleFullscreen} aria-label={maximized ? 'Exit full screen' : 'Enter full screen'}>{maximized ? <Minimize2 /> : <Maximize2 />}</button><button type="button" onClick={close} aria-label="Close introductory video"><X /></button></div></header>
       <div className={`intro-video__stage intro-video__stage--${scene.kind}`}>
         <div className="intro-video__brand" aria-label="Visual Steps"><img src="/icons/visual-steps-icon.svg" alt="" /><b>Visual Steps</b></div>
         <i className="intro-video__shape intro-video__shape--one" /><i className="intro-video__shape intro-video__shape--two" />

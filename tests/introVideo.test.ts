@@ -19,6 +19,10 @@ test('home includes a user-started Orus-narrated Visual Steps introduction', asy
   assert.match(intro, /Play introductory video/);
   assert.match(intro, /Pause introductory video/);
   assert.match(intro, /Replay introductory video/);
+  assert.match(intro, /Share Visual Steps introduction/);
+  assert.match(intro, /navigator\.share/);
+  assert.match(intro, /navigator\.clipboard\.writeText/);
+  assert.match(intro, /\?intro=1/);
   assert.match(intro, /Move through introductory video/);
   assert.match(intro, /Clearer planning\. Clearer next steps\./);
   assert.match(intro, /visual-steps-icon\.svg/, 'every scene should display the Visual Steps brand');

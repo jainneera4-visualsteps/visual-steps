@@ -847,7 +847,8 @@ p.text-right {
 .intro-video__viewer > header p { color: rgb(110 231 183); font-size: 0.68rem; font-weight: 900; letter-spacing: 0.15em; text-transform: uppercase; }
 .intro-video__viewer > header h2 { margin-top: 0.1rem; color: white; font-size: 1.6rem; font-weight: 900; }
 .intro-video__viewer > header > div:last-child { display: flex; gap: 0.45rem; }
-.intro-video__viewer > header button { display: flex; border-radius: 999px; background: rgb(255 255 255 / 0.14); padding: 0.55rem; }
+.intro-video__viewer > header button { display: flex; align-items: center; gap: 0.35rem; border-radius: 999px; background: rgb(255 255 255 / 0.14); padding: 0.55rem; }
+.intro-video__viewer > header button span { font-size: 0.7rem; font-weight: 800; }
 .intro-video__viewer > header svg { height: 1.25rem; width: 1.25rem; }
 .intro-video__stage { position: relative; display: grid; aspect-ratio: 16 / 8.6; grid-template-columns: 1.1fr 0.9fr; align-items: center; gap: clamp(1rem, 4vw, 4rem); overflow: hidden; border-radius: 1.4rem 1.4rem 0 0; padding: clamp(3.5rem, 7vw, 5rem) clamp(1.4rem, 5vw, 4rem) clamp(1.4rem, 5vw, 4rem); color: rgb(15 23 42); }
 .intro-video__stage > :not(.intro-video__shape) { position: relative; z-index: 2; }
