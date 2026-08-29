@@ -160,7 +160,7 @@ export function WalkthroughProvider({ children }: { children: React.ReactNode })
       pageRoute: "/assigned-activities",
       fieldGuides: [
         {
-          fieldName: "Activity Library",
+          fieldName: "Activities Library",
           description: "Browse curated educational and behavioral activities.",
           selector: 'section, main, [role="main"]',
         },

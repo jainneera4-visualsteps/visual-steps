@@ -3893,7 +3893,7 @@ export default function AssignedActivities() {
                   <div className="grid gap-2.5 md:grid-cols-2">
                     <div className="space-y-0.5 p-2 bg-blue-50 rounded border border-blue-100">
                       <div className="flex items-center gap-1.5 mb-1">
-                        <label className="text-[12px] font-bold text-blue-600 uppercase">Select Activity Type (Optional)</label>
+                        <label className="text-[12px] font-bold text-blue-600 uppercase">Select Pre-defined Activity Type (Optional)</label>
                         <div className="group relative">
                           <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
                           <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">

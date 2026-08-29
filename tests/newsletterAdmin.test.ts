@@ -17,6 +17,10 @@ test('every newsletter administration API is authenticated and administrator che
     assert.match(server, new RegExp(`/api/newsletter/admin/${route}[^\\n]*authenticateToken, requireNewsletterAdmin`));
   }
   assert.match(server, /app\.post\('\/api\/newsletter\/admin\/send-now', authenticateToken, requireNewsletterAdmin/);
+  assert.match(server, /app\.post\('\/api\/newsletter\/admin\/publish-now', authenticateToken, requireNewsletterAdmin/);
+  assert.match(server, /websitePublished: true, emailDelivered: true/);
+  assert.match(server, /issue is live on the website; email delivery will retry later today/);
+  assert.match(server, /Cache-Control', 'no-store, max-age=0/);
   assert.match(server, /app_admins'\)\.select\('user_id'\)/);
 });
 
@@ -33,7 +37,8 @@ test('newsletter administrator page is nested under the parent protected route',
   assert.match(page, /Weekly delivery day/);
   assert.match(page, /Delivery time/);
   assert.match(page, /resolvedOptions\(\)\.timeZone/);
-  assert.match(page, /Send newsletter now/);
+  assert.match(page, /Publish upcoming issue/);
+  assert.match(page, /Send published issue/);
   assert.match(page, /Subscriber delivery status/);
   assert.match(page, /last_sent_issue_date/);
   assert.match(page, /CommunityRichTextEditor/);
@@ -50,6 +55,9 @@ test('delivery weekday, local hour and timezone are database-backed and editable
   const crons = JSON.parse(vercel).crons;
   assert.equal(crons.length, 24);
   crons.forEach((cron: { path: string; schedule: string }, hour: number) => assert.deepEqual(cron, { path: `/api/cron/weekly-newsletter/${hour}`, schedule: `0 ${hour} * * *` }));
+  assert.match(server, /local\.weekday !== settings\.deliveryWeekday \|\| local\.hour < settings\.deliveryHour/);
+  assert.match(server, /publishedIssue \|\| await createWeeklyNewsletter\(now\)/);
+  assert.match(server, /recoveryRun: local\.hour > settings\.deliveryHour/);
 });
 
 test('administrators can approve or reject but cannot delete parent submissions', async () => {
@@ -79,12 +87,22 @@ test('saved newsletter drafts are protected and used by scheduled publication', 
   assert.match(server, /section_visibility/);
 });
 
-test('an administrator can publish and deliver the prepared issue immediately without duplicate delivery', async () => {
+test('publication and delivery are separate administrator actions without duplicate delivery', async () => {
   const server = await read('server.ts');
+  assert.match(server, /app\.post\('\/api\/newsletter\/admin\/publish-now', authenticateToken, requireNewsletterAdmin/);
   assert.match(server, /app\.post\('\/api\/newsletter\/admin\/send-now', authenticateToken, requireNewsletterAdmin/);
-  assert.match(server, /const issue = await createWeeklyNewsletter\(\)/);
+  assert.match(server, /const issue = await createWeeklyNewsletter\(\);/);
+  assert.match(server, /There is no published newsletter to send/);
   assert.match(server, /const delivery = await sendNewsletterIssue\(issue, getPublicAppOrigin\(req\)\)/);
   assert.match(server, /last_sent_issue_date\.lt\.\$\{issue\.issue_date\}/);
+});
+
+test('newsletter email starts with a linked image of the current issue first two pages', async () => {
+  const server = await read('server.ts');
+  assert.match(server, /createNewsletterEmailPreview/);
+  assert.match(server, /newsletter\/issues\/\$\{encodeURIComponent\(issue\.issue_date\)\}/);
+  assert.match(server, /<a href="\$\{escapeEmailHtml\(issueUrl\)\}"[^>]*><img src="cid:visual-steps-newsletter-preview"/);
+  assert.match(server, /attachments: \[\{ filename: `visual-steps-weekly-\$\{issue\.issue_date\}\.png`/);
 });
 
 test('newsletter combines feature guidance, hides empty sections, and explains popularity without public counts', async () => {
@@ -98,7 +116,9 @@ test('newsletter combines feature guidance, hides empty sections, and explains p
   assert.match(server, /new_features: featureChanges\.map/);
   assert.match(server, /baseNewsletterSectionHtml = \(title: string, items: string\[\], columns = 1, bulleted = false, numbered = false\) => items\.length \?/);
   assert.doesNotMatch(page, /uses recorded/);
-  assert.match(page, /conciseEditorial&&visible\('feature_details'\).*Using Visual Steps Meaningfully/);
+  assert.match(server, /feature_details: 'Practical Ways to Use Visual Steps'/);
+  assert.match(server, /recommended_resources: 'Suggested Activities, Games, Puzzles and Other Ideas'/);
+  assert.match(server, /suggested_books_resources: 'Suggested Books, Places and Resources'/);
   assert.match(page, /if\(!items\.length\)return null/);
   assert.match(page, /What's New in Visual Steps/);
   assert.match(page, /Feature update/);
@@ -131,6 +151,15 @@ test('newsletter combines feature guidance, hides empty sections, and explains p
   assert.match(server, /previouslyUsedBooks/);
   assert.match(server, /previouslyUsedPopularFeatures/);
   assert.match(server, /previouslyUsedVisualStepsSuggestions/);
+  assert.match(server, /\[0, 1, 2, 3, 4\]\.map/);
+  assert.match(server, /unusedActivities[^\n]+slice\(0, 5\)/);
+  assert.match(server, /unusedBooks[^\n]+slice\(0, 5\)/);
+  assert.match(server, /visualStepsSuggestions[^\n]+slice\(0, 5\)/);
+  assert.match(server, /const addVisualStepsUtility/);
+  assert.match(server, /add the routine or support as a short Visual Steps activity/);
+  assert.match(server, /place the idea in Visual Steps with a clear time, picture/);
+  assert.match(server, /resource inspires one relevant next step/);
+  assert.match(server, /index === 0 \|\| index === 3/);
   assert.match(server, /feature_details: visualStepsSuggestions/);
   assert.match(server, /membership_details: currentMembershipDetails/);
   assert.match(server, /compact: true,[\s\S]*description: `\$\{conciseNewsletterText\(change\.summary, 1\)\} \$\{conciseNewsletterText\(change\.familyImpact, 1\)\}`/);
@@ -165,7 +194,10 @@ test('newsletter combines feature guidance, hides empty sections, and explains p
   assert.match(server, /display:grid;grid-template-columns:1fr;gap:14px/);
   assert.doesNotMatch(server, /grid-template-columns:\$\{columns === 2/);
   assert.match(page, /suggested_books_resources'\).*fullWidth itemColumns=\{2\}/);
-  assert.match(page, /Suggested Books and Resources/);
+  assert.match(server, /Everyday sequence puzzle/);
+  assert.match(server, /Shared jigsaw and conversation break/);
+  assert.match(server, /Your local public library/);
+  assert.match(server, /An accessible park or recreation center/);
   assert.match(migration, /suggested_books_resources JSONB NOT NULL DEFAULT '\[\]'::jsonb/);
   assert.match(server, /formatNewsletterDate/);
   assert.match(server, /normalizeNewsletterDateText/);

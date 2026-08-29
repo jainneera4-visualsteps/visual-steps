@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Check, ExternalLink, Eye, RefreshCw, Send, ShieldCheck, Users, X } from 'lucide-react';
+import { Check, ExternalLink, Eye, RefreshCw, Send, ShieldCheck, Upload, Users, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
@@ -131,13 +131,24 @@ export default function NewsletterAdmin() {
   };
 
   const sendNow = async () => {
-    if (!window.confirm('Publish the prepared issue to the website and send it now to every eligible active subscriber?')) return;
-    setBusy(true); setMessage('Publishing and delivering the newsletter…');
+    if (!window.confirm('Send the latest published newsletter to eligible active subscribers who have not received it?')) return;
+    setBusy(true); setMessage('Sending the published newsletter…');
     try {
       const result = await adminJson('/api/newsletter/admin/send-now', { method: 'POST' });
-      setMessage(`Issue ${formatNewsletterDate(result.issueDate)} published. Delivered to ${result.delivered} subscriber${result.delivered === 1 ? '' : 's'}${result.pending ? `; ${result.pending} delivery attempt${result.pending === 1 ? '' : 's'} failed` : ''}.`);
+      setMessage(`Published issue ${formatNewsletterDate(result.issueDate)} sent to ${result.delivered} eligible subscriber${result.delivered === 1 ? '' : 's'}${result.pending ? `; ${result.pending} delivery attempt${result.pending === 1 ? '' : 's'} failed` : ''}.`);
       await load(false);
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to send the newsletter'); }
+    finally { setBusy(false); }
+  };
+
+  const publishNow = async () => {
+    if (!window.confirm('Publish the prepared upcoming issue to the website archive without sending email?')) return;
+    setBusy(true); setMessage('Publishing the upcoming issue to the website…');
+    try {
+      const result = await adminJson('/api/newsletter/admin/publish-now', { method: 'POST' });
+      setMessage(`Issue ${formatNewsletterDate(result.issueDate)} is now published in the website archive. No email was sent.`);
+      await load(false);
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to publish the newsletter'); }
     finally { setBusy(false); }
   };
 
@@ -145,7 +156,7 @@ export default function NewsletterAdmin() {
   if (!authorized) return <div className="page-shell"><div className="page-container"><section className="surface mx-auto max-w-2xl p-8 text-center"><ShieldCheck className="mx-auto h-12 w-12 text-slate-400"/><h1 className="mt-4 text-3xl font-black">Newsletter administration</h1><p className="mt-3 text-slate-600">This page is restricted to approved Visual Steps administrators.</p>{message&&<p className="mt-4 text-sm text-red-700">{message}</p>}</section></div></div>;
 
   return <div className="page-shell"><div className="page-container space-y-8">
-    <header className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-widest text-brand-700">Protected administration</p><h1 className="mt-2 text-4xl font-black">Weekly Newsletter</h1><p className="mt-2 max-w-3xl text-slate-600">Review parent contributions and preview the automatically prepared weekly issue. A preview never publishes or sends email.</p></div><div className="flex flex-wrap gap-2"><Button onClick={sendNow} isLoading={busy}><Send className="mr-2 h-4 w-4"/>Send newsletter now</Button><Link to="/newsletter" target="_blank" rel="noopener noreferrer" className="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"><ExternalLink className="mr-2 h-4 w-4"/>Open newsletter archive</Link><Button variant="outline" onClick={()=>void load()} isLoading={busy}><RefreshCw className="mr-2 h-4 w-4"/>Refresh</Button></div></header>
+    <header className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-widest text-brand-700">Protected administration</p><h1 className="mt-2 text-4xl font-black">Weekly Newsletter</h1><p className="mt-2 max-w-3xl text-slate-600">Review parent contributions and preview the automatically prepared weekly issue. A preview never publishes or sends email.</p></div><div className="flex flex-wrap gap-2"><Button onClick={publishNow} isLoading={busy}><Upload className="mr-2 h-4 w-4"/>Publish upcoming issue</Button><Button variant="outline" onClick={sendNow} isLoading={busy}><Send className="mr-2 h-4 w-4"/>Send published issue</Button><Link to="/newsletter" target="_blank" rel="noopener noreferrer" className="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"><ExternalLink className="mr-2 h-4 w-4"/>Open newsletter archive</Link><Button variant="outline" onClick={()=>void load()} isLoading={busy}><RefreshCw className="mr-2 h-4 w-4"/>Refresh</Button></div></header>
     {message&&<div role="status" className="rounded-xl border border-slate-200 bg-white p-4 text-sm font-bold">{message}</div>}
     <section className="surface p-6"><div className="grid items-end gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"><Select label="Weekly delivery day" value={deliveryWeekday} onChange={event=>setDeliveryWeekday(Number(event.target.value))}>{weekdayNames.map((day,index)=><option key={day} value={index}>{day}</option>)}</Select><Select label={`Delivery time (${deliveryTimezone})`} value={deliveryHour} onChange={event=>setDeliveryHour(Number(event.target.value))}>{hourOptions.map(option=><option key={option.hour} value={option.hour}>{option.label}</option>)}</Select><Button onClick={saveDeliverySchedule} isLoading={busy}>Save delivery schedule</Button></div><p className="mt-3 text-xs leading-5 text-slate-500">Times are shown in your current administrator timezone: <strong>{deliveryTimezone}</strong>. Daylight-saving changes are handled automatically. On Vercel Hobby, delivery can occur at any point within the selected hour.</p></section>
     <section className="surface p-6"><div className="flex items-center gap-3"><Users className="h-6 w-6 text-brand-600"/><div><h2 className="text-2xl font-black">Subscriber delivery status</h2><p className="text-sm text-slate-600">Pending means the confirmation link has not been completed. Active subscribers are eligible for delivery.</p></div></div><div className="mt-5 overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead><tr className="border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500"><th className="px-3 py-3">Email</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Confirmed</th><th className="px-3 py-3">Last issue sent</th></tr></thead><tbody>{subscribers.length===0?<tr><td colSpan={4} className="px-3 py-6 text-slate-500">No newsletter subscribers yet.</td></tr>:subscribers.map(subscriber=><tr key={subscriber.id} className="border-b border-slate-100"><td className="px-3 py-3 font-semibold">{subscriber.email}</td><td className="px-3 py-3"><span className={`rounded-full px-2 py-1 text-xs font-bold uppercase ${subscriber.status==='active'?'bg-green-100 text-green-700':subscriber.status==='pending'?'bg-amber-100 text-amber-700':'bg-slate-100 text-slate-600'}`}>{subscriber.status}</span></td><td className="px-3 py-3 text-slate-600">{subscriber.confirmed_at?formatNewsletterDate(subscriber.confirmed_at):'Not confirmed'}</td><td className="px-3 py-3 text-slate-600">{subscriber.last_sent_issue_date?formatNewsletterDate(subscriber.last_sent_issue_date):'No issue sent yet'}</td></tr>)}</tbody></table></div></section>

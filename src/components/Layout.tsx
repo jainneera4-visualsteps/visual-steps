@@ -92,7 +92,7 @@ export function Layout() {
     if (path === '/dashboard') title = 'Dashboard | Visual Steps';
     else if (path === '/profile') title = 'Profile | Visual Steps';
     else if (path === '/data-management') title = 'Data Management | Visual Steps';
-    else if (path === '/activity-library') title = 'Activity Library | Visual Steps';
+    else if (path === '/activity-library') title = 'Activities Library | Visual Steps';
     else if (path === '/saved-quizzes') title = 'Saved Quizzes | Visual Steps';
     else if (path === '/social-stories') title = 'Social Stories | Visual Steps';
     else if (path === '/saved-worksheets') title = 'Saved Worksheets | Visual Steps';
@@ -152,7 +152,7 @@ export function Layout() {
                   </Link>
                 </Tooltip>
 
-                <Tooltip content="Create Activities">
+                <Tooltip content="Open the activities library">
                   <div className="relative group">
                     <button
                       data-guest-tour="activities-menu"
@@ -166,7 +166,7 @@ export function Layout() {
                           ? 'bg-brand-50 text-brand-700' : 'text-slate-600'
                       }`}
                     >
-                      Activities
+                      Activities Library
                       <ChevronDown size={14} className={`transition-transform duration-200 ${isActivitiesOpen ? 'rotate-180' : ''}`} />
                     </button>
                     
@@ -372,7 +372,7 @@ export function Layout() {
                   </Link>
                   <Link to="/data-management" className="text-[12px] font-bold text-slate-600 uppercase flex items-center gap-2" onClick={() => setIsMenuOpen(false)}><Database size={14} className="text-blue-600" /> Data Management</Link>
                   <div className="flex flex-col gap-1.5 pl-2 border-l-2 border-blue-100">
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Activities</span>
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Activities Library</span>
                     <Link to="/saved-quizzes" className="text-[12px] font-bold text-slate-600 uppercase flex items-center gap-2" onClick={() => setIsMenuOpen(false)}>
                       <Gamepad2 size={14} className="text-indigo-500" /> Quizzes
                     </Link>

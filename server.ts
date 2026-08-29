@@ -14,6 +14,7 @@ import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
 import path from 'path';
 import { createHash, randomBytes } from 'crypto';
+import sharp from 'sharp';
 
 dotenv.config();
 
@@ -1409,6 +1410,8 @@ const newsletterActivitiesAndGames = [
   { type: 'Activity', title: 'Adaptable movement circuit', description: 'Choose safe movements or sensory actions that fit each person’s age, mobility, health, and preferences, then take turns choosing or leading when welcomed. A younger child might march or copy poses, while a teenager or adult might select stretching, walking, exercise, or a regulation routine.' },
   { type: 'Game', title: 'Plan, create, and share', description: 'Choose age-appropriate materials or technology to build, design, cook, code, repair, or create something around a shared interest. Participants can communicate ideas through speech, typing, pictures, gestures, devices, or demonstration while practicing planning, flexible thinking, and cooperation.' },
   { type: 'Activity', title: 'Notice-and-share outing', description: 'Explore a garden, neighborhood, museum, shop, library, or other comfortable setting and notice personally interesting details. Participants may photograph, collect, draw, map, type, point to, or discuss observations, making the activity adaptable across ages, communication styles, and mobility needs.' },
+  { type: 'Puzzle', title: 'Everyday sequence puzzle', description: 'Photograph or draw the steps of a familiar routine, mix them up, and work together to place them in a useful order. Adjust the number of cards, wording, and level of support for a younger child, teenager, or adult, and welcome more than one workable sequence when the task allows it.' },
+  { type: 'Puzzle', title: 'Shared jigsaw and conversation break', description: 'Choose a jigsaw image connected to a preferred interest and complete a comfortable number of pieces together or independently. Use the activity for relaxed problem-solving, turn-taking, requesting help, conversation, or quiet shared attention without making speed or completion mandatory.' },
   { type: 'Life skill', title: 'Complete a meaningful real-life task together', description: 'Choose a goal relevant to the person’s life, such as preparing food, managing a shopping list, organizing belongings, planning travel, completing paperwork, or caring for a shared space. Agree on useful support and divide the task into respectful, achievable roles that build competence and connection.' },
   { type: 'Communication support', title: 'Build communication into meaningful routines', description: 'Speech and language support can be relevant at every age and may include speech, signs, pictures, writing, typing, or AAC. Practise communication within real choices, relationships, interests, education, work, and community life; the goal is effective self-expression and understanding, not making someone appear less autistic.' },
   { type: 'Occupational support', title: 'Adapt activities for access and participation', description: 'Occupational-therapy-informed ideas may support sensory comfort, motor access, daily living, study, employment, leisure, and community participation from childhood through adulthood. Families and caregivers can notice barriers, offer useful tools or environmental adjustments, and respect the autistic person’s own goals and sensory experience.' },
@@ -1430,6 +1433,9 @@ const newsletterBooksAndResources = [
   { type: 'Resource', title: 'Thinking Person’s Guide to Autism', creator: 'TPGA', description: 'Autism information and perspectives intended to help families make thoughtful, respectful decisions while learning from autistic people, parents, and professionals.', url: 'https://thinkingautismguide.com/' },
   { type: 'Resource', title: 'National Center on Health, Physical Activity and Disability', creator: 'NCHPAD', description: 'Inclusive movement, recreation, and wellbeing resources that families and caregivers can adapt around age, mobility, access needs, interests, and personal goals.', url: 'https://www.nchpad.org/' },
   { type: 'Resource', title: 'Life Skills Resources', creator: 'Autism Speaks', description: 'Practical starting points for considering daily living, safety, employment, housing, and adult independence goals; families should adapt suggestions to the autistic person’s choices, strengths, and support needs.', url: 'https://www.autismspeaks.org/life-skills-and-autism' },
+  { type: 'Place', title: 'Your local public library', description: 'Libraries can offer books, audiobooks, quiet spaces, interest-based programs, computers, community information, and opportunities to practise asking for help or independently finding resources. Preview the environment, timing, accessibility, and available accommodations so the visit fits the autistic person’s age, interests, communication, and sensory needs.' },
+  { type: 'Place', title: 'An accessible park or recreation center', description: 'A familiar park, walking route, pool, gym, or recreation program can support movement, leisure, regulation, confidence, and community participation. Choose the place and activity together, check accessibility and quieter times, and include a comfortable change-of-plan or exit option.' },
+  { type: 'Place', title: 'A museum, garden, or community learning space', description: 'Interest-led visits can support observation, communication, planning, photography, drawing, research, and shared enjoyment across ages. Look for sensory maps, quiet hours, accessible routes, advance tickets, or virtual previews, then build the visit around what the autistic person wants to explore.' },
 ];
 // Keep serverless startup independent from browser content modules. These
 // values mirror the public pricing page but remain plain server data so the
@@ -1444,13 +1450,17 @@ const newsletterVisualStepsSuggestions = [
   'Keep rewards specific and meaningful. Recognize the effort, communication, independence, or positive action that earned them.',
   'Invite the child or adult to help choose activities, supports, breaks, and goals. A shared plan is more respectful and often easier to follow.',
   'Balance responsibilities with rest, movement, interests, relationships, and community life. Visual Steps should support a meaningful day, not fill every moment.',
+  'Use activity notes to record what made a task easier or harder. Carry one useful observation into the next plan instead of changing several supports at once.',
+  'Keep recurring activities flexible when routines, energy, school, work, health, or family plans change. Move, pause, simplify, or end an activity when that choice better supports the person’s current needs.',
+  'Review the child or adult view before assigning a new activity. Check that the wording, image, timing, steps, and reward are clear, age-respectful, and free from unrelated information.',
+  'Use progress reports to notice patterns rather than judge a single day. Plan the next activity around demonstrated strengths, repeated difficulties, interests, and the support the person says is helpful.',
 ];
 const newsletterSectionTitles = {
   new_features: "What's New in Visual Steps", feature_previews: 'Feature Previews',
-  feature_details: 'Using Visual Steps Meaningfully',
+  feature_details: 'Practical Ways to Use Visual Steps',
   community_posts: 'Parent Stories, News, Information, Tips and Tricks', parent_testimonials: 'Parent Testimonials',
-  popular_features: 'Most Popular Features', recommended_resources: 'Suggested Activities, Games and Websites',
-  suggested_books_resources: 'Suggested Books and Resources',
+  popular_features: 'Most Popular Features', recommended_resources: 'Suggested Activities, Games, Puzzles and Other Ideas',
+  suggested_books_resources: 'Suggested Books, Places and Resources',
   advertisements: 'Mission-Aligned Advertisements',
   membership_details: 'Current Visual Steps Membership Details', parent_tips: 'Tips and Tricks for Parents',
 };
@@ -1458,6 +1468,9 @@ const newsletterSectionVisibility = { ...Object.fromEntries(Object.keys(newslett
 const upcomingNewsletterSectionTitles = (savedTitles: Record<string, string> = {}) => {
   const merged = { ...newsletterSectionTitles, ...savedTitles };
   if (merged.new_features === 'New and Updated Feature Details') merged.new_features = newsletterSectionTitles.new_features;
+  if (merged.feature_details === 'Using Visual Steps Meaningfully') merged.feature_details = newsletterSectionTitles.feature_details;
+  if (merged.recommended_resources === 'Suggested Activities, Games and Websites') merged.recommended_resources = newsletterSectionTitles.recommended_resources;
+  if (merged.suggested_books_resources === 'Suggested Books and Resources') merged.suggested_books_resources = newsletterSectionTitles.suggested_books_resources;
   return merged;
 };
 
@@ -1465,6 +1478,9 @@ const conciseNewsletterText = (value: string, sentenceLimit = 2) => {
   const sentences = String(value || '').match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [];
   return sentences.slice(0, sentenceLimit).map(sentence => sentence.trim()).join(' ');
 };
+const addVisualStepsUtility = (value: string, note: string, include: boolean) => include
+  ? `${conciseNewsletterText(value, 1)} ${note}`
+  : conciseNewsletterText(value);
 const isoDate = (date: Date) => date.toISOString().slice(0, 10);
 const formatNewsletterDate = (value: string | Date) => {
   const date = value instanceof Date ? value : new Date(`${value}T12:00:00Z`);
@@ -1583,10 +1599,32 @@ const buildWeeklyNewsletter = async (now = new Date(), published = false, delive
   }))).sort((a, b) => b.usageCount - a.usageCount).filter(item => !previouslyUsedPopularFeatures.has(item.title)).slice(0, 3).map(({ title, explanation }) => ({ title, explanation: conciseNewsletterText(explanation) }));
   const tipOffset = Math.floor(now.getTime() / (7 * 24 * 60 * 60 * 1000)) % newsletterTips.length;
   const unusedTips = newsletterTips.filter(tip => !previouslyUsedTips.has(tip));
-  const tips = unusedTips.length ? [0, 1, 2].map(index => conciseNewsletterText(unusedTips[(tipOffset + index) % unusedTips.length])).filter((tip, index, list) => list.indexOf(tip) === index) : [];
-  const unusedActivities = newsletterActivitiesAndGames.filter(item => !previouslyUsedActivities.has(item.title)).slice(0, 3).map(item => ({ ...item, description: conciseNewsletterText(item.description) }));
-  const unusedBooks = newsletterBooksAndResources.filter(item => !previouslyUsedBooks.has(item.title)).slice(0, 3).map(item => ({ ...item, description: conciseNewsletterText(item.description) }));
-  const visualStepsSuggestions = newsletterVisualStepsSuggestions.filter(item => !previouslyUsedVisualStepsSuggestions.has(item)).slice(0, 3);
+  const tips = unusedTips.length ? [0, 1, 2, 3, 4].map((_, index) => addVisualStepsUtility(
+    unusedTips[(tipOffset + index) % unusedTips.length],
+    index === 0
+      ? 'If a visible reminder would help, add the routine or support as a short Visual Steps activity and invite the child or adult to review it with you.'
+      : 'Use the completed, repeated, on-hold, or ended activity outcome in Visual Steps to record the next planning decision without judging the person by one difficult day.',
+    index === 0 || index === 3,
+  )).filter((tip, index, list) => list.indexOf(tip) === index) : [];
+  const unusedActivities = newsletterActivitiesAndGames.filter(item => !previouslyUsedActivities.has(item.title)).slice(0, 5).map((item, index) => ({
+    ...item,
+    description: addVisualStepsUtility(
+      item.description,
+      index === 0
+        ? 'You can place the idea in Visual Steps with a clear time, picture, and only the steps that make participation easier.'
+        : 'If the idea may be useful again, save it as a recurring or reusable Visual Steps activity and adjust the support after reviewing how it went.',
+      index === 0 || index === 3,
+    ),
+  }));
+  const unusedBooks = newsletterBooksAndResources.filter(item => !previouslyUsedBooks.has(item.title)).slice(0, 5).map((item, index) => ({
+    ...item,
+    description: addVisualStepsUtility(
+      item.description,
+      'When the resource inspires one relevant next step, add that specific idea to Visual Steps rather than turning the entire resource into another assignment.',
+      index === 1,
+    ),
+  }));
+  const visualStepsSuggestions = newsletterVisualStepsSuggestions.filter(item => !previouslyUsedVisualStepsSuggestions.has(item)).slice(0, 5);
   const issue = {
     issue_date: period.issueDate,
     period_start: period.periodStart,
@@ -1643,6 +1681,73 @@ const baseNewsletterSectionHtml = (title: string, items: string[], columns = 1, 
   <h2 style="color:#173b52;margin:28px 0 10px">${escapeEmailHtml(title)}</h2>
   <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:14px;padding:16px 20px;text-align:justify;text-justify:inter-word">${bulleted || numbered || title === newsletterSectionTitles.new_features ? `<${numbered || title === newsletterSectionTitles.new_features ? 'ol' : 'ul'} style="padding-left:22px;line-height:1.7;margin:0">${items.map(item => `<li style="margin-bottom:12px;text-align:justify;text-justify:inter-word">${item}</li>`).join('')}</${numbered || title === newsletterSectionTitles.new_features ? 'ol' : 'ul'}>` : `<div style="display:grid;grid-template-columns:1fr;gap:14px;line-height:1.7">${items.map(item => `<div style="text-align:justify;text-justify:inter-word;${columns === 2 ? 'background:#ffffff;border:1px solid #dbeafe;border-radius:10px;padding:12px;' : ''}">${item}</div>`).join('')}</div>`}</div>` : '';
 
+const wrapNewsletterPreviewText = (value: unknown, maxCharacters: number, maxLines: number) => {
+  const words = String(value || '').replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
+  const lines: string[] = [];
+  let line = '';
+  for (const word of words) {
+    const candidate = line ? `${line} ${word}` : word;
+    if (candidate.length <= maxCharacters) line = candidate;
+    else {
+      if (line) lines.push(line);
+      line = word;
+      if (lines.length >= maxLines) break;
+    }
+  }
+  if (line && lines.length < maxLines) lines.push(line);
+  if (words.join(' ').length > lines.join(' ').length && lines.length) lines[lines.length - 1] = `${lines[lines.length - 1].replace(/[.,;:]?$/, '')}…`;
+  return lines;
+};
+
+const getNewsletterPreviewContents = (issue: any) => {
+  const visible = (key: string) => issue.section_visibility?.[key] !== false;
+  const title = (key: string, fallback: string) => issue.section_titles?.[key] || fallback;
+  const entries: string[] = [];
+  const add = (key: string, fallback: string, items: unknown[]) => { if (visible(key) && items?.length) entries.push(title(key, fallback)); };
+  add('feature_previews', 'Feature Previews', issue.feature_previews || []);
+  if (visible('community_posts')) {
+    const community = issue.community_posts || [];
+    [['story', 'Parent Stories'], ['news', 'Community News'], ['information', 'Helpful Information'], ['tip', 'Community Tips and Tricks']].forEach(([type, fallback]) => {
+      const items = community.filter((item: any) => item.type === type);
+      if (items.length) entries.push(title(`community_${type}`, fallback));
+    });
+  }
+  add('parent_testimonials', 'Parent Testimonials', issue.parent_testimonials || []);
+  add('feature_details', 'Practical Ways to Use Visual Steps', issue.feature_details || []);
+  add('popular_features', 'Most Popular Features', issue.popular_features || []);
+  add('recommended_resources', 'Suggested Activities, Games, Puzzles and Other Ideas', issue.recommended_resources || []);
+  add('suggested_books_resources', 'Suggested Books, Places and Resources', issue.suggested_books_resources || []);
+  add('advertisements', 'Mission-Aligned Advertisements', issue.advertisements || []);
+  add('parent_tips', 'Tips and Tricks for Parents', issue.parent_tips || []);
+  add('new_features', "What's New in Visual Steps", issue.new_features || []);
+  add('membership_details', 'Current Visual Steps Membership Details', issue.membership_details || []);
+  return entries.slice(0, 11);
+};
+
+const createNewsletterEmailPreview = async (issue: any) => {
+  const titleLines = wrapNewsletterPreviewText(issue.title, 25, 3);
+  const introductionLines = wrapNewsletterPreviewText(issue.introduction, 48, 7);
+  const contents = getNewsletterPreviewContents(issue);
+  const lineText = (lines: string[], x: number, startY: number, size: number, lineHeight: number, weight = 400, color = '#425b56') => lines.map((line, index) => `<text x="${x}" y="${startY + index * lineHeight}" font-size="${size}" font-weight="${weight}" fill="${color}">${escapeEmailHtml(line)}</text>`).join('');
+  const contentsText = contents.map((entry, index) => `<text x="675" y="${166 + index * 38}" font-size="18" font-weight="700" fill="#243b3a">${index + 1}. ${escapeEmailHtml(entry)}</text>`).join('');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675">
+    <rect width="1200" height="675" rx="26" fill="#dfcfaa"/>
+    <rect x="18" y="18" width="570" height="639" rx="18" fill="#fffdf8"/>
+    <rect x="612" y="18" width="570" height="639" rx="18" fill="#fffdf8"/>
+    <rect x="588" y="18" width="24" height="639" fill="#e5e7eb" opacity=".7"/>
+    <text x="58" y="78" font-family="Arial, sans-serif" font-size="18" font-weight="800" letter-spacing="2" fill="#176b87">VISUAL STEPS WEEKLY</text>
+    ${lineText(titleLines, 58, 142, 42, 49, 800, '#172b27')}
+    ${lineText(introductionLines, 58, 320, 19, 31)}
+    <line x1="58" y1="580" x2="548" y2="580" stroke="#cfe4df" stroke-width="2"/>
+    <text x="58" y="616" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#176b87">Open the complete issue in your browser</text>
+    <text x="652" y="86" font-family="Arial, sans-serif" font-size="38" font-weight="800" fill="#172b27">Contents</text>
+    <text x="652" y="120" font-family="Arial, sans-serif" font-size="17" fill="#64748b">A quick look at this week’s issue</text>
+    ${contentsText}
+    <text x="1138" y="625" text-anchor="end" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#176b87">READ ONLINE →</text>
+  </svg>`;
+  return sharp(Buffer.from(svg)).png({ compressionLevel: 9 }).toBuffer();
+};
+
 const sendNewsletterIssue = async (issue: any, appOrigin: string) => {
   const admin = getAdminSupabaseClient();
   const { data: subscribers, error } = await admin.from('newsletter_subscribers')
@@ -1652,6 +1757,8 @@ const sendNewsletterIssue = async (issue: any, appOrigin: string) => {
   const transporter = await getTransporter();
   if (!transporter) throw new Error('SMTP is not configured');
   const from = cleanEnvVar('SMTP_FROM') || cleanEnvVar('SMTP_USER');
+  const issueUrl = `${appOrigin}/newsletter/issues/${encodeURIComponent(issue.issue_date)}`;
+  const emailPreview = await createNewsletterEmailPreview(issue);
   let delivered = 0;
   for (const subscriber of subscribers || []) {
     // Store a newly rotated unsubscribe token because hashes cannot be reversed.
@@ -1705,8 +1812,9 @@ const sendNewsletterIssue = async (issue: any, appOrigin: string) => {
     try {
       await transporter.sendMail({
         from, to: subscriber.email, subject: issue.title,
-        text: `${issue.introduction}\n\nRead this issue: ${archiveUrl}\n\nUnsubscribe: ${unsubscribeUrl}`,
-        html: `<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;color:#334155;line-height:1.6;background:#fffdf7;padding:24px"><div style="background:linear-gradient(135deg,#dbeafe,#d1fae5);border-radius:18px;padding:24px"><h1 style="color:#176b87;margin-top:0">${escapeEmailHtml(issue.title)}</h1><p style="text-align:justify;text-justify:inter-word">${escapeEmailHtml(issue.introduction)}</p></div>${issue.section_visibility?.feature_previews === false ? '' : newsletterSectionHtml(issue.section_titles?.feature_previews || newsletterSectionTitles.feature_previews, previewItems)}${issue.section_visibility?.concise_editorial === true || issue.section_visibility?.new_features === false ? '' : newsletterSectionHtml(issue.section_titles?.new_features || 'New and Updated Feature Details', featureItems, 2)}${issue.section_visibility?.concise_editorial === true && issue.section_visibility?.feature_details !== false ? newsletterSectionHtml(issue.section_titles?.feature_details || newsletterSectionTitles.feature_details, visualStepsSuggestionItems, 1, true) : ''}${issue.section_visibility?.community_posts === false ? '' : communitySectionsHtml}${issue.section_visibility?.parent_testimonials === false ? '' : newsletterSectionHtml(issue.section_titles?.parent_testimonials || newsletterSectionTitles.parent_testimonials, testimonialItems)}${issue.section_visibility?.popular_features === false ? '' : newsletterSectionHtml(issue.section_titles?.popular_features || newsletterSectionTitles.popular_features, popularItems)}${issue.section_visibility?.recommended_resources === false ? '' : newsletterSectionHtml(issue.section_titles?.recommended_resources || newsletterSectionTitles.recommended_resources, resourceItems)}${issue.section_visibility?.suggested_books_resources === false ? '' : newsletterSectionHtml(issue.section_titles?.suggested_books_resources || newsletterSectionTitles.suggested_books_resources, bookResourceItems, 2)}${issue.section_visibility?.advertisements === false ? '' : newsletterSectionHtml(issue.section_titles?.advertisements || newsletterSectionTitles.advertisements, advertisementItems, 2)}${issue.section_visibility?.parent_tips === false ? '' : newsletterSectionHtml(issue.section_titles?.parent_tips || newsletterSectionTitles.parent_tips, tipItems, 1, true)}${issue.section_visibility?.concise_editorial === true && issue.section_visibility?.new_features !== false ? newsletterSectionHtml(issue.section_titles?.new_features || newsletterSectionTitles.new_features, featureItems, 2) : ''}${issue.section_visibility?.membership_details === false ? '' : newsletterSectionHtml(issue.section_titles?.membership_details || newsletterSectionTitles.membership_details, membershipItems)}<p style="margin-top:32px">${footerLinksHtml}</p><p><a href="${archiveUrl}">Read the illustrated newsletter archive</a></p><p style="font-size:12px;color:#64748b">You received this because you confirmed a Visual Steps newsletter subscription. <a href="${unsubscribeUrl}">Unsubscribe with one click</a>.</p></div>`,
+        text: `${issue.introduction}\n\nRead this issue: ${issueUrl}\n\nUnsubscribe: ${unsubscribeUrl}`,
+        html: `<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;color:#334155;line-height:1.6;background:#fffdf7;padding:24px"><a href="${escapeEmailHtml(issueUrl)}" style="display:block;margin:0 0 22px;text-decoration:none"><img src="cid:visual-steps-newsletter-preview" width="680" alt="Open the first two pages of ${escapeEmailHtml(issue.title)}" style="display:block;width:100%;height:auto;border:0;border-radius:14px"/></a><div style="background:linear-gradient(135deg,#dbeafe,#d1fae5);border-radius:18px;padding:24px"><h1 style="color:#176b87;margin-top:0">${escapeEmailHtml(issue.title)}</h1><p style="text-align:justify;text-justify:inter-word">${escapeEmailHtml(issue.introduction)}</p></div>${issue.section_visibility?.feature_previews === false ? '' : newsletterSectionHtml(issue.section_titles?.feature_previews || newsletterSectionTitles.feature_previews, previewItems)}${issue.section_visibility?.concise_editorial === true || issue.section_visibility?.new_features === false ? '' : newsletterSectionHtml(issue.section_titles?.new_features || 'New and Updated Feature Details', featureItems, 2)}${issue.section_visibility?.concise_editorial === true && issue.section_visibility?.feature_details !== false ? newsletterSectionHtml(issue.section_titles?.feature_details || newsletterSectionTitles.feature_details, visualStepsSuggestionItems, 1, true) : ''}${issue.section_visibility?.community_posts === false ? '' : communitySectionsHtml}${issue.section_visibility?.parent_testimonials === false ? '' : newsletterSectionHtml(issue.section_titles?.parent_testimonials || newsletterSectionTitles.parent_testimonials, testimonialItems)}${issue.section_visibility?.popular_features === false ? '' : newsletterSectionHtml(issue.section_titles?.popular_features || newsletterSectionTitles.popular_features, popularItems)}${issue.section_visibility?.recommended_resources === false ? '' : newsletterSectionHtml(issue.section_titles?.recommended_resources || newsletterSectionTitles.recommended_resources, resourceItems)}${issue.section_visibility?.suggested_books_resources === false ? '' : newsletterSectionHtml(issue.section_titles?.suggested_books_resources || newsletterSectionTitles.suggested_books_resources, bookResourceItems, 2)}${issue.section_visibility?.advertisements === false ? '' : newsletterSectionHtml(issue.section_titles?.advertisements || newsletterSectionTitles.advertisements, advertisementItems, 2)}${issue.section_visibility?.parent_tips === false ? '' : newsletterSectionHtml(issue.section_titles?.parent_tips || newsletterSectionTitles.parent_tips, tipItems, 1, true)}${issue.section_visibility?.concise_editorial === true && issue.section_visibility?.new_features !== false ? newsletterSectionHtml(issue.section_titles?.new_features || newsletterSectionTitles.new_features, featureItems, 2) : ''}${issue.section_visibility?.membership_details === false ? '' : newsletterSectionHtml(issue.section_titles?.membership_details || newsletterSectionTitles.membership_details, membershipItems)}<p style="margin-top:32px">${footerLinksHtml}</p><p><a href="${archiveUrl}">Read the illustrated newsletter archive</a></p><p style="font-size:12px;color:#64748b">You received this because you confirmed a Visual Steps newsletter subscription. <a href="${unsubscribeUrl}">Unsubscribe with one click</a>.</p></div>`,
+        attachments: [{ filename: `visual-steps-weekly-${issue.issue_date}.png`, content: emailPreview, cid: 'visual-steps-newsletter-preview', contentType: 'image/png' }],
       });
       await admin.from('newsletter_subscribers').update({ last_sent_issue_date: issue.issue_date, unsubscribe_token_hash: unsubscribeHash, updated_at: new Date().toISOString() }).eq('id', subscriber.id);
       delivered += 1;
@@ -1718,6 +1826,7 @@ const sendNewsletterIssue = async (issue: any, appOrigin: string) => {
 };
 
 app.get('/api/newsletters', async (_req, res) => {
+  res.set('Cache-Control', 'no-store, max-age=0');
   const client = getPublicSupabaseClient();
   const { data, error } = await client.from('newsletters').select('*').not('published_at', 'is', null).order('issue_date', { ascending: false }).limit(52);
   if (error) return res.status(500).json({ error: 'Unable to load newsletters' });
@@ -1872,14 +1981,27 @@ app.get('/api/newsletter/admin/subscribers', authenticateToken, requireNewslette
   return res.json(data || []);
 });
 
-app.post('/api/newsletter/admin/send-now', authenticateToken, requireNewsletterAdmin, async (req, res) => {
+app.post('/api/newsletter/admin/publish-now', authenticateToken, requireNewsletterAdmin, async (_req, res) => {
   try {
     const issue = await createWeeklyNewsletter();
+    return res.json({ issueDate: issue.issue_date, websitePublished: true });
+  } catch (error) {
+    console.error('Manual newsletter publication failed:', error instanceof Error ? error.message : 'Unknown error');
+    return res.status(500).json({ error: 'Unable to publish the newsletter on the website' });
+  }
+});
+
+app.post('/api/newsletter/admin/send-now', authenticateToken, requireNewsletterAdmin, async (req, res) => {
+  try {
+    const { data: issue, error } = await getAdminSupabaseClient().from('newsletters')
+      .select('*').not('published_at', 'is', null).order('issue_date', { ascending: false }).limit(1).maybeSingle();
+    if (error) throw error;
+    if (!issue) return res.status(404).json({ error: 'There is no published newsletter to send.' });
     const delivery = await sendNewsletterIssue(issue, getPublicAppOrigin(req));
-    return res.json({ issueDate: issue.issue_date, ...delivery });
+    return res.json({ issueDate: issue.issue_date, emailDelivered: true, ...delivery });
   } catch (error) {
     console.error('Manual newsletter delivery failed:', error instanceof Error ? error.message : 'Unknown error');
-    return res.status(500).json({ error: 'Unable to publish or deliver the newsletter' });
+    return res.status(500).json({ error: 'Unable to send the published newsletter' });
   }
 });
 
@@ -2000,10 +2122,21 @@ app.get(['/api/cron/weekly-newsletter', '/api/cron/weekly-newsletter/:utcHour'],
     const now = new Date();
     const settings = await getNewsletterDeliverySettings();
     const local = getNewsletterLocalParts(now, settings.deliveryTimezone);
-    if (local.weekday !== settings.deliveryWeekday || local.hour !== settings.deliveryHour) return res.json({ skipped: true, reason: 'Not the configured newsletter delivery time' });
-    const issue = await createWeeklyNewsletter();
-    const delivery = await sendNewsletterIssue(issue, getPublicAppOrigin(req));
-    return res.json({ issueDate: issue.issue_date, ...delivery });
+    if (local.weekday !== settings.deliveryWeekday || local.hour < settings.deliveryHour) return res.json({ skipped: true, reason: 'Not the configured newsletter delivery time' });
+    const period = getPreviousNewsletterPeriod(now, settings.deliveryWeekday, settings.deliveryTimezone);
+    const { data: publishedIssue, error: publishedIssueError } = await getAdminSupabaseClient().from('newsletters')
+      .select('*').eq('issue_date', period.issueDate).not('published_at', 'is', null).maybeSingle();
+    if (publishedIssueError) throw publishedIssueError;
+    // Later cron runs on the selected day act as safe retries. Reuse the saved
+    // issue and let subscriber last-sent dates prevent duplicate delivery.
+    const issue = publishedIssue || await createWeeklyNewsletter(now);
+    try {
+      const delivery = await sendNewsletterIssue(issue, getPublicAppOrigin(req));
+      return res.json({ issueDate: issue.issue_date, websitePublished: true, emailDelivered: true, recoveryRun: local.hour > settings.deliveryHour, ...delivery });
+    } catch (deliveryError) {
+      console.error('Newsletter published on website but scheduled email delivery failed:', deliveryError instanceof Error ? deliveryError.message : 'Unknown error');
+      return res.status(503).json({ issueDate: issue.issue_date, websitePublished: true, emailDelivered: false, error: 'The issue is live on the website; email delivery will retry later today.' });
+    }
   } catch (error) {
     console.error('Weekly newsletter job failed:', error instanceof Error ? error.message : 'Unknown error');
     return res.status(500).json({ error: 'Newsletter job failed' });

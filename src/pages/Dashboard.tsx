@@ -597,9 +597,9 @@ export default function Dashboard() {
 
                   {/* Action Buttons */}
                   <div className="flex gap-2 items-center text-sm">
-                    <Tooltip content={`Manage ${kid.name}'s Activities`}>
+                    <Tooltip content={`Set up ${kid.name}'s activities`}>
                       <Link to={`/assigned-activities/${kid.id}`}>
-                        <Button size="sm" variant="outline">Activities</Button>
+                        <Button size="sm" variant="outline">Activities Setup</Button>
                       </Link>
                     </Tooltip>
                   </div>
