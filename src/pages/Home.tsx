@@ -173,7 +173,7 @@ export default function Home() {
             </div>
 
             {/* Right: Login Card */}
-            <div className="w-full max-w-[400px] flex-shrink-0">
+            <div className="w-full max-w-[400px] flex-shrink-0 space-y-5">
               <Card className="shadow-xl border-none ring-1 ring-slate-200 overflow-hidden">
                 <div className="flex border-b border-slate-100">
                   <button 
@@ -347,6 +347,9 @@ export default function Home() {
                   )}
                 </CardContent>
               </Card>
+              <div className="min-w-0">
+                <IntroVideo />
+              </div>
             </div>
           </div>
 
@@ -394,10 +397,9 @@ export default function Home() {
               <div className="max-w-3xl">
                 <p className="text-xs font-black uppercase tracking-[0.2em] text-brand-700">See how Visual Steps works</p>
                 <h2 className="mt-2 text-3xl font-black text-slate-950">Explore at your own pace</h2>
-                <p className="mt-2 text-sm leading-7 text-slate-600">Start with the short visual introduction, then open the narrated tour for a closer look at the parent and learner experience.</p>
+                <p className="mt-2 text-sm leading-7 text-slate-600">Open the narrated tour for a closer look at the parent and learner experience.</p>
               </div>
               <div className="mt-5 space-y-5">
-                <div className="min-w-0"><IntroVideo /></div>
                 <div className="min-w-0"><ProductDemoVideo /></div>
               </div>
             </section>
