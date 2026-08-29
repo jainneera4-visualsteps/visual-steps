@@ -603,12 +603,26 @@ p.text-right {
   widows: 2;
 }
 
-.newsletter-flow-content ul.grid {
+.newsletter-flow-content ul.grid,
+.newsletter-flow-content ol.grid {
   display: block;
 }
 
-.newsletter-flow-content ul.grid > li + li {
+.newsletter-flow-content ul.grid > li + li,
+.newsletter-flow-content ol.grid > li + li {
   margin-top: 1.25rem;
+}
+
+.newsletter-flow-content .newsletter-numbered-features > li > b:first-child {
+  display: block;
+  break-after: avoid-column;
+  -webkit-column-break-after: avoid;
+  page-break-after: avoid;
+}
+
+.newsletter-flow-content .newsletter-numbered-features > li > span {
+  orphans: 2;
+  widows: 2;
 }
 
 .newsletter-flow-content img,

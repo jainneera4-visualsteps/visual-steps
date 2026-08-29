@@ -19,7 +19,7 @@ type Subscriber = {
   last_sent_issue_date: string | null; created_at: string;
 };
 type Draft = Record<string, any> & { issue_date?: string; title?: string; introduction?: string };
-const sectionKeys = ['new_features','feature_details','community_posts','parent_testimonials','popular_features','recommended_resources','suggested_books_resources','advertisements','parent_tips','membership_details'] as const;
+const sectionKeys = ['community_posts','parent_testimonials','feature_details','popular_features','recommended_resources','suggested_books_resources','advertisements','parent_tips','new_features','membership_details'] as const;
 const weekdayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const hourOptions = Array.from({ length: 24 }, (_, hour) => ({
   hour,

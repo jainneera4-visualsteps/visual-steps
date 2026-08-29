@@ -1446,7 +1446,7 @@ const newsletterVisualStepsSuggestions = [
   'Balance responsibilities with rest, movement, interests, relationships, and community life. Visual Steps should support a meaningful day, not fill every moment.',
 ];
 const newsletterSectionTitles = {
-  new_features: 'New and Updated Feature Details', feature_previews: 'Feature Previews',
+  new_features: "What's New in Visual Steps", feature_previews: 'Feature Previews',
   feature_details: 'Using Visual Steps Meaningfully',
   community_posts: 'Parent Stories, News, Information, Tips and Tricks', parent_testimonials: 'Parent Testimonials',
   popular_features: 'Most Popular Features', recommended_resources: 'Suggested Activities, Games and Websites',
@@ -1455,14 +1455,16 @@ const newsletterSectionTitles = {
   membership_details: 'Current Visual Steps Membership Details', parent_tips: 'Tips and Tricks for Parents',
 };
 const newsletterSectionVisibility = { ...Object.fromEntries(Object.keys(newsletterSectionTitles).map(key => [key, true])), feature_previews: false, concise_editorial: true };
+const upcomingNewsletterSectionTitles = (savedTitles: Record<string, string> = {}) => {
+  const merged = { ...newsletterSectionTitles, ...savedTitles };
+  if (merged.new_features === 'New and Updated Feature Details') merged.new_features = newsletterSectionTitles.new_features;
+  return merged;
+};
 
 const conciseNewsletterText = (value: string, sentenceLimit = 2) => {
   const sentences = String(value || '').match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [];
   return sentences.slice(0, sentenceLimit).map(sentence => sentence.trim()).join(' ');
 };
-const newsletterHelpSteps = (value: string) => (String(value || '').match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [])
-  .map(step => step.trim()).filter(Boolean);
-
 const isoDate = (date: Date) => date.toISOString().slice(0, 10);
 const formatNewsletterDate = (value: string | Date) => {
   const date = value instanceof Date ? value : new Date(`${value}T12:00:00Z`);
@@ -1591,11 +1593,11 @@ const buildWeeklyNewsletter = async (now = new Date(), published = false, delive
     period_end: period.periodEnd,
     title: `Visual Steps Weekly — ${formatNewsletterDate(period.issueDate)}`,
     introduction: `A practical summary of Visual Steps updates from ${formatNewsletterDate(period.periodStart)} through ${formatNewsletterDate(period.periodEnd)}, with suggestions centered on ${newsletterEditorialFocus}.`,
-    new_features: featureChanges.map(({ screenshot: _screenshot, ...change }) => ({ ...change, compact: true, bullets: [
-      { label: 'What changed', text: change.summary },
-      { label: 'What it includes', text: change.details },
-      { label: 'How it can help', text: change.familyImpact },
-    ], navigationSteps: newsletterHelpSteps(change.help) })),
+    new_features: featureChanges.map(({ screenshot: _screenshot, ...change }) => ({
+      ...change,
+      compact: true,
+      description: `${conciseNewsletterText(change.summary, 1)} ${conciseNewsletterText(change.familyImpact, 1)}`.trim(),
+    })),
     feature_details: visualStepsSuggestions,
     feature_previews: [],
     parent_testimonials: [...(testimonials || []).map(item => ({ displayName: item.display_name, quote: item.quote, featureTitle: item.feature_title, editorialContext: newsletterTestimonialContext })), ...(communityPosts || []).filter(item => item.contribution_type === 'testimonial').map(item => ({ displayName: item.display_name, quote: item.content, featureTitle: item.title, editorialContext: newsletterTestimonialContext }))],
@@ -1629,7 +1631,7 @@ const createWeeklyNewsletter = async (now = new Date()) => {
     ...generated,
     title: normalizeNewsletterDateText(savedDraft.title),
     introduction: normalizeNewsletterDateText(savedDraft.introduction),
-    section_titles: { ...newsletterSectionTitles, ...(savedDraft.section_titles || {}) },
+    section_titles: upcomingNewsletterSectionTitles(savedDraft.section_titles || {}),
     section_visibility: { ...newsletterSectionVisibility, ...(savedDraft.section_visibility || {}), feature_previews: false },
   } : generated;
   const { data, error } = await admin.from('newsletters').upsert(issue, { onConflict: 'issue_date' }).select('*').single();
@@ -1637,9 +1639,9 @@ const createWeeklyNewsletter = async (now = new Date()) => {
   return data;
 };
 
-const newsletterSectionHtml = (title: string, items: string[], columns = 1, bulleted = false) => items.length ? `
+const baseNewsletterSectionHtml = (title: string, items: string[], columns = 1, bulleted = false, numbered = false) => items.length ? `
   <h2 style="color:#173b52;margin:28px 0 10px">${escapeEmailHtml(title)}</h2>
-  <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:14px;padding:16px 20px;text-align:justify;text-justify:inter-word">${bulleted ? `<ul style="padding-left:22px;line-height:1.7;margin:0">${items.map(item => `<li style="margin-bottom:12px;text-align:justify;text-justify:inter-word">${item}</li>`).join('')}</ul>` : `<div style="display:grid;grid-template-columns:1fr;gap:14px;line-height:1.7">${items.map(item => `<div style="text-align:justify;text-justify:inter-word;${columns === 2 ? 'background:#ffffff;border:1px solid #dbeafe;border-radius:10px;padding:12px;' : ''}">${item}</div>`).join('')}</div>`}</div>` : '';
+  <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:14px;padding:16px 20px;text-align:justify;text-justify:inter-word">${bulleted || numbered || title === newsletterSectionTitles.new_features ? `<${numbered || title === newsletterSectionTitles.new_features ? 'ol' : 'ul'} style="padding-left:22px;line-height:1.7;margin:0">${items.map(item => `<li style="margin-bottom:12px;text-align:justify;text-justify:inter-word">${item}</li>`).join('')}</${numbered || title === newsletterSectionTitles.new_features ? 'ol' : 'ul'}>` : `<div style="display:grid;grid-template-columns:1fr;gap:14px;line-height:1.7">${items.map(item => `<div style="text-align:justify;text-justify:inter-word;${columns === 2 ? 'background:#ffffff;border:1px solid #dbeafe;border-radius:10px;padding:12px;' : ''}">${item}</div>`).join('')}</div>`}</div>` : '';
 
 const sendNewsletterIssue = async (issue: any, appOrigin: string) => {
   const admin = getAdminSupabaseClient();
@@ -1657,8 +1659,28 @@ const sendNewsletterIssue = async (issue: any, appOrigin: string) => {
     const unsubscribeHash = hashNewsletterToken(unsubscribeToken);
     const unsubscribeUrl = `${appOrigin}/api/newsletter/unsubscribe?token=${encodeURIComponent(unsubscribeToken)}`;
     const archiveUrl = `${appOrigin}/newsletter`;
-    const featureItems = (issue.new_features || []).map((item: any) => item.compact && Array.isArray(item.bullets)
-      ? `<span style="display:inline-block;background:#dbeafe;color:#1e40af;border-radius:999px;padding:3px 9px;font-size:11px;font-weight:bold;text-transform:uppercase">${item.changeType === 'updated' ? 'Feature update' : 'New feature'}</span><br><strong>${escapeEmailHtml(item.title)}</strong><ul style="padding-left:22px;line-height:1.7">${item.bullets.map((bullet: any) => `<li><strong>${escapeEmailHtml(bullet.label)}:</strong> ${escapeEmailHtml(bullet.text)}</li>`).join('')}</ul>${Array.isArray(item.navigationSteps) && item.navigationSteps.length ? `<div style="margin-top:14px"><strong>Where to find it</strong><ol style="padding-left:22px;line-height:1.7;margin-top:6px">${item.navigationSteps.map((step: string) => `<li>${escapeEmailHtml(step)}</li>`).join('')}</ol></div>` : ''}${item.id ? `<a href="${appOrigin}/features/${encodeURIComponent(item.id)}">Read more</a>` : ''}`
+    let deferredMeaningfulUseSection = '';
+    const newsletterSectionHtml = (title: string, items: string[], columns = 1, bulleted = false, numbered = false) => {
+      const rendered = baseNewsletterSectionHtml(title, items, columns, bulleted, numbered);
+      if (issue.section_visibility?.concise_editorial !== true) return rendered;
+      if (title === (issue.section_titles?.feature_details || newsletterSectionTitles.feature_details)) {
+        deferredMeaningfulUseSection = rendered;
+        return '';
+      }
+      if (title === (issue.section_titles?.parent_testimonials || newsletterSectionTitles.parent_testimonials)) {
+        const meaningfulUse = deferredMeaningfulUseSection;
+        deferredMeaningfulUseSection = '';
+        return `${rendered}${meaningfulUse}`;
+      }
+      if (title === (issue.section_titles?.popular_features || newsletterSectionTitles.popular_features) && deferredMeaningfulUseSection) {
+        const meaningfulUse = deferredMeaningfulUseSection;
+        deferredMeaningfulUseSection = '';
+        return `${meaningfulUse}${rendered}`;
+      }
+      return rendered;
+    };
+    const featureItems = (issue.new_features || []).map((item: any) => item.compact
+      ? `<strong>${escapeEmailHtml(item.title)}</strong><br>${escapeEmailHtml(item.description || [item.bullets?.find((bullet: any) => bullet.label === 'What changed')?.text, item.bullets?.find((bullet: any) => bullet.label === 'How it can help')?.text].filter(Boolean).join(' '))}${item.id ? `<br><a href="${appOrigin}/features/${encodeURIComponent(item.id)}">Read more</a>` : ''}`
       : `<span style="display:inline-block;background:#dbeafe;color:#1e40af;border-radius:999px;padding:3px 9px;font-size:11px;font-weight:bold;text-transform:uppercase">${item.changeType === 'updated' ? 'Feature update' : 'New feature'}</span><br><strong>${escapeEmailHtml(item.title)}</strong><br>${escapeEmailHtml(item.summary)}<br>${escapeEmailHtml(item.details)}<br><strong>How this supports growth:</strong> ${escapeEmailHtml(item.familyImpact)}<br><em>Where to find it:</em> ${escapeEmailHtml(item.help)}${item.id ? `<br><a href="${appOrigin}/features/${encodeURIComponent(item.id)}">Read more</a>` : ''}`);
     const visualStepsSuggestionItems = (issue.feature_details || []).map((item: string) => escapeEmailHtml(item));
     const testimonialItems = (issue.parent_testimonials || []).map((item: any) => `<strong>By ${escapeEmailHtml(item.displayName)}</strong>${renderNewsletterMarkdownForEmail(item.quote)}${item.editorialContext ? `<br><em>${escapeEmailHtml(item.editorialContext)}</em>` : ''}`);
@@ -1684,7 +1706,7 @@ const sendNewsletterIssue = async (issue: any, appOrigin: string) => {
       await transporter.sendMail({
         from, to: subscriber.email, subject: issue.title,
         text: `${issue.introduction}\n\nRead this issue: ${archiveUrl}\n\nUnsubscribe: ${unsubscribeUrl}`,
-        html: `<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;color:#334155;line-height:1.6;background:#fffdf7;padding:24px"><div style="background:linear-gradient(135deg,#dbeafe,#d1fae5);border-radius:18px;padding:24px"><h1 style="color:#176b87;margin-top:0">${escapeEmailHtml(issue.title)}</h1><p style="text-align:justify;text-justify:inter-word">${escapeEmailHtml(issue.introduction)}</p></div>${issue.section_visibility?.feature_previews === false ? '' : newsletterSectionHtml(issue.section_titles?.feature_previews || newsletterSectionTitles.feature_previews, previewItems)}${issue.section_visibility?.new_features === false ? '' : newsletterSectionHtml(issue.section_titles?.new_features || newsletterSectionTitles.new_features, featureItems, 2)}${issue.section_visibility?.concise_editorial === true && issue.section_visibility?.feature_details !== false ? newsletterSectionHtml(issue.section_titles?.feature_details || newsletterSectionTitles.feature_details, visualStepsSuggestionItems, 1, true) : ''}${issue.section_visibility?.community_posts === false ? '' : communitySectionsHtml}${issue.section_visibility?.parent_testimonials === false ? '' : newsletterSectionHtml(issue.section_titles?.parent_testimonials || newsletterSectionTitles.parent_testimonials, testimonialItems)}${issue.section_visibility?.popular_features === false ? '' : newsletterSectionHtml(issue.section_titles?.popular_features || newsletterSectionTitles.popular_features, popularItems)}${issue.section_visibility?.recommended_resources === false ? '' : newsletterSectionHtml(issue.section_titles?.recommended_resources || newsletterSectionTitles.recommended_resources, resourceItems)}${issue.section_visibility?.suggested_books_resources === false ? '' : newsletterSectionHtml(issue.section_titles?.suggested_books_resources || newsletterSectionTitles.suggested_books_resources, bookResourceItems, 2)}${issue.section_visibility?.advertisements === false ? '' : newsletterSectionHtml(issue.section_titles?.advertisements || newsletterSectionTitles.advertisements, advertisementItems, 2)}${issue.section_visibility?.parent_tips === false ? '' : newsletterSectionHtml(issue.section_titles?.parent_tips || newsletterSectionTitles.parent_tips, tipItems, 1, true)}${issue.section_visibility?.membership_details === false ? '' : newsletterSectionHtml(issue.section_titles?.membership_details || newsletterSectionTitles.membership_details, membershipItems)}<p style="margin-top:32px">${footerLinksHtml}</p><p><a href="${archiveUrl}">Read the illustrated newsletter archive</a></p><p style="font-size:12px;color:#64748b">You received this because you confirmed a Visual Steps newsletter subscription. <a href="${unsubscribeUrl}">Unsubscribe with one click</a>.</p></div>`,
+        html: `<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;color:#334155;line-height:1.6;background:#fffdf7;padding:24px"><div style="background:linear-gradient(135deg,#dbeafe,#d1fae5);border-radius:18px;padding:24px"><h1 style="color:#176b87;margin-top:0">${escapeEmailHtml(issue.title)}</h1><p style="text-align:justify;text-justify:inter-word">${escapeEmailHtml(issue.introduction)}</p></div>${issue.section_visibility?.feature_previews === false ? '' : newsletterSectionHtml(issue.section_titles?.feature_previews || newsletterSectionTitles.feature_previews, previewItems)}${issue.section_visibility?.concise_editorial === true || issue.section_visibility?.new_features === false ? '' : newsletterSectionHtml(issue.section_titles?.new_features || 'New and Updated Feature Details', featureItems, 2)}${issue.section_visibility?.concise_editorial === true && issue.section_visibility?.feature_details !== false ? newsletterSectionHtml(issue.section_titles?.feature_details || newsletterSectionTitles.feature_details, visualStepsSuggestionItems, 1, true) : ''}${issue.section_visibility?.community_posts === false ? '' : communitySectionsHtml}${issue.section_visibility?.parent_testimonials === false ? '' : newsletterSectionHtml(issue.section_titles?.parent_testimonials || newsletterSectionTitles.parent_testimonials, testimonialItems)}${issue.section_visibility?.popular_features === false ? '' : newsletterSectionHtml(issue.section_titles?.popular_features || newsletterSectionTitles.popular_features, popularItems)}${issue.section_visibility?.recommended_resources === false ? '' : newsletterSectionHtml(issue.section_titles?.recommended_resources || newsletterSectionTitles.recommended_resources, resourceItems)}${issue.section_visibility?.suggested_books_resources === false ? '' : newsletterSectionHtml(issue.section_titles?.suggested_books_resources || newsletterSectionTitles.suggested_books_resources, bookResourceItems, 2)}${issue.section_visibility?.advertisements === false ? '' : newsletterSectionHtml(issue.section_titles?.advertisements || newsletterSectionTitles.advertisements, advertisementItems, 2)}${issue.section_visibility?.parent_tips === false ? '' : newsletterSectionHtml(issue.section_titles?.parent_tips || newsletterSectionTitles.parent_tips, tipItems, 1, true)}${issue.section_visibility?.concise_editorial === true && issue.section_visibility?.new_features !== false ? newsletterSectionHtml(issue.section_titles?.new_features || newsletterSectionTitles.new_features, featureItems, 2) : ''}${issue.section_visibility?.membership_details === false ? '' : newsletterSectionHtml(issue.section_titles?.membership_details || newsletterSectionTitles.membership_details, membershipItems)}<p style="margin-top:32px">${footerLinksHtml}</p><p><a href="${archiveUrl}">Read the illustrated newsletter archive</a></p><p style="font-size:12px;color:#64748b">You received this because you confirmed a Visual Steps newsletter subscription. <a href="${unsubscribeUrl}">Unsubscribe with one click</a>.</p></div>`,
       });
       await admin.from('newsletter_subscribers').update({ last_sent_issue_date: issue.issue_date, unsubscribe_token_hash: unsubscribeHash, updated_at: new Date().toISOString() }).eq('id', subscriber.id);
       delivered += 1;
@@ -1893,7 +1915,7 @@ app.get('/api/newsletter/admin/preview', authenticateToken, requireNewsletterAdm
       ...generated,
       title: normalizeNewsletterDateText(savedDraft.title),
       introduction: normalizeNewsletterDateText(savedDraft.introduction),
-      section_titles: { ...newsletterSectionTitles, ...(savedDraft.section_titles || {}) },
+      section_titles: upcomingNewsletterSectionTitles(savedDraft.section_titles || {}),
       section_visibility: { ...newsletterSectionVisibility, ...(savedDraft.section_visibility || {}), feature_previews: false },
     } : generated);
   } catch (error) {
