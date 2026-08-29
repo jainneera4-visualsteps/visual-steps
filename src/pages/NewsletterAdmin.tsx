@@ -19,7 +19,7 @@ type Subscriber = {
   last_sent_issue_date: string | null; created_at: string;
 };
 type Draft = Record<string, any> & { issue_date?: string; title?: string; introduction?: string };
-const sectionKeys = ['feature_previews','new_features','community_posts','parent_testimonials','popular_features','recommended_resources','suggested_books_resources','advertisements','parent_tips','membership_details'] as const;
+const sectionKeys = ['new_features','feature_details','community_posts','parent_testimonials','popular_features','recommended_resources','suggested_books_resources','advertisements','parent_tips','membership_details'] as const;
 const weekdayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const hourOptions = Array.from({ length: 24 }, (_, hour) => ({
   hour,
@@ -29,7 +29,6 @@ const formatNewsletterDate=(value:string)=>new Intl.DateTimeFormat('en-GB',{day:
 const emailItemText = (key: typeof sectionKeys[number], item: any) => {
   if (typeof item === 'string') return item;
   if (key === 'new_features') return `${item.changeType === 'updated' ? 'Feature update' : 'New feature'}: ${item.title} — ${item.summary} ${item.details} How this supports growth: ${item.familyImpact || ''} Where to find it: ${item.help}`;
-  if (key === 'feature_previews') return `${item.title} — ${item.caption} Why it matters: ${item.familyImpact || ''}`;
   if (key === 'community_posts') return `${item.title} (${item.type}) — ${item.content} — ${item.displayName}. ${item.editorialContext || ''}`;
   if (key === 'parent_testimonials') return `“${item.quote}” — ${item.displayName}. ${item.editorialContext || ''}`;
   if (key === 'popular_features') return `${item.title} — ${item.explanation}`;

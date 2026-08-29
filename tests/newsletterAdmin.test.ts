@@ -98,7 +98,7 @@ test('newsletter combines feature guidance, hides empty sections, and explains p
   assert.match(server, /new_features: featureChanges\.map/);
   assert.match(server, /newsletterSectionHtml = \(title: string, items: string\[\], columns = 1, bulleted = false\) => items\.length \?/);
   assert.doesNotMatch(page, /uses recorded/);
-  assert.doesNotMatch(page, /visible\('feature_details'\)/);
+  assert.match(page, /concise_editorial===true&&visible\('feature_details'\).*Using Visual Steps Meaningfully/);
   assert.match(page, /if\(!items\.length\)return null/);
   assert.match(page, /New and Updated Feature Details/);
   assert.match(page, /Feature update/);
@@ -110,6 +110,9 @@ test('newsletter combines feature guidance, hides empty sections, and explains p
   assert.match(page, /to=\{`\/features\/\$\{featureId\}`\}/);
   assert.match(server, /\/features\/\$\{encodeURIComponent\(item\.id\)\}/);
   assert.match(page, /visible\('feature_previews'\).*fullWidth/);
+  assert.match(server, /feature_previews: \[\]/);
+  assert.match(server, /feature_previews: false/);
+  assert.match(server, /concise_editorial: true/);
   assert.match(page, /visible\('new_features'\).*fullWidth itemColumns=\{2\}/);
   assert.ok(page.indexOf("visible('feature_previews')") < page.indexOf("visible('new_features')"));
   assert.match(server, /feature_previews.*newsletterSectionHtml[\s\S]*new_features.*newsletterSectionHtml[^\n]*featureItems, 2/);
@@ -122,7 +125,18 @@ test('newsletter combines feature guidance, hides empty sections, and explains p
   assert.match(server, /previouslyUsedActivities/);
   assert.match(server, /previouslyUsedBooks/);
   assert.match(server, /previouslyUsedPopularFeatures/);
-  assert.match(server, /membershipWasPublished \? \[\] : currentMembershipDetails/);
+  assert.match(server, /previouslyUsedVisualStepsSuggestions/);
+  assert.match(server, /feature_details: visualStepsSuggestions/);
+  assert.match(server, /membership_details: currentMembershipDetails/);
+  assert.match(server, /compact: true, bullets:/);
+  assert.match(server, /navigationSteps: newsletterHelpSteps\(change\.help\)/);
+  assert.match(page, /x\.compact&&Array\.isArray\(x\.bullets\)/);
+  assert.match(page, /newsletter-feature-navigation/);
+  assert.match(page, /newsletter-feature-navigation-lead/);
+  assert.match(page, /<li>\{steps\[0\]\}<\/li>/);
+  assert.match(page, /list-decimal/);
+  assert.match(page, /newsletter-feature-heading/);
+  assert.match(styles, /\.newsletter-feature-heading \{ break-inside: avoid; page-break-inside: avoid; \}/);
   assert.match(server, /meaningful engagement and healthy physical, emotional, social, practical, and intellectual growth for autistic people of all ages/);
   assert.match(server, /autistic people of all ages—from younger children through teenagers and adults/);
   assert.match(server, /age, communication style, autonomy, abilities, interests and support needs/);

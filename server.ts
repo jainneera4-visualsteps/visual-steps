@@ -1435,17 +1435,33 @@ const newsletterBooksAndResources = [
 // values mirror the public pricing page but remain plain server data so the
 // Vercel function never needs to resolve frontend-only imports.
 const currentMembershipDetails = [
-  { name: 'Starter', price: 'Free', status: 'Available now', details: 'A starting point for building meaningful, age-respectful routines and learning supports with an autistic family member. Families can begin with one practical goal and adjust support around the person’s strengths, communication, autonomy, and stage of life.' },
+  { name: 'Starter', price: 'Free', status: 'Available now', details: 'Includes the current planning, learning, progress, and reward tools. Start with one useful routine or goal, then adapt the support as needs change.' },
+];
+const newsletterVisualStepsSuggestions = [
+  'Begin with one routine or goal that matters now. Add only the details, picture, or steps that make the next action clearer.',
+  'Review completed and repeated activities before planning the next week. Keep what is helping, simplify what feels difficult, and pause what is not useful right now.',
+  'Use quizzes, worksheets, or social stories when they support a specific learning need. Connect the resource to an activity so practice has a clear purpose.',
+  'Keep rewards specific and meaningful. Recognize the effort, communication, independence, or positive action that earned them.',
+  'Invite the child or adult to help choose activities, supports, breaks, and goals. A shared plan is more respectful and often easier to follow.',
+  'Balance responsibilities with rest, movement, interests, relationships, and community life. Visual Steps should support a meaningful day, not fill every moment.',
 ];
 const newsletterSectionTitles = {
   new_features: 'New and Updated Feature Details', feature_previews: 'Feature Previews',
+  feature_details: 'Using Visual Steps Meaningfully',
   community_posts: 'Parent Stories, News, Information, Tips and Tricks', parent_testimonials: 'Parent Testimonials',
   popular_features: 'Most Popular Features', recommended_resources: 'Suggested Activities, Games and Websites',
   suggested_books_resources: 'Suggested Books and Resources',
   advertisements: 'Mission-Aligned Advertisements',
   membership_details: 'Current Visual Steps Membership Details', parent_tips: 'Tips and Tricks for Parents',
 };
-const newsletterSectionVisibility = Object.fromEntries(Object.keys(newsletterSectionTitles).map(key => [key, true]));
+const newsletterSectionVisibility = { ...Object.fromEntries(Object.keys(newsletterSectionTitles).map(key => [key, true])), feature_previews: false, concise_editorial: true };
+
+const conciseNewsletterText = (value: string, sentenceLimit = 2) => {
+  const sentences = String(value || '').match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [];
+  return sentences.slice(0, sentenceLimit).map(sentence => sentence.trim()).join(' ');
+};
+const newsletterHelpSteps = (value: string) => (String(value || '').match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [])
+  .map(step => step.trim()).filter(Boolean);
 
 const isoDate = (date: Date) => date.toISOString().slice(0, 10);
 const formatNewsletterDate = (value: string | Date) => {
@@ -1511,7 +1527,7 @@ const buildWeeklyNewsletter = async (now = new Date(), published = false, delive
   const admin = getAdminSupabaseClient();
   const period = getPreviousNewsletterPeriod(now, deliveryWeekday, deliveryTimezone);
   const { data: pastIssues, error: pastIssueError } = await admin.from('newsletters')
-    .select('parent_tips,recommended_resources,suggested_books_resources,popular_features,membership_details')
+    .select('parent_tips,recommended_resources,suggested_books_resources,popular_features,membership_details,feature_details')
     .not('published_at', 'is', null).neq('issue_date', period.issueDate)
     .order('issue_date', { ascending: false }).limit(52);
   if (pastIssueError) throw pastIssueError;
@@ -1519,6 +1535,7 @@ const buildWeeklyNewsletter = async (now = new Date(), published = false, delive
   const previouslyUsedActivities = new Set((pastIssues || []).flatMap(issue => Array.isArray(issue.recommended_resources) ? issue.recommended_resources.map((item: any) => item.title) : []));
   const previouslyUsedBooks = new Set((pastIssues || []).flatMap(issue => Array.isArray(issue.suggested_books_resources) ? issue.suggested_books_resources.map((item: any) => item.title) : []));
   const previouslyUsedPopularFeatures = new Set((pastIssues || []).flatMap(issue => Array.isArray(issue.popular_features) ? issue.popular_features.map((item: any) => item.title) : []));
+  const previouslyUsedVisualStepsSuggestions = new Set((pastIssues || []).flatMap(issue => Array.isArray(issue.feature_details) ? issue.feature_details : []));
   const newlyIntroducedFeatures = productFeatureRegistry.filter(feature =>
     feature.introducedOn >= period.periodStart && feature.introducedOn <= period.periodEnd
   );
@@ -1561,29 +1578,33 @@ const buildWeeklyNewsletter = async (now = new Date(), published = false, delive
   const popularFeatures = (await Promise.all(popularitySources.map(async ([title, table]) => {
     const { count } = await admin.from(table).select('*', { count: 'exact', head: true });
     return { title, usageCount: count || 0, explanation: popularityExplanations[title] };
-  }))).sort((a, b) => b.usageCount - a.usageCount).filter(item => !previouslyUsedPopularFeatures.has(item.title)).slice(0, 3).map(({ title, explanation }) => ({ title, explanation }));
+  }))).sort((a, b) => b.usageCount - a.usageCount).filter(item => !previouslyUsedPopularFeatures.has(item.title)).slice(0, 3).map(({ title, explanation }) => ({ title, explanation: conciseNewsletterText(explanation) }));
   const tipOffset = Math.floor(now.getTime() / (7 * 24 * 60 * 60 * 1000)) % newsletterTips.length;
   const unusedTips = newsletterTips.filter(tip => !previouslyUsedTips.has(tip));
-  const tips = unusedTips.length ? [0, 1, 2].map(index => unusedTips[(tipOffset + index) % unusedTips.length]).filter((tip, index, list) => list.indexOf(tip) === index) : [];
-  const unusedActivities = newsletterActivitiesAndGames.filter(item => !previouslyUsedActivities.has(item.title)).slice(0, 4);
-  const unusedBooks = newsletterBooksAndResources.filter(item => !previouslyUsedBooks.has(item.title)).slice(0, 4);
-  const membershipWasPublished = (pastIssues || []).some(issue => JSON.stringify(issue.membership_details || []) === JSON.stringify(currentMembershipDetails));
+  const tips = unusedTips.length ? [0, 1, 2].map(index => conciseNewsletterText(unusedTips[(tipOffset + index) % unusedTips.length])).filter((tip, index, list) => list.indexOf(tip) === index) : [];
+  const unusedActivities = newsletterActivitiesAndGames.filter(item => !previouslyUsedActivities.has(item.title)).slice(0, 3).map(item => ({ ...item, description: conciseNewsletterText(item.description) }));
+  const unusedBooks = newsletterBooksAndResources.filter(item => !previouslyUsedBooks.has(item.title)).slice(0, 3).map(item => ({ ...item, description: conciseNewsletterText(item.description) }));
+  const visualStepsSuggestions = newsletterVisualStepsSuggestions.filter(item => !previouslyUsedVisualStepsSuggestions.has(item)).slice(0, 3);
   const issue = {
     issue_date: period.issueDate,
     period_start: period.periodStart,
     period_end: period.periodEnd,
     title: `Visual Steps Weekly — ${formatNewsletterDate(period.issueDate)}`,
     introduction: `A practical summary of Visual Steps updates from ${formatNewsletterDate(period.periodStart)} through ${formatNewsletterDate(period.periodEnd)}, with suggestions centered on ${newsletterEditorialFocus}.`,
-    new_features: featureChanges.map(({ screenshot: _screenshot, ...change }) => change),
-    feature_details: [],
-    feature_previews: featureChanges.slice(0, 2).map(change => ({ id: change.id, title: change.title, caption: change.summary, familyImpact: change.familyImpact, changeType: change.changeType, changedOn: change.changedOn, imageUrl: change.screenshot.src })),
+    new_features: featureChanges.map(({ screenshot: _screenshot, ...change }) => ({ ...change, compact: true, bullets: [
+      { label: 'What changed', text: change.summary },
+      { label: 'What it includes', text: change.details },
+      { label: 'How it can help', text: change.familyImpact },
+    ], navigationSteps: newsletterHelpSteps(change.help) })),
+    feature_details: visualStepsSuggestions,
+    feature_previews: [],
     parent_testimonials: [...(testimonials || []).map(item => ({ displayName: item.display_name, quote: item.quote, featureTitle: item.feature_title, editorialContext: newsletterTestimonialContext })), ...(communityPosts || []).filter(item => item.contribution_type === 'testimonial').map(item => ({ displayName: item.display_name, quote: item.content, featureTitle: item.title, editorialContext: newsletterTestimonialContext }))],
     community_posts: (communityPosts || []).filter(item => !['testimonial', 'advertisement'].includes(item.contribution_type)).map(item => ({ type: item.contribution_type, title: item.title, content: item.content, displayName: item.display_name, sourceUrl: item.source_url, editorialContext: newsletterCommunityContext })),
     popular_features: popularFeatures,
     recommended_resources: unusedActivities,
     suggested_books_resources: unusedBooks,
     advertisements: (communityPosts || []).filter(item => item.contribution_type === 'advertisement').map(item => ({ advertiser: item.display_name, title: item.title, description: item.content, destinationUrl: item.source_url, disclosure: 'Advertisement reviewed for relevance to the Visual Steps mission. Appearance is not a medical endorsement.' })),
-    membership_details: membershipWasPublished ? [] : currentMembershipDetails,
+    membership_details: currentMembershipDetails,
     footer_links: {
       mainPage: cleanEnvVar('APP_URL') || PRODUCTION_APP_URL,
       pricing: `${cleanEnvVar('APP_URL') || PRODUCTION_APP_URL}/pricing`,
@@ -1609,7 +1630,7 @@ const createWeeklyNewsletter = async (now = new Date()) => {
     title: normalizeNewsletterDateText(savedDraft.title),
     introduction: normalizeNewsletterDateText(savedDraft.introduction),
     section_titles: { ...newsletterSectionTitles, ...(savedDraft.section_titles || {}) },
-    section_visibility: { ...newsletterSectionVisibility, ...(savedDraft.section_visibility || {}) },
+    section_visibility: { ...newsletterSectionVisibility, ...(savedDraft.section_visibility || {}), feature_previews: false },
   } : generated;
   const { data, error } = await admin.from('newsletters').upsert(issue, { onConflict: 'issue_date' }).select('*').single();
   if (error) throw error;
@@ -1636,7 +1657,10 @@ const sendNewsletterIssue = async (issue: any, appOrigin: string) => {
     const unsubscribeHash = hashNewsletterToken(unsubscribeToken);
     const unsubscribeUrl = `${appOrigin}/api/newsletter/unsubscribe?token=${encodeURIComponent(unsubscribeToken)}`;
     const archiveUrl = `${appOrigin}/newsletter`;
-    const featureItems = (issue.new_features || []).map((item: any) => `<span style="display:inline-block;background:#dbeafe;color:#1e40af;border-radius:999px;padding:3px 9px;font-size:11px;font-weight:bold;text-transform:uppercase">${item.changeType === 'updated' ? 'Feature update' : 'New feature'}</span><br><strong>${escapeEmailHtml(item.title)}</strong><br>${escapeEmailHtml(item.summary)}<br>${escapeEmailHtml(item.details)}<br><strong>How this supports growth:</strong> ${escapeEmailHtml(item.familyImpact)}<br><em>Where to find it:</em> ${escapeEmailHtml(item.help)}${item.id ? `<br><a href="${appOrigin}/features/${encodeURIComponent(item.id)}">Read more</a>` : ''}`);
+    const featureItems = (issue.new_features || []).map((item: any) => item.compact && Array.isArray(item.bullets)
+      ? `<span style="display:inline-block;background:#dbeafe;color:#1e40af;border-radius:999px;padding:3px 9px;font-size:11px;font-weight:bold;text-transform:uppercase">${item.changeType === 'updated' ? 'Feature update' : 'New feature'}</span><br><strong>${escapeEmailHtml(item.title)}</strong><ul style="padding-left:22px;line-height:1.7">${item.bullets.map((bullet: any) => `<li><strong>${escapeEmailHtml(bullet.label)}:</strong> ${escapeEmailHtml(bullet.text)}</li>`).join('')}</ul>${Array.isArray(item.navigationSteps) && item.navigationSteps.length ? `<div style="margin-top:14px"><strong>Where to find it</strong><ol style="padding-left:22px;line-height:1.7;margin-top:6px">${item.navigationSteps.map((step: string) => `<li>${escapeEmailHtml(step)}</li>`).join('')}</ol></div>` : ''}${item.id ? `<a href="${appOrigin}/features/${encodeURIComponent(item.id)}">Read more</a>` : ''}`
+      : `<span style="display:inline-block;background:#dbeafe;color:#1e40af;border-radius:999px;padding:3px 9px;font-size:11px;font-weight:bold;text-transform:uppercase">${item.changeType === 'updated' ? 'Feature update' : 'New feature'}</span><br><strong>${escapeEmailHtml(item.title)}</strong><br>${escapeEmailHtml(item.summary)}<br>${escapeEmailHtml(item.details)}<br><strong>How this supports growth:</strong> ${escapeEmailHtml(item.familyImpact)}<br><em>Where to find it:</em> ${escapeEmailHtml(item.help)}${item.id ? `<br><a href="${appOrigin}/features/${encodeURIComponent(item.id)}">Read more</a>` : ''}`);
+    const visualStepsSuggestionItems = (issue.feature_details || []).map((item: string) => escapeEmailHtml(item));
     const testimonialItems = (issue.parent_testimonials || []).map((item: any) => `<strong>By ${escapeEmailHtml(item.displayName)}</strong>${renderNewsletterMarkdownForEmail(item.quote)}${item.editorialContext ? `<br><em>${escapeEmailHtml(item.editorialContext)}</em>` : ''}`);
     const tipItems = (issue.parent_tips || []).map((item: string) => escapeEmailHtml(item));
     const previewItems = (issue.feature_previews || []).map((item: any) => `<strong>${escapeEmailHtml(item.title)}</strong><br>${escapeEmailHtml(item.caption)}${item.familyImpact ? `<br><strong>Why it matters:</strong> ${escapeEmailHtml(item.familyImpact)}` : ''}${item.id ? `<br><a href="${appOrigin}/features/${encodeURIComponent(item.id)}">Read more</a>` : ''}`);
@@ -1660,7 +1684,7 @@ const sendNewsletterIssue = async (issue: any, appOrigin: string) => {
       await transporter.sendMail({
         from, to: subscriber.email, subject: issue.title,
         text: `${issue.introduction}\n\nRead this issue: ${archiveUrl}\n\nUnsubscribe: ${unsubscribeUrl}`,
-        html: `<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;color:#334155;line-height:1.6;background:#fffdf7;padding:24px"><div style="background:linear-gradient(135deg,#dbeafe,#d1fae5);border-radius:18px;padding:24px"><h1 style="color:#176b87;margin-top:0">${escapeEmailHtml(issue.title)}</h1><p style="text-align:justify;text-justify:inter-word">${escapeEmailHtml(issue.introduction)}</p></div>${issue.section_visibility?.feature_previews === false ? '' : newsletterSectionHtml(issue.section_titles?.feature_previews || newsletterSectionTitles.feature_previews, previewItems)}${issue.section_visibility?.new_features === false ? '' : newsletterSectionHtml(issue.section_titles?.new_features || newsletterSectionTitles.new_features, featureItems, 2)}${issue.section_visibility?.community_posts === false ? '' : communitySectionsHtml}${issue.section_visibility?.parent_testimonials === false ? '' : newsletterSectionHtml(issue.section_titles?.parent_testimonials || newsletterSectionTitles.parent_testimonials, testimonialItems)}${issue.section_visibility?.popular_features === false ? '' : newsletterSectionHtml(issue.section_titles?.popular_features || newsletterSectionTitles.popular_features, popularItems)}${issue.section_visibility?.recommended_resources === false ? '' : newsletterSectionHtml(issue.section_titles?.recommended_resources || newsletterSectionTitles.recommended_resources, resourceItems)}${issue.section_visibility?.suggested_books_resources === false ? '' : newsletterSectionHtml(issue.section_titles?.suggested_books_resources || newsletterSectionTitles.suggested_books_resources, bookResourceItems, 2)}${issue.section_visibility?.advertisements === false ? '' : newsletterSectionHtml(issue.section_titles?.advertisements || newsletterSectionTitles.advertisements, advertisementItems, 2)}${issue.section_visibility?.parent_tips === false ? '' : newsletterSectionHtml(issue.section_titles?.parent_tips || newsletterSectionTitles.parent_tips, tipItems, 1, true)}${issue.section_visibility?.membership_details === false ? '' : newsletterSectionHtml(issue.section_titles?.membership_details || newsletterSectionTitles.membership_details, membershipItems)}<p style="margin-top:32px">${footerLinksHtml}</p><p><a href="${archiveUrl}">Read the illustrated newsletter archive</a></p><p style="font-size:12px;color:#64748b">You received this because you confirmed a Visual Steps newsletter subscription. <a href="${unsubscribeUrl}">Unsubscribe with one click</a>.</p></div>`,
+        html: `<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;color:#334155;line-height:1.6;background:#fffdf7;padding:24px"><div style="background:linear-gradient(135deg,#dbeafe,#d1fae5);border-radius:18px;padding:24px"><h1 style="color:#176b87;margin-top:0">${escapeEmailHtml(issue.title)}</h1><p style="text-align:justify;text-justify:inter-word">${escapeEmailHtml(issue.introduction)}</p></div>${issue.section_visibility?.feature_previews === false ? '' : newsletterSectionHtml(issue.section_titles?.feature_previews || newsletterSectionTitles.feature_previews, previewItems)}${issue.section_visibility?.new_features === false ? '' : newsletterSectionHtml(issue.section_titles?.new_features || newsletterSectionTitles.new_features, featureItems, 2)}${issue.section_visibility?.concise_editorial === true && issue.section_visibility?.feature_details !== false ? newsletterSectionHtml(issue.section_titles?.feature_details || newsletterSectionTitles.feature_details, visualStepsSuggestionItems, 1, true) : ''}${issue.section_visibility?.community_posts === false ? '' : communitySectionsHtml}${issue.section_visibility?.parent_testimonials === false ? '' : newsletterSectionHtml(issue.section_titles?.parent_testimonials || newsletterSectionTitles.parent_testimonials, testimonialItems)}${issue.section_visibility?.popular_features === false ? '' : newsletterSectionHtml(issue.section_titles?.popular_features || newsletterSectionTitles.popular_features, popularItems)}${issue.section_visibility?.recommended_resources === false ? '' : newsletterSectionHtml(issue.section_titles?.recommended_resources || newsletterSectionTitles.recommended_resources, resourceItems)}${issue.section_visibility?.suggested_books_resources === false ? '' : newsletterSectionHtml(issue.section_titles?.suggested_books_resources || newsletterSectionTitles.suggested_books_resources, bookResourceItems, 2)}${issue.section_visibility?.advertisements === false ? '' : newsletterSectionHtml(issue.section_titles?.advertisements || newsletterSectionTitles.advertisements, advertisementItems, 2)}${issue.section_visibility?.parent_tips === false ? '' : newsletterSectionHtml(issue.section_titles?.parent_tips || newsletterSectionTitles.parent_tips, tipItems, 1, true)}${issue.section_visibility?.membership_details === false ? '' : newsletterSectionHtml(issue.section_titles?.membership_details || newsletterSectionTitles.membership_details, membershipItems)}<p style="margin-top:32px">${footerLinksHtml}</p><p><a href="${archiveUrl}">Read the illustrated newsletter archive</a></p><p style="font-size:12px;color:#64748b">You received this because you confirmed a Visual Steps newsletter subscription. <a href="${unsubscribeUrl}">Unsubscribe with one click</a>.</p></div>`,
       });
       await admin.from('newsletter_subscribers').update({ last_sent_issue_date: issue.issue_date, unsubscribe_token_hash: unsubscribeHash, updated_at: new Date().toISOString() }).eq('id', subscriber.id);
       delivered += 1;
@@ -1870,7 +1894,7 @@ app.get('/api/newsletter/admin/preview', authenticateToken, requireNewsletterAdm
       title: normalizeNewsletterDateText(savedDraft.title),
       introduction: normalizeNewsletterDateText(savedDraft.introduction),
       section_titles: { ...newsletterSectionTitles, ...(savedDraft.section_titles || {}) },
-      section_visibility: { ...newsletterSectionVisibility, ...(savedDraft.section_visibility || {}) },
+      section_visibility: { ...newsletterSectionVisibility, ...(savedDraft.section_visibility || {}), feature_previews: false },
     } : generated);
   } catch (error) {
     console.error('Newsletter preview failed:', error instanceof Error ? error.message : 'Unknown error');
@@ -1915,6 +1939,8 @@ app.put('/api/newsletter/admin/draft', authenticateToken, requireNewsletterAdmin
     safeTitles[key] = value;
     safeVisibility[key] = sectionVisibility[key] !== false;
   }
+  safeVisibility.feature_previews = false;
+  safeVisibility.concise_editorial = true;
   const previewRun = new Date(`${issueDate}T12:00:00.000Z`);
   const settings = await getNewsletterDeliverySettings();
   const generated = await buildWeeklyNewsletter(previewRun, false, settings.deliveryWeekday, settings.deliveryTimezone);
@@ -5983,7 +6009,7 @@ export const parentAssistantFeatureCatalog = [
   { area: 'Parent and caregiver testimonials', routes: ['/testimonials'], help: 'Open Testimonials from the footer or mobile menu to read reviewed experiences that families and caregivers explicitly permitted Visual Steps to publish. Signed-in parents can use Public display name, Experience title, and Your testimonial, confirm publication permission, then select Submit privately for review. The submission remains private until an administrator reviews and approves it in Newsletter Administration. Visual Steps never converts private profiles, child records, messages, or activities into public quotes.' },
   { area: 'Contact Visual Steps', routes: ['/contact'], help: 'Open Contact from the top navigation, footer, or mobile menu. Enter your name, reply email, subject, and message, then select Open email to send. The form opens your own email application and does not save the form with a Visual Steps account. Never include passwords, child login codes, or sensitive clinical information.' },
   { area: 'Privacy, terms, cookies, and analytics', routes: ['/privacy', '/terms', '/cookies'], help: 'Open Privacy, Terms, or Cookies & Analytics from the footer on any page. Privacy explains what family information Visual Steps handles, why it is used, limited service-provider processing, AI requests, social-story sharing, uploaded-image links, retention choices, account deletion, and security responsibilities. Terms explains responsible use, caregiver review, community content, availability, and why Visual Steps is not medical or clinical advice. Cookies & Analytics explains essential sign-in and preference storage, the installed-app cache, browser controls, and the current absence of advertising cookies and product analytics. On Create an account, review the Terms and Privacy links and select the agreement checkbox before selecting Sign Up.' },
-  { area: 'Visual Steps weekly newsletter', routes: ['/newsletter', '/newsletter/subscribe', '/newsletter/community', '/newsletter/archive/:month', '/newsletter/issues/:issueDate', '/newsletter-admin'], help: 'Open the Newsletter menu in the main navigation. Choose Subscribe to open the dedicated signup page, enter Email address, and select Subscribe; confirm the subscription from the email you receive. Choose Weekly archive, then select a month; months and issues are ordered latest first. A month opens its issue list in the current tab, and selecting an issue opens the complete newsletter in a new tab. Choose Share with the community to open its dedicated submission page. Approved administrators open Admin and choose Manage newsletter for publication controls. Each weekly issue includes new features and details, illustrated previews, approved parent stories/news/information/tips, testimonials, popular features, curated activities and games, suggested books and family resources, current membership details, parent tips, and clearly labeled mission-aligned advertisements when approved. General non-clinical topics may include communication and speech support, occupational support, positive behavior support, daily living, learning, work, leisure, and community participation for autistic people of all ages. Submissions remain private until reviewed and approved. The protected Newsletter Administration page lets administrators manage submissions, change the weekly delivery day and time in their timezone, edit and save the next issue template, preview it without publishing, and send a prepared issue. Every issue includes Visual Steps Home, Pricing, Subscribe Newsletter, optional configured Facebook and Instagram links, and one-click unsubscribe.' },
+  { area: 'Visual Steps weekly newsletter', routes: ['/newsletter', '/newsletter/subscribe', '/newsletter/community', '/newsletter/archive/:month', '/newsletter/issues/:issueDate', '/newsletter-admin'], help: 'Open the Newsletter menu in the main navigation. Choose Subscribe to open the dedicated signup page, enter Email address, and select Subscribe; confirm the subscription from the email you receive. Choose Weekly archive, then select a month; months and issues are ordered latest first. A month opens its issue list in the current tab, and selecting an issue opens the complete newsletter in a new tab. Choose Share with the community to open its dedicated submission page. Approved administrators open Admin and choose Manage newsletter for publication controls. Each upcoming weekly issue uses a calm, scannable format with a contents page, new and updated feature details, approved parent stories/news/information/tips, testimonials, popular features, activities and games, books and resources, ideas for using Visual Steps meaningfully, current membership details, practical caregiver tips, and clearly labeled mission-aligned advertisements when approved. Published archive issues retain the content and layout saved when they were released. General non-clinical topics may include communication and speech support, occupational support, positive behavior support, daily living, learning, work, leisure, and community participation for autistic people of all ages. Submissions remain private until reviewed and approved. The protected Newsletter Administration page lets administrators manage submissions, change the weekly delivery day and time in their timezone, edit and save the next issue template, preview it without publishing, and send a prepared issue. Every issue includes Visual Steps Home, Pricing, Subscribe Newsletter, optional configured Facebook and Instagram links, and one-click unsubscribe.' },
   { area: 'Protected administration', routes: ['/admin/insights', '/newsletter-admin'], help: 'The Admin menu appears only for approved administrators. Choose Insights to review paginated parent accounts, account-level feature-use patterns, action dates and times, membership status, and privacy-conscious website traffic. Child / adult profiles and family content are intentionally excluded. Choose Manage newsletter for publication and subscriber controls. Administrator and membership changes require confirmation and are recorded for accountability.' },
   { area: 'Child dashboard', routes: ['/kids-dashboard/:kidId'], help: 'Children sign in with their Kid Code. To Be Done lists pending activities, Waiting for parent verification lists submitted work, Completed shows completed activities, and Rewards shows items they may purchase with earned tokens. Meaningful completions show celebrations. A verification-required submission tells the child to wait and does not award tokens until parent approval.' },
   { area: 'Offline and installation', routes: ['/'], help: 'Visual Steps can be installed from a supported browser. On an iPhone or iPad, use Safari Share > Add to Home Screen. When internet access is lost, the app displays an offline notice. Sign-in, saved family information, and AI features become available again after reconnection.' },

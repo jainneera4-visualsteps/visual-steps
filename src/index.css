@@ -622,6 +622,9 @@ p.text-right {
   line-height: 1.5;
   color: #172033;
 }
+.newsletter-feature-heading { break-inside: avoid; page-break-inside: avoid; }
+.newsletter-feature-heading + ul { break-before: avoid; page-break-before: avoid; }
+.newsletter-feature-navigation-lead { break-inside: avoid; page-break-inside: avoid; }
 
 .newsletter-article-content h1,
 .newsletter-article-content h2,
