@@ -690,7 +690,7 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex flex-wrap items-end gap-3">
-          <Button type="button" variant="outline" size="md" className="h-11" onClick={() => setShowOnboarding(true)}>
+          <Button type="button" variant="outline" size="md" className="h-11 border-blue-600 bg-blue-600 text-white shadow-xl hover:border-blue-700 hover:bg-blue-700 hover:text-white" onClick={() => setShowOnboarding(true)}>
             <HelpCircle className="mr-2 h-4 w-4" />
             Start tour
           </Button>

@@ -419,8 +419,7 @@ p.text-right {
 }
 
 .newsletter-flow-content > header.newsletter-page {
-  border-style: solid;
-  border-width: 3px;
+  border: 0;
   background: transparent;
   padding: 0;
 }

@@ -1495,6 +1495,12 @@ const normalizeNewsletterDateText = (value: string) => {
     .replace(/\b(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\s+(\d{1,2}),\s+(\d{4})\b/gi, (_match, month, day, year) => fromParts(Number(year), monthIndex[String(month).toLowerCase()], Number(day)))
     .replace(/\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/g, (_match, month, day, year) => fromParts(Number(year), Number(month) - 1, Number(day)));
 };
+const normalizeUpcomingNewsletterTitle = (value: string) => {
+  const normalized = normalizeNewsletterDateText(value).trim();
+  return /^Visual Steps Weekly\s*[—–-]\s*\d{1,2}\s+[A-Za-z]{3},?\s+\d{4}$/i.test(normalized)
+    ? 'Visual Steps Weekly'
+    : normalized;
+};
 const validNewsletterTimezone = (value: unknown) => {
   const timezone = String(value || '').trim();
   try { new Intl.DateTimeFormat('en-US', { timeZone: timezone }).format(); return timezone; }
@@ -1629,7 +1635,7 @@ const buildWeeklyNewsletter = async (now = new Date(), published = false, delive
     issue_date: period.issueDate,
     period_start: period.periodStart,
     period_end: period.periodEnd,
-    title: `Visual Steps Weekly — ${formatNewsletterDate(period.issueDate)}`,
+    title: 'Visual Steps Weekly',
     introduction: `A practical summary of Visual Steps updates from ${formatNewsletterDate(period.periodStart)} through ${formatNewsletterDate(period.periodEnd)}, with suggestions centered on ${newsletterEditorialFocus}.`,
     new_features: featureChanges.map(({ screenshot: _screenshot, ...change }) => ({
       ...change,
@@ -1667,7 +1673,7 @@ const createWeeklyNewsletter = async (now = new Date()) => {
   const { data: savedDraft } = await admin.from('newsletters').select('title,introduction,section_titles,section_visibility,published_at').eq('issue_date', generated.issue_date).maybeSingle();
   const issue = savedDraft && !savedDraft.published_at ? {
     ...generated,
-    title: normalizeNewsletterDateText(savedDraft.title),
+    title: normalizeUpcomingNewsletterTitle(savedDraft.title),
     introduction: normalizeNewsletterDateText(savedDraft.introduction),
     section_titles: upcomingNewsletterSectionTitles(savedDraft.section_titles || {}),
     section_visibility: { ...newsletterSectionVisibility, ...(savedDraft.section_visibility || {}), feature_previews: false },
@@ -2035,7 +2041,7 @@ app.get('/api/newsletter/admin/preview', authenticateToken, requireNewsletterAdm
     const { data: savedDraft } = await getAdminSupabaseClient().from('newsletters').select('title,introduction,section_titles,section_visibility').eq('issue_date', generated.issue_date).is('published_at', null).maybeSingle();
     return res.json(savedDraft ? {
       ...generated,
-      title: normalizeNewsletterDateText(savedDraft.title),
+      title: normalizeUpcomingNewsletterTitle(savedDraft.title),
       introduction: normalizeNewsletterDateText(savedDraft.introduction),
       section_titles: upcomingNewsletterSectionTitles(savedDraft.section_titles || {}),
       section_visibility: { ...newsletterSectionVisibility, ...(savedDraft.section_visibility || {}), feature_previews: false },
@@ -2068,7 +2074,7 @@ app.put('/api/newsletter/admin/settings', authenticateToken, requireNewsletterAd
 
 app.put('/api/newsletter/admin/draft', authenticateToken, requireNewsletterAdmin, async (req, res) => {
   const issueDate = String(req.body?.issueDate || '');
-  const title = normalizeNewsletterDateText(String(req.body?.title || '').trim());
+  const title = normalizeUpcomingNewsletterTitle(String(req.body?.title || '').trim());
   const introduction = normalizeNewsletterDateText(String(req.body?.introduction || '').trim());
   const sectionTitles = req.body?.sectionTitles;
   const sectionVisibility = req.body?.sectionVisibility;
@@ -2477,7 +2483,7 @@ app.get('/api/admin/funnel', authenticateToken, requireAppAdmin, async (req, res
 });
 
 app.get('/api/admin/feature-health', authenticateToken, requireAppAdmin, async (req, res) => {
-  const days = Math.min(90, Math.max(7, Number.parseInt(String(req.query.days || '30'), 10) || 30));
+  const days = Math.min(90, Math.max(1, Number.parseInt(String(req.query.days || '30'), 10) || 30));
   const since = new Date(Date.now() - days * 86400000).toISOString();
   const admin = getAdminSupabaseClient();
   const [eventsResult, gapsResult] = await Promise.all([
@@ -2541,6 +2547,79 @@ app.get('/api/admin/feature-health', authenticateToken, requireAppAdmin, async (
       clientError: 'A request the app could not accept, such as missing information, expired access, or an unavailable action. No entered values are retained here.',
       serverError: 'A request that could not be completed because of a server or service problem. Detailed error messages are not retained in this report.',
       recoveredParent: 'A parent who encountered an error in a feature and also completed a successful request in that feature during the period.',
+    },
+  });
+});
+
+app.get('/api/admin/ai-usage', authenticateToken, requireAppAdmin, async (req, res) => {
+  const days = Math.min(90, Math.max(1, Number.parseInt(String(req.query.days || '30'), 10) || 30));
+  const since = new Date(Date.now() - days * 86400000).toISOString();
+  const { data, error } = await getAdminSupabaseClient()
+    .from('ai_usage_events')
+    .select('id,feature,model,request_kind,status,input_tokens,output_tokens,estimated_cost_usd,occurred_at')
+    .gte('occurred_at', since)
+    .order('occurred_at', { ascending: false })
+    .limit(20000);
+  if (error) {
+    if (error.code === '42P01' || /ai_usage_events/i.test(String(error.message || ''))) {
+      return res.status(424).json({
+        error: 'AI Use setup is not complete',
+        message: 'Run database_updates/2026-08-31_ai_usage_insights.sql in the Supabase SQL Editor, then reload this page.',
+      });
+    }
+    console.error('AI usage insights query failed');
+    return res.status(500).json({ error: 'Unable to load AI usage' });
+  }
+  const events = data || [];
+  const summarize = (key: 'feature' | 'model') => {
+    const groups = new Map<string, any[]>();
+    events.forEach((event: any) => {
+      const name = String(event[key] || 'Unknown');
+      if (!groups.has(name)) groups.set(name, []);
+      groups.get(name)!.push(event);
+    });
+    return [...groups.entries()].map(([name, rows]) => ({
+      name,
+      requests: rows.length,
+      inputTokens: rows.reduce((sum, row) => sum + Number(row.input_tokens || 0), 0),
+      outputTokens: rows.reduce((sum, row) => sum + Number(row.output_tokens || 0), 0),
+      estimatedCostUsd: Number(rows.reduce((sum, row) => sum + Number(row.estimated_cost_usd || 0), 0).toFixed(6)),
+    })).sort((a, b) => b.estimatedCostUsd - a.estimatedCostUsd || b.requests - a.requests);
+  };
+  const totalCost = events.reduce((sum: number, event: any) => sum + Number(event.estimated_cost_usd || 0), 0);
+  const imageRequests = events.filter((event: any) => event.request_kind === 'image').length;
+  const byFeature = summarize('feature');
+  const averageCost = events.length ? totalCost / events.length : 0;
+  res.json({
+    days,
+    totals: {
+      requests: events.length,
+      imageRequests,
+      textRequests: events.length - imageRequests,
+      inputTokens: events.reduce((sum: number, event: any) => sum + Number(event.input_tokens || 0), 0),
+      outputTokens: events.reduce((sum: number, event: any) => sum + Number(event.output_tokens || 0), 0),
+      estimatedCostUsd: Number(totalCost.toFixed(6)),
+      averageCostUsd: Number(averageCost.toFixed(6)),
+    },
+    features: byFeature,
+    models: summarize('model'),
+    recent: events.slice(0, 100).map((event: any) => ({
+      id: event.id,
+      feature: event.feature,
+      model: event.model,
+      kind: event.request_kind,
+      inputTokens: Number(event.input_tokens || 0),
+      outputTokens: Number(event.output_tokens || 0),
+      estimatedCostUsd: Number(event.estimated_cost_usd || 0),
+      occurredAt: event.occurred_at,
+    })),
+    interpretation: !events.length
+      ? 'No tracked AI requests were recorded during this period. Tracking begins after the database update and deployment; older requests are not estimated.'
+      : `${byFeature[0]?.name || 'AI generation'} is the largest recorded area of AI use. ${imageRequests ? 'Illustration requests usually cost more per use than short text requests, so review image use first when controlling cost.' : 'Recorded use is text-only during this period.'}`,
+    pricing: {
+      basis: 'Estimated standard paid-tier list price in USD. Actual Google billing may be lower, covered by a free tier, or change after the request date.',
+      updatedOn: '2026-08-31',
+      sourceUrl: 'https://ai.google.dev/gemini-api/docs/pricing',
     },
   });
 });
@@ -6198,6 +6277,9 @@ export async function generateContentWithRetryAndFallback(
           ...params,
           model,
         });
+        // Retain only the resolved model name outside the SDK response object.
+        // Prompt and response content are never copied into analytics.
+        if (result && typeof result === 'object') aiResolvedModelByResult.set(result, model);
         console.log(`[AI SDK Engine] Success with model ${model}`);
         return result;
       } catch (err: any) {
@@ -6259,6 +6341,59 @@ const defaultAiClientFactory: AiClientFactory = apiKey => new GoogleGenAI({
 
 let aiClientFactory: AiClientFactory = defaultAiClientFactory;
 
+const aiResolvedModelByResult = new WeakMap<object, string>();
+
+const aiFeatureFromRequest = (req: any, fallback = 'AI generation') => {
+  if (req.path === '/api/parent-assistant') return 'Parent Assistant';
+  try {
+    const pathname = new URL(String(req.get('referer') || ''), 'https://visualsteps.invalid').pathname;
+    if (pathname.includes('quiz')) return 'Quiz generation';
+    if (pathname.includes('worksheet')) return 'Worksheet generation';
+    if (pathname.includes('social-stor')) return 'Social story generation';
+    if (pathname.includes('activity')) return 'Activity illustrations';
+  } catch { /* A missing or invalid referrer is safely treated as generic use. */ }
+  return fallback;
+};
+
+const aiListPrice = (model: string, requestKind: 'text' | 'image') => {
+  const normalized = model.toLowerCase();
+  if (requestKind === 'image' || normalized.includes('image')) {
+    // Gemini 2.5 Flash Image standard paid-tier pricing: $0.30/M input
+    // tokens plus $0.039 for an output image up to 1024x1024.
+    return { inputPerMillion: 0.30, outputPerMillion: 0, imageOutput: 0.039 };
+  }
+  if (normalized.includes('3.1-pro')) return { inputPerMillion: 2, outputPerMillion: 12, imageOutput: 0 };
+  if (normalized.includes('3.5-flash')) return { inputPerMillion: 1.5, outputPerMillion: 9, imageOutput: 0 };
+  if (normalized.includes('flash-lite')) return { inputPerMillion: 0.25, outputPerMillion: 1.5, imageOutput: 0 };
+  return { inputPerMillion: 0.5, outputPerMillion: 3, imageOutput: 0 };
+};
+
+const recordAiUsage = (req: any, result: any, requestedModel: string, feature?: string) => {
+  if (!supabaseServiceKey || req.user?.role !== 'parent') return;
+  const resolvedModel = result && typeof result === 'object' ? aiResolvedModelByResult.get(result) : undefined;
+  const model = String(resolvedModel || result?.modelVersion || requestedModel || 'unknown');
+  const requestKind: 'text' | 'image' = model.toLowerCase().includes('image') ? 'image' : 'text';
+  const metadata = result?.usageMetadata || result?.usage_metadata || {};
+  const inputTokens = Math.max(0, Number(metadata.promptTokenCount ?? metadata.prompt_token_count) || 0);
+  const candidateTokens = Math.max(0, Number(metadata.candidatesTokenCount ?? metadata.candidates_token_count ?? metadata.totalOutputTokens) || 0);
+  const thinkingTokens = Math.max(0, Number(metadata.thoughtsTokenCount ?? metadata.thoughts_token_count) || 0);
+  const outputTokens = candidateTokens + thinkingTokens;
+  const price = aiListPrice(model, requestKind);
+  const estimatedCost = (inputTokens / 1_000_000) * price.inputPerMillion
+    + (outputTokens / 1_000_000) * price.outputPerMillion
+    + price.imageOutput;
+  void getAdminSupabaseClient().from('ai_usage_events').insert({
+    user_id: req.user.id,
+    feature: feature || aiFeatureFromRequest(req),
+    model,
+    request_kind: requestKind,
+    status: 'success',
+    input_tokens: inputTokens,
+    output_tokens: outputTokens,
+    estimated_cost_usd: Number(estimatedCost.toFixed(8)),
+  }).then(({ error }) => { if (error && !isProduction) console.warn('AI usage event skipped:', error.message); });
+};
+
 /** Replaces the AI transport in isolated tests; passing null restores production behavior. */
 export const setAiClientFactoryForTests = (factory: AiClientFactory | null): void => {
   if (process.env.NODE_ENV !== 'test') {
@@ -6310,7 +6445,7 @@ export const parentAssistantFeatureCatalog = [
   { area: 'Contact Visual Steps', routes: ['/contact'], help: 'Open Contact from the top navigation, footer, or mobile menu. Enter your name, reply email, subject, and message, then select Open email to send. The form opens your own email application and does not save the form with a Visual Steps account. Never include passwords, child login codes, or sensitive clinical information.' },
   { area: 'Privacy, terms, cookies, and analytics', routes: ['/privacy', '/terms', '/cookies'], help: 'Open Privacy, Terms, or Cookies & Analytics from the footer on any page. Privacy explains what family information Visual Steps handles, why it is used, limited service-provider processing, AI requests, social-story sharing, uploaded-image links, retention choices, account deletion, and security responsibilities. Terms explains responsible use, caregiver review, community content, availability, and why Visual Steps is not medical or clinical advice. Cookies & Analytics explains essential sign-in and preference storage, the installed-app cache, browser controls, and the current absence of advertising cookies and product analytics. On Create an account, review the Terms and Privacy links and select the agreement checkbox before selecting Sign Up.' },
   { area: 'Visual Steps weekly newsletter', routes: ['/newsletter', '/newsletter/subscribe', '/newsletter/community', '/newsletter/archive/:month', '/newsletter/issues/:issueDate', '/newsletter-admin'], help: 'Open the Newsletter menu in the main navigation. Choose Subscribe to open the dedicated signup page, enter Email address, and select Subscribe; confirm the subscription from the email you receive. Choose Weekly archive, then select a month; months and issues are ordered latest first. A month opens its issue list in the current tab, and selecting an issue opens the complete newsletter in a new tab. Choose Share with the community to open its dedicated submission page. Approved administrators open Admin and choose Manage newsletter for publication controls. Each upcoming weekly issue uses a calm, scannable format with a contents page, new and updated feature details, approved parent stories/news/information/tips, testimonials, popular features, activities and games, books and resources, ideas for using Visual Steps meaningfully, current membership details, practical caregiver tips, and clearly labeled mission-aligned advertisements when approved. Published archive issues retain the content and layout saved when they were released. General non-clinical topics may include communication and speech support, occupational support, positive behavior support, daily living, learning, work, leisure, and community participation for autistic people of all ages. Submissions remain private until reviewed and approved. The protected Newsletter Administration page lets administrators manage submissions, change the weekly delivery day and time in their timezone, edit and save the next issue template, preview it without publishing, and send a prepared issue. Every issue includes Visual Steps Home, Pricing, Subscribe Newsletter, optional configured Facebook and Instagram links, and one-click unsubscribe.' },
-  { area: 'Protected administration', routes: ['/admin/insights', '/newsletter-admin'], help: 'The Admin menu appears only for approved administrators. Choose Insights to review paginated parent accounts, account-level feature-use patterns, action dates and times, membership status, and privacy-conscious website traffic. Child / adult profiles and family content are intentionally excluded. Choose Manage newsletter for publication and subscriber controls. Administrator and membership changes require confirmation and are recorded for accountability.' },
+  { area: 'Protected administration', routes: ['/admin/insights', '/newsletter-admin'], help: 'The Admin menu appears only for approved administrators. Choose Insights to review account growth, registration status, parent journey signals, interpreted feature health, the last 24 hours or longer reporting periods, operations, retention, privacy-conscious traffic, and AI Use. AI Use shows where AI is requested, model and token totals, individual request estimates, and aggregate estimated standard paid-tier cost without retaining prompts, responses, or family content. Cost tracking begins after its database update and deployment; estimates are not invoices and free-tier billing may be lower or zero. Child / adult profiles and family content are intentionally excluded. Choose Manage newsletter for publication and subscriber controls. Administrator and membership changes require confirmation and are recorded for accountability.' },
   { area: 'Child dashboard', routes: ['/kids-dashboard/:kidId'], help: 'Children sign in with their Kid Code. To Be Done lists pending activities, Waiting for parent verification lists submitted work, Completed shows completed activities, and Rewards shows items they may purchase with earned tokens. Meaningful completions show celebrations. A verification-required submission tells the child to wait and does not award tokens until parent approval.' },
   { area: 'Offline and installation', routes: ['/'], help: 'Visual Steps can be installed from a supported browser. On an iPhone or iPad, use Safari Share > Add to Home Screen. When internet access is lost, the app displays an offline notice. Sign-in, saved family information, and AI features become available again after reconnection.' },
 ] as const;
@@ -6562,6 +6697,7 @@ app.post('/api/parent-assistant', authenticateToken, async (req: any, res) => {
       },
     };
     const result = await generateContentWithRetryAndFallback(ai, generationParams);
+    recordAiUsage(req, result, generationParams.model, 'Parent Assistant');
 
     let answer = typeof result.text === 'string' ? result.text.trim() : '';
     if (answer && isAiResponseTruncated(result)) {
@@ -6574,6 +6710,7 @@ app.post('/api/parent-assistant', authenticateToken, async (req: any, res) => {
         ],
         config: { ...generationParams.config, maxOutputTokens: 2200 },
       });
+      recordAiUsage(req, continuation, generationParams.model, 'Parent Assistant');
       const continuationText = typeof continuation.text === 'string' ? continuation.text.trim() : '';
       if (continuationText) answer = `${answer}\n${continuationText}`;
     }
@@ -6705,6 +6842,7 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
         ]
       }
     });
+    recordAiUsage(req, result, finalModelName);
 
     // Image models can return a text part and an image part together. Always
     // prioritize inline image data for image requests instead of result.text.

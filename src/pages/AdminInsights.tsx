@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { Activity, BarChart3, ChevronLeft, ChevronRight, HelpCircle, MailCheck, Search, ShieldCheck, UserCog, Users } from 'lucide-react';
+import { Activity, ArrowRight, BarChart3, ChevronLeft, ChevronRight, CircleDollarSign, Eye, Globe2, HelpCircle, MailCheck, Search, ShieldCheck, TrendingUp, UserCog, Users } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { apiFetch, safeJson } from '../utils/api';
@@ -26,6 +26,15 @@ type FeatureHealth = {
   totals: { attempts: number; successful: number; clientErrors: number; serverErrors: number; pendingAssistantKnowledgeGaps: number };
   definitions: { successRate: string; clientError: string; serverError: string; recoveredParent: string };
 };
+type AiUsage = {
+  days: number;
+  totals: { requests: number; imageRequests: number; textRequests: number; inputTokens: number; outputTokens: number; estimatedCostUsd: number; averageCostUsd: number };
+  features: { name: string; requests: number; inputTokens: number; outputTokens: number; estimatedCostUsd: number }[];
+  models: { name: string; requests: number; inputTokens: number; outputTokens: number; estimatedCostUsd: number }[];
+  recent: { id: number; feature: string; model: string; kind: 'text' | 'image'; inputTokens: number; outputTokens: number; estimatedCostUsd: number; occurredAt: string }[];
+  interpretation: string;
+  pricing: { basis: string; updatedOn: string; sourceUrl: string };
+};
 
 const struggleReasonLabels: Record<string, string> = {
   session_or_sign_in_required: 'Session ended or sign-in required',
@@ -50,7 +59,10 @@ const colors = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'
 async function adminJson(url: string, init?: RequestInit) {
   const response = await apiFetch(url, init, 0);
   const payload = await safeJson(response);
-  if (!response.ok) throw new Error(payload?.error || 'Administrator request failed');
+  if (!response.ok) {
+    const explanation = [payload?.error, payload?.message].filter(Boolean).join(': ');
+    throw new Error(explanation || 'Administrator request failed');
+  }
   return payload;
 }
 
@@ -96,8 +108,230 @@ function MetricList({ title, data }: { title: string; data: Datum[] }) {
   return <section className="surface p-5"><h3 className="text-lg font-black"><TermLabel label={title}/></h3><div className="mt-4 space-y-3">{data.length ? data.slice(0, 8).map((item, index) => <div key={`${item.name}-${index}`} className="flex items-center justify-between gap-4 text-sm"><span className="truncate text-slate-600">{item.name}</span><strong>{item.value}</strong></div>) : <p className="text-sm text-slate-500">No activity recorded yet.</p>}</div></section>;
 }
 
+function PieBreakdown({ title, data, help }: { title: string; data: Datum[]; help: string }) {
+  return <section className="surface p-5">
+    <div className="flex items-center gap-2"><h3 className="text-lg font-black">{title}</h3><HelpTip text={help}/></div>
+    {data.length ? <>
+      <div className="mt-3 h-56"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={data.slice(0, 8)} dataKey="value" nameKey="name" outerRadius={82} label={({ name, percent }) => `${name} ${Math.round((percent || 0) * 100)}%`}>{data.slice(0, 8).map((_, index) => <Cell key={index} fill={colors[index % colors.length]}/>)}</Pie><Tooltip/></PieChart></ResponsiveContainer></div>
+      <div className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs">{data.slice(0, 8).map((item, index) => <span key={`${item.name}-${index}`} className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: colors[index % colors.length] }}/>{item.name}: <strong>{item.value}</strong></span>)}</div>
+    </> : <p className="mt-4 text-sm text-slate-500">No location information recorded yet.</p>}
+  </section>;
+}
+
+function percentage(part: number, whole: number) {
+  return whole > 0 ? Math.round((part / whole) * 100) : 0;
+}
+
+function OverviewInterpretation({ overview, onOpen }: { overview: Overview; onOpen: (tab: 'journey' | 'health' | 'registrations' | 'traffic') => void }) {
+  const totals = overview.totals;
+  const monthlyEngagement = percentage(totals.activeParentsThirtyDays, totals.parents);
+  const recentMomentum = percentage(totals.activeParentsSevenDays, totals.activeParentsThirtyDays);
+  const guestInterest = percentage(totals.guestVisitorsThirtyDays, totals.visitorsThirtyDays);
+  const visitsPerVisitor = totals.visitorsThirtyDays > 0 ? (totals.recordedVisitsThirtyDays / totals.visitorsThirtyDays).toFixed(1) : '0';
+  const topFeature = overview.featureUse[0];
+  const topCountry = overview.countries[0];
+
+  const insights = [
+    {
+      tone: 'blue',
+      title: 'Account growth',
+      text: totals.newParentsThisMonth > 0
+        ? `${totals.newParentsThisMonth} parent ${totals.newParentsThisMonth === 1 ? 'account was' : 'accounts were'} created this month, including ${totals.newParentsSevenDays} during the last seven days.`
+        : 'No new parent accounts are recorded this month yet. Review Registration status to separate incomplete verification from low signup activity.',
+      action: 'Review registrations',
+      tab: 'registrations' as const,
+    },
+    {
+      tone: monthlyEngagement >= 50 ? 'green' : 'amber',
+      title: 'Parent engagement',
+      text: totals.parents > 0
+        ? `${totals.activeParentsThirtyDays} of ${totals.parents} parent accounts (${monthlyEngagement}%) used a recorded feature in the last 30 days. ${recentMomentum}% of those monthly active parents were also active during the last seven days.`
+        : 'There are no parent accounts to measure yet. Engagement will appear after verified parents begin using protected features.',
+      action: 'Follow the parent journey',
+      tab: 'journey' as const,
+    },
+    {
+      tone: 'violet',
+      title: 'Public interest',
+      text: totals.visitorsThirtyDays > 0
+        ? `${totals.visitorsThirtyDays} approximate visitors created ${totals.recordedVisitsThirtyDays} recorded page visits—about ${visitsPerVisitor} per visitor. ${guestInterest}% explored the guest experience.`
+        : 'No public visits are recorded for the last 30 days. Confirm that production analytics are enabled and remember that localhost visits are intentionally excluded.',
+      action: 'Explore website traffic',
+      tab: 'traffic' as const,
+    },
+    {
+      tone: 'slate',
+      title: 'What people use',
+      text: topFeature
+        ? `${topFeature.name} is the most-used recorded parent feature with ${topFeature.value} successful actions. ${topCountry ? `${topCountry.name} is the leading recorded visitor country.` : 'Location information is not available yet.'}`
+        : 'No successful parent feature actions are recorded for this period yet. Open Feature health after parents begin using the application.',
+      action: 'Review feature health',
+      tab: 'health' as const,
+    },
+  ];
+
+  const tones: Record<string, string> = {
+    blue: 'border-blue-200 bg-blue-50 text-blue-950',
+    green: 'border-emerald-200 bg-emerald-50 text-emerald-950',
+    amber: 'border-amber-200 bg-amber-50 text-amber-950',
+    violet: 'border-violet-200 bg-violet-50 text-violet-950',
+    slate: 'border-slate-200 bg-slate-50 text-slate-900',
+  };
+
+  return <section className="surface p-6">
+    <div className="flex items-center gap-2"><h2 className="text-xl font-black">What the overview suggests</h2><HelpTip text="These statements interpret aggregate counts. They are planning signals, not conclusions about an individual family."/></div>
+    <p className="mt-1 max-w-3xl text-sm text-slate-600">Start here to understand growth, engagement, public interest, and feature use. Open the linked section when a signal needs closer review.</p>
+    <div className="mt-5 grid gap-4 md:grid-cols-2">
+      {insights.map(item => <article key={item.title} className={`rounded-2xl border p-5 ${tones[item.tone]}`}>
+        <h3 className="font-black">{item.title}</h3>
+        <p className="mt-2 text-sm leading-6">{item.text}</p>
+        <button type="button" className="mt-3 inline-flex items-center gap-1 text-sm font-black underline underline-offset-4" onClick={() => onOpen(item.tab)}>{item.action}<ArrowRight className="h-4 w-4"/></button>
+      </article>)}
+    </div>
+    <p className="mt-4 rounded-xl bg-slate-50 p-3 text-xs leading-5 text-slate-600"><strong>Important:</strong> Recent analytics can be lower than actual use when tracking was introduced after accounts were created. Use trends over time together with Registration status and Feature health.</p>
+  </section>;
+}
+
+function journeyStageMeaning(stage: Funnel['stages'][number], stages: Funnel['stages']) {
+  const values = new Map(stages.map(item => [item.id, item.value]));
+  const visitors = values.get('visitors') || 0;
+  const shareOfVisitors = percentage(stage.value, visitors);
+  switch (stage.id) {
+    case 'visitors': return stage.value ? 'This is the public-reach baseline for the selected period.' : 'No production website visitors were recorded during this period.';
+    case 'guest': return visitors ? `${shareOfVisitors}% of recorded visitors opened the guest experience. This indicates interest in trying the app before registering.` : 'Guest interest cannot be compared until public visits are recorded.';
+    case 'signup_interest': return visitors ? `${shareOfVisitors}% of recorded visitors opened the signup page. Opening the page does not mean registration was completed.` : 'Signup interest cannot be compared until public visits are recorded.';
+    case 'accounts': return 'These are newly created accounts. For privacy, they are not connected to the anonymous visitors shown above.';
+    case 'profiles': return 'These parents created a child / adult profile during the period. The count can include accounts created before this reporting period.';
+    case 'activities': return 'These parents created at least one activity during the period, showing that planning moved beyond profile setup.';
+    case 'returning': return 'These parents used recorded app features on at least two different days, which is a useful early signal of continued value.';
+    default: return stage.explanation;
+  }
+}
+
+function ParentJourneyInterpretation({ funnel, onOpen }: { funnel: Funnel; onOpen: (tab: 'registrations' | 'health' | 'traffic') => void }) {
+  const values = new Map(funnel.stages.map(stage => [stage.id, stage.value]));
+  const visitors = values.get('visitors') || 0;
+  const signupInterest = values.get('signup_interest') || 0;
+  const accounts = values.get('accounts') || 0;
+  const profiles = values.get('profiles') || 0;
+  const activities = values.get('activities') || 0;
+  const returning = values.get('returning') || 0;
+
+  const signals = [
+    {
+      title: 'Discovery and signup interest',
+      text: visitors
+        ? `${signupInterest} of ${visitors} visitors (${percentage(signupInterest, visitors)}%) opened Create an account. Anonymous browsing cannot be connected to a later account, so treat this as interest—not a conversion rate.`
+        : 'There is not enough public traffic data to interpret discovery yet.',
+      action: 'Review website traffic', tab: 'traffic' as const,
+    },
+    {
+      title: 'Registration completion',
+      text: accounts
+        ? `${accounts} new ${accounts === 1 ? 'account was' : 'accounts were'} created during this period. Registration status shows who is awaiting verification, confirmed, or successfully signed in.`
+        : signupInterest ? 'People opened the signup page, but no new accounts are recorded in this period. Check verification delivery and the clarity of the signup form.' : 'No signup-page interest or new accounts are recorded yet.',
+      action: 'Open registration status', tab: 'registrations' as const,
+    },
+    {
+      title: 'Getting started inside the app',
+      text: profiles || activities
+        ? `${profiles} parents created a profile and ${activities} created an activity during the period. These may include existing accounts, so compare the pattern over time instead of treating it as a strict conversion.`
+        : accounts ? 'New accounts were created, but profile or activity creation is not yet recorded. The onboarding guidance may need review.' : 'Profile and activity setup will appear after parents begin using the authenticated app.',
+      action: 'Check feature health', tab: 'health' as const,
+    },
+    {
+      title: 'Returning use',
+      text: returning
+        ? `${returning} ${returning === 1 ? 'parent used' : 'parents used'} Visual Steps on at least two different days. Watch this number across equal reporting periods to understand whether families continue finding value.`
+        : 'No parents have recorded successful activity on two separate days during this period yet.',
+      action: 'Review feature health', tab: 'health' as const,
+    },
+  ];
+
+  return <section className="surface p-6">
+    <div className="flex items-center gap-2"><h2 className="text-xl font-black">How to interpret this journey</h2><HelpTip text="This combines anonymous public traffic with aggregate signed-in milestones. It deliberately does not identify or follow one person across the two groups."/></div>
+    <div className="mt-5 grid gap-4 md:grid-cols-2">{signals.map(signal => <article key={signal.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-5"><h3 className="font-black text-slate-900">{signal.title}</h3><p className="mt-2 text-sm leading-6 text-slate-600">{signal.text}</p><button type="button" className="mt-3 inline-flex items-center gap-1 text-sm font-black text-brand-700 underline underline-offset-4" onClick={() => onOpen(signal.tab)}>{signal.action}<ArrowRight className="h-4 w-4"/></button></article>)}</div>
+  </section>;
+}
+
 function StruggleBreakdown({ items }: { items: FeatureHealth['struggles'] }) {
-  return <section className="surface overflow-hidden"><div className="border-b border-slate-100 p-5"><h3 className="text-lg font-black"><TermLabel label="Where parents encountered difficulty" help="Groups unsuccessful requests by feature, workflow step, and a privacy-safe reason. Entered values and detailed error messages are never included."/></h3><p className="mt-1 text-sm text-slate-500">Use these patterns to find instructions, validation, or services that may need attention.</p></div><div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500"><tr><th className="px-4 py-3">Feature</th><th className="px-4 py-3">Step</th><th className="px-4 py-3">What happened</th><th className="px-4 py-3">Occurrences</th><th className="px-4 py-3">Affected parents</th></tr></thead><tbody className="divide-y divide-slate-100">{items.map((item, index) => <tr key={`${item.feature}-${item.workflowStep}-${item.reasonCode}-${index}`}><td className="px-4 py-3 font-black">{item.feature}</td><td className="px-4 py-3">{item.workflowStep}</td><td className="px-4 py-3">{struggleReasonLabels[item.reasonCode] || 'Request could not be accepted'}</td><td className="px-4 py-3">{item.occurrences}</td><td className="px-4 py-3">{item.parents}</td></tr>)}{!items.length && <tr><td colSpan={5} className="p-8 text-center text-slate-500">No unsuccessful requests were recorded during this period.</td></tr>}</tbody></table></div></section>;
+  const strength = (occurrences: number) => occurrences >= 10 ? 'Frequent pattern' : occurrences >= 3 ? 'Recurring pattern' : 'Isolated occurrence';
+  const scope = (parents: number) => parents > 3 ? 'Several parents encountered this' : parents > 1 ? 'More than one parent encountered this' : 'One parent encountered this';
+  const responseFor = (reason: string) => {
+    if (reason === 'session_or_sign_in_required') return 'Check session-expiry guidance and make signing in again easy.';
+    if (reason === 'required_information_missing' || reason === 'invalid_information_or_format') return 'Review field labels, examples, validation messages, and nearby help.';
+    if (reason === 'permission_denied') return 'Check account permissions and explain who can complete this action.';
+    if (reason === 'generation_or_ai_service_failed' || reason === 'service_unavailable') return 'Review Operations and the related external service before changing parent guidance.';
+    if (reason === 'allowance_reached') return 'Make the allowance and reset timing clear before the parent starts.';
+    if (reason === 'file_too_large') return 'Show the accepted file size and format beside the upload field.';
+    if (reason === 'record_not_found' || reason === 'expired_or_unavailable') return 'Check navigation and explain when an item is no longer available.';
+    return 'Reproduce this workflow and review its instructions, validation, and service response.';
+  };
+  return <section className="surface overflow-hidden"><div className="border-b border-slate-100 p-5"><h3 className="text-lg font-black"><TermLabel label="Where parents encountered difficulty" help="Groups unsuccessful requests by feature, workflow step, and a privacy-safe reason. Entered values and detailed error messages are never included."/></h3><p className="mt-1 text-sm text-slate-500">Each row explains the pattern and the most useful response instead of requiring you to interpret raw totals.</p></div><div className="overflow-x-auto"><table className="w-full min-w-[980px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500"><tr><th className="px-4 py-3">Feature and step</th><th className="px-4 py-3">What parents encountered</th><th className="px-4 py-3">How broad is it?</th><th className="px-4 py-3">Recommended response</th></tr></thead><tbody className="divide-y divide-slate-100">{items.map((item, index) => <tr key={`${item.feature}-${item.workflowStep}-${item.reasonCode}-${index}`} className="align-top"><td className="px-4 py-3"><strong className="block">{item.feature}</strong><span className="text-slate-500">{item.workflowStep}</span></td><td className="px-4 py-3">{struggleReasonLabels[item.reasonCode] || 'Request could not be accepted'}</td><td className="px-4 py-3"><span className={`rounded-full px-3 py-1 text-xs font-black ${item.occurrences >= 10 ? 'bg-rose-100 text-rose-800' : item.occurrences >= 3 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'}`}>{strength(item.occurrences)}</span><p className="mt-2 text-xs text-slate-500">{scope(item.parents)}</p></td><td className="max-w-md px-4 py-3 leading-6 text-slate-600">{responseFor(item.reasonCode)}</td></tr>)}{!items.length && <tr><td colSpan={4} className="p-8 text-center text-slate-500">No unsuccessful requests were recorded during this period. The available signals do not show a recurring parent difficulty.</td></tr>}</tbody></table></div></section>;
+}
+
+function featureAssessment(feature: FeatureHealth['features'][number]) {
+  const clientRate = feature.attempts ? (feature.clientErrors / feature.attempts) * 100 : 0;
+  const serverRate = feature.attempts ? (feature.serverErrors / feature.attempts) * 100 : 0;
+  const lowEvidence = feature.attempts < 5 || feature.parents < 2;
+  if (serverRate >= 10 || feature.successRate < 70) return { label: 'Needs attention', tone: 'rose', priority: 3 };
+  if (feature.serverErrors > 0 || clientRate >= 15 || feature.successRate < 90) return { label: 'Review recommended', tone: 'amber', priority: 2 };
+  if (lowEvidence) return { label: 'Too early to judge', tone: 'slate', priority: 1 };
+  return { label: 'Working smoothly', tone: 'green', priority: 0 };
+}
+
+function featureInterpretation(feature: FeatureHealth['features'][number]) {
+  const assessment = featureAssessment(feature);
+  const usage = feature.parents <= 1 ? 'Use is still limited, so the pattern may change as more parents try it.' : feature.attempts / feature.parents >= 4 ? 'Parents who use this feature tend to return to it several times.' : 'The feature has been used across multiple parent accounts.';
+  let experience = 'Recorded requests are completing reliably without a recurring correction pattern.';
+  if (feature.serverErrors > 0 && feature.clientErrors > 0) experience = 'Parents encountered both information-related difficulty and application service failures.';
+  else if (feature.serverErrors > 0) experience = 'Some requests failed because of an application or connected-service problem.';
+  else if (feature.clientErrors > 0) experience = 'Some requests needed corrected information, clearer instructions, or another parent action.';
+  if (feature.recoveredParents > 0) experience += ' At least one affected parent later completed the workflow successfully.';
+
+  let next = 'No immediate change is indicated. Continue watching the pattern over equal reporting periods.';
+  if (assessment.label === 'Too early to judge') next = 'Wait for more use before drawing a conclusion; test the workflow manually in the meantime.';
+  else if (feature.serverErrors > 0) next = 'Open Operations, reproduce the workflow, and check the related service before changing instructions.';
+  else if (feature.clientErrors > 0) next = 'Review field labels, examples, validation messages, and help tooltips for this feature.';
+  else if (assessment.label === 'Needs attention') next = 'Test the complete workflow now and prioritize the most common failed step shown below.';
+  return { assessment, usage, experience, next };
+}
+
+function FeatureInterpretation({ health }: { health: FeatureHealth }) {
+  const interpreted = health.features.map(feature => ({ feature, ...featureInterpretation(feature) })).sort((a, b) => b.assessment.priority - a.assessment.priority || b.feature.attempts - a.feature.attempts);
+  const attention = interpreted.filter(item => item.assessment.priority >= 2);
+  const smooth = interpreted.filter(item => item.assessment.label === 'Working smoothly');
+  const summary = !interpreted.length
+    ? 'There is not enough recorded feature use to assess health yet.'
+    : attention.length
+      ? `${attention.map(item => item.feature.feature).slice(0, 3).join(', ')} ${attention.length === 1 ? 'is' : 'are'} the first ${attention.length === 1 ? 'area' : 'areas'} to review. Start with service failures, then improve instructions where parents need corrections.`
+      : smooth.length === interpreted.length
+        ? 'All features with sufficient evidence are working smoothly. Continue monitoring them over the same reporting period.'
+        : 'No urgent feature problem is visible. Some features need more use before their health can be judged confidently.';
+  const tones: Record<string, string> = { rose: 'bg-rose-100 text-rose-800', amber: 'bg-amber-100 text-amber-800', slate: 'bg-slate-100 text-slate-700', green: 'bg-emerald-100 text-emerald-800' };
+
+  return <>
+    <section className="surface p-6"><div className="flex items-center gap-2"><h2 className="text-xl font-black">Overall interpretation</h2><HelpTip text="Prioritizes feature patterns using completion reliability, parent corrections, service failures, breadth of use, and successful recovery."/></div><p className="mt-3 max-w-4xl text-sm leading-6 text-slate-700">{summary}</p>{health.totals.pendingAssistantKnowledgeGaps > 0 && <p className="mt-3 rounded-xl bg-violet-50 p-3 text-sm text-violet-900">The Parent Assistant also has unanswered app-related questions waiting for review. These may reveal guidance that needs to be added or clarified.</p>}</section>
+    <section className="grid gap-4 lg:grid-cols-2">{interpreted.map(({ feature, assessment, usage, experience, next }) => <article key={feature.feature} className="surface p-5"><div className="flex flex-wrap items-start justify-between gap-3"><h3 className="text-lg font-black">{feature.feature}</h3><span className={`rounded-full px-3 py-1 text-xs font-black ${tones[assessment.tone]}`}>{assessment.label}</span></div><div className="mt-4 space-y-3 text-sm leading-6"><p><strong className="text-slate-900">Use:</strong> <span className="text-slate-600">{usage}</span></p><p><strong className="text-slate-900">Parent experience:</strong> <span className="text-slate-600">{experience}</span></p><p className="rounded-xl bg-slate-50 p-3"><strong className="text-slate-900">Recommended action:</strong> <span className="text-slate-600">{next}</span></p></div></article>)}{!interpreted.length && <div className="surface p-8 text-center text-sm text-slate-500 lg:col-span-2">No feature activity was recorded during this period.</div>}</section>
+  </>;
+}
+
+const formatUsd = (value: number) => value < 0.01 && value > 0
+  ? `$${value.toFixed(6)}`
+  : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 4 }).format(value);
+
+function AiUsageInterpretation({ usage }: { usage: AiUsage }) {
+  const highestUse = [...usage.features].sort((a, b) => b.requests - a.requests)[0];
+  const highestCost = usage.features[0];
+  const imageShare = percentage(usage.totals.imageRequests, usage.totals.requests);
+  return <section className="surface p-6">
+    <div className="flex items-center gap-2"><h2 className="text-xl font-black">What the AI usage suggests</h2><HelpTip text="Uses request type, model token counts, and estimated standard list prices. Prompts and generated content are not retained in this report."/></div>
+    <p className="mt-3 max-w-4xl text-sm leading-6 text-slate-700">{usage.interpretation}</p>
+    <div className="mt-5 grid gap-4 md:grid-cols-2">
+      <article className="rounded-2xl border border-blue-200 bg-blue-50 p-5"><h3 className="font-black text-blue-950">Where AI is used most</h3><p className="mt-2 text-sm leading-6 text-blue-900">{highestUse ? `${highestUse.name} has the most recorded AI requests. Review whether each request provides meaningful value and whether a reusable saved result could avoid unnecessary regeneration.` : 'There is not enough tracked use to identify a leading feature yet.'}</p></article>
+      <article className="rounded-2xl border border-amber-200 bg-amber-50 p-5"><h3 className="font-black text-amber-950">Where estimated cost is highest</h3><p className="mt-2 text-sm leading-6 text-amber-900">{highestCost ? `${highestCost.name} has the highest estimated list-price cost. ${imageShare ? `${imageShare}% of tracked requests generated images; illustrations deserve special attention because each output has a fixed image charge.` : 'No image generation was recorded, so token volume and model choice are the main cost drivers.'}` : 'No estimated cost is available for this period.'}</p></article>
+    </div>
+  </section>;
 }
 
 function registrationMeaning(item: RegistrationRow) {
@@ -123,6 +357,7 @@ const insightTabs = [
   { id: 'overview', label: 'Overview', icon: BarChart3, help: 'A high-level view of accounts, adoption, visitors, and feature use.' },
   { id: 'journey', label: 'Parent journey', icon: ChevronRight, help: 'Shows broad steps from public exploration through registration, planning, and returning use.' },
   { id: 'health', label: 'Feature health', icon: ShieldCheck, help: 'Compares successful actions, corrections, and service problems by feature.' },
+  { id: 'ai', label: 'AI Use', icon: CircleDollarSign, help: 'Interprets where AI is used and estimates each request’s standard paid-tier cost without retaining prompts or generated content.' },
   { id: 'operations', label: 'Operations', icon: Activity, help: 'Shows application response speed, errors, and reliability alerts.' },
   { id: 'retention', label: 'Retention', icon: ShieldCheck, help: 'Controls how long detailed analytics and anonymous summaries are kept.' },
   { id: 'parents', label: 'Parents', icon: Users, help: 'Supports parent accounts, administrator access, and membership requests without showing family content.' },
@@ -131,10 +366,11 @@ const insightTabs = [
 ] as const;
 
 export default function AdminInsights() {
-  const [tab, setTab] = useState<'overview' | 'journey' | 'health' | 'operations' | 'retention' | 'parents' | 'registrations' | 'traffic'>('overview');
+  const [tab, setTab] = useState<'overview' | 'journey' | 'health' | 'ai' | 'operations' | 'retention' | 'parents' | 'registrations' | 'traffic'>('overview');
   const [overview, setOverview] = useState<Overview | null>(null);
   const [funnel, setFunnel] = useState<Funnel | null>(null);
   const [health, setHealth] = useState<FeatureHealth | null>(null);
+  const [aiUsage, setAiUsage] = useState<AiUsage | null>(null);
   const [operations, setOperations] = useState<Operations | null>(null);
   const [retention, setRetention] = useState<Retention | null>(null);
   const [rawRetentionDays, setRawRetentionDays] = useState(90);
@@ -152,6 +388,8 @@ export default function AdminInsights() {
   const [registrationSearch, setRegistrationSearch] = useState('');
   const [traffic, setTraffic] = useState<Traffic | null>(null);
   const [days, setDays] = useState(30);
+  const [healthDays, setHealthDays] = useState(30);
+  const [aiDays, setAiDays] = useState(30);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
 
@@ -197,10 +435,17 @@ export default function AdminInsights() {
 
   const loadHealth = useCallback(async () => {
     setLoading(true); setMessage('');
-    try { setHealth(await adminJson(`/api/admin/feature-health?days=${days}`)); }
+    try { setHealth(await adminJson(`/api/admin/feature-health?days=${healthDays}`)); }
     catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to load feature health'); }
     finally { setLoading(false); }
-  }, [days]);
+  }, [healthDays]);
+
+  const loadAiUsage = useCallback(async () => {
+    setLoading(true); setMessage('');
+    try { setAiUsage(await adminJson(`/api/admin/ai-usage?days=${aiDays}`)); }
+    catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to load AI usage'); }
+    finally { setLoading(false); }
+  }, [aiDays]);
 
   const loadOperations = useCallback(async () => {
     setLoading(true); setMessage('');
@@ -222,12 +467,13 @@ export default function AdminInsights() {
     if (tab === 'overview') void loadOverview();
     else if (tab === 'journey') void loadFunnel();
     else if (tab === 'health') void loadHealth();
+    else if (tab === 'ai') void loadAiUsage();
     else if (tab === 'operations') void loadOperations();
     else if (tab === 'retention') void loadRetention();
     else if (tab === 'parents') void loadParents();
     else if (tab === 'registrations') void loadRegistrations();
     else void loadTraffic();
-  }, [tab, loadFunnel, loadHealth, loadOperations, loadOverview, loadParents, loadRegistrations, loadRetention, loadTraffic]);
+  }, [tab, loadAiUsage, loadFunnel, loadHealth, loadOperations, loadOverview, loadParents, loadRegistrations, loadRetention, loadTraffic]);
 
   const saveRetention = async () => {
     try { await adminJson('/api/admin/analytics-retention', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rawRetentionDays, summaryRetentionMonths }) }); setMessage('Analytics retention preferences saved.'); await loadRetention(); }
@@ -287,20 +533,29 @@ export default function AdminInsights() {
     {message && <div role="status" className="rounded-xl border border-slate-200 bg-white p-4 text-sm font-bold">{message}</div>}
     {tab === 'overview' ? <>
       {overview && <>
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          {[
-            ['Parent accounts', overview.totals.parents],
-            ['New parents · 7 days', overview.totals.newParentsSevenDays],
-            ['New parents · this month', overview.totals.newParentsThisMonth],
-            ['Active parents · 7 days', overview.totals.activeParentsSevenDays],
-            ['Active parents · 30 days', overview.totals.activeParentsThirtyDays],
-            ['Newsletter subscribers', overview.totals.newsletterSubscribers],
-            ['Visitors · 30 days', overview.totals.visitorsThirtyDays],
-            ['Recorded visits · 30 days', overview.totals.recordedVisitsThirtyDays],
-            ['Guest visitors · 30 days', overview.totals.guestVisitorsThirtyDays],
-            ['Cancelled memberships', overview.totals.cancelledMemberships],
-          ].map(([label, value]) => <div key={String(label)} className="surface p-5"><p className="text-sm font-bold text-slate-500"><TermLabel label={String(label)}/></p><p className="mt-2 text-3xl font-black">{value}</p></div>)}
+        <section className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+          <article className="surface p-5">
+            <div className="flex items-center gap-2 text-brand-700"><Users className="h-5 w-5"/><h2 className="font-black">Parent accounts</h2></div>
+            <p className="mt-3 text-4xl font-black">{overview.totals.parents}</p>
+            <dl className="mt-4 space-y-2 border-t border-slate-100 pt-3 text-sm"><div className="flex justify-between gap-3"><dt><TermLabel label="New parents · this month"/></dt><dd className="font-black">{overview.totals.newParentsThisMonth}</dd></div><div className="flex justify-between gap-3"><dt><TermLabel label="Cancelled memberships"/></dt><dd className="font-black">{overview.totals.cancelledMemberships}</dd></div></dl>
+          </article>
+          <article className="surface p-5">
+            <div className="flex items-center gap-2 text-emerald-700"><TrendingUp className="h-5 w-5"/><h2 className="font-black">Parent engagement</h2></div>
+            <p className="mt-3 text-4xl font-black">{overview.totals.activeParentsThirtyDays}</p><p className="text-xs font-bold uppercase tracking-wide text-slate-500">active in 30 days</p>
+            <dl className="mt-4 space-y-2 border-t border-slate-100 pt-3 text-sm"><div className="flex justify-between gap-3"><dt><TermLabel label="Active parents · 7 days"/></dt><dd className="font-black">{overview.totals.activeParentsSevenDays}</dd></div><div className="flex justify-between gap-3"><dt>Share of all accounts</dt><dd className="font-black">{percentage(overview.totals.activeParentsThirtyDays, overview.totals.parents)}%</dd></div></dl>
+          </article>
+          <article className="surface p-5">
+            <div className="flex items-center gap-2 text-violet-700"><Globe2 className="h-5 w-5"/><h2 className="font-black">Public reach · 30 days</h2></div>
+            <p className="mt-3 text-4xl font-black">{overview.totals.visitorsThirtyDays}</p><p className="text-xs font-bold uppercase tracking-wide text-slate-500">approximate visitors</p>
+            <dl className="mt-4 space-y-2 border-t border-slate-100 pt-3 text-sm"><div className="flex justify-between gap-3"><dt><TermLabel label="Recorded visits · 30 days"/></dt><dd className="font-black">{overview.totals.recordedVisitsThirtyDays}</dd></div><div className="flex justify-between gap-3"><dt><TermLabel label="Guest visitors · 30 days"/></dt><dd className="font-black">{overview.totals.guestVisitorsThirtyDays}</dd></div></dl>
+          </article>
+          <article className="surface p-5">
+            <div className="flex items-center gap-2 text-amber-700"><Eye className="h-5 w-5"/><h2 className="font-black">Community connection</h2></div>
+            <p className="mt-3 text-4xl font-black">{overview.totals.newsletterSubscribers}</p><p className="text-xs font-bold uppercase tracking-wide text-slate-500">active newsletter subscribers</p>
+            <p className="mt-4 border-t border-slate-100 pt-3 text-sm leading-5 text-slate-600">This audience can include parents and public readers, so it should not be treated as a percentage of parent accounts.</p>
+          </article>
         </section>
+        <OverviewInterpretation overview={overview} onOpen={nextTab => setTab(nextTab)}/>
         <div className="grid gap-5 xl:grid-cols-2">
           <section className="surface p-6"><h2 className="text-xl font-black">New parent registrations</h2><p className="mt-1 text-sm text-slate-500">Daily account creation during the last 30 days.</p><div className="mt-4 h-72"><ResponsiveContainer width="100%" height="100%"><AreaChart data={overview.dailyRegistrations}><CartesianGrid strokeDasharray="3 3"/><XAxis dataKey="date" tickFormatter={value => formatAppDate(`${value}T12:00:00Z`, 'UTC')}/><YAxis allowDecimals={false}/><Tooltip/><Area type="monotone" dataKey="registrations" stroke="#2563eb" fill="#dbeafe"/></AreaChart></ResponsiveContainer></div></section>
           <section className="surface p-6"><h2 className="text-xl font-black">Features used by parents</h2><p className="mt-1 text-sm text-slate-500">Successful parent actions during the last 30 days.</p><div className="mt-4 h-72"><ResponsiveContainer width="100%" height="100%"><BarChart data={overview.featureUse} layout="vertical"><CartesianGrid strokeDasharray="3 3"/><XAxis type="number" allowDecimals={false}/><YAxis dataKey="name" type="category" width={120}/><Tooltip/><Bar dataKey="value" fill="#10b981" radius={[0, 6, 6, 0]}/></BarChart></ResponsiveContainer></div></section>
@@ -308,14 +563,28 @@ export default function AdminInsights() {
         <div className="grid gap-5 lg:grid-cols-2"><MetricList title="Visitor countries · 30 days" data={overview.countries}/><section className="surface p-5"><h3 className="text-lg font-black">How these numbers are measured</h3><dl className="mt-4 space-y-4 text-sm text-slate-600"><div><dt className="font-black text-slate-800">Active parent</dt><dd>{overview.definitions.activeParent}</dd></div><div><dt className="font-black text-slate-800">Visitor</dt><dd>{overview.definitions.visitor}</dd></div><div><dt className="font-black text-slate-800">Recorded visit</dt><dd>{overview.definitions.recordedVisit}</dd></div></dl></section></div>
       </>}
     </> : tab === 'journey' ? <>
-      <section className="surface flex flex-wrap items-end justify-between gap-4 p-5"><div><h2 className="text-xl font-black"><TermLabel label="Parent journey" help="A sequence of broad adoption milestones. Anonymous browsing is not linked to registered parent accounts."/></h2><p className="mt-1 text-sm text-slate-500">See where visitors explore, create accounts, begin planning, and return.</p></div><label className="text-sm font-bold"><TermLabel label="Reporting period" help="Changes the date range used to calculate this section."/><select className="ml-3 rounded-lg border p-2" value={days} onChange={event => setDays(Number(event.target.value))}><option value={7}>Last 7 days</option><option value={30}>Last 30 days</option><option value={90}>Last 90 days</option></select></label></section>
-      {funnel && <><section className="surface p-6"><div className="h-80"><ResponsiveContainer width="100%" height="100%"><BarChart data={funnel.stages} layout="vertical" margin={{ left: 24 }}><CartesianGrid strokeDasharray="3 3"/><XAxis type="number" allowDecimals={false}/><YAxis dataKey="label" type="category" width={145}/><Tooltip/><Bar dataKey="value" fill="#2563eb" radius={[0, 6, 6, 0]}/></BarChart></ResponsiveContainer></div><p className="mt-4 rounded-xl bg-blue-50 p-4 text-sm text-blue-900">{funnel.note}</p></section><section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{funnel.stages.map((stage, index) => <article key={stage.id} className="surface p-5"><div className="flex items-center justify-between gap-3"><span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-black text-brand-700">Step {index + 1}</span><strong className="text-2xl">{stage.value}</strong></div><h3 className="mt-3 text-lg font-black">{stage.label}</h3><p className="mt-2 text-sm text-slate-600">{stage.explanation}</p></article>)}</section></>}
+      <section className="surface flex flex-wrap items-end justify-between gap-4 p-5"><div><h2 className="text-xl font-black"><TermLabel label="Parent journey" help="A sequence of broad adoption signals. Anonymous browsing is deliberately not linked to registered parent accounts."/></h2><p className="mt-1 max-w-3xl text-sm text-slate-600">Understand how people discover Visual Steps, show interest in joining, begin setting up the app, and return. The stages are aggregate signals rather than a record of one person’s path.</p></div><label className="text-sm font-bold"><TermLabel label="Reporting period" help="Changes the date range used to calculate every journey signal."/><select className="ml-3 rounded-lg border p-2" value={days} onChange={event => setDays(Number(event.target.value))}><option value={7}>Last 7 days</option><option value={30}>Last 30 days</option><option value={90}>Last 90 days</option></select></label></section>
+      {funnel && <>
+        <section className="surface p-6"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-black">Journey signals at a glance</h2><p className="mt-1 text-sm text-slate-500">Larger bars mean more people reached that aggregate milestone during the selected period.</p></div><span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-800">Last {funnel.days} days</span></div><div className="mt-4 h-80"><ResponsiveContainer width="100%" height="100%"><BarChart data={funnel.stages} layout="vertical" margin={{ left: 24 }}><CartesianGrid strokeDasharray="3 3"/><XAxis type="number" allowDecimals={false}/><YAxis dataKey="label" type="category" width={145}/><Tooltip formatter={(value) => [value, 'People or visitors']}/><Bar dataKey="value" fill="#2563eb" radius={[0, 6, 6, 0]}/></BarChart></ResponsiveContainer></div><p className="mt-4 rounded-xl bg-blue-50 p-4 text-sm leading-6 text-blue-900"><strong>Privacy boundary:</strong> {funnel.note}</p></section>
+        <ParentJourneyInterpretation funnel={funnel} onOpen={nextTab => setTab(nextTab)}/>
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{funnel.stages.map((stage, index) => <article key={stage.id} className="surface p-5"><div className="flex items-center justify-between gap-3"><span className={`rounded-full px-3 py-1 text-xs font-black ${index < 3 ? 'bg-violet-50 text-violet-700' : 'bg-emerald-50 text-emerald-700'}`}>{index < 3 ? 'Public signal' : 'Signed-in signal'}</span><strong className="text-3xl">{stage.value}</strong></div><h3 className="mt-3 text-lg font-black">{stage.label}</h3><p className="mt-2 text-sm leading-6 text-slate-600">{stage.explanation}</p><p className="mt-3 border-t border-slate-100 pt-3 text-sm font-medium leading-6 text-slate-700"><strong>Interpretation:</strong> {journeyStageMeaning(stage, funnel.stages)}</p></article>)}</section>
+      </>}
     </> : tab === 'health' ? <>
-      <section className="surface flex flex-wrap items-end justify-between gap-4 p-5"><div><h2 className="text-xl font-black"><TermLabel label="Feature success and struggle signals" help="Aggregates whether feature requests succeeded, needed corrected input, or encountered a service problem."/></h2><p className="mt-1 text-sm text-slate-500">Find workflows that are being used successfully and areas that may need clearer guidance or attention.</p></div><label className="text-sm font-bold"><TermLabel label="Reporting period" help="Changes the date range used to calculate this section."/><select className="ml-3 rounded-lg border p-2" value={days} onChange={event => setDays(Number(event.target.value))}><option value={7}>Last 7 days</option><option value={30}>Last 30 days</option><option value={90}>Last 90 days</option></select></label></section>
-      {health && <><section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">{[
-        ['Recorded actions', health.totals.attempts], ['Successful actions', health.totals.successful], ['Needs parent correction', health.totals.clientErrors], ['Service problems', health.totals.serverErrors], ['Assistant gaps to review', health.totals.pendingAssistantKnowledgeGaps],
-      ].map(([label, value]) => <div key={String(label)} className="surface p-5"><p className="text-sm font-bold text-slate-500"><TermLabel label={String(label)}/></p><p className="mt-2 text-3xl font-black">{value}</p></div>)}</section><section className="surface overflow-hidden"><div className="overflow-x-auto"><table className="w-full min-w-[920px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500"><tr><th className="px-4 py-3"><TermLabel label="Feature" help="The Visual Steps area associated with each recorded action."/></th><th className="px-4 py-3"><TermLabel label="Parents" help="Distinct parent accounts that used this feature during the period."/></th><th className="px-4 py-3"><TermLabel label="Actions" help="Total recorded attempts to use this feature."/></th><th className="px-4 py-3"><TermLabel label="Success rate" help={health.definitions.successRate}/></th><th className="px-4 py-3"><TermLabel label="Needs correction" help={health.definitions.clientError}/></th><th className="px-4 py-3"><TermLabel label="Service problems" help={health.definitions.serverError}/></th><th className="px-4 py-3"><TermLabel label="Recovered parents" help={health.definitions.recoveredParent}/></th></tr></thead><tbody className="divide-y divide-slate-100">{health.features.map(feature => <tr key={feature.feature}><td className="px-4 py-3 font-black">{feature.feature}</td><td className="px-4 py-3">{feature.parents}</td><td className="px-4 py-3">{feature.attempts}</td><td className="px-4 py-3"><span className={`rounded-full px-3 py-1 text-xs font-black ${feature.successRate >= 90 ? 'bg-emerald-100 text-emerald-800' : feature.successRate >= 70 ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'}`}>{feature.successRate}%</span></td><td className="px-4 py-3">{feature.clientErrors}</td><td className="px-4 py-3">{feature.serverErrors}</td><td className="px-4 py-3">{feature.recoveredParents}</td></tr>)}{!health.features.length && <tr><td colSpan={7} className="p-8 text-center text-slate-500">No feature activity recorded during this period.</td></tr>}</tbody></table></div></section><section className="surface p-5"><h3 className="text-lg font-black">How to interpret these signals</h3><dl className="mt-4 grid gap-4 md:grid-cols-2 text-sm text-slate-600"><div><dt className="font-black text-slate-800">Success rate</dt><dd>{health.definitions.successRate}</dd></div><div><dt className="font-black text-slate-800">Needs parent correction</dt><dd>{health.definitions.clientError}</dd></div><div><dt className="font-black text-slate-800">Service problem</dt><dd>{health.definitions.serverError}</dd></div><div><dt className="font-black text-slate-800">Recovered parent</dt><dd>{health.definitions.recoveredParent}</dd></div></dl></section></>}
-      {health && <StruggleBreakdown items={health.struggles || []}/>}
+      <section className="surface flex flex-wrap items-end justify-between gap-4 p-5"><div><h2 className="text-xl font-black"><TermLabel label="Feature success and struggle signals" help="Explains the aggregate experience for every feature without exposing family-entered information."/></h2><p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">See what appears to be working, where parents may be struggling, whether they later succeed, and what action is most useful. The interpretation uses aggregate patterns instead of presenting a table of numbers.</p></div><label className="text-sm font-bold"><TermLabel label="Reporting period" help="Changes the date range used for every feature assessment."/><select className="ml-3 rounded-lg border p-2" value={healthDays} onChange={event => setHealthDays(Number(event.target.value))}><option value={1}>Last 24 hours</option><option value={7}>Last 7 days</option><option value={30}>Last 30 days</option><option value={90}>Last 90 days</option></select></label></section>
+      {health && <>
+        <FeatureInterpretation health={health}/>
+        <StruggleBreakdown items={health.struggles || []}/>
+        <section className="surface p-5"><h3 className="text-lg font-black">How assessments are assigned</h3><div className="mt-4 grid gap-4 text-sm leading-6 text-slate-600 md:grid-cols-2"><p><strong className="text-emerald-800">Working smoothly:</strong> enough use has been recorded and requests are completing reliably.</p><p><strong className="text-amber-800">Review recommended:</strong> the feature shows a correction pattern or an occasional service problem worth checking.</p><p><strong className="text-rose-800">Needs attention:</strong> unsuccessful requests form a strong enough pattern to prioritize the workflow.</p><p><strong className="text-slate-700">Too early to judge:</strong> use is still too limited for a dependable conclusion.</p></div></section>
+      </>}
+    </> : tab === 'ai' ? <>
+      <section className="surface flex flex-wrap items-end justify-between gap-4 p-5"><div><h2 className="text-xl font-black"><TermLabel label="AI Use" help="Shows privacy-safe AI request volume, token usage, models, estimated list-price cost, and the Visual Steps features where AI was requested."/></h2><p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">Understand how much AI is used, where it is used, and which requests contribute most to estimated cost. Prompts, responses, and child / adult information are not saved in this report.</p></div><label className="text-sm font-bold"><TermLabel label="Reporting period" help="Changes the date range used for AI request and cost estimates."/><select className="ml-3 rounded-lg border p-2" value={aiDays} onChange={event => setAiDays(Number(event.target.value))}><option value={1}>Last 24 hours</option><option value={7}>Last 7 days</option><option value={30}>Last 30 days</option><option value={90}>Last 90 days</option></select></label></section>
+      {aiUsage && <>
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><article className="surface p-5"><p className="text-sm font-bold text-slate-500">Tracked AI uses</p><p className="mt-2 text-3xl font-black">{aiUsage.totals.requests}</p><p className="mt-2 text-xs text-slate-500">{aiUsage.totals.textRequests} text · {aiUsage.totals.imageRequests} image</p></article><article className="surface p-5"><p className="text-sm font-bold text-slate-500">Estimated total cost</p><p className="mt-2 text-3xl font-black">{formatUsd(aiUsage.totals.estimatedCostUsd)}</p><p className="mt-2 text-xs text-slate-500">Standard paid-tier estimate, not an invoice.</p></article><article className="surface p-5"><p className="text-sm font-bold text-slate-500">Average estimated cost</p><p className="mt-2 text-3xl font-black">{formatUsd(aiUsage.totals.averageCostUsd)}</p><p className="mt-2 text-xs text-slate-500">Average for each tracked AI call.</p></article><article className="surface p-5"><p className="text-sm font-bold text-slate-500">Tokens processed</p><p className="mt-2 text-3xl font-black">{(aiUsage.totals.inputTokens + aiUsage.totals.outputTokens).toLocaleString()}</p><p className="mt-2 text-xs text-slate-500">Input and generated output tokens combined.</p></article></section>
+        <AiUsageInterpretation usage={aiUsage}/>
+        <div className="grid gap-5 xl:grid-cols-2"><section className="surface overflow-hidden"><div className="border-b p-5"><h3 className="text-lg font-black">Use and cost by feature</h3><p className="mt-1 text-sm text-slate-500">Highest estimated cost appears first.</p></div><div className="overflow-x-auto"><table className="w-full min-w-[600px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-4 py-3">Feature</th><th className="px-4 py-3">Uses</th><th className="px-4 py-3">Estimated cost</th><th className="px-4 py-3">Interpretation</th></tr></thead><tbody className="divide-y">{aiUsage.features.map((item, index) => <tr key={item.name}><td className="px-4 py-3 font-black">{item.name}</td><td className="px-4 py-3">{item.requests}</td><td className="px-4 py-3">{formatUsd(item.estimatedCostUsd)}</td><td className="px-4 py-3 text-slate-600">{index === 0 ? 'Largest estimated cost area in this period.' : item.requests > 1 ? 'Repeated AI use; check whether saved results are being reused.' : 'Limited recorded use.'}</td></tr>)}{!aiUsage.features.length && <tr><td colSpan={4} className="p-8 text-center text-slate-500">No tracked AI use during this period.</td></tr>}</tbody></table></div></section><section className="surface overflow-hidden"><div className="border-b p-5"><h3 className="text-lg font-black">Models used</h3><p className="mt-1 text-sm text-slate-500">Useful for understanding whether higher-cost models are necessary.</p></div><div className="overflow-x-auto"><table className="w-full min-w-[520px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-4 py-3">Model</th><th className="px-4 py-3">Uses</th><th className="px-4 py-3">Tokens</th><th className="px-4 py-3">Estimated cost</th></tr></thead><tbody className="divide-y">{aiUsage.models.map(item => <tr key={item.name}><td className="px-4 py-3 font-black">{item.name}</td><td className="px-4 py-3">{item.requests}</td><td className="px-4 py-3">{(item.inputTokens + item.outputTokens).toLocaleString()}</td><td className="px-4 py-3">{formatUsd(item.estimatedCostUsd)}</td></tr>)}</tbody></table></div></section></div>
+        <section className="surface overflow-hidden"><div className="border-b p-5"><h3 className="text-lg font-black">Individual AI uses</h3><p className="mt-1 text-sm text-slate-500">The 100 most recent tracked calls in this period. Content is intentionally excluded.</p></div><div className="max-h-[32rem] overflow-auto"><table className="w-full min-w-[900px] text-left text-sm"><thead className="sticky top-0 bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-4 py-3">Date and time</th><th className="px-4 py-3">Feature</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">Model</th><th className="px-4 py-3">Input tokens</th><th className="px-4 py-3">Output tokens</th><th className="px-4 py-3">Estimated cost</th></tr></thead><tbody className="divide-y">{aiUsage.recent.map(item => <tr key={item.id}><td className="whitespace-nowrap px-4 py-3">{formatAppDateTime(item.occurredAt)}</td><td className="px-4 py-3 font-black">{item.feature}</td><td className="px-4 py-3 capitalize">{item.kind}</td><td className="px-4 py-3">{item.model}</td><td className="px-4 py-3">{item.inputTokens.toLocaleString()}</td><td className="px-4 py-3">{item.outputTokens.toLocaleString()}</td><td className="px-4 py-3 font-black">{formatUsd(item.estimatedCostUsd)}</td></tr>)}</tbody></table></div></section>
+        <section className="surface p-5"><h3 className="text-lg font-black">Understanding the cost estimate</h3><p className="mt-3 max-w-4xl text-sm leading-6 text-slate-600">{aiUsage.pricing.basis} Tracking starts only after this update is deployed, so earlier AI use and cost are not reconstructed.</p><a href={aiUsage.pricing.sourceUrl} target="_blank" rel="noreferrer" className="mt-3 inline-block text-sm font-black text-brand-700 underline underline-offset-4">Review current Gemini API pricing</a></section>
+      </>}
     </> : tab === 'operations' ? <>
       <section className="surface flex flex-wrap items-end justify-between gap-4 p-5"><div><h2 className="text-xl font-black"><TermLabel label="Errors, speed, and alerts" help="Summarizes reliability using response status and duration only, without storing private form content or detailed errors."/></h2><p className="mt-1 text-sm text-slate-500">Monitor application reliability without opening private family information.</p></div><label className="text-sm font-bold"><TermLabel label="Reporting period" help="Changes the date range used to calculate this section."/><select className="ml-3 rounded-lg border p-2" value={days} onChange={event => setDays(Number(event.target.value))}><option value={1}>Last 24 hours</option><option value={7}>Last 7 days</option><option value={30}>Last 30 days</option></select></label></section>
       {operations && <><section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">{[['Recorded requests', operations.totals.requests], ['Average response', `${operations.totals.averageMs} ms`], ['95% completed within', `${operations.totals.p95Ms} ms`], ['Service errors', operations.totals.serverErrors], ['Errors · last 24 hours', operations.totals.serverErrorsLastDay]].map(([label, value]) => <div key={String(label)} className="surface p-5"><p className="text-sm font-bold text-slate-500">{label}</p><p className="mt-2 text-3xl font-black">{value}</p></div>)}</section><section className="surface p-5"><h3 className="text-lg font-black">Administrator alerts</h3>{operations.alerts.length ? <div className="mt-4 space-y-3">{operations.alerts.map((alert, index) => <div key={`${alert.title}-${index}`} className={`rounded-xl border p-4 ${alert.severity === 'high' ? 'border-rose-200 bg-rose-50 text-rose-900' : 'border-amber-200 bg-amber-50 text-amber-900'}`}><strong>{alert.title}</strong><p className="mt-1 text-sm">{alert.detail}</p></div>)}</div> : <p className="mt-3 rounded-xl bg-emerald-50 p-4 text-sm font-bold text-emerald-800">No operational thresholds need attention in this reporting period.</p>}<p className="mt-4 text-xs text-slate-500">{operations.definitions.alert}</p></section><div className="grid gap-5 xl:grid-cols-2"><section className="surface p-6"><h3 className="text-lg font-black">Service errors over time</h3><div className="mt-4 h-64"><ResponsiveContainer width="100%" height="100%"><AreaChart data={operations.dailyErrors}><CartesianGrid strokeDasharray="3 3"/><XAxis dataKey="date" tickFormatter={value => formatAppDate(`${value}T12:00:00Z`, 'UTC')}/><YAxis allowDecimals={false}/><Tooltip/><Area type="monotone" dataKey="errors" stroke="#e11d48" fill="#ffe4e6"/></AreaChart></ResponsiveContainer></div></section><section className="surface p-5"><h3 className="text-lg font-black">Understanding response speed</h3><p className="mt-3 text-sm text-slate-600">{operations.definitions.p95}</p></section></div><section className="surface overflow-hidden"><div className="overflow-x-auto"><table className="w-full min-w-[780px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500"><tr><th className="px-4 py-3">Feature</th><th className="px-4 py-3">Requests</th><th className="px-4 py-3">Average</th><th className="px-4 py-3">95% within</th><th className="px-4 py-3">Service errors</th><th className="px-4 py-3">Error rate</th></tr></thead><tbody className="divide-y divide-slate-100">{operations.features.map(feature => <tr key={feature.feature}><td className="px-4 py-3 font-black">{feature.feature}</td><td className="px-4 py-3">{feature.requests}</td><td className="px-4 py-3">{feature.averageMs} ms</td><td className="px-4 py-3">{feature.p95Ms} ms</td><td className="px-4 py-3">{feature.serverErrors}</td><td className="px-4 py-3">{feature.serverErrorRate}%</td></tr>)}</tbody></table></div></section></>}
@@ -333,7 +602,7 @@ export default function AdminInsights() {
       <section className="surface overflow-hidden"><div className="overflow-x-auto"><table className="w-full min-w-[1460px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500"><tr><th className="px-4 py-3">Parent</th><th className="px-4 py-3">Email</th><th className="px-4 py-3"><TermLabel label="Account created" help="When the authentication account was created. This is the signup time, not proof that an email was delivered."/></th><th className="px-4 py-3"><TermLabel label="Confirmation email requested" help="When Supabase recorded a request to send confirmation. 'No separate email recorded' can mean access was granted immediately or older sending metadata is unavailable."/></th><th className="px-4 py-3"><TermLabel label="Email confirmed" help="When confirmation was completed. A timestamp matching account creation can mean confirmation was automatic and no separate email was required."/></th><th className="px-4 py-3"><TermLabel label="Last successful sign-in" help="The most recent successful authenticated session. This does not mean the person is currently online."/></th><th className="px-4 py-3">Status</th><th className="px-4 py-3"><TermLabel label="What this means" help="A plain-language interpretation based on the authentication dates. Delivery and bounce details still require the email provider’s log."/></th></tr></thead><tbody className="divide-y divide-slate-100">{registrations.map(item => <tr key={item.id} className="align-top"><td className="px-4 py-3 font-black">{item.name || 'Name not provided'}</td><td className="px-4 py-3">{item.email}</td><td className="whitespace-nowrap px-4 py-3">{formatAppDateTime(item.createdAt)}</td><td className="whitespace-nowrap px-4 py-3">{item.confirmationSentAt ? formatAppDateTime(item.confirmationSentAt) : 'No separate email recorded'}</td><td className="whitespace-nowrap px-4 py-3">{item.confirmedAt ? formatAppDateTime(item.confirmedAt) : 'Not confirmed'}</td><td className="whitespace-nowrap px-4 py-3">{item.lastSignInAt ? formatAppDateTime(item.lastSignInAt) : 'Never signed in'}</td><td className="px-4 py-3"><span className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-black ${item.status === 'signed_in' ? 'bg-emerald-100 text-emerald-800' : item.status === 'confirmed_not_signed_in' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>{item.status === 'signed_in' ? 'Has signed in' : item.status === 'confirmed_not_signed_in' ? 'Confirmed · not signed in' : 'Awaiting confirmation'}</span></td><td className="max-w-sm px-4 py-3 leading-6 text-slate-600">{registrationMeaning(item)}</td></tr>)}{!registrations.length && !loading && <tr><td colSpan={8} className="p-8 text-center text-slate-500">No authentication accounts found.</td></tr>}</tbody></table></div><div className="flex flex-wrap items-center justify-between gap-3 border-t p-4"><label className="text-sm">Per page <select className="ml-2 rounded-lg border p-2" value={registrationPageSize} onChange={event => { setRegistrationPageSize(Number(event.target.value)); setRegistrationPage(1); }}><option>10</option><option>20</option><option>50</option></select></label><div className="flex items-center gap-3"><Button size="sm" variant="outline" disabled={registrationPage <= 1} onClick={() => setRegistrationPage(value => value - 1)}><ChevronLeft className="h-4 w-4"/></Button><span className="text-sm font-bold">Page {registrationPage} of {registrationTotalPages} · {registrationTotal} accounts</span><Button size="sm" variant="outline" disabled={registrationPage >= registrationTotalPages} onClick={() => setRegistrationPage(value => value + 1)}><ChevronRight className="h-4 w-4"/></Button></div></div></section>
     </> : <>
       <section className="surface flex flex-wrap items-end justify-between gap-4 p-5"><div><div className="flex items-center gap-2"><h2 className="text-xl font-black">Website traffic</h2><HelpTip text="This section uses privacy-protected, aggregate visits. It does not retain raw IP addresses or connect public browsing to a parent’s family data."/></div><p className="mt-1 max-w-3xl text-sm text-slate-600">Understand how people discover Visual Steps, which public resources they explore, and which device types need the best experience.</p></div><label className="text-sm font-bold"><TermLabel label="Reporting period" help="Changes the date range used to calculate this section."/><select className="ml-3 rounded-lg border p-2" value={days} onChange={event => setDays(Number(event.target.value))}><option value={7}>Last 7 days</option><option value={30}>Last 30 days</option><option value={90}>Last 90 days</option></select></label></section>
-      {traffic && <><div className="grid gap-4 sm:grid-cols-2"><div className="surface p-6"><p className="flex items-center gap-2 text-sm font-bold text-slate-500">Recorded page visits <HelpTip text="The number of privacy-protected page-view records. One visitor may create more than one visit by exploring different pages or returning later."/></p><p className="mt-2 text-4xl font-black">{traffic.totals.views}</p></div><div className="surface p-6"><p className="flex items-center gap-2 text-sm font-bold text-slate-500">Unique visitors <HelpTip text="An approximate count made with short-lived privacy-protected visitor identifiers. It is useful for trends, not identifying a person."/></p><p className="mt-2 text-4xl font-black">{traffic.totals.visitors}</p></div></div><section className="surface p-6"><div className="flex items-center gap-2"><h2 className="text-xl font-black">Visits over time</h2><HelpTip text="Blue shows page visits. Green shows approximate unique visitors during each day."/></div><div className="mt-4 h-72"><ResponsiveContainer width="100%" height="100%"><AreaChart data={traffic.daily}><CartesianGrid strokeDasharray="3 3"/><XAxis dataKey="date" tickFormatter={value => formatAppDate(`${value}T12:00:00Z`, 'UTC')}/><YAxis allowDecimals={false}/><Tooltip/><Area type="monotone" dataKey="views" stroke="#2563eb" fill="#dbeafe"/><Area type="monotone" dataKey="visitors" stroke="#10b981" fill="#d1fae5"/></AreaChart></ResponsiveContainer></div></section><div className="grid gap-5 lg:grid-cols-2"><section className="surface p-5"><div className="flex items-center gap-2"><h3 className="text-lg font-black">Features explored</h3><HelpTip text="Groups public page visits by the Visual Steps feature or information area represented by that page."/></div><div className="mt-4 h-64"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={traffic.features} dataKey="value" nameKey="name" outerRadius={90} label>{traffic.features.map((_, index) => <Cell key={index} fill={colors[index % colors.length]}/>)}</Pie><Tooltip/></PieChart></ResponsiveContainer></div></section><MetricList title="Top pages and resources" data={traffic.pages}/><MetricList title="Visitor countries" data={traffic.countries}/><MetricList title="Visitor regions" data={traffic.regions}/><MetricList title="Referring websites" data={traffic.referrers}/><MetricList title="Device categories" data={traffic.devices}/></div><section className="surface p-5"><h3 className="text-lg font-black">How to use traffic information</h3><div className="mt-3 grid gap-4 text-sm text-slate-600 md:grid-cols-2"><p><strong className="text-slate-800">Pages and features:</strong> identify information people value and areas that may need clearer links or explanations.</p><p><strong className="text-slate-800">Location:</strong> shows broad country and region patterns for accessibility, language, and scheduling decisions.</p><p><strong className="text-slate-800">Referring websites:</strong> shows the website domain that introduced a visitor, without retaining the full referring address.</p><p><strong className="text-slate-800">Devices:</strong> helps prioritize mobile, tablet, and desktop usability improvements.</p></div></section></>}
+      {traffic && <><div className="grid gap-4 sm:grid-cols-2"><div className="surface p-6"><p className="flex items-center gap-2 text-sm font-bold text-slate-500">Recorded page visits <HelpTip text="The number of privacy-protected page-view records. One visitor may create more than one visit by exploring different pages or returning later."/></p><p className="mt-2 text-4xl font-black">{traffic.totals.views}</p></div><div className="surface p-6"><p className="flex items-center gap-2 text-sm font-bold text-slate-500">Unique visitors <HelpTip text="An approximate count made with short-lived privacy-protected visitor identifiers. It is useful for trends, not identifying a person."/></p><p className="mt-2 text-4xl font-black">{traffic.totals.visitors}</p></div></div><section className="surface p-6"><div className="flex items-center gap-2"><h2 className="text-xl font-black">Visits over time</h2><HelpTip text="Blue shows page visits. Green shows approximate unique visitors during each day."/></div><div className="mt-4 h-72"><ResponsiveContainer width="100%" height="100%"><AreaChart data={traffic.daily}><CartesianGrid strokeDasharray="3 3"/><XAxis dataKey="date" tickFormatter={value => formatAppDate(`${value}T12:00:00Z`, 'UTC')}/><YAxis allowDecimals={false}/><Tooltip/><Area type="monotone" dataKey="views" stroke="#2563eb" fill="#dbeafe"/><Area type="monotone" dataKey="visitors" stroke="#10b981" fill="#d1fae5"/></AreaChart></ResponsiveContainer></div></section><div className="grid gap-5 lg:grid-cols-2"><MetricList title="Features explored" data={traffic.features}/><MetricList title="Top pages and resources" data={traffic.pages}/><PieBreakdown title="Visitor countries" data={traffic.countries} help="Shows the proportional distribution of recorded visitors by country. Unknown means location information was unavailable."/><PieBreakdown title="Visitor regions" data={traffic.regions} help="Shows the proportional distribution of recorded visitors by broad region. It does not reveal a precise address."/><MetricList title="Referring websites" data={traffic.referrers}/><MetricList title="Device categories" data={traffic.devices}/></div><section className="surface p-5"><h3 className="text-lg font-black">How to use traffic information</h3><div className="mt-3 grid gap-4 text-sm text-slate-600 md:grid-cols-2"><p><strong className="text-slate-800">Pages and features:</strong> identify information people value and areas that may need clearer links or explanations.</p><p><strong className="text-slate-800">Location:</strong> shows broad country and region patterns for accessibility, language, and scheduling decisions.</p><p><strong className="text-slate-800">Referring websites:</strong> shows the website domain that introduced a visitor, without retaining the full referring address.</p><p><strong className="text-slate-800">Devices:</strong> helps prioritize mobile, tablet, and desktop usability improvements.</p></div></section></>}
     </>}
     {loading && <p className="text-center text-sm font-bold text-slate-500">Loading administrator insights…</p>}
   </div></div>;
