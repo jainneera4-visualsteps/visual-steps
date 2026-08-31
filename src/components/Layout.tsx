@@ -106,6 +106,7 @@ export function Layout() {
     else if (path === '/login' || path === '/') title = 'Login | Visual Steps';
     else if (path === '/signup') title = 'Sign Up | Visual Steps';
     else if (path === '/forgot-password') title = 'Forgot Password | Visual Steps';
+    else if (path === '/auth/confirmed') title = 'Email Verified | Visual Steps';
     else if (path === '/about') title = 'About | Visual Steps';
     else if (path === '/pricing') title = 'Plans & Pricing | Visual Steps';
     else if (path === '/demo' || path === '/guest') title = 'Guest Login | Visual Steps';

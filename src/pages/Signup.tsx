@@ -6,7 +6,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../components/Card';
-import { AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react';
+import { AlertCircle, CheckCircle, Eye, EyeOff, MailCheck } from 'lucide-react';
 
 export default function Signup() {
   const [name, setName] = useState('');
@@ -15,9 +15,9 @@ export default function Signup() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [welcomeEmailSent, setWelcomeEmailSent] = useState<boolean | null>(null);
   const [createdAccountEmail, setCreatedAccountEmail] = useState('');
   const [signupCreatedSession, setSignupCreatedSession] = useState(false);
+  const [resendMessage, setResendMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [legalAccepted, setLegalAccepted] = useState(false);
   const signupInProgressRef = useRef(false);
@@ -34,7 +34,7 @@ export default function Signup() {
     e.preventDefault();
     setError('');
     setSuccess('');
-    setWelcomeEmailSent(null);
+    setResendMessage('');
     setCreatedAccountEmail('');
     setIsLoading(true);
     signupInProgressRef.current = true;
@@ -45,46 +45,72 @@ export default function Signup() {
         email: normalizedEmail,
         password,
         options: {
+          emailRedirectTo: `${window.location.origin}/auth/confirmed`,
           data: {
-            name,
+            name: name.trim(),
+            privacyAccepted: legalAccepted,
+            termsAccepted: legalAccepted,
+            legalVersion: '2026-08-25',
           },
         },
       });
 
       if (error) throw error;
 
-      if (data.user) {
-        // Create profile in custom users table
-        const res = await apiFetch('/api/auth/create-profile', {
+      // Email-confirmed registrations do not have a session yet. Their parent
+      // profile is created only after the confirmation link proves ownership
+      // of the address. Auto-confirmed development projects can finish here.
+      if (data.user && data.session) {
+        const res = await apiFetch('/api/auth/complete-registration', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: data.user.id,
-            email: normalizedEmail,
-            name,
-            privacyAccepted: legalAccepted,
-            termsAccepted: legalAccepted,
-          }),
         });
 
         const profileResult = await res.json();
         if (!res.ok) {
           throw new Error(profileResult.error || 'Failed to create profile');
         }
-        setWelcomeEmailSent(profileResult.emailSent === true);
       }
 
       setSignupCreatedSession(Boolean(data.session));
       setCreatedAccountEmail(normalizedEmail);
       setSuccess(data.session
-        ? 'Your account was created successfully.'
-        : 'Your account was created successfully. Confirm your email before signing in.');
+        ? 'Your account is ready. You can continue to your dashboard.'
+        : 'Open the verification message we sent and select Confirm Email before signing in.');
     } catch (err: any) {
       signupInProgressRef.current = false;
       setError(err.message);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleResendConfirmation = async () => {
+    setError('');
+    setResendMessage('');
+    setIsLoading(true);
+    try {
+      const { error: resendError } = await supabase.auth.resend({
+        type: 'signup',
+        email: createdAccountEmail,
+        options: { emailRedirectTo: `${window.location.origin}/auth/confirmed` },
+      });
+      if (resendError) throw resendError;
+      setResendMessage('A new verification message was requested. Check your inbox and spam folder.');
+    } catch (resendError: any) {
+      setError(resendError.message || 'The verification message could not be resent. Please wait a moment and try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUseDifferentEmail = async () => {
+    await supabase.auth.signOut({ scope: 'local' });
+    signupInProgressRef.current = false;
+    setSuccess('');
+    setCreatedAccountEmail('');
+    setSignupCreatedSession(false);
+    setResendMessage('');
+    setPassword('');
   };
 
   const handleContinue = async () => {
@@ -114,24 +140,30 @@ export default function Signup() {
         <CardContent className="pb-3 px-5">
           {success ? (
             <div className="space-y-4 py-4 text-center">
-              <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
+              {signupCreatedSession
+                ? <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
+                : <MailCheck className="mx-auto h-12 w-12 text-blue-600" />}
               <div>
-                <p className="text-lg font-bold text-slate-900">Account created!</p>
+                <p className="text-lg font-bold text-slate-900">{signupCreatedSession ? 'Account ready' : 'Verify your email'}</p>
                 <p className="mt-1 text-sm text-slate-600">{success}</p>
               </div>
-              <div className={`rounded-md p-3 text-sm ${welcomeEmailSent ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-800'}`}>
-                {welcomeEmailSent
-                  ? <>A welcome email was sent to <strong>{createdAccountEmail}</strong>.</>
-                  : <>Your account is ready, but the welcome email to <strong>{createdAccountEmail}</strong> could not be sent. You can resend it later from Profile.</>}
-              </div>
-              <Button
+              {!signupCreatedSession && <div className="rounded-md bg-blue-50 p-3 text-sm text-blue-800">
+                Verification was requested for <strong>{createdAccountEmail}</strong>. Receiving this message can take a few minutes.
+              </div>}
+              {resendMessage && <div className="rounded-md bg-green-50 p-3 text-sm text-green-700">{resendMessage}</div>}
+              {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+              {signupCreatedSession && <Button
                 type="button"
                 className="w-full"
                 onClick={handleContinue}
                 isLoading={isLoading}
               >
-                {signupCreatedSession ? 'Continue to Dashboard' : 'Continue to Sign In'}
-              </Button>
+                Continue to Dashboard
+              </Button>}
+              {!signupCreatedSession && <div className="grid gap-2 sm:grid-cols-2">
+                <Button type="button" variant="outline" onClick={handleResendConfirmation} isLoading={isLoading}>Resend verification</Button>
+                <Button type="button" variant="outline" onClick={handleUseDifferentEmail}>Use a different email</Button>
+              </div>}
             </div>
           ) : (
           <form onSubmit={handleSubmit} className="space-y-2.5">
@@ -167,6 +199,7 @@ export default function Signup() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              minLength={6}
               className="h-8 text-sm"
               rightElement={
                 <button
@@ -182,6 +215,7 @@ export default function Signup() {
                 </button>
               }
             />
+            <p className="text-[11px] leading-4 text-slate-500">Use at least 6 characters. A longer, unique password is safer.</p>
             <label className="flex items-start gap-2 rounded-lg bg-slate-50 p-2 text-[11px] leading-5 text-slate-600">
               <input type="checkbox" className="mt-1" checked={legalAccepted} onChange={event => setLegalAccepted(event.target.checked)} required />
               <span>I agree to the <Link to="/terms" target="_blank" rel="noopener noreferrer" className="font-bold text-blue-700 underline">Terms of Service</Link> and acknowledge the <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="font-bold text-blue-700 underline">Privacy Policy</Link>.</span>

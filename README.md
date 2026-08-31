@@ -101,6 +101,18 @@ vercel.json          Vercel build and rewrite configuration
 
 The development command runs `server.ts`; Express serves the API and delegates frontend development assets to Vite.
 
+### Authentication email configuration
+
+Visual Steps requires parents to verify control of their email address before signing in. Configure Supabase Auth to keep email signup enabled, disable automatic confirmation, and prevent unverified email sign-ins. Supabase dashboard labels can vary by release; when the confirmation control is not visible, use the Supabase Management API fields `mailer_autoconfirm=false` and `mailer_allow_unverified_email_sign_ins=false`.
+
+Configure a production Custom SMTP provider before enforcing confirmation. Supabase Auth sends signup-verification and password-recovery messages; the application sends its welcome message only once, after the verified parent signs in successfully.
+
+Add these allowed authentication redirects:
+
+- Production confirmation: `https://visual-steps-six.vercel.app/auth/confirmed`.
+- Production recovery: `https://visual-steps-six.vercel.app/forgot-password?mode=recovery`.
+- Matching localhost URLs while testing locally.
+
 ### Password recovery configuration
 
 Parent password recovery uses Supabase Auth email links instead of security questions. In Supabase, open **Authentication → URL Configuration** and configure:
@@ -109,7 +121,7 @@ Parent password recovery uses Supabase Auth email links instead of security ques
 - Redirect URL: `https://visual-steps-six.vercel.app/forgot-password?mode=recovery`.
 - Local redirect URL: `http://localhost:3000/forgot-password?mode=recovery` while testing locally.
 
-Supabase sends the reset-link email, so configure Supabase Auth SMTP for reliable production delivery. The application SMTP variables continue to send Visual Steps welcome and password-change confirmation messages.
+Supabase sends the reset-link email, so configure Supabase Auth SMTP for reliable production delivery. The application SMTP variables send the post-verification welcome message and password-change confirmation messages.
 
 ## Environment variables
 

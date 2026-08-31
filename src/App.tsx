@@ -7,6 +7,7 @@ import { KidProtectedRoute } from './components/KidProtectedRoute';
 import Home from './pages/Home';
 import Signup from './pages/Signup';
 import ForgotPassword from './pages/ForgotPassword';
+import EmailConfirmed from './pages/EmailConfirmed';
 import Dashboard from './pages/Dashboard';
 import ProgressReport from './pages/ProgressReport';
 import SummaryReport from './pages/SummaryReport';
@@ -53,6 +54,7 @@ export default function App() {
             <Route path="login" element={<Home />} />
             <Route path="signup" element={<Signup />} />
             <Route path="forgot-password" element={<ForgotPassword />} />
+            <Route path="auth/confirmed" element={<EmailConfirmed />} />
             <Route path="about" element={<About />} />
             <Route path="pricing" element={<Pricing />} />
             <Route path="demo" element={<GuestDemo />} />

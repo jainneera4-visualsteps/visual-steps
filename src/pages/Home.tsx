@@ -35,6 +35,8 @@ export default function Home() {
   const [isInitialLoading] = useState(false);
 
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [unconfirmedEmail, setUnconfirmedEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [publicLinks, setPublicLinks] = useState<{ facebook?: string; instagram?: string }>({});
   const { user } = useAuth();
@@ -49,6 +51,9 @@ export default function Home() {
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
+    if (params.get('email-confirmed') === 'true') {
+      setNotice('Your email has been confirmed. You can now sign in.');
+    }
     if (params.get('mode') === 'kid') {
       setLoginMode('kid');
       // Clear any stale kid session when entering kid mode
@@ -66,6 +71,8 @@ export default function Home() {
   const handleParentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setNotice('');
+    setUnconfirmedEmail('');
     setIsLoading(true);
 
     try {
@@ -83,7 +90,36 @@ export default function Home() {
       // state effect above performs the navigation once the protected route is
       // ready, avoiding a redirect race back to the login page.
     } catch (err: any) {
-      setError(err.message);
+      const message = String(err.message || 'Unable to sign in');
+      if (message.toLowerCase().includes('email not confirmed')) {
+        setUnconfirmedEmail(email.trim().toLowerCase());
+        setError('Please verify your email before signing in. Check your inbox and spam folder.');
+      } else if (message.toLowerCase().includes('invalid login credentials')) {
+        setError('The email or password is incorrect. Check both entries and try again.');
+      } else if (message.toLowerCase().includes('rate limit')) {
+        setError('Too many sign-in attempts. Please wait a few minutes and try again.');
+      } else {
+        setError(message);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const resendSignupConfirmation = async () => {
+    setError('');
+    setNotice('');
+    setIsLoading(true);
+    try {
+      const { error: resendError } = await supabase.auth.resend({
+        type: 'signup',
+        email: unconfirmedEmail,
+        options: { emailRedirectTo: `${window.location.origin}/auth/confirmed` },
+      });
+      if (resendError) throw resendError;
+      setNotice('A new verification message was requested. Check your inbox and spam folder.');
+    } catch (resendError: any) {
+      setError(resendError.message || 'Unable to resend the verification message.');
     } finally {
       setIsLoading(false);
     }
@@ -201,6 +237,7 @@ export default function Home() {
                       {error}
                     </div>
                   )}
+                  {notice && <div className="mb-4 flex items-start gap-2 rounded bg-green-50 p-2 text-xs text-green-700"><Mail className="mt-0.5 h-3.5 w-3.5 shrink-0" />{notice}</div>}
 
                   {loginMode === 'parent' ? (
                     <form onSubmit={handleParentSubmit} className="space-y-4">
@@ -242,6 +279,7 @@ export default function Home() {
                       <Button type="submit" size="sm" className="w-full h-10 text-sm font-bold uppercase tracking-wider" isLoading={isLoading}>
                         Sign In
                       </Button>
+                      {unconfirmedEmail && <Button type="button" variant="outline" size="sm" className="w-full" onClick={resendSignupConfirmation} isLoading={isLoading}>Resend verification email</Button>}
                       <div className="text-center pt-2">
                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
                           No account?{' '}

@@ -35,6 +35,7 @@ CREATE TABLE public.users (
     privacy_accepted_at TIMESTAMP WITH TIME ZONE,
     terms_accepted_at TIMESTAMP WITH TIME ZONE,
     legal_version TEXT,
+    welcome_email_sent_at TIMESTAMP WITH TIME ZONE,
     onboarding_completed BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );

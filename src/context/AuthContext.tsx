@@ -94,7 +94,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await clearAuthSession();
           return;
         }
-        if (data) setUser(data);
+        if (data) {
+          setUser(data);
+        }
       } else {
         setUser(null);
       }

@@ -2306,6 +2306,59 @@ app.get('/api/admin/parents', authenticateToken, requireAppAdmin, async (req, re
   res.json({ items: (data || []).map((parent: any) => ({ ...parent, is_admin: adminIds.has(parent.id) })), total: count || 0, page, pageSize });
 });
 
+app.get('/api/admin/registration-status', authenticateToken, requireAppAdmin, async (req, res) => {
+  const page = Math.max(1, Number.parseInt(String(req.query.page || '1'), 10) || 1);
+  const pageSize = Math.min(50, Math.max(10, Number.parseInt(String(req.query.pageSize || '10'), 10) || 10));
+  const search = String(req.query.search || '').trim().toLowerCase().slice(0, 120);
+  const admin = getAdminSupabaseClient();
+
+  try {
+    const authUsers: any[] = [];
+    for (let authPage = 1; authPage <= 10; authPage += 1) {
+      const { data, error } = await admin.auth.admin.listUsers({ page: authPage, perPage: 1000 });
+      if (error) throw error;
+      const batch = data?.users || [];
+      authUsers.push(...batch);
+      if (batch.length < 1000) break;
+    }
+
+    const filtered = authUsers.filter(user => {
+      if (!search) return true;
+      const email = String(user.email || '').toLowerCase();
+      const name = String(user.user_metadata?.name || '').toLowerCase();
+      return email.includes(search) || name.includes(search);
+    });
+    const from = (page - 1) * pageSize;
+    const pageUsers = filtered.slice(from, from + pageSize);
+    const ids = pageUsers.map(user => user.id);
+    const { data: profiles, error: profileError } = ids.length
+      ? await admin.from('users').select('id,name').in('id', ids)
+      : { data: [] as any[], error: null };
+    if (profileError) throw profileError;
+    const profilesById = new Map((profiles || []).map((profile: any) => [profile.id, profile]));
+
+    const items = pageUsers.map(user => {
+      const confirmedAt = user.email_confirmed_at || user.confirmed_at || null;
+      const profile = profilesById.get(user.id) as any;
+      return {
+        id: user.id,
+        email: user.email || '',
+        name: profile?.name || user.user_metadata?.name || null,
+        createdAt: user.created_at,
+        confirmationSentAt: user.confirmation_sent_at || null,
+        confirmedAt,
+        lastSignInAt: user.last_sign_in_at || null,
+        profileCreated: Boolean(profile),
+        status: !confirmedAt ? 'awaiting_confirmation' : user.last_sign_in_at ? 'signed_in' : 'confirmed_not_signed_in',
+      };
+    });
+    return res.json({ items, total: filtered.length, page, pageSize, limited: authUsers.length >= 10000 });
+  } catch (error) {
+    console.error('Unable to load registration status:', error);
+    return res.status(500).json({ error: 'Unable to load registration status' });
+  }
+});
+
 app.get('/api/admin/parents/:userId', authenticateToken, requireAppAdmin, async (req, res) => {
   const admin = getAdminSupabaseClient();
   const { data: parent, error } = await admin.from('users').select('id,email,name,created_at,membership_status,membership_cancelled_at,membership_cancelled_reason').eq('id', req.params.userId).maybeSingle();
@@ -2702,14 +2755,106 @@ app.post('/api/auth/create-profile', async (req: any, res) => {
     
     console.log('Profile created successfully for id:', id);
     
-    // Complete the SMTP attempt before returning. Serverless runtimes may stop
-    // background work as soon as the response has been sent.
-    const emailSent = await sendWelcomeEmail(normalizedEmail, name);
-
-    res.status(201).json({ message: 'Profile created', emailSent });
+    // The welcome message is intentionally delayed until the address has been
+    // confirmed and the parent completes a successful authenticated sign-in.
+    res.status(201).json({ message: 'Profile created' });
   } catch (error: any) {
     console.error('Unexpected profile creation error:', error);
     res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+const sendWelcomeEmailOnce = async (userId: string) => {
+  const supabaseAdmin = getAdminSupabaseClient();
+  const { data: profile, error: profileError } = await supabaseAdmin
+    .from('users')
+    .select('email, name, welcome_email_sent_at')
+    .eq('id', userId)
+    .single();
+
+  if (profileError || !profile) throw new Error('Parent profile not found');
+  if (profile.welcome_email_sent_at) return { emailSent: true, alreadySent: true };
+
+  // Reserve delivery before invoking SMTP so simultaneous session/profile
+  // refreshes cannot send duplicate welcome messages.
+  const reservedAt = new Date().toISOString();
+  const { data: reservedRows, error: reserveError } = await supabaseAdmin
+    .from('users')
+    .update({ welcome_email_sent_at: reservedAt })
+    .eq('id', userId)
+    .is('welcome_email_sent_at', null)
+    .select('id');
+  if (reserveError) throw new Error('Welcome email status could not be updated');
+  if (!reservedRows?.length) return { emailSent: true, alreadySent: true };
+
+  const emailSent = await sendWelcomeEmail(profile.email, profile.name);
+  if (!emailSent) {
+    await supabaseAdmin.from('users').update({ welcome_email_sent_at: null }).eq('id', userId).eq('welcome_email_sent_at', reservedAt);
+    throw new Error('Welcome email could not be sent');
+  }
+  return { emailSent: true, alreadySent: false };
+};
+
+// Finish registration only after Supabase has verified ownership of the email.
+// The authenticated user ID and email come from the verified token, never from
+// a client-provided profile ID.
+app.post('/api/auth/complete-registration', authenticateToken, async (req: any, res) => {
+  try {
+    const supabaseAdmin = getAdminSupabaseClient();
+    const { data: authResult, error: authError } = await supabaseAdmin.auth.getUser(req.token);
+    const authUser = authResult?.user;
+    if (authError || !authUser?.id || !authUser.email) {
+      return res.status(401).json({ error: 'Your verified session could not be confirmed. Please open the verification link again.' });
+    }
+    if (!authUser.email_confirmed_at) {
+      return res.status(403).json({ error: 'Confirm your email before completing registration.' });
+    }
+
+    const metadata = authUser.user_metadata || {};
+    if (metadata.privacyAccepted !== true || metadata.termsAccepted !== true) {
+      return res.status(400).json({ error: 'Privacy Policy and Terms acceptance was not recorded. Please create the account again.' });
+    }
+
+    const normalizedEmail = authUser.email.trim().toLowerCase();
+    const safeName = String(metadata.name || normalizedEmail.split('@')[0]).trim().slice(0, 120);
+    const acceptedAt = new Date().toISOString();
+    const { data: existingProfile, error: existingError } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .eq('id', authUser.id)
+      .maybeSingle();
+    if (existingError) throw existingError;
+
+    if (!existingProfile) {
+      const { error: insertError } = await supabaseAdmin.from('users').insert({
+        id: authUser.id,
+        email: normalizedEmail,
+        name: safeName,
+        privacy_accepted_at: acceptedAt,
+        terms_accepted_at: acceptedAt,
+        legal_version: String(metadata.legalVersion || '2026-08-25'),
+      });
+      if (insertError && insertError.code !== '23505') throw insertError;
+    }
+
+    const welcomeResult = await sendWelcomeEmailOnce(authUser.id);
+    return res.status(existingProfile ? 200 : 201).json({ profileCreated: !existingProfile, ...welcomeResult });
+  } catch (error: any) {
+    console.error('Verified registration completion error:', error);
+    const welcomeFailed = String(error?.message || '').includes('Welcome email');
+    return res.status(welcomeFailed ? 502 : 500).json({
+      error: welcomeFailed ? 'Your account is verified, but the welcome email could not be sent yet.' : 'Your verified account could not be prepared yet.',
+    });
+  }
+});
+
+// Send the welcome message once for an already-created parent profile.
+app.post('/api/auth/send-welcome-email', authenticateToken, async (req: any, res) => {
+  try {
+    return res.json(await sendWelcomeEmailOnce(req.user.id));
+  } catch (error: any) {
+    const notFound = error?.message === 'Parent profile not found';
+    return res.status(notFound ? 404 : 502).json({ error: error?.message || 'Welcome email could not be sent' });
   }
 });
 
