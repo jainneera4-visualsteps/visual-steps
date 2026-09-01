@@ -9,6 +9,7 @@ import { Input } from '../components/Input';
 import { Textarea } from '../components/Textarea';
 import { ArrowLeft, Sparkles, Save, Plus, Minus, Trash2, Image as ImageIcon, Loader2, Volume2, Square, HelpCircle } from 'lucide-react';
 import { Tooltip } from '../components/ui/Tooltip';
+import { LearningMaterialAllowance, formatAllowanceReset, useLearningMaterialAllowance } from '../components/LearningMaterialAllowance';
 
 interface StoryPage {
   text: string;
@@ -47,6 +48,7 @@ export default function CreateSocialStory() {
   const [language, setLanguage] = useState('English');
   const [sentencesPerParagraph, setSentencesPerParagraph] = useState(2);
   const [kids, setKids] = useState<any[]>([]);
+  const { allowance: learningAllowance, setAllowance: setLearningAllowance, loading: isLearningAllowanceLoading } = useLearningMaterialAllowance();
   const [narratorSettings, setNarratorSettings] = useState({
     voice: '',
     rate: 1.0,
@@ -341,6 +343,10 @@ export default function CreateSocialStory() {
 
   const generateStory = async () => {
     if (!prompt) return;
+    if (learningAllowance?.remaining === 0) {
+      alert(`Today’s AI learning-material allowance has been used. You can create another quiz, worksheet, or social story ${formatAllowanceReset(learningAllowance.resetsAt)}.`);
+      return;
+    }
     setIsGenerating(true);
 
     const withRetry = async <T,>(fn: () => Promise<T>, retries = 3, delay = 2000): Promise<T> => {
@@ -348,6 +354,7 @@ export default function CreateSocialStory() {
         return await fn();
       } catch (error: any) {
         const errString = error instanceof Error ? error.message : (typeof error === 'string' ? error : JSON.stringify(error));
+        if (error?.allowance || errString.toLowerCase().includes('learning-material allowance')) throw error;
         if (errString.toLowerCase().includes('quota') || errString.toLowerCase().includes('billing')) {
           throw new Error('The creation service is temporarily unavailable or today’s allowance has been reached. Please try again later.');
         }
@@ -377,6 +384,8 @@ export default function CreateSocialStory() {
 
         return await generateContent({
           model: modelNames.flash,
+          generationPurpose: 'social_story',
+          onAllowance: setLearningAllowance,
           prompt: `You are a Technical Illustrator and Social Story Creator. Create a social story about: ${prompt}. ${kidContext}
         CRITICAL: The entire story (title, page content, quiz questions, options, and explanations) MUST be written strictly in ${language}. 
         The story should be written in the second person, as if a narrator is talking directly to the child.
@@ -448,6 +457,7 @@ export default function CreateSocialStory() {
       }
     } catch (error: any) {
       console.error('Failed to generate story', error);
+      if (error?.allowance) setLearningAllowance(error.allowance);
       if (isAuthError(error)) return; // Auth utility handles this
       
       const errorMessage = error.message || "Unknown error";
@@ -574,6 +584,7 @@ export default function CreateSocialStory() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 space-y-4">
+            {!isEditing && <LearningMaterialAllowance allowance={learningAllowance} loading={isLearningAllowanceLoading} />}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               <div className="space-y-1.5">
                 <div className="flex items-center gap-1">
@@ -707,16 +718,18 @@ export default function CreateSocialStory() {
                   rows={3}
                 />
                 {!isEditing && (
-                  <div className="flex justify-end">
+                  <div className="space-y-3">
+                    <div className="flex justify-end">
                     <Button 
                       size="sm"
                       onClick={generateStory} 
-                      disabled={isGenerating || !prompt}
+                      disabled={isGenerating || !prompt || learningAllowance?.remaining === 0}
                       className="font-bold"
                     >
                       {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
                       {t('Generate Story')}
                     </Button>
+                    </div>
                   </div>
                 )}
                 {!isEditing && pages.length > 0 && pages[0].text && (

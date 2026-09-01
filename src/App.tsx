@@ -33,6 +33,7 @@ import Contact from './pages/Contact';
 import Newsletter from './pages/Newsletter';
 import NewsletterAdmin from './pages/NewsletterAdmin';
 import AdminInsights from './pages/AdminInsights';
+import SupportInbox from './pages/SupportInbox';
 import FeatureDetail from './pages/FeatureDetail';
 import DataManagement from './pages/DataManagement';
 import Legal from './pages/Legal';
@@ -92,6 +93,7 @@ export default function App() {
               <Route path="activity-library" element={<ActivityLibrary />} />
               <Route path="newsletter-admin" element={<NewsletterAdmin />} />
               <Route path="admin/insights" element={<AdminInsights />} />
+              <Route path="admin/support" element={<SupportInbox />} />
             </Route>
             <Route path="social-stories/view/:id" element={<ViewSocialStory />} />
             <Route path="social-stories/shared/:shareToken" element={<ViewSocialStory />} />

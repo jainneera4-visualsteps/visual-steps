@@ -9,6 +9,7 @@ import { Input } from '../components/Input';
 import { ArrowLeft, Printer, Sparkles, Loader2, FileText, CheckCircle2, Save, Lightbulb, HelpCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Tooltip } from '../components/ui/Tooltip';
+import { LearningMaterialAllowance, formatAllowanceReset, useLearningMaterialAllowance } from '../components/LearningMaterialAllowance';
 
 const AutoResizeTextarea = ({ value, onChange, className, placeholder }: any) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -90,6 +91,7 @@ export default function WorksheetGenerator() {
   const [kidProfile, setKidProfile] = useState<any>(null);
   const [generatingImageUrl, setGeneratingImageUrl] = useState<string | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
+  const { allowance: learningAllowance, setAllowance: setLearningAllowance, loading: isLearningAllowanceLoading } = useLearningMaterialAllowance();
 
   const generateImageForSection = async (sIdx: number) => {
     if (!worksheet) return;
@@ -280,6 +282,14 @@ export default function WorksheetGenerator() {
 
   const handleGenerate = async () => {
     if (!topic.trim()) return;
+    if (learningAllowance?.remaining === 0) {
+      alert(`Today’s AI learning-material allowance has been used. You can create another quiz, worksheet, or social story ${formatAllowanceReset(learningAllowance.resetsAt)}.`);
+      return;
+    }
+    if (learningAllowance && learningAllowance.remaining < numWorksheets) {
+      alert(`You requested ${numWorksheets} worksheets, but only ${learningAllowance.remaining} learning-material creation${learningAllowance.remaining === 1 ? '' : 's'} remain today. Choose ${learningAllowance.remaining} or fewer, or try again ${formatAllowanceReset(learningAllowance.resetsAt)}.`);
+      return;
+    }
 
     setIsGenerating(true);
     setGeneratedWorksheets([]);
@@ -292,6 +302,7 @@ export default function WorksheetGenerator() {
         return await fn();
       } catch (error: any) {
         const errString = error instanceof Error ? error.message : (typeof error === 'string' ? error : JSON.stringify(error));
+        if (error?.allowance || errString.toLowerCase().includes('learning-material allowance')) throw error;
         if (errString.toLowerCase().includes('quota') || errString.toLowerCase().includes('billing')) {
           throw new Error('The creation service is temporarily unavailable or today’s allowance has been reached. Please try again later.');
         }
@@ -459,14 +470,19 @@ export default function WorksheetGenerator() {
             try {
               response = await generateContent({
                 model: modelNames.flash,
+                generationPurpose: 'worksheet',
+                onAllowance: setLearningAllowance,
                 prompt: promptContent,
                 responseMimeType: "application/json"
               });
             } catch (err: any) {
+              if (err?.allowance) throw err;
               console.warn("Retrying without JSON mode due to error:", err.message);
               // Fallback to regular text mode if JSON mode fails (some models/regions have issues)
               response = await generateContent({
                 model: modelNames.flash,
+                generationPurpose: 'worksheet',
+                onAllowance: setLearningAllowance,
                 prompt: promptContent + "\n\nIMPORTANT: Return ONLY valid JSON."
               });
             }
@@ -584,6 +600,7 @@ export default function WorksheetGenerator() {
 
     } catch (error: any) {
       console.error('Failed to generate worksheets:', error);
+      if (error?.allowance) setLearningAllowance(error.allowance);
       if (isAuthError(error)) return; // Auth utility handles this
       
       const errorMessage = typeof error === 'string' ? error : (error.message || "Unknown error");
@@ -802,6 +819,7 @@ export default function WorksheetGenerator() {
       {showGenerator && !isViewingSaved && (
         <Card className="no-print border-none ring-1 ring-slate-200 shadow-sm">
           <CardContent className="p-4 space-y-4">
+            <LearningMaterialAllowance allowance={learningAllowance} loading={isLearningAllowanceLoading} />
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <div className="space-y-1.5 text-left">
                 <div className="flex items-center gap-1">
@@ -907,7 +925,7 @@ export default function WorksheetGenerator() {
                 size="sm"
                 className="px-6 h-9 font-bold" 
                 onClick={handleGenerate}
-                disabled={isGenerating || !topic.trim()}
+                disabled={isGenerating || !topic.trim() || learningAllowance?.remaining === 0}
               >
                 {isGenerating ? (
                   <>

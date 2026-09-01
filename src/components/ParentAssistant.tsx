@@ -306,6 +306,7 @@ export function ParentAssistant({ publicMode = false }: { publicMode?: boolean }
               <span>{isAllowanceLoading ? 'Checking today’s allowance…' : allowance ? `${allowance.remaining} of ${allowance.dailyLimit} questions left today` : 'Daily allowance unavailable'}</span>
               {allowance?.resetsAt && <span className="font-semibold opacity-75">Resets {new Date(allowance.resetsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>}
             </div>}
+            {!publicMode && <p className="mb-2 px-1 text-[11px] leading-4 text-slate-500">Conversation history is kept only for the current assistant day. At 7:00 AM, it is cleared and earlier conversations are not stored.</p>}
             <div className="flex items-end gap-2 rounded-2xl border border-slate-300 bg-white p-2 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100">
               <textarea
                 ref={inputRef}

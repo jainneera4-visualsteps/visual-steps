@@ -121,6 +121,7 @@ export function Layout() {
     else if (path === '/newsletter') title = 'Weekly Newsletter | Visual Steps';
     else if (path === '/newsletter-admin') title = 'Newsletter Administration | Visual Steps';
     else if (path === '/admin/insights') title = 'Administrator Insights | Visual Steps';
+    else if (path === '/admin/support') title = 'Support Inbox | Visual Steps';
     else if (path.startsWith('/features/')) title = 'Feature Guide | Visual Steps';
 
     document.title = title;
@@ -318,6 +319,7 @@ export function Layout() {
               <button onMouseEnter={() => setIsAdminOpen(true)} onMouseLeave={() => setIsAdminOpen(false)} onClick={() => setIsAdminOpen(value => !value)} className={`flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-semibold transition-all hover:bg-slate-100 ${location.pathname.startsWith('/admin') || location.pathname === '/newsletter-admin' ? 'bg-violet-50 text-violet-700' : 'text-slate-600'}`} aria-expanded={isAdminOpen}><ShieldCheck size={16}/> Admin <ChevronDown size={14} className={isAdminOpen ? 'rotate-180' : ''}/></button>
               {isAdminOpen && <div onMouseEnter={() => setIsAdminOpen(true)} onMouseLeave={() => setIsAdminOpen(false)} className="app-menu absolute right-0 z-[60] mt-0 w-56">
                 <Link to="/admin/insights" className="app-menu-item" onClick={() => setIsAdminOpen(false)}><BarChart3 size={18} className="text-blue-600"/> Insights</Link>
+                <Link to="/admin/support" className="app-menu-item" onClick={() => setIsAdminOpen(false)}><Mail size={18} className="text-emerald-600"/> Support Inbox</Link>
                 <Link to="/newsletter-admin" className="app-menu-item" onClick={() => setIsAdminOpen(false)}><Settings size={18} className="text-violet-600"/> Manage newsletter</Link>
               </div>}
             </div>}
@@ -412,7 +414,7 @@ export function Layout() {
                     <Link to="/newsletter/community" className="text-[11px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Share with community</Link>
                     <Link to="/newsletter/subscribe" className="text-[11px] font-bold text-blue-700 uppercase" onClick={() => setIsMenuOpen(false)}>Subscribe</Link>
                   </div>
-                  {isNewsletterAdmin && <div className="flex flex-col gap-1.5 border-l-2 border-violet-100 pl-2"><span className="text-[11px] font-bold uppercase tracking-wider text-violet-700">Admin</span><Link to="/admin/insights" className="text-[11px] font-bold uppercase text-slate-600" onClick={() => setIsMenuOpen(false)}>Insights</Link><Link to="/newsletter-admin" className="text-[11px] font-bold uppercase text-slate-600" onClick={() => setIsMenuOpen(false)}>Manage newsletter</Link></div>}
+                  {isNewsletterAdmin && <div className="flex flex-col gap-1.5 border-l-2 border-violet-100 pl-2"><span className="text-[11px] font-bold uppercase tracking-wider text-violet-700">Admin</span><Link to="/admin/insights" className="text-[11px] font-bold uppercase text-slate-600" onClick={() => setIsMenuOpen(false)}>Insights</Link><Link to="/admin/support" className="text-[11px] font-bold uppercase text-slate-600" onClick={() => setIsMenuOpen(false)}>Support Inbox</Link><Link to="/newsletter-admin" className="text-[11px] font-bold uppercase text-slate-600" onClick={() => setIsMenuOpen(false)}>Manage newsletter</Link></div>}
                   <Link to="/contact" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Contact</Link>
                 </>
               ) : (

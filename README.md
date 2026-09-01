@@ -123,6 +123,10 @@ Parent password recovery uses Supabase Auth email links instead of security ques
 
 Supabase sends the reset-link email, so configure Supabase Auth SMTP for reliable production delivery. The application SMTP variables send the post-verification welcome message and password-change confirmation messages.
 
+### Support Inbox
+
+Contact-page submissions are stored in `support_messages` before the application attempts its administrator notification email. Approved administrators can open **Admin → Support Inbox** to review unread, open, and resolved conversations, reply by email, and retain the latest reply with the support record. Run `database_updates/2026-09-02_support_inbox.sql` before deploying this feature. The inbox uses the server-side Supabase service role and is never available to browser clients directly.
+
 ## Environment variables
 
 | Variable | Required | Purpose |
@@ -137,7 +141,8 @@ Supabase sends the reset-link email, so configure Supabase Auth SMTP for reliabl
 | `JWT_SECRET` | Yes in production | Signs child-session tokens; the development fallback is not production-safe |
 | `APP_URL` | Deployment-dependent | Public application URL used in generated links and emails; production uses `https://visual-steps-six.vercel.app` |
 | `FACEBOOK_URL`, `INSTAGRAM_URL` | Optional | Public social-profile links shown in newsletters when configured |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Optional | Email delivery |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Optional | Transactional email, Contact notifications, and Support Inbox replies |
+| `CONTACT_TO_EMAIL` | Optional | Administrator address receiving Contact-page notification emails |
 
 See `.env.example` for the complete template.
 
@@ -236,7 +241,7 @@ This section is generated from `feature-registry.json`. Update the registry when
 | Parent activity verification | starter | 2026-08-20 | — | Choose which activities require parent approval before rewards are earned. |
 | Positive behavior bonuses | starter | 2026-08-20 | — | Parents can recognize a specific calm, focused, helpful, or persistent behavior. |
 | Personalized, fair quizzes | starter | 2026-08-20 | 2026-08-24 | Quiz creation now connects every quiz to a measurable learning objective, lets parents privately try it as the learner, controls illustration use, and turns completed answers into practical planning guidance. |
-| Curated learning samples | starter | 2026-08-21 | 2026-08-27 | The sample quiz, worksheet, and social story now mirror the current family-created viewing experience while keeping the same dependable example content. |
+| Curated learning samples | starter | 2026-08-21 | 2026-09-02 | Parents can see one shared daily allowance for AI-created quizzes, worksheets, and social stories, with the exact local time when creation becomes available again. |
 | Replayable parent tour | starter | 2026-08-20 | 2026-08-27 | Parent and guest tours now include current feature guidance from the shared Visual Steps catalog. |
 | Visual Steps Parent Assistant | family | 2026-08-20 | 2026-09-01 | The assistant keeps the current day’s conversation until 7:00 AM, offers Copy and Listen controls, and can search current venue information when a parent plans an outing for their child or adult learner. |
 | Controlled social-story sharing | family | 2026-08-19 | — | Share one social story using a private link that can expire or be revoked. |
@@ -249,6 +254,7 @@ This section is generated from `feature-registry.json`. Update the registry when
 
 | Updated | Feature | Improvement | Family-facing summary |
 | --- | --- | --- | --- |
+| 2026-09-02 | Curated learning samples | Predictable allowance for AI learning materials | Parents can see one shared daily allowance for AI-created quizzes, worksheets, and social stories, with the exact local time when creation becomes available again. |
 | 2026-09-01 | Visual Steps Parent Assistant | Daily Parent Assistant history and outing planning | The assistant keeps the current day’s conversation until 7:00 AM, offers Copy and Listen controls, and can search current venue information when a parent plans an outing for their child or adult learner. |
 | 2026-08-31 | Clear visual activities | Learner-chosen additional activities | Parents can mark a normal activity as optional so it becomes a choice after today’s assigned activities are finished. |
 | 2026-08-27 | Replayable parent tour | Guidance that stays current across the app | Parent and guest tours now include current feature guidance from the shared Visual Steps catalog. |

@@ -14,7 +14,16 @@ type GenerateContentOptions = {
   responseMimeType?: string;
   responseSchema?: unknown;
   tools?: unknown[];
+  generationPurpose?: 'quiz' | 'worksheet' | 'social_story';
+  onAllowance?: (allowance: GenerationAllowance) => void;
 };
+
+export interface GenerationAllowance {
+  used: number;
+  remaining: number;
+  dailyLimit: number;
+  resetsAt: string;
+}
 
 const requestGeneration = async (body: Record<string, unknown>) => {
   const response = await apiFetch('/api/generate', {
@@ -25,17 +34,22 @@ const requestGeneration = async (body: Record<string, unknown>) => {
   const data = await safeJson(response);
 
   if (!response.ok) {
-    throw new Error(data?.error || 'AI generation failed');
+    const error = new Error(data?.error || 'AI generation failed') as Error & { allowance?: GenerationAllowance };
+    if (data?.allowance) error.allowance = data.allowance;
+    throw error;
   }
 
   return data;
 };
 
 export const generateContent = async (options: GenerateContentOptions) => {
-  return requestGeneration({
+  const data = await requestGeneration({
     ...options,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York',
     model: options.model || modelNames.flash,
   });
+  if (data?.allowance && options.onAllowance) options.onAllowance(data.allowance as GenerationAllowance);
+  return data;
 };
 
 export interface ImageGenerationAllowance {

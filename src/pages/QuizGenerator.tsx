@@ -12,6 +12,7 @@ import { ArrowLeft, Sparkles, Loader2, Gamepad2, Save, CheckCircle2, HelpCircle,
 import { Tooltip } from '../components/ui/Tooltip';
 import { buildQuizGenerationPrompt, clampQuizQuestionCount, reviewQuizQuestions, type QuizLearnerProfile } from '../utils/quizGeneration';
 import { LearnerQuizPreview } from '../components/LearnerQuizPreview';
+import { LearningMaterialAllowance, formatAllowanceReset, useLearningMaterialAllowance } from '../components/LearningMaterialAllowance';
 
 interface QuizContent {
   title: string;
@@ -64,6 +65,7 @@ export default function QuizGenerator() {
   const [isKidProfileLoading, setIsKidProfileLoading] = useState(false);
   const [kidProfileError, setKidProfileError] = useState('');
   const [imageAllowance, setImageAllowance] = useState<ImageGenerationAllowance | null>(null);
+  const { allowance: learningAllowance, setAllowance: setLearningAllowance, loading: isLearningAllowanceLoading } = useLearningMaterialAllowance();
 
   const refreshImageAllowance = async () => {
     try {
@@ -145,6 +147,10 @@ export default function QuizGenerator() {
   }, [selectedKidId]);
 
   const handleGenerate = async () => {
+    if (learningAllowance?.remaining === 0) {
+      alert(`Today’s AI learning-material allowance has been used. You can create another quiz, worksheet, or social story ${formatAllowanceReset(learningAllowance.resetsAt)}.`);
+      return;
+    }
     if (!selectedKidId) {
       alert('Please select the child / adult profile this quiz is for.');
       return;
@@ -185,6 +191,7 @@ export default function QuizGenerator() {
         return await fn();
       } catch (error: any) {
         const errString = error instanceof Error ? error.message : (typeof error === 'string' ? error : JSON.stringify(error));
+        if (error?.allowance || errString.toLowerCase().includes('learning-material allowance')) throw error;
         if (errString.toLowerCase().includes('quota') || errString.toLowerCase().includes('billing')) {
           throw new Error('The creation service is temporarily unavailable or today’s allowance has been reached. Please try again later.');
         }
@@ -201,6 +208,8 @@ export default function QuizGenerator() {
       const response = await withRetry(async () => {
         return await generateContent({
           model: modelNames.flash,
+          generationPurpose: 'quiz',
+          onAllowance: setLearningAllowance,
           prompt: buildQuizGenerationPrompt({
             topic,
             learningObjective,
@@ -272,6 +281,7 @@ export default function QuizGenerator() {
       }
     } catch (error: any) {
       console.error('Failed to generate quiz:', error);
+      if (error?.allowance) setLearningAllowance(error.allowance);
       if (isAuthError(error)) return; // Auth utility handles this
       
       const errorMessage = error.message || "Unknown error";
@@ -456,6 +466,7 @@ export default function QuizGenerator() {
 
       <Card className="border-none ring-1 ring-slate-200 shadow-sm">
         <CardContent className="p-5 space-y-5">
+          <LearningMaterialAllowance allowance={learningAllowance} loading={isLearningAllowanceLoading} />
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <div className="space-y-1.5 text-left">
               <div className="flex items-center gap-1">
@@ -625,7 +636,7 @@ export default function QuizGenerator() {
               size="sm"
               className="px-6 h-10 font-bold"
               onClick={handleGenerate}
-              disabled={isGenerating}
+              disabled={isGenerating || learningAllowance?.remaining === 0}
             >
               {isGenerating ? (
                 <>

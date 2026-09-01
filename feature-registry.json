@@ -121,6 +121,14 @@
         "summary": "The sample quiz, worksheet, and social story now mirror the current family-created viewing experience while keeping the same dependable example content.",
         "details": "Families can inspect the sample quiz in the current learner question layout, move through the social story page by page, and open or print the worksheet using the current resource presentation. The examples keep their familiar topics so returning visitors can compare the experience without learning new sample content. Each sample remains available to signed-in parents and guests. Opening one does not save a family record or reduce a creation allowance.",
         "familyImpact": "Current, realistic samples help parents and caregivers understand exactly how a learning resource will appear to a child / adult before they create or assign their own material."
+      },
+      {
+        "updatedOn": "2026-09-02",
+        "title": "Predictable allowance for AI learning materials",
+        "summary": "Parents can see one shared daily allowance for AI-created quizzes, worksheets, and social stories, with the exact local time when creation becomes available again.",
+        "details": "Each newly generated quiz, worksheet, or social story uses one of ten shared daily learning-material creations. The creation pages show what remains before a parent starts, prevent a multi-worksheet request that would exceed the remaining total, and give the exact retry time when the allowance is finished. The allowance begins a fresh day at 7:00 AM in the parent’s local timezone. Illustrations continue to use their separate daily illustration allowance, while opening samples, editing, reviewing, saving, printing, and assigning existing material do not use a learning-material creation.",
+        "familyImpact": "A visible shared total helps families plan personalized learning support without unexpected failures, while a clear retry time removes uncertainty when the daily allowance has been used.",
+        "help": "Open Quiz Generator, Worksheet Generator, or Create Social Story to see the shared AI learning-material allowance. Generate a material to use one creation; if none remain, the page shows the exact time creation becomes available again."
       }
     ],
     "plan": "starter",
@@ -173,7 +181,7 @@
         "updatedOn": "2026-09-01",
         "title": "Daily Parent Assistant history and outing planning",
         "summary": "The assistant keeps the current day’s conversation until 7:00 AM, offers Copy and Listen controls, and can search current venue information when a parent plans an outing for their child or adult learner.",
-        "details": "Signed-in parents can close and reopen the assistant without losing the current assistant-day conversation. History and the daily question allowance begin a fresh day at 7:00 AM in the parent’s local timezone. Each assistant response can be copied or read aloud. When a parent asks about activities at a named cruise, museum, park, resort, attraction, or destination, the assistant may use Google Search grounding, relate confirmed offerings to the family’s Visual Steps context, show sources, and remind the parent to verify changing schedules, eligibility, accessibility, prices, and reservations.",
+        "details": "Signed-in parents can close and reopen the assistant without losing the current assistant-day conversation. History and the daily question allowance begin a fresh day at 7:00 AM in the parent’s local timezone; conversations from earlier assistant days are not retained. Each assistant response can be copied or read aloud. When a parent asks about activities at a named cruise, museum, park, resort, attraction, or destination, the assistant may use Google Search grounding, relate confirmed offerings to the family’s Visual Steps context, show sources, and remind the parent to verify changing schedules, eligibility, accessibility, prices, and reservations.",
         "familyImpact": "Families can continue a planning conversation throughout the day, listen when reading is inconvenient, and prepare more confidently for activities away from home without turning the assistant into an unrestricted general chatbot.",
         "help": "Open Parent Assistant from the Parent Dashboard. Ask a Visual Steps question or name a destination and ask what activities may suit the selected child / adult. Use Copy or Listen below a response; today’s history starts fresh at 7:00 AM."
       }

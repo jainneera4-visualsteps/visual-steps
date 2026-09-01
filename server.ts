@@ -209,6 +209,14 @@ const productFeatureRegistry = [
         "summary": "The sample quiz, worksheet, and social story now mirror the current family-created viewing experience while keeping the same dependable example content.",
         "details": "Families can inspect the sample quiz in the current learner question layout, move through the social story page by page, and open or print the worksheet using the current resource presentation. The examples keep their familiar topics so returning visitors can compare the experience without learning new sample content. Each sample remains available to signed-in parents and guests. Opening one does not save a family record or reduce a creation allowance.",
         "familyImpact": "Current, realistic samples help parents and caregivers understand exactly how a learning resource will appear to a child / adult before they create or assign their own material."
+      },
+      {
+        "updatedOn": "2026-09-02",
+        "title": "Predictable allowance for AI learning materials",
+        "summary": "Parents can see one shared daily allowance for AI-created quizzes, worksheets, and social stories, with the exact local time when creation becomes available again.",
+        "details": "Each newly generated quiz, worksheet, or social story uses one of ten shared daily learning-material creations. The creation pages show what remains before a parent starts, prevent a multi-worksheet request that would exceed the remaining total, and give the exact retry time when the allowance is finished. The allowance begins a fresh day at 7:00 AM in the parent’s local timezone. Illustrations continue to use their separate daily illustration allowance, while opening samples, editing, reviewing, saving, printing, and assigning existing material do not use a learning-material creation.",
+        "familyImpact": "A visible shared total helps families plan personalized learning support without unexpected failures, while a clear retry time removes uncertainty when the daily allowance has been used.",
+        "help": "Open Quiz Generator, Worksheet Generator, or Create Social Story to see the shared AI learning-material allowance. Generate a material to use one creation; if none remain, the page shows the exact time creation becomes available again."
       }
     ],
     "plan": "starter",
@@ -292,7 +300,7 @@ const productFeatureRegistry = [
         "updatedOn": "2026-09-01",
         "title": "Daily Parent Assistant history and outing planning",
         "summary": "The assistant keeps the current day’s conversation until 7:00 AM, offers Copy and Listen controls, and can search current venue information when a parent plans an outing for their child or adult learner.",
-        "details": "Signed-in parents can close and reopen the assistant without losing the current assistant-day conversation. History and the daily question allowance begin a fresh day at 7:00 AM in the parent’s local timezone. Each assistant response can be copied or read aloud. When a parent asks about activities at a named cruise, museum, park, resort, attraction, or destination, the assistant may use Google Search grounding, relate confirmed offerings to the family’s Visual Steps context, show sources, and remind the parent to verify changing schedules, eligibility, accessibility, prices, and reservations.",
+        "details": "Signed-in parents can close and reopen the assistant without losing the current assistant-day conversation. History and the daily question allowance begin a fresh day at 7:00 AM in the parent’s local timezone; conversations from earlier assistant days are not retained. Each assistant response can be copied or read aloud. When a parent asks about activities at a named cruise, museum, park, resort, attraction, or destination, the assistant may use Google Search grounding, relate confirmed offerings to the family’s Visual Steps context, show sources, and remind the parent to verify changing schedules, eligibility, accessibility, prices, and reservations.",
         "familyImpact": "Families can continue a planning conversation throughout the day, listen when reading is inconvenient, and prepare more confidently for activities away from home without turning the assistant into an unrestricted general chatbot.",
         "help": "Open Parent Assistant from the Parent Dashboard. Ask a Visual Steps question or name a destination and ask what activities may suit the selected child / adult. Use Copy or Listen below a response; today’s history starts fresh at 7:00 AM."
       }
@@ -1957,9 +1965,22 @@ app.post('/api/contact', async (req, res) => {
   if (subject.length < 3 || subject.length > 150) return res.status(400).json({ error: 'Enter a subject using 3–150 characters.' });
   if (message.length < 10 || message.length > 3000) return res.status(400).json({ error: 'Enter a message using 10–3,000 characters.' });
 
+  if (!supabaseServiceKey) return res.status(503).json({ error: 'Contact support is temporarily unavailable. Please try again later.' });
+  const supportAdmin = getAdminSupabaseClient();
+  const { data: storedMessage, error: storeError } = await supportAdmin.from('support_messages').insert({
+    sender_name: name,
+    sender_email: email,
+    subject,
+    message,
+  }).select('id').single();
+  if (storeError || !storedMessage) {
+    console.error('Contact inbox storage failed:', storeError);
+    return res.status(503).json({ error: 'Contact support is temporarily unavailable. Please try again later.' });
+  }
+
   try {
     const transporter = await getTransporter();
-    if (!transporter) return res.status(503).json({ error: 'Contact email is temporarily unavailable. Please try again later.' });
+    if (!transporter) throw new Error('SMTP transporter unavailable');
     const smtpFrom = cleanEnvVar('SMTP_FROM') || cleanEnvVar('SMTP_USER');
     const contactTo = cleanEnvVar('CONTACT_TO_EMAIL') || cleanEnvVar('SMTP_USER') || 'visualstepsautism@gmail.com';
     if (!smtpFrom) return res.status(503).json({ error: 'Contact email is temporarily unavailable. Please try again later.' });
@@ -1972,10 +1993,68 @@ app.post('/api/contact', async (req, res) => {
       text: `A visitor sent a message through the Visual Steps Contact page.\n\nName: ${name}\nReply email: ${email}\nSubject: ${subject}\n\nMessage:\n${message}`,
       html: `<div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;line-height:1.6;color:#1f2937"><h1 style="color:#176b87;font-size:24px">Visual Steps contact message</h1><p><strong>From:</strong> ${escapeEmailHtml(name)} &lt;${escapeEmailHtml(email)}&gt;</p><p><strong>Subject:</strong> ${escapeEmailHtml(subject)}</p><div style="margin-top:20px;padding:18px;border-radius:10px;background:#f8fafc;white-space:pre-wrap">${escapeEmailHtml(message)}</div><p style="margin-top:20px;color:#64748b;font-size:13px">Reply to this email to respond directly to the visitor.</p></div>`,
     });
+    await supportAdmin.from('support_messages').update({ email_delivery_status: 'sent', updated_at: new Date().toISOString() }).eq('id', storedMessage.id);
     return res.status(202).json({ message: 'Your message was sent to Visual Steps.' });
   } catch (error) {
     console.error('Contact email failed:', getSafeSmtpError(error));
-    return res.status(502).json({ error: 'We could not send your message right now. Please try again shortly.' });
+    await supportAdmin.from('support_messages').update({
+      email_delivery_status: 'failed',
+      email_delivery_error: JSON.stringify(getSafeSmtpError(error)).slice(0, 300),
+      updated_at: new Date().toISOString(),
+    }).eq('id', storedMessage.id);
+    return res.status(202).json({ message: 'Visual Steps received your message in Support Inbox.' });
+  }
+});
+
+app.get('/api/admin/support-messages', authenticateToken, requireAppAdmin, async (req, res) => {
+  const status = ['unread', 'open', 'resolved'].includes(String(req.query.status)) ? String(req.query.status) : '';
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const pageSize = Math.min(50, Math.max(10, Number(req.query.pageSize) || 20));
+  const admin = getAdminSupabaseClient();
+  let query = admin.from('support_messages').select('id,sender_name,sender_email,subject,message,status,email_delivery_status,admin_reply,replied_at,read_at,resolved_at,created_at,updated_at', { count: 'exact' });
+  if (status) query = query.eq('status', status);
+  const { data, error, count } = await query.order('created_at', { ascending: false }).range((page - 1) * pageSize, page * pageSize - 1);
+  if (error) return res.status(500).json({ error: 'Unable to load Support Inbox' });
+  res.json({ items: data || [], total: count || 0, page, pageSize });
+});
+
+app.patch('/api/admin/support-messages/:id', authenticateToken, requireAppAdmin, async (req, res) => {
+  const status = String(req.body?.status || '');
+  if (!['open', 'resolved'].includes(status)) return res.status(400).json({ error: 'Choose Open or Resolved' });
+  const now = new Date().toISOString();
+  const updates = status === 'resolved'
+    ? { status, read_at: now, resolved_at: now, updated_at: now }
+    : { status, read_at: now, resolved_at: null, updated_at: now };
+  const { data, error } = await getAdminSupabaseClient().from('support_messages').update(updates).eq('id', req.params.id).select().single();
+  if (error) return res.status(500).json({ error: 'Unable to update the support message' });
+  res.json({ item: data });
+});
+
+app.post('/api/admin/support-messages/:id/reply', authenticateToken, requireAppAdmin, async (req: any, res) => {
+  const reply = String(req.body?.reply || '').trim();
+  if (reply.length < 2 || reply.length > 5000) return res.status(400).json({ error: 'Enter a reply using 2–5,000 characters' });
+  const admin = getAdminSupabaseClient();
+  const { data: messageRow, error: loadError } = await admin.from('support_messages').select('*').eq('id', req.params.id).single();
+  if (loadError || !messageRow) return res.status(404).json({ error: 'Support message not found' });
+  try {
+    const transporter = await getTransporter();
+    const smtpFrom = cleanEnvVar('SMTP_FROM') || cleanEnvVar('SMTP_USER');
+    if (!transporter || !smtpFrom) return res.status(503).json({ error: 'Reply email is temporarily unavailable' });
+    await transporter.sendMail({
+      from: smtpFrom,
+      to: { name: messageRow.sender_name, address: messageRow.sender_email },
+      replyTo: cleanEnvVar('CONTACT_TO_EMAIL') || cleanEnvVar('SMTP_USER') || undefined,
+      subject: `Re: ${messageRow.subject}`,
+      text: `Hello ${messageRow.sender_name},\n\n${reply}\n\nVisual Steps Support`,
+      html: `<div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;line-height:1.6;color:#1f2937"><p>Hello ${escapeEmailHtml(messageRow.sender_name)},</p><div style="white-space:pre-wrap">${escapeEmailHtml(reply)}</div><p style="margin-top:24px">Visual Steps Support</p></div>`,
+    });
+    const now = new Date().toISOString();
+    const { data, error } = await admin.from('support_messages').update({ admin_reply: reply, replied_at: now, replied_by: req.user.id, status: 'resolved', read_at: messageRow.read_at || now, resolved_at: now, updated_at: now }).eq('id', req.params.id).select().single();
+    if (error) return res.status(500).json({ error: 'The reply was sent, but the inbox could not be updated' });
+    res.json({ item: data, message: 'Reply sent and conversation resolved.' });
+  } catch (error) {
+    console.error('Support reply failed:', getSafeSmtpError(error));
+    res.status(502).json({ error: 'The reply could not be sent right now' });
   }
 });
 
@@ -6997,6 +7076,9 @@ app.get('/api/parent-assistant/usage', authenticateToken, async (req: any, res) 
     const supabase = getSupabaseForUser(req);
     const timezone = parentAssistantTimezone(req.query.timezone);
     const usageDate = parentAssistantUsageDate(timezone);
+    const { error: expiredHistoryError } = await supabase.from('parent_ai_messages')
+      .delete().eq('user_id', req.user.id).lt('usage_date', usageDate);
+    if (expiredHistoryError) throw expiredHistoryError;
     const { data, error } = await supabase
       .from('parent_ai_usage')
       .select('question_count')
@@ -7093,6 +7175,9 @@ app.post('/api/parent-assistant', authenticateToken, async (req: any, res) => {
     }
 
     const usageDate = allowanceRow?.usage_date || parentAssistantUsageDate(timezone);
+    const { error: expiredHistoryError } = await supabase.from('parent_ai_messages')
+      .delete().eq('user_id', userId).lt('usage_date', usageDate);
+    if (expiredHistoryError) throw expiredHistoryError;
     const { data: kids, error: kidsError } = await supabase
       .from('kids')
       .select('id, name, dob, grade_level, hobbies, interests, strengths, weaknesses, sensory_issues, behavioral_issues, therapies, reward_type, reward_balance, timezone, created_at')
@@ -7192,6 +7277,31 @@ app.post('/api/parent-assistant', authenticateToken, async (req: any, res) => {
 });
 
 // --- AI Generation API ---
+const LEARNING_MATERIAL_DAILY_LIMIT = 10;
+const buildLearningMaterialAllowance = (usedValue: unknown, resetsAt: string) => {
+  const used = Math.max(0, Math.min(LEARNING_MATERIAL_DAILY_LIMIT, Number(usedValue) || 0));
+  return { used, remaining: LEARNING_MATERIAL_DAILY_LIMIT - used, dailyLimit: LEARNING_MATERIAL_DAILY_LIMIT, resetsAt };
+};
+
+const formatLearningMaterialReset = (resetsAt: string, timezone: string) => new Intl.DateTimeFormat('en-US', {
+  timeZone: timezone, weekday: 'long', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+}).format(new Date(resetsAt));
+
+app.get('/api/learning-material-generation/usage', authenticateToken, async (req: any, res) => {
+  if (req.user.role !== 'parent') return res.status(403).json({ error: 'Parent access required' });
+  try {
+    const timezone = parentAssistantTimezone(req.query.timezone);
+    const usageDate = parentAssistantUsageDate(timezone);
+    const { data, error } = await getSupabaseForUser(req).from('parent_learning_material_usage')
+      .select('material_count').eq('user_id', req.user.id).eq('usage_date', usageDate).maybeSingle();
+    if (error) throw error;
+    res.json({ allowance: buildLearningMaterialAllowance(data?.material_count, parentAssistantResetAt(timezone)) });
+  } catch (error) {
+    console.error('Failed to load learning material allowance:', error);
+    res.status(500).json({ error: 'Unable to load the learning-material allowance' });
+  }
+});
+
 const IMAGE_GENERATION_DAILY_LIMIT = 10;
 export const buildImageGenerationAllowance = (usedValue: unknown, now = new Date()) => {
   const used = Math.max(0, Math.min(IMAGE_GENERATION_DAILY_LIMIT, Number(usedValue) || 0));
@@ -7251,6 +7361,7 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
     const apiKey = (cleanEnvVar('GEMINI_API_KEY') || cleanEnvVar('GOOGLE_API_KEY')).trim();
     let finalModelName = 'gemini-3-flash-preview';
     let imageAllowance: Awaited<ReturnType<ImageAllowanceConsumer>> | null = null;
+    let learningAllowance: ReturnType<typeof buildLearningMaterialAllowance> | null = null;
     
     try {
     if (!apiKey || apiKey === 'undefined' || apiKey === 'null' || apiKey.length < 10) {
@@ -7263,6 +7374,29 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
       return res.status(400).json({ error: 'Unsupported AI model requested' });
     }
     finalModelName = modelNameInput;
+
+    const learningPurpose = ['quiz', 'worksheet', 'social_story'].includes(req.body?.generationPurpose)
+      ? req.body.generationPurpose
+      : '';
+    if (learningPurpose) {
+      if (req.user.role !== 'parent') return res.status(403).json({ error: 'Parent access required' });
+      const timezone = parentAssistantTimezone(req.body?.timezone);
+      const { data, error } = await getSupabaseForUser(req).rpc('consume_parent_learning_material_allowance', { timezone_param: timezone });
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      learningAllowance = {
+        used: Number(row?.used) || LEARNING_MATERIAL_DAILY_LIMIT,
+        remaining: Math.max(0, Number(row?.remaining) || 0),
+        dailyLimit: Number(row?.daily_limit) || LEARNING_MATERIAL_DAILY_LIMIT,
+        resetsAt: row?.resets_at || parentAssistantResetAt(timezone),
+      };
+      if (row?.allowed !== true) {
+        return res.status(429).json({
+          error: `Today’s AI learning-material allowance has been used. You can create another quiz, worksheet, or social story after ${formatLearningMaterialReset(learningAllowance.resetsAt, timezone)}.`,
+          allowance: learningAllowance,
+        });
+      }
+    }
 
     if (finalModelName.includes('image')) {
       imageAllowance = await imageAllowanceConsumer(req);
@@ -7321,7 +7455,7 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
       return res.status(502).json({ error: 'AI image response did not contain image data' });
     }
 
-    res.json({ text, ...(imageAllowance ? { allowance: imageAllowance } : {}) });
+    res.json({ text, ...(imageAllowance ? { allowance: imageAllowance } : {}), ...(learningAllowance ? { allowance: learningAllowance } : {}) });
 
   } catch (error: any) {
     console.error('[AI Generation] SDK Exception:', error);
@@ -7363,6 +7497,7 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
     res.status(errorStatus).json({ 
       error: errorMessage,
       message: errorMessage,
+      ...(learningAllowance ? { allowance: learningAllowance } : {}),
     });
   }
 });
