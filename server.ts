@@ -2511,9 +2511,35 @@ app.get('/api/admin/parents', authenticateToken, requireAppAdmin, async (req, re
   const { data, error, count } = await query.order('created_at', { ascending: false }).range(from, from + pageSize - 1);
   if (error) return res.status(500).json({ error: 'Unable to load parent accounts' });
   const ids = (data || []).map((parent: any) => parent.id);
-  const { data: admins } = ids.length ? await admin.from('app_admins').select('user_id').in('user_id', ids) : { data: [] as any[] };
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
+  const [{ data: admins }, { data: accountEvents }] = ids.length ? await Promise.all([
+    admin.from('app_admins').select('user_id').in('user_id', ids),
+    admin.from('parent_activity_events').select('user_id,feature,occurred_at').in('user_id', ids).order('occurred_at', { ascending: false }).limit(10000),
+  ]) : [{ data: [] as any[] }, { data: [] as any[] }];
   const adminIds = new Set((admins || []).map((row: any) => row.user_id));
-  res.json({ items: (data || []).map((parent: any) => ({ ...parent, is_admin: adminIds.has(parent.id) })), total: count || 0, page, pageSize });
+  const activityByParent = new Map<string, { lastAccessedAt: string; recentFeature: string; actionsThirtyDays: number; activeDaysThirtyDays: Set<string> }>();
+  (accountEvents || []).forEach((event: any) => {
+    const current = activityByParent.get(event.user_id) || { lastAccessedAt: event.occurred_at, recentFeature: event.feature, actionsThirtyDays: 0, activeDaysThirtyDays: new Set<string>() };
+    if (event.occurred_at >= thirtyDaysAgo) {
+      current.actionsThirtyDays += 1;
+      current.activeDaysThirtyDays.add(String(event.occurred_at).slice(0, 10));
+    }
+    activityByParent.set(event.user_id, current);
+  });
+  res.json({
+    items: (data || []).map((parent: any) => {
+      const activity = activityByParent.get(parent.id);
+      return {
+        ...parent,
+        is_admin: adminIds.has(parent.id),
+        last_accessed_at: activity?.lastAccessedAt || null,
+        recent_feature: activity?.recentFeature || null,
+        actions_thirty_days: activity?.actionsThirtyDays || 0,
+        active_days_thirty_days: activity?.activeDaysThirtyDays.size || 0,
+      };
+    }),
+    total: count || 0, page, pageSize,
+  });
 });
 
 app.get('/api/admin/registration-status', authenticateToken, requireAppAdmin, async (req, res) => {
@@ -2574,14 +2600,35 @@ app.get('/api/admin/parents/:userId', authenticateToken, requireAppAdmin, async 
   const { data: parent, error } = await admin.from('users').select('id,email,name,created_at,membership_status,membership_cancelled_at,membership_cancelled_reason').eq('id', req.params.userId).maybeSingle();
   if (error || !parent) return res.status(404).json({ error: 'Parent account not found' });
   const [{ data: events }, { data: adminRow }, { data: audit }] = await Promise.all([
-    admin.from('parent_activity_events').select('id,feature,action,route_template,occurred_at').eq('user_id', parent.id).order('occurred_at', { ascending: false }).limit(250),
+    admin.from('parent_activity_events').select('id,feature,action,route_template,workflow_step,outcome,response_status,reason_code,occurred_at').eq('user_id', parent.id).order('occurred_at', { ascending: false }).limit(1000),
     admin.from('app_admins').select('user_id').eq('user_id', parent.id).maybeSingle(),
     admin.from('admin_audit_events').select('action,reason,occurred_at').eq('target_user_id', parent.id).order('occurred_at', { ascending: false }).limit(30),
   ]);
   const featureCounts = new Map<string, number>();
   (events || []).forEach((event: any) => featureCounts.set(event.feature, (featureCounts.get(event.feature) || 0) + 1));
   const features = [...featureCounts.entries()].map(([feature, count]) => ({ feature, count })).sort((a, b) => b.count - a.count);
-  res.json({ parent: { ...parent, is_admin: Boolean(adminRow) }, events: events || [], features, audit: audit || [] });
+  const eventRows = events || [];
+  const activeDays = new Set(eventRows.map((event: any) => String(event.occurred_at).slice(0, 10))).size;
+  const successfulActions = eventRows.filter((event: any) => event.outcome === 'success').length;
+  const needsCorrection = eventRows.filter((event: any) => event.outcome === 'client_error').length;
+  const serviceProblems = eventRows.filter((event: any) => event.outcome === 'server_error').length;
+  res.json({
+    parent: { ...parent, is_admin: Boolean(adminRow) },
+    events: eventRows.slice(0, 100),
+    features,
+    audit: audit || [],
+    activitySummary: {
+      recordedActions: eventRows.length,
+      successfulActions,
+      needsCorrection,
+      serviceProblems,
+      activeDays,
+      featuresUsed: features.length,
+      lastAccessedAt: eventRows[0]?.occurred_at || null,
+      firstRecordedAt: eventRows[eventRows.length - 1]?.occurred_at || null,
+      dataLimitNote: eventRows.length >= 1000 ? 'Summary uses the 1,000 most recent privacy-safe actions.' : 'Summary uses all retained privacy-safe actions for this account.',
+    },
+  });
 });
 
 app.get('/api/admin/overview', authenticateToken, requireAppAdmin, async (_req, res) => {
