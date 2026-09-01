@@ -2805,9 +2805,10 @@ app.get('/api/admin/feature-health', authenticateToken, requireAppAdmin, async (
 app.get('/api/admin/ai-usage', authenticateToken, requireAppAdmin, async (req, res) => {
   const days = Math.min(90, Math.max(1, Number.parseInt(String(req.query.days || '30'), 10) || 30));
   const since = new Date(Date.now() - days * 86400000).toISOString();
-  const { data, error } = await getAdminSupabaseClient()
+  const admin = getAdminSupabaseClient();
+  const { data, error } = await admin
     .from('ai_usage_events')
-    .select('id,feature,model,request_kind,status,input_tokens,output_tokens,estimated_cost_usd,occurred_at')
+    .select('id,user_id,feature,model,request_kind,status,input_tokens,output_tokens,estimated_cost_usd,occurred_at')
     .gte('occurred_at', since)
     .order('occurred_at', { ascending: false })
     .limit(20000);
@@ -2822,6 +2823,12 @@ app.get('/api/admin/ai-usage', authenticateToken, requireAppAdmin, async (req, r
     return res.status(500).json({ error: 'Unable to load AI usage' });
   }
   const events = data || [];
+  const parentIds = [...new Set(events.map((event: any) => event.user_id).filter(Boolean))];
+  const { data: parentRows, error: parentError } = parentIds.length
+    ? await admin.from('users').select('id,name').in('id', parentIds)
+    : { data: [] as any[], error: null };
+  if (parentError) return res.status(500).json({ error: 'Unable to identify parent AI use' });
+  const parentNames = new Map((parentRows || []).map((parent: any) => [parent.id, parent.name || 'Name not provided']));
   const summarize = (key: 'feature' | 'model') => {
     const groups = new Map<string, any[]>();
     events.forEach((event: any) => {
@@ -2837,6 +2844,21 @@ app.get('/api/admin/ai-usage', authenticateToken, requireAppAdmin, async (req, r
       estimatedCostUsd: Number(rows.reduce((sum, row) => sum + Number(row.estimated_cost_usd || 0), 0).toFixed(6)),
     })).sort((a, b) => b.estimatedCostUsd - a.estimatedCostUsd || b.requests - a.requests);
   };
+  const featureParentGroups = new Map<string, any[]>();
+  events.forEach((event: any) => {
+    const key = `${event.feature || 'Unknown'}::${event.user_id || 'deleted-account'}`;
+    if (!featureParentGroups.has(key)) featureParentGroups.set(key, []);
+    featureParentGroups.get(key)!.push(event);
+  });
+  const byFeatureAndParent = [...featureParentGroups.values()].map(rows => ({
+    name: String(rows[0]?.feature || 'Unknown'),
+    parentId: rows[0]?.user_id || null,
+    parentName: rows[0]?.user_id ? (parentNames.get(rows[0].user_id) || 'Name not provided') : 'Deleted account',
+    requests: rows.length,
+    inputTokens: rows.reduce((sum, row) => sum + Number(row.input_tokens || 0), 0),
+    outputTokens: rows.reduce((sum, row) => sum + Number(row.output_tokens || 0), 0),
+    estimatedCostUsd: Number(rows.reduce((sum, row) => sum + Number(row.estimated_cost_usd || 0), 0).toFixed(6)),
+  })).sort((a, b) => b.estimatedCostUsd - a.estimatedCostUsd || b.requests - a.requests);
   const totalCost = events.reduce((sum: number, event: any) => sum + Number(event.estimated_cost_usd || 0), 0);
   const imageRequests = events.filter((event: any) => event.request_kind === 'image').length;
   const byFeature = summarize('feature');
@@ -2852,7 +2874,7 @@ app.get('/api/admin/ai-usage', authenticateToken, requireAppAdmin, async (req, r
       estimatedCostUsd: Number(totalCost.toFixed(6)),
       averageCostUsd: Number(averageCost.toFixed(6)),
     },
-    features: byFeature,
+    features: byFeatureAndParent,
     models: summarize('model'),
     recent: events.slice(0, 100).map((event: any) => ({
       id: event.id,
