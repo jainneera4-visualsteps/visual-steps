@@ -232,16 +232,16 @@ This section is generated from `feature-registry.json`. Update the registry when
 
 | Feature | Plan | Introduced | Latest update | Current description |
 | --- | --- | --- | --- | --- |
-| Clear visual activities | starter | 2026-03-01 | 2026-08-31 | Build clear scheduled routines and offer optional additional choices after today’s assigned activities are finished. |
+| Clear visual activities | starter | 2026-03-01 | 2026-08-31 | Parents can mark a normal activity as optional so it becomes a choice after today’s assigned activities are finished. |
 | Parent activity verification | starter | 2026-08-20 | — | Choose which activities require parent approval before rewards are earned. |
 | Positive behavior bonuses | starter | 2026-08-20 | — | Parents can recognize a specific calm, focused, helpful, or persistent behavior. |
-| Personalized, fair quizzes | starter | 2026-08-20 | 2026-08-24 | Create an age-respectful quiz around a measurable learning objective, with careful illustration use and one meaningful attempt per assignment. |
-| Curated learning samples | starter | 2026-08-21 | 2026-08-27 | Preview a quiz, printable worksheet, and social story without using AI or saving data. |
-| Replayable parent tour | starter | 2026-08-20 | 2026-08-27 | New parents receive a guided introduction, and existing parents can replay it anytime. |
-| Visual Steps Parent Assistant | family | 2026-08-20 | — | Ask app how-to questions and receive answers grounded in owned family data. |
+| Personalized, fair quizzes | starter | 2026-08-20 | 2026-08-24 | Quiz creation now connects every quiz to a measurable learning objective, lets parents privately try it as the learner, controls illustration use, and turns completed answers into practical planning guidance. |
+| Curated learning samples | starter | 2026-08-21 | 2026-08-27 | The sample quiz, worksheet, and social story now mirror the current family-created viewing experience while keeping the same dependable example content. |
+| Replayable parent tour | starter | 2026-08-20 | 2026-08-27 | Parent and guest tours now include current feature guidance from the shared Visual Steps catalog. |
+| Visual Steps Parent Assistant | family | 2026-08-20 | 2026-09-01 | The assistant keeps the current day’s conversation until 7:00 AM, offers Copy and Listen controls, and can search current venue information when a parent plans an outing for their child or adult learner. |
 | Controlled social-story sharing | family | 2026-08-19 | — | Share one social story using a private link that can expire or be revoked. |
 | Parent stories and community publishing | starter | 2026-08-25 | — | Write, preview, and submit family experiences or practical ideas through a reviewed community publishing process. |
-| Narrated tour and temporary Guest Login | starter | 2026-08-21 | 2026-08-27 | Watch a short illustrated introduction or a detailed tour of current caregiver and child / adult screens, then explore the same workflows without keeping any changes. |
+| Narrated tour and temporary Guest Login | starter | 2026-08-21 | 2026-08-27 | Visitors can now watch a friendly, chapter-based Visual Steps presentation directly on the Home page before entering Guest Login. |
 | Learning, progress, and meaningful rewards | starter | 2026-03-15 | — | Create personalized resources, understand progress, and connect earned rewards to meaningful goals. |
 | Parent-controlled data management | starter | 2026-08-24 | — | Review saved family records, set a reminder period, and selectively remove history that is no longer useful. |
 
@@ -249,6 +249,7 @@ This section is generated from `feature-registry.json`. Update the registry when
 
 | Updated | Feature | Improvement | Family-facing summary |
 | --- | --- | --- | --- |
+| 2026-09-01 | Visual Steps Parent Assistant | Daily Parent Assistant history and outing planning | The assistant keeps the current day’s conversation until 7:00 AM, offers Copy and Listen controls, and can search current venue information when a parent plans an outing for their child or adult learner. |
 | 2026-08-31 | Clear visual activities | Learner-chosen additional activities | Parents can mark a normal activity as optional so it becomes a choice after today’s assigned activities are finished. |
 | 2026-08-27 | Replayable parent tour | Guidance that stays current across the app | Parent and guest tours now include current feature guidance from the shared Visual Steps catalog. |
 | 2026-08-27 | Narrated tour and temporary Guest Login | A narrated Visual Steps tour using real app screens | Visitors can now watch a friendly, chapter-based Visual Steps presentation directly on the Home page before entering Guest Login. |

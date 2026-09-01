@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { BookOpen, CheckCircle2, ChevronLeft, ChevronRight, FileText, Gamepad2, Printer, Sparkles, Volume2, X, XCircle } from 'lucide-react';
+import { currentFeatureContent, productFeatures } from '../content/featureRegistry';
 
 export type SampleContentType = 'quiz' | 'story' | 'worksheet';
 
@@ -13,6 +14,8 @@ const cards = {
   story: { title: 'When My Plan Changes', subtitle: 'Calming social story · 4 pages', icon: BookOpen, color: 'bg-rose-100 text-rose-700' },
   worksheet: { title: 'Calm-Down Strategy Map', subtitle: 'Social-emotional learning · Printable', icon: FileText, color: 'bg-amber-100 text-amber-700' },
 } as const;
+const curatedSamplesFeature = productFeatures.find(feature => feature.id === 'curated-samples');
+const currentCuratedSamplesFeature = curatedSamplesFeature ? currentFeatureContent(curatedSamplesFeature) : undefined;
 
 export function SampleLearningContent({ show = 'all', compact = false }: Props) {
   const [open, setOpen] = useState<SampleContentType | null>(null);
@@ -25,7 +28,7 @@ export function SampleLearningContent({ show = 'all', compact = false }: Props) 
           <div>
             <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.16em] text-cyan-700"><Sparkles className="h-4 w-4" /> Curated examples</p>
             <h2 className="mt-1 text-xl font-black text-slate-950">See what Visual Steps can create</h2>
-            <p className="mt-1 text-sm text-slate-600">These fixed samples do not use AI and are not saved to your account.</p>
+            <p className="mt-1 text-sm text-slate-600">{currentCuratedSamplesFeature?.summary || 'These fixed samples do not use AI and are not saved to your account.'}</p>
           </div>
         </div>
         <div className={`grid gap-3 ${types.length > 1 ? 'md:grid-cols-3' : ''}`}>

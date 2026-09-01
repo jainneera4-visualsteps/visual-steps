@@ -1,8 +1,8 @@
-import { ArrowLeft } from 'lucide-react';
-import { Link, Navigate, useParams } from 'react-router-dom';
+import { X } from 'lucide-react';
+import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { NewFeatureBadge } from '../components/FeatureHighlights';
 import { ListenToContentButton } from '../components/ListenToContentButton';
-import { productFeatures } from '../content/featureRegistry';
+import { currentFeatureContent, productFeatures } from '../content/featureRegistry';
 
 function splitIntoReadableParagraphs(copy: string) {
   const sentences = copy.match(/[^.!?]+[.!?]+(?:[”’'\"])?|[^.!?]+$/g)?.map(sentence => sentence.trim()).filter(Boolean) || [copy];
@@ -15,26 +15,37 @@ function splitIntoReadableParagraphs(copy: string) {
 
 export default function FeatureDetail() {
   const { featureId } = useParams();
-  const feature = productFeatures.find(item => item.id === featureId);
+  const [searchParams] = useSearchParams();
+  const registeredFeature = productFeatures.find(item => item.id === featureId);
 
-  if (!feature) return <Navigate to="/" replace />;
+  if (!registeredFeature) return <Navigate to="/" replace />;
 
-  const paragraphs = [feature.details, ...feature.guideParagraphs, feature.familyImpact, feature.help]
+  const feature = currentFeatureContent(registeredFeature);
+  const update = registeredFeature.updates?.find(item => item.updatedOn === searchParams.get('update'));
+  const article = update || feature;
+  const paragraphs = [article.details, ...(update?.guideParagraphs || (update ? registeredFeature.guideParagraphs : feature.guideParagraphs)), article.familyImpact, update?.help || (update ? registeredFeature.help : feature.help)]
     .flatMap(splitIntoReadableParagraphs);
-  const screen = feature.screenshot;
+  // A specific update should never inherit an older, general screenshot.
+  const screen = update ? update.screenshot : feature.screenshot;
+  const closeArticle = () => {
+    window.close();
+    window.setTimeout(() => {
+      if (!window.closed) window.history.length > 1 ? window.history.back() : window.location.assign('/');
+    }, 100);
+  };
 
   return <div className="page-shell">
     <main className="page-container max-w-4xl space-y-6">
-      <Link to="/" className="app-link-muted"><ArrowLeft className="h-4 w-4" />Back to Home</Link>
+      <button type="button" onClick={closeArticle} className="app-link-muted"><X className="h-4 w-4" />Close</button>
       <article className="newsletter-copy surface overflow-hidden bg-white">
         <header className="border-b border-slate-200 bg-gradient-to-br from-blue-50 via-white to-emerald-50 p-7 sm:p-12">
           <div className="flex flex-wrap items-center gap-3">
             <span className="rounded-full bg-brand-100 px-3 py-1 text-xs font-black uppercase tracking-wider text-brand-800">Visual Steps feature guide</span>
-            <NewFeatureBadge introducedOn={feature.introducedOn} />
+            <NewFeatureBadge introducedOn={update?.updatedOn || feature.introducedOn} />
           </div>
-          <h1 className="mt-6 text-4xl font-black text-slate-950 sm:text-5xl">{feature.title}</h1>
-          <p className="mt-5 text-xl leading-9 text-slate-700">{feature.summary}</p>
-          <div className="mt-5"><ListenToContentButton text={[feature.title, feature.summary, ...paragraphs].join('. ')} /></div>
+          <h1 className="mt-6 text-4xl font-black text-slate-950 sm:text-5xl">{article.title}</h1>
+          <p className="mt-5 text-xl leading-9 text-slate-700">{article.summary}</p>
+          <div className="mt-5"><ListenToContentButton text={[article.title, article.summary, ...paragraphs].join('. ')} /></div>
         </header>
 
         <div className="space-y-7 p-7 sm:p-12">

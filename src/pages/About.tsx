@@ -3,6 +3,16 @@ import { BookOpen, Heart } from 'lucide-react';
 import { Button } from '../components/Button';
 import { PageHeader } from '../components/PageHeader';
 import { FeatureHighlights } from '../components/FeatureHighlights';
+import { featuresForSurface } from '../content/featureRegistry';
+
+const currentAboutHighlights = featuresForSurface('about')
+  .flatMap(feature => [
+    { date: feature.introducedOn, title: feature.title },
+    ...(feature.updates || []).map(update => ({ date: update.updatedOn, title: update.title })),
+  ])
+  .sort((left, right) => right.date.localeCompare(left.date))
+  .slice(0, 4)
+  .map(item => item.title);
 
 export default function About() {
   const navigate = useNavigate();
@@ -52,7 +62,7 @@ export default function About() {
               ['March 2026', 'The foundation', 'Visual Steps began with caregiver-managed profiles, visual activities, smaller task steps, schedules, and a dedicated child dashboard. The first version focused on reducing uncertainty around daily routines. Rewards connected completed effort with visible encouragement. Caregiver and child / adult experiences were intentionally kept separate and simple.'],
               ['Spring–Summer 2026', 'Learning and progress', 'Quizzes, printable worksheets, social stories, reports, and activity history expanded Visual Steps beyond daily planning. Families gained more ways to personalize, save, edit, print, and assign learning resources. Caregivers could review progress alongside routines and use those patterns to plan what comes next. The experience remained focused on practical tools that support everyday participation and growth.'],
               ['August 2026', 'Safety, trust, and family control', 'Parent verification created a thoughtful review step before activity rewards are granted. Quiz-attempt limits, protected uploads, email recovery, controlled story sharing, and clear offline guidance made family workflows more dependable. Positive-behavior bonuses help parents recognize calm communication, persistence, focus, kindness, and other observed strengths. Families remain in control of what is assigned, rewarded, shared, and retained.'],
-              ['Today and next', 'A welcoming guided platform', 'A replayable parent tour, Guest Login, curated samples, and the Visual Steps Parent Assistant help families understand each workflow. New features are marked for thirty days so caregivers can discover them easily. The experience continues to become warmer, more consistent, and more accessible on desktop and mobile. Future plans will be explained clearly so families can choose what suits their needs.'],
+              ['Today and next', 'A welcoming guided platform', `Current improvements include ${currentAboutHighlights.join(', ')}. The replayable parent tour, Guest Login, curated samples, and Visual Steps Parent Assistant use the shared feature guide so newly registered changes remain consistent across the app. New features are marked for thirty days so caregivers can discover them easily.`],
             ].map(([date, title, description]) => (
               <li key={date} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
                 <p className="text-xs font-black uppercase tracking-wider text-brand-700">{date}</p>

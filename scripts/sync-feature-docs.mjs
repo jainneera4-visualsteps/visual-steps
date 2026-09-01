@@ -1,9 +1,10 @@
-import { access, readFile, writeFile } from 'node:fs/promises';
+import { access, readFile, readdir, writeFile } from 'node:fs/promises';
 
 const root = new URL('../', import.meta.url);
 const registry = JSON.parse(await readFile(new URL('feature-registry.json', root), 'utf8'));
 
 const screenshotPaths = new Set();
+const synchronizedSurfaces = ['home', 'about', 'onboarding', 'chatbot', 'pricing', 'guest', 'help'];
 for (const feature of registry) {
   if (!feature.guideParagraphs?.length || !feature.screenshot?.src || !feature.screenshot?.alt || !feature.screenshot?.caption) {
     throw new Error(`${feature.id} must include article paragraphs and complete screenshot metadata`);
@@ -11,6 +12,8 @@ for (const feature of registry) {
   if (screenshotPaths.has(feature.screenshot.src)) throw new Error(`Feature screenshot is reused: ${feature.screenshot.src}`);
   screenshotPaths.add(feature.screenshot.src);
   if (!feature.screenshot.src.startsWith('/onboarding/')) throw new Error(`${feature.id} must use a captured application screenshot`);
+  const missingSurfaces = synchronizedSurfaces.filter(surface => !feature.surfaces?.includes(surface));
+  if (missingSurfaces.length) throw new Error(`${feature.id} is missing synchronized surfaces: ${missingSurfaces.join(', ')}`);
   await access(new URL(`public${feature.screenshot.src}`, root));
   for (const update of feature.updates || []) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(update.updatedOn) || !update.title || !update.summary || !update.details || !update.familyImpact) {
@@ -23,7 +26,7 @@ const start = '<!-- FEATURE_REGISTRY:START -->';
 const end = '<!-- FEATURE_REGISTRY:END -->';
 const rows = registry.map((feature) => {
   const latestUpdate = [...(feature.updates || [])].sort((a, b) => b.updatedOn.localeCompare(a.updatedOn))[0];
-  return `| ${feature.title} | ${feature.plan} | ${feature.introducedOn} | ${latestUpdate?.updatedOn || '—'} | ${feature.summary} |`;
+  return `| ${feature.title} | ${feature.plan} | ${feature.introducedOn} | ${latestUpdate?.updatedOn || '—'} | ${latestUpdate?.summary || feature.summary} |`;
 }).join('\n');
 const updateRows = registry.flatMap((feature) => (feature.updates || []).map((update) =>
   `| ${update.updatedOn} | ${feature.title} | ${update.title} | ${update.summary} |`,
@@ -31,7 +34,15 @@ const updateRows = registry.flatMap((feature) => (feature.updates || []).map((up
 const updateHistory = updateRows ? `\n\n### Feature update history\n\n| Updated | Feature | Improvement | Family-facing summary |\n| --- | --- | --- | --- |\n${updateRows}` : '';
 const generated = `${start}\n## Synchronized feature registry\n\nThis section is generated from \`feature-registry.json\`. Update the registry when a feature is added, changed, or removed; normal lint, test, development, and build commands refresh this table.\n\n| Feature | Plan | Introduced | Latest update | Current description |\n| --- | --- | --- | --- | --- |\n${rows}${updateHistory}\n${end}`;
 
-for (const filename of ['README.md', 'PRD.md']) {
+const markdownFiles = (await readdir(root, { recursive: true }))
+  .filter(filename => filename.endsWith('.md') && !filename.startsWith('node_modules/') && !filename.startsWith('.git/'));
+const documentationFiles = new Set(['README.md', 'PRD.md', 'PROD.md']);
+for (const filename of markdownFiles) {
+  const content = await readFile(new URL(filename, root), 'utf8');
+  if (content.includes(start) && content.includes(end)) documentationFiles.add(filename);
+}
+
+for (const filename of documentationFiles) {
   const url = new URL(filename, root);
   let content = await readFile(url, 'utf8');
   const expression = new RegExp(`${start}[\\s\\S]*?${end}`, 'm');

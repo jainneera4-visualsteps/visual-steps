@@ -8,7 +8,7 @@
     "guideParagraphs": [
       "A visual activity is most useful when it answers the questions a person may naturally have before beginning: what am I doing, how much is expected, what happens next, and how will I know I am finished? Parents can keep the wording concrete, choose an illustration that truly matches the task, and add only the steps that make the activity easier to follow. For a familiar routine, a short instruction may be enough; for a newer or more demanding responsibility, several smaller steps can provide a clearer path.",
       "The same approach can support a young child learning self-care, a teenager managing school or household responsibilities, or an autistic adult building independence at home, work, or in the community. Caregivers can observe where the person pauses, becomes uncertain, or needs prompting, then adjust the wording, image, timing, or number of steps. Reassignment provides another opportunity without erasing the value of the first effort.",
-      "Optional additional activities provide flexibility when today’s assigned plan is complete but a learner wants another meaningful way to work toward a reward. Parents create them through the same activity form and may use the same steps, pictures, recurrence, and verification choices. They remain hidden until the assigned activities are finished and disappear when dashboard hours or family limits are reached. Choosing one adds it to the learner’s ordinary To Do list, while stopping for the day remains an equally acceptable choice."
+      "Optional additional activities provide flexibility when today’s assigned plan is complete but a learner wants another meaningful way to work toward a reward. Parents create them through the same activity form and may use the same steps, pictures, recurrence, and verification choices. They remain hidden until the assigned activities are finished and disappear when dashboard hours or family limits are reached. Choosing one moves it to the learner’s To Be Done list, while stopping for the day remains an equally acceptable choice."
     ],
     "help": "From Dashboard, select a child and open Activities Setup. Choose Add Activity, complete the usual details, and select Optional additional activity when the activity should appear only after the learner finishes today’s assigned activities. Set its reward amount and save it normally.",
     "screenshot": { "src": "/onboarding/activities.png", "alt": "Visual Steps activities screen", "caption": "The real Activities workspace where parents plan visual steps, timing, and rewards." },
@@ -18,8 +18,19 @@
         "updatedOn": "2026-08-31",
         "title": "Learner-chosen additional activities",
         "summary": "Parents can mark a normal activity as optional so it becomes a choice after today’s assigned activities are finished.",
-        "details": "Optional activities use the existing activity form, steps, illustrations, schedule, recurrence, verification, and completion history. They stay out of the learner’s assigned list until the daily plan is finished and dashboard hours remain open. A learner may choose an activity, which then enters the ordinary To Do flow, or decide to stop for the day.",
-        "familyImpact": "A child / adult who wants to keep working toward a target reward can choose meaningful additional work without the parent expanding the assigned plan. The clear choice to continue or stop supports autonomy and reduces uncertainty about whether another earning opportunity is available."
+        "details": "Optional activities use the existing activity form, steps, illustrations, schedule, recurrence, verification, and completion history. They stay out of the learner’s assigned list until the daily plan is finished and dashboard hours remain open. A learner may choose an activity, which then appears under To Be Done and follows the usual completion steps, or decide to stop for the day.",
+        "familyImpact": "A child / adult who wants to keep working toward a target reward can choose meaningful additional work without the parent expanding the assigned plan. The clear choice to continue or stop supports autonomy and reduces uncertainty about whether another earning opportunity is available.",
+        "guideParagraphs": [
+          "Parents create an extra activity through the familiar Add Activity form. Marking it as optional keeps it separate from the work planned for the day, while preserving the activity’s description, steps, illustration, verification choice, and reward amount.",
+          "After the assigned activities are finished, the learner can open Extra Activities and choose one available option. The selected activity then appears in To Be Done and follows the same completion and verification process as other work. Rewards are added only after completion, not when the activity is selected.",
+          "Parents set a daily extra-reward allowance for each learner. Activities that fit the remaining allowance are shown, along with the smallest reward level above it when needed, so a small remainder does not leave the learner without a meaningful final choice. Once the allowance has been used, no more extra activities appear that day."
+        ],
+        "help": "From the parent dashboard, open Activities Setup and choose Add Activity. Select Optional additional activity, set its reward amount, and save it. Use the learner’s Rewards page to review the daily extra-reward allowance.",
+        "screenshot": {
+          "src": "/onboarding/optional-activities-illustration.png",
+          "alt": "Illustrative Visual Steps Extra Activities screen showing a learner choosing from three optional activities",
+          "caption": "Illustrative example: after today’s assigned activities are finished, the learner may choose an extra activity. It moves to To Be Done, and rewards are earned only after completion."
+        }
       }
     ],
     "plan": "starter",
@@ -157,6 +168,16 @@
     "help": "Open the assistant from the Parent Dashboard. It answers only Visual Steps and owned-child questions and shows the remaining daily allowance.",
     "screenshot": { "src": "/onboarding/parent-assistant.png", "alt": "Visual Steps parent assistant on the home page", "caption": "The assistant explains Visual Steps before sign-in and offers account-aware guidance to authenticated parents without exposing another family’s information." },
     "introducedOn": "2026-08-20",
+    "updates": [
+      {
+        "updatedOn": "2026-09-01",
+        "title": "Daily Parent Assistant history and outing planning",
+        "summary": "The assistant keeps the current day’s conversation until 7:00 AM, offers Copy and Listen controls, and can search current venue information when a parent plans an outing for their child or adult learner.",
+        "details": "Signed-in parents can close and reopen the assistant without losing the current assistant-day conversation. History and the daily question allowance begin a fresh day at 7:00 AM in the parent’s local timezone. Each assistant response can be copied or read aloud. When a parent asks about activities at a named cruise, museum, park, resort, attraction, or destination, the assistant may use Google Search grounding, relate confirmed offerings to the family’s Visual Steps context, show sources, and remind the parent to verify changing schedules, eligibility, accessibility, prices, and reservations.",
+        "familyImpact": "Families can continue a planning conversation throughout the day, listen when reading is inconvenient, and prepare more confidently for activities away from home without turning the assistant into an unrestricted general chatbot.",
+        "help": "Open Parent Assistant from the Parent Dashboard. Ask a Visual Steps question or name a destination and ask what activities may suit the selected child / adult. Use Copy or Listen below a response; today’s history starts fresh at 7:00 AM."
+      }
+    ],
     "plan": "family",
     "icon": "assistant",
     "routes": ["/dashboard"],

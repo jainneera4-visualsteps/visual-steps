@@ -1,7 +1,8 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { BookOpen, Bot, Check, Flag, Send, Sparkles, Trash2, X } from 'lucide-react';
+import { BookOpen, Bot, Check, Copy, Flag, Pause, Send, Sparkles, Trash2, Volume2, X } from 'lucide-react';
 import { apiFetch, safeJson } from '../utils/api';
+import { createFriendlyUtterance, plainTextForSpeech } from '../utils/friendlySpeech';
 import { Button } from './Button';
 
 type ChatMessage = {
@@ -34,6 +35,18 @@ const welcomeMessage: ChatMessage = {
   content: 'Hi! I’m your Visual Steps assistant. I can explain how the app works, summarize your children’s Visual Steps activity, and suggest practical next steps. What would you like help with?',
 };
 
+const plainTextForCopy = (value: string) => value
+  .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+  .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+  .replace(/^\s*[-*+]\s+/gm, '• ')
+  .replace(/^\s*#{1,6}\s+/gm, '')
+  .replace(/[*_`~]/g, '')
+  .replace(/[ \t]+\n/g, '\n')
+  .replace(/\n{3,}/g, '\n\n')
+  .trim();
+
+const deviceTimezone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York';
+
 export function ParentAssistant({ publicMode = false }: { publicMode?: boolean }) {
   const suggestions = publicMode ? guestSuggestions : parentSuggestions;
   const initialMessage: ChatMessage = publicMode
@@ -49,6 +62,8 @@ export function ParentAssistant({ publicMode = false }: { publicMode?: boolean }
   const [capabilities, setCapabilities] = useState<AssistantCapability[]>([]);
   const [showCapabilities, setShowCapabilities] = useState(false);
   const [reportedMessageIds, setReportedMessageIds] = useState<Set<string>>(new Set());
+  const [copiedMessageId, setCopiedMessageId] = useState('');
+  const [speakingMessageId, setSpeakingMessageId] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -62,11 +77,13 @@ export function ParentAssistant({ publicMode = false }: { publicMode?: boolean }
       window.setTimeout(() => inputRef.current?.focus(), 100);
       if (!publicMode) {
         setIsAllowanceLoading(true);
-        apiFetch('/api/parent-assistant/usage')
+        const timezone = deviceTimezone();
+        apiFetch(`/api/parent-assistant/usage?timezone=${encodeURIComponent(timezone)}`)
         .then(async response => {
           const payload = await safeJson(response);
           if (!response.ok) throw new Error(payload?.error || 'Unable to load allowance');
           setAllowance(payload.allowance);
+          if (Array.isArray(payload.history)) setMessages([initialMessage, ...payload.history]);
         })
         .catch(() => setAllowance(null))
           .finally(() => setIsAllowanceLoading(false));
@@ -79,6 +96,68 @@ export function ParentAssistant({ publicMode = false }: { publicMode?: boolean }
         .catch(() => undefined);
     }
   }, [isOpen, publicMode]);
+
+  useEffect(() => () => window.speechSynthesis?.cancel(), []);
+
+  useEffect(() => {
+    if (!isOpen || publicMode || !allowance?.resetsAt) return;
+    const delay = new Date(allowance.resetsAt).getTime() - Date.now();
+    if (!Number.isFinite(delay) || delay <= 0) return;
+    const timer = window.setTimeout(() => {
+      window.speechSynthesis?.cancel();
+      setSpeakingMessageId('');
+      setMessages([initialMessage]);
+      setAllowance(current => current ? { ...current, used: 0, remaining: current.dailyLimit } : current);
+    }, delay + 500);
+    return () => window.clearTimeout(timer);
+  }, [allowance?.resetsAt, initialMessage, isOpen, publicMode]);
+
+  const copyResponse = async (message: ChatMessage) => {
+    try {
+      await navigator.clipboard.writeText(plainTextForCopy(message.content));
+      setCopiedMessageId(message.id);
+      window.setTimeout(() => setCopiedMessageId(current => current === message.id ? '' : current), 1800);
+    } catch {
+      setError('Unable to copy this response. Please select the text and copy it manually.');
+    }
+  };
+
+  const toggleResponseSpeech = (message: ChatMessage) => {
+    if (!('speechSynthesis' in window)) {
+      setError('Listening is not available in this browser.');
+      return;
+    }
+    if (speakingMessageId === message.id) {
+      window.speechSynthesis.cancel();
+      setSpeakingMessageId('');
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const utterance = createFriendlyUtterance(plainTextForSpeech(message.content));
+    utterance.onend = () => setSpeakingMessageId('');
+    utterance.onerror = () => setSpeakingMessageId('');
+    setSpeakingMessageId(message.id);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const clearConversation = async () => {
+    window.speechSynthesis?.cancel();
+    setSpeakingMessageId('');
+    setCopiedMessageId('');
+    setError('');
+    if (!publicMode) {
+      try {
+        const timezone = deviceTimezone();
+        const response = await apiFetch(`/api/parent-assistant/history?timezone=${encodeURIComponent(timezone)}`, { method: 'DELETE' });
+        const payload = await safeJson(response);
+        if (!response.ok) throw new Error(payload?.error || 'Unable to clear the conversation');
+      } catch (clearError: any) {
+        setError(clearError?.message || 'Unable to clear the conversation');
+        return;
+      }
+    }
+    setMessages([initialMessage]);
+  };
 
   const askQuestion = async (value: string) => {
     const trimmedQuestion = value.trim();
@@ -98,6 +177,7 @@ export function ParentAssistant({ publicMode = false }: { publicMode?: boolean }
         body: JSON.stringify({
           question: trimmedQuestion,
           messages: previousMessages.slice(-10).map(({ role, content }) => ({ role, content })),
+          ...(!publicMode ? { timezone: deviceTimezone() } : {}),
         }),
       });
       const payload = await safeJson(response);
@@ -164,8 +244,8 @@ export function ParentAssistant({ publicMode = false }: { publicMode?: boolean }
             </div>
             <div className="flex gap-1">
               <button type="button" onClick={() => setShowCapabilities(current => !current)} className="rounded-full p-2 hover:bg-white/20" aria-label="Show what the assistant can help with"><BookOpen className="h-4 w-4" /></button>
-              <button type="button" onClick={() => { setMessages([initialMessage]); setError(''); }} className="rounded-full p-2 hover:bg-white/20" aria-label="Clear conversation"><Trash2 className="h-4 w-4" /></button>
-              <button type="button" onClick={() => setIsOpen(false)} className="rounded-full p-2 hover:bg-white/20" aria-label="Close assistant"><X className="h-5 w-5" /></button>
+              <button type="button" onClick={() => void clearConversation()} className="rounded-full p-2 hover:bg-white/20" aria-label="Clear conversation"><Trash2 className="h-4 w-4" /></button>
+              <button type="button" onClick={() => { window.speechSynthesis?.cancel(); setSpeakingMessageId(''); setIsOpen(false); }} className="rounded-full p-2 hover:bg-white/20" aria-label="Close assistant"><X className="h-5 w-5" /></button>
             </div>
           </header>
 
@@ -183,8 +263,20 @@ export function ParentAssistant({ publicMode = false }: { publicMode?: boolean }
                   {message.role === 'assistant' ? (
                     <div className="space-y-2 [&_ol]:list-decimal [&_ol]:space-y-1 [&_ol]:pl-5 [&_p]:m-0 [&_strong]:font-black [&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:pl-5"><ReactMarkdown>{message.content}</ReactMarkdown></div>
                   ) : message.content}
+                  {message.role === 'assistant' && (
+                    <div className="mt-3 flex items-center gap-1 border-t border-slate-100 pt-2">
+                      <button type="button" onClick={() => void copyResponse(message)} className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-500 hover:bg-slate-100 hover:text-blue-700" aria-label="Copy response" title="Copy response">
+                        {copiedMessageId === message.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                        {copiedMessageId === message.id ? 'Copied' : 'Copy'}
+                      </button>
+                      <button type="button" onClick={() => toggleResponseSpeech(message)} className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-500 hover:bg-slate-100 hover:text-blue-700" aria-label={speakingMessageId === message.id ? 'Stop listening' : 'Listen to response'} title={speakingMessageId === message.id ? 'Stop listening' : 'Listen to response'}>
+                        {speakingMessageId === message.id ? <Pause className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+                        {speakingMessageId === message.id ? 'Stop' : 'Listen'}
+                      </button>
+                    </div>
+                  )}
                   {!publicMode && message.role === 'assistant' && message.sourceQuestion && (
-                    <div className="mt-3 border-t border-slate-100 pt-2">
+                    <div className="mt-1 pt-1">
                       <button type="button" onClick={() => void reportMissingInfo(message)} disabled={reportedMessageIds.has(message.id)} className="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-500 hover:text-blue-700 disabled:text-emerald-700">
                         {reportedMessageIds.has(message.id) ? <><Check className="h-3 w-3" /> Added to review list</> : <><Flag className="h-3 w-3" /> Report missing info</>}
                       </button>
