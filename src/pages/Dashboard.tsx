@@ -497,8 +497,8 @@ export default function Dashboard() {
             Get started by adding a child.
           </p>
           <Link to="/add-kid" className="mt-6">
-            <Tooltip content="Add Child's Profile">
-              <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white">Add Child</Button>
+            <Tooltip content="Add Child / Adult Profile">
+              <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white">Add Child / Adult</Button>
             </Tooltip>
           </Link>
         </div>
@@ -708,10 +708,10 @@ export default function Dashboard() {
             </div>
           )}
           <Link to="/add-kid" data-guest-tour="add-child">
-            <Tooltip content="Add Child's Profile">
+            <Tooltip content="Add Child / Adult Profile">
               <Button size="md" className="h-11 shadow-brand-200">
                 <Plus className="mr-2 h-5 w-5" />
-                Add Child
+                Add Child / Adult
               </Button>
             </Tooltip>
           </Link>

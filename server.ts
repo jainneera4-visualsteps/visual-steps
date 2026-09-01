@@ -1210,6 +1210,27 @@ const getTransporter = async () => {
   return transporter;
 };
 
+const contactRequestWindows = new Map<string, { count: number; startedAt: number }>();
+const CONTACT_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
+const CONTACT_RATE_LIMIT_MAX_REQUESTS = 5;
+
+const getContactRequestKey = (req: express.Request) => {
+  const forwardedFor = String(req.headers['x-forwarded-for'] || '').split(',')[0]?.trim();
+  return forwardedFor || req.ip || 'unknown';
+};
+
+const isContactRequestRateLimited = (req: express.Request) => {
+  const now = Date.now();
+  const key = getContactRequestKey(req);
+  const current = contactRequestWindows.get(key);
+  if (!current || now - current.startedAt >= CONTACT_RATE_LIMIT_WINDOW_MS) {
+    contactRequestWindows.set(key, { count: 1, startedAt: now });
+    return false;
+  }
+  current.count += 1;
+  return current.count > CONTACT_RATE_LIMIT_MAX_REQUESTS;
+};
+
 const isRecentlyIntroducedFeature = (introducedOn: string, now = new Date()) => {
   const introducedAt = new Date(`${introducedOn}T00:00:00Z`).getTime();
   const age = now.getTime() - introducedAt;
@@ -1880,6 +1901,47 @@ app.get('/api/testimonials', async (_req, res) => {
     ...(communityResult.data || []).map(item => ({ id: `community-${item.id}`, displayName: item.display_name, quote: item.content, featureTitle: item.title, approvedAt: item.reviewed_at })),
   ].sort((a, b) => String(b.approvedAt).localeCompare(String(a.approvedAt)));
   return res.json(testimonials);
+});
+
+app.post('/api/contact', async (req, res) => {
+  if (isContactRequestRateLimited(req)) {
+    return res.status(429).json({ error: 'Too many messages were sent from this connection. Please wait a few minutes and try again.' });
+  }
+
+  const name = String(req.body?.name || '').trim();
+  const email = String(req.body?.email || '').trim().toLowerCase();
+  const subject = String(req.body?.subject || '').replace(/[\r\n]+/g, ' ').trim();
+  const message = String(req.body?.message || '').trim();
+  const website = String(req.body?.website || '').trim();
+
+  // Bots commonly fill fields hidden from people. Return success without
+  // sending so the form does not reveal how its spam protection works.
+  if (website) return res.status(202).json({ message: 'Your message was sent to Visual Steps.' });
+  if (name.length < 2 || name.length > 100) return res.status(400).json({ error: 'Enter your name using 2–100 characters.' });
+  if (!newsletterEmailPattern.test(email) || email.length > 254) return res.status(400).json({ error: 'Enter a valid email address.' });
+  if (subject.length < 3 || subject.length > 150) return res.status(400).json({ error: 'Enter a subject using 3–150 characters.' });
+  if (message.length < 10 || message.length > 3000) return res.status(400).json({ error: 'Enter a message using 10–3,000 characters.' });
+
+  try {
+    const transporter = await getTransporter();
+    if (!transporter) return res.status(503).json({ error: 'Contact email is temporarily unavailable. Please try again later.' });
+    const smtpFrom = cleanEnvVar('SMTP_FROM') || cleanEnvVar('SMTP_USER');
+    const contactTo = cleanEnvVar('CONTACT_TO_EMAIL') || cleanEnvVar('SMTP_USER') || 'visualstepsautism@gmail.com';
+    if (!smtpFrom) return res.status(503).json({ error: 'Contact email is temporarily unavailable. Please try again later.' });
+
+    await transporter.sendMail({
+      from: smtpFrom,
+      to: contactTo,
+      replyTo: { name, address: email },
+      subject: `[Visual Steps Contact] ${subject}`,
+      text: `A visitor sent a message through the Visual Steps Contact page.\n\nName: ${name}\nReply email: ${email}\nSubject: ${subject}\n\nMessage:\n${message}`,
+      html: `<div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;line-height:1.6;color:#1f2937"><h1 style="color:#176b87;font-size:24px">Visual Steps contact message</h1><p><strong>From:</strong> ${escapeEmailHtml(name)} &lt;${escapeEmailHtml(email)}&gt;</p><p><strong>Subject:</strong> ${escapeEmailHtml(subject)}</p><div style="margin-top:20px;padding:18px;border-radius:10px;background:#f8fafc;white-space:pre-wrap">${escapeEmailHtml(message)}</div><p style="margin-top:20px;color:#64748b;font-size:13px">Reply to this email to respond directly to the visitor.</p></div>`,
+    });
+    return res.status(202).json({ message: 'Your message was sent to Visual Steps.' });
+  } catch (error) {
+    console.error('Contact email failed:', getSafeSmtpError(error));
+    return res.status(502).json({ error: 'We could not send your message right now. Please try again shortly.' });
+  }
 });
 
 app.post('/api/newsletter/subscribe', async (req, res) => {
