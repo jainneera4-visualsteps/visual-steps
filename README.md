@@ -125,7 +125,7 @@ Supabase sends the reset-link email, so configure Supabase Auth SMTP for reliabl
 
 ### Support Inbox
 
-Contact-page submissions are stored in `support_messages` before the application attempts its administrator notification email. Approved administrators can open **Admin → Support Inbox** to review unread, open, and resolved conversations, reply by email, and retain the latest reply with the support record. Run `database_updates/2026-09-02_support_inbox.sql` before deploying this feature. The inbox uses the server-side Supabase service role and is never available to browser clients directly.
+Contact-page submissions are stored in `support_messages` before the application attempts its administrator notification email. Approved administrators can open **Admin → Support Inbox** to review unread, open, and resolved conversations, reply by email, and retain the latest reply with the support record. The **Compose message** section displays database-backed parent names, emails, account statuses, and signup dates and can send Visual Steps updates, general announcements, or account information to all signed-up parents or selected accounts. Recipient addresses remain private through BCC batches, and delivery totals are retained for administrator review. Run `database_updates/2026-09-02_support_inbox.sql` and `database_updates/2026-09-02_support_inbox_outbound.sql` before deploying this feature. The inbox uses the server-side Supabase service role and is never available to browser clients directly.
 
 ## Environment variables
 

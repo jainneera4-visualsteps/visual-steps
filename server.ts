@@ -2058,6 +2058,100 @@ app.post('/api/admin/support-messages/:id/reply', authenticateToken, requireAppA
   }
 });
 
+app.get('/api/admin/support-recipients', authenticateToken, requireAppAdmin, async (_req, res) => {
+  const { data, error } = await getAdminSupabaseClient().from('users')
+    .select('id,name,email,created_at,membership_status')
+    .order('name', { ascending: true })
+    .limit(5000);
+  if (error) return res.status(500).json({ error: 'Unable to load parent recipients' });
+  const recipients = (data || []).filter((parent: any) => newsletterEmailPattern.test(String(parent.email || '')));
+  res.json({ items: recipients, total: recipients.length });
+});
+
+app.get('/api/admin/support-outbound', authenticateToken, requireAppAdmin, async (_req, res) => {
+  const { data, error } = await getAdminSupabaseClient().from('support_outbound_messages')
+    .select('id,subject,audience,recipient_count,delivery_status,delivered_count,failed_count,created_at,sent_at')
+    .order('created_at', { ascending: false })
+    .limit(50);
+  if (error) return res.status(500).json({ error: 'Unable to load sent support messages' });
+  res.json({ items: data || [] });
+});
+
+app.post('/api/admin/support-outbound', authenticateToken, requireAppAdmin, async (req: any, res) => {
+  const subject = String(req.body?.subject || '').replace(/[\r\n]+/g, ' ').trim();
+  const message = String(req.body?.message || '').trim();
+  const audience = req.body?.audience === 'all_signed_up_parents' ? 'all_signed_up_parents' : 'selected_parents';
+  const requestedIds = Array.isArray(req.body?.recipientIds)
+    ? [...new Set(req.body.recipientIds.map((value: unknown) => String(value)).filter((value: string) => /^[0-9a-f-]{36}$/i.test(value)))].slice(0, 5000)
+    : [];
+  if (subject.length < 3 || subject.length > 150) return res.status(400).json({ error: 'Enter a subject using 3–150 characters' });
+  if (message.length < 10 || message.length > 5000) return res.status(400).json({ error: 'Enter a message using 10–5,000 characters' });
+  if (audience === 'selected_parents' && !requestedIds.length) return res.status(400).json({ error: 'Select at least one parent' });
+
+  const admin = getAdminSupabaseClient();
+  let recipientQuery = admin.from('users').select('id,name,email,membership_status');
+  if (audience === 'selected_parents') recipientQuery = recipientQuery.in('id', requestedIds);
+  const { data: parentRows, error: parentError } = await recipientQuery.limit(5000);
+  if (parentError) return res.status(500).json({ error: 'Unable to prepare parent recipients' });
+  const recipients = (parentRows || []).filter((parent: any) => newsletterEmailPattern.test(String(parent.email || '')));
+  if (!recipients.length) return res.status(400).json({ error: 'No signed-up parent email addresses were available' });
+
+  const { data: outbound, error: storeError } = await admin.from('support_outbound_messages').insert({
+    created_by: req.user.id,
+    subject,
+    message,
+    audience,
+    recipient_count: recipients.length,
+    recipient_ids: recipients.map((parent: any) => parent.id),
+  }).select('id').single();
+  if (storeError || !outbound) return res.status(500).json({ error: 'Unable to create the outbound support message' });
+
+  let deliveredCount = 0;
+  let failedCount = 0;
+  try {
+    const transporter = await getTransporter();
+    const smtpFrom = cleanEnvVar('SMTP_FROM') || cleanEnvVar('SMTP_USER');
+    const contactAddress = cleanEnvVar('CONTACT_TO_EMAIL') || cleanEnvVar('SMTP_USER');
+    if (!transporter || !smtpFrom || !contactAddress) throw new Error('SMTP is unavailable');
+    const batchSize = 40;
+    for (let index = 0; index < recipients.length; index += batchSize) {
+      const batch = recipients.slice(index, index + batchSize);
+      try {
+        await transporter.sendMail({
+          from: smtpFrom,
+          to: contactAddress,
+          bcc: batch.map((parent: any) => ({ name: parent.name || 'Visual Steps parent', address: parent.email })),
+          replyTo: contactAddress,
+          subject: `[Visual Steps] ${subject}`,
+          text: `${message}\n\nVisual Steps Support`,
+          html: `<div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;line-height:1.65;color:#1f2937"><div style="white-space:pre-wrap">${escapeEmailHtml(message)}</div><p style="margin-top:24px">Visual Steps Support</p></div>`,
+        });
+        deliveredCount += batch.length;
+      } catch {
+        failedCount += batch.length;
+      }
+    }
+    const deliveryStatus = failedCount === 0 ? 'sent' : deliveredCount > 0 ? 'partially_sent' : 'failed';
+    const now = new Date().toISOString();
+    await admin.from('support_outbound_messages').update({
+      delivery_status: deliveryStatus,
+      delivered_count: deliveredCount,
+      failed_count: failedCount,
+      delivery_error: failedCount ? 'One or more privacy-safe email batches could not be delivered.' : null,
+      sent_at: now,
+    }).eq('id', outbound.id);
+    if (!deliveredCount) return res.status(502).json({ error: 'The message could not be delivered to any selected parent' });
+    res.status(201).json({
+      message: failedCount ? `Message sent to ${deliveredCount} parents; ${failedCount} deliveries need attention.` : `Message sent to ${deliveredCount} parent${deliveredCount === 1 ? '' : 's'}.`,
+      deliveredCount,
+      failedCount,
+    });
+  } catch (error) {
+    await admin.from('support_outbound_messages').update({ delivery_status: 'failed', failed_count: recipients.length, delivery_error: JSON.stringify(getSafeSmtpError(error)).slice(0, 300), sent_at: new Date().toISOString() }).eq('id', outbound.id);
+    res.status(503).json({ error: 'Support email delivery is temporarily unavailable' });
+  }
+});
+
 app.post('/api/newsletter/subscribe', async (req, res) => {
   const email = String(req.body?.email || '').trim().toLowerCase();
   if (!newsletterEmailPattern.test(email) || email.length > 254) return res.status(400).json({ error: 'Enter a valid email address.' });

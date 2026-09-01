@@ -160,7 +160,7 @@ Visual Steps provides a shared system in which a parent or caregiver can prepare
 ### Accessibility and usability
 
 - Support keyboard navigation, visible focus states, sufficient contrast, and descriptive labels.
-- Preserve valid Contact-page requests in a protected administrator Support Inbox before attempting notification email delivery. Administrators must be able to distinguish unread, open, and resolved conversations, reply to the sender, and reopen a conversation without accessing family-profile content.
+- Preserve valid Contact-page requests in a protected administrator Support Inbox before attempting notification email delivery. Administrators must be able to distinguish unread, open, and resolved conversations, reply to the sender, and reopen a conversation without accessing family-profile content. Administrators may also send Visual Steps updates, general announcements, or account information to all signed-up parents or selected parent accounts from a database-backed account list; recipient addresses must remain private and delivery totals must be auditable.
 - Keep child-facing controls large, consistent, and understandable.
 - Ensure layouts work on mobile, tablet, and desktop screens.
 - Respect reduced-motion preferences for nonessential animation.
