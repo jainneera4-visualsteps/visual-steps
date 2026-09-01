@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Calendar, Star, Lightbulb, CheckCircle, Circle, Clock, LayoutList, WifiOff, Sun, CloudSun, Moon, Sparkles, LogOut, Trophy, Eye, MessageSquare, ShieldCheck } from 'lucide-react';
 import { Card, CardContent } from '../components/Card';
+import { Button } from '../components/Button';
 import { ActivityDetailModal } from '../components/ActivityDetailModal';
 import { getZonedTime, formatInTimezone, convertDateToTimeZone } from '../utils/dateUtils';
 import { SocialStoryModal } from '../components/SocialStoryModal';
@@ -39,6 +40,9 @@ interface Activity {
   created_at?: string;
   steps?: ActivityStep[];
   isHistory?: boolean;
+  is_optional_bonus?: boolean;
+  optional_reward_qty?: number;
+  optional_selected_at?: string;
 }
 
 interface Kid {
@@ -83,6 +87,16 @@ interface BehaviorBonusAward {
   awarded_at: string;
 }
 
+interface OptionalBonusActivity {
+  id: string;
+  activity_type: string;
+  description?: string;
+  optional_reward_qty?: number;
+  image_url?: string;
+  steps?: ActivityStep[];
+  requires_verification: boolean;
+}
+
 export default function KidsDashboard() {
   const { kidId } = useParams();
   const navigate = useNavigate();
@@ -97,7 +111,7 @@ export default function KidsDashboard() {
   const [isAccessAllowed, setIsAccessAllowed] = useState(true);
   const [accessMessage, setAccessMessage] = useState('');
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
-  const [activeTab, setActiveTab] = useState<'todo' | 'verification' | 'completed' | 'rewards'>('todo');
+  const [activeTab, setActiveTab] = useState<'todo' | 'verification' | 'completed' | 'bonus' | 'rewards'>('todo');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [timezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [completedTodayCount, setCompletedTodayCount] = useState(0);
@@ -421,6 +435,10 @@ export default function KidsDashboard() {
   // Exit Modal State
   const [rewardItems, setRewardItems] = useState<RewardItem[]>([]);
   const [behaviorBonuses, setBehaviorBonuses] = useState<BehaviorBonusAward[]>([]);
+  const [optionalBonusActivities, setOptionalBonusActivities] = useState<OptionalBonusActivity[]>([]);
+  const [optionalBonusEligibility, setOptionalBonusEligibility] = useState({ eligible: false, remainingActivities: 0, remainingRewards: 0, unavailableReason: '' });
+  const [selectedOptionalActivityId, setSelectedOptionalActivityId] = useState('');
+  const [submittingOptionalId, setSubmittingOptionalId] = useState<string | null>(null);
 
   const safeLocalStorageGet = (key: string) => {
     try {
@@ -631,11 +649,12 @@ export default function KidsDashboard() {
           }
         };
 
-        const [kidRes, actRes, rewardRes, bonusRes] = await Promise.all([
+        const [kidRes, actRes, rewardRes, bonusRes, optionalBonusRes] = await Promise.all([
           fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}`), 'kid'),
           fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/activities?mode=kid&localDate=${localDate}&localTime=${localTime}&_t=${Date.now()}`), 'activities'),
           fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/reward-items?onlyActive=true`), 'rewards'),
-          fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/behavior-bonuses`), 'behavior bonuses')
+          fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/behavior-bonuses`), 'behavior bonuses'),
+          fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/optional-bonus-activities`), 'optional bonus activities')
         ]);
 
         // Process Kid Data
@@ -681,6 +700,11 @@ export default function KidsDashboard() {
           const bonusData = await safeJson(bonusRes);
           setBehaviorBonuses(bonusData.awards || []);
         }
+        if (optionalBonusRes.ok) {
+          const optionalData = await safeJson(optionalBonusRes);
+          setOptionalBonusActivities(optionalData.activities || []);
+          if (optionalData.eligibility) setOptionalBonusEligibility(optionalData.eligibility);
+        }
 
       } catch (error: any) {
         console.error('KidsDashboard: Failed to fetch data', {
@@ -695,9 +719,37 @@ export default function KidsDashboard() {
     if (!silent) setIsLoading(false);
   }, [kidId]);
 
+  const chooseOptionalBonusActivity = async (activity: OptionalBonusActivity) => {
+    setSubmittingOptionalId(activity.id);
+    try {
+      const response = await apiFetch(`/api/activities/${encodeURIComponent(activity.id)}/select-optional`, { method: 'POST' });
+      const data = await safeJson(response);
+      if (!response.ok) throw new Error(data.error || 'Unable to choose this additional activity');
+      setSelectedOptionalActivityId('');
+      await fetchData(true);
+      setActiveTab('todo');
+    } catch (error: any) {
+      window.alert(error.message || 'Unable to choose this additional activity');
+    } finally {
+      setSubmittingOptionalId(null);
+    }
+  };
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    if (activeTab === 'todo' && optionalBonusEligibility.eligible && optionalBonusActivities.length > 0) {
+      setActiveTab('bonus');
+    }
+  }, [activeTab, optionalBonusActivities.length, optionalBonusEligibility.eligible]);
+
+  useEffect(() => {
+    if (selectedOptionalActivityId && !optionalBonusActivities.some(activity => activity.id === selectedOptionalActivityId)) {
+      setSelectedOptionalActivityId('');
+    }
+  }, [optionalBonusActivities, selectedOptionalActivityId]);
 
   useEffect(() => {
     // Check for new parent message with persistence
@@ -775,7 +827,7 @@ export default function KidsDashboard() {
     
     // Optimistic update for kid's reward balance
     if (kid && newStatus === 'completed') {
-      const rewardQty = kid.reward_quantity || 0; // Default to 0 if not set
+      const rewardQty = activity.is_optional_bonus ? (activity.optional_reward_qty || 1) : (kid.reward_quantity || 0);
       const updatedKid = { ...kid, reward_balance: (kid.reward_balance || 0) + rewardQty };
       setKid(updatedKid);
       safeLocalStorageSet(`kid_${kidId}`, JSON.stringify(updatedKid));
@@ -1017,6 +1069,20 @@ export default function KidsDashboard() {
                       <CheckCircle className="h-3.5 w-3.5" />
                       ✅ Completed
                     </button>
+                    {optionalBonusEligibility.eligible && optionalBonusActivities.length > 0 && (
+                      <button
+                        onClick={() => setActiveTab('bonus')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                          activeTab === 'bonus'
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : `${isDarkTheme ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-500 hover:bg-slate-50'}`
+                        }`}
+                        title="Choose an optional activity after finishing today's plan"
+                      >
+                        <Star className="h-3.5 w-3.5" />
+                        ⭐ Extra Activities
+                      </button>
+                    )}
                     <button
                       onClick={() => setActiveTab('rewards')}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
@@ -1041,6 +1107,51 @@ export default function KidsDashboard() {
                         </div>
                         <h2 className={`text-2xl font-black ${currentTheme.cardTitle} mb-2 tracking-tight`}>{accessMessage}</h2>
                         <p className={`${currentTheme.cardSubtext} font-medium max-w-xs`}>Ask your parent if you need to see your activities or want to keep playing!</p>
+                      </div>
+                    ) : activeTab === 'bonus' ? (
+                      <div className="space-y-5">
+                        <div className={`rounded-2xl p-5 ring-1 ${currentTheme.banner}`}>
+                          <div className="flex items-start gap-3">
+                            <div className="rounded-full bg-blue-100 p-3"><Star className="h-6 w-6 text-blue-600" /></div>
+                            <div>
+                              <h2 className={`text-xl font-black ${currentTheme.bannerText}`}>Extra Activities</h2>
+                              <p className={`mt-1 text-sm font-bold ${currentTheme.bannerSubtext}`}>You can earn {optionalBonusEligibility.remainingRewards} more {formatReward(kid?.reward_type, optionalBonusEligibility.remainingRewards)}. If you want, choose an extra activity.</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col gap-3">
+                          {optionalBonusActivities.map(activity => (
+                            <label key={activity.id} className="block cursor-pointer">
+                            <Card className={`h-full overflow-hidden border-none ring-2 transition-all ${selectedOptionalActivityId === activity.id ? 'ring-blue-500 shadow-lg' : currentTheme.card}`}>
+                              <CardContent className="flex items-start gap-3 p-3">
+                                <div className="flex items-start gap-3">
+                                  <input type="radio" name="optional-activity" value={activity.id} checked={selectedOptionalActivityId === activity.id} onChange={() => setSelectedOptionalActivityId(activity.id)} className="mt-1 h-5 w-5 shrink-0 accent-blue-600" />
+                                  {activity.image_url && <img src={activity.image_url} alt="" className="h-20 w-24 shrink-0 rounded-lg bg-slate-50 object-contain" referrerPolicy="no-referrer" />}
+                                  <div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-3"><div><h3 className={`text-lg font-black ${currentTheme.cardTitle}`}>{activity.activity_type}</h3>{activity.description && <p className={`mt-1 text-sm ${currentTheme.cardSubtext}`}>{activity.description}</p>}</div><span className="shrink-0 rounded-full bg-emerald-100 px-2.5 py-1 text-sm font-black text-emerald-800">+{activity.optional_reward_qty || 1}</span></div>
+                                {activity.steps && activity.steps.length > 0 && <ol className={`mt-3 list-decimal space-y-1 pl-5 text-sm ${currentTheme.cardSubtext}`}>{activity.steps.map((step, index) => <li key={`${activity.id}-${index}`}>{step.description}</li>)}</ol>}
+                                <div className={`mt-3 text-xs font-bold ${currentTheme.bannerSubtext}`}>{activity.requires_verification ? 'A parent will check it before rewards are added.' : 'Rewards are added after completion.'}</div>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                            </label>
+                          ))}
+                        </div>
+                        {optionalBonusActivities.length > 0 && (
+                          <div className="flex justify-center">
+                            <Button
+                              disabled={!selectedOptionalActivityId || Boolean(submittingOptionalId)}
+                              onClick={() => {
+                                const selected = optionalBonusActivities.find(activity => activity.id === selectedOptionalActivityId);
+                                if (selected) void chooseOptionalBonusActivity(selected);
+                              }}
+                            >
+                              {submittingOptionalId ? 'Choosing…' : 'Choose Activity'}
+                            </Button>
+                          </div>
+                        )}
+                        {!optionalBonusActivities.length && <div className="rounded-xl border-2 border-dashed border-slate-200 p-8 text-center text-slate-500"><p className="font-bold">No more optional choices are available today.</p><p className="mt-1 text-sm">You have already done enough—enjoy the rest of your day.</p></div>}
                       </div>
                     ) : activeTab === 'rewards' ? (
                       <div className="space-y-6">

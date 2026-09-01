@@ -24,20 +24,30 @@ const productFeatureRegistry = [
   {
     "id": "visual-activities",
     "title": "Clear visual activities",
-    "summary": "Build scheduled routines with small steps and illustrations that match what the child / adult is being asked to do.",
-    "details": "Parents and caregivers can turn a routine, responsibility, or learning goal into a clear assigned activity. Each activity can include a description, relevant illustrations, smaller visual steps, timing, recurrence, and a reward amount. The child / adult sees a focused view of what to do now and what comes next rather than unrelated generic imagery. Parents and caregivers can adjust or reassign the same activity when the child / adult needs another try.",
+    "summary": "Build clear scheduled routines and offer optional additional choices after today’s assigned activities are finished.",
+    "details": "Parents and caregivers can turn a routine, responsibility, or learning goal into a clear activity with descriptions, illustrations, smaller steps, timing, recurrence, verification, and rewards. The same Add Activity form can mark an activity as optional and give it a specific reward amount. It stays hidden from the learner until today’s assigned activities are finished and dashboard hours are still open. The child / adult may then choose it or stop for the day; once chosen, it follows the familiar To Do, Waiting, Completed, and History flow.",
     "familyImpact": "Clear visual sequences can reduce uncertainty and make a task easier to begin, understand, and finish for autistic people of different ages and support needs. Parents and caregivers can divide responsibilities into achievable steps, adapt the pace, and use consistent instructions across home, learning, work, therapy support, and community routines.",
     "guideParagraphs": [
       "A visual activity is most useful when it answers the questions a person may naturally have before beginning: what am I doing, how much is expected, what happens next, and how will I know I am finished? Parents can keep the wording concrete, choose an illustration that truly matches the task, and add only the steps that make the activity easier to follow. For a familiar routine, a short instruction may be enough; for a newer or more demanding responsibility, several smaller steps can provide a clearer path.",
-      "The same approach can support a young child learning self-care, a teenager managing school or household responsibilities, or an autistic adult building independence at home, work, or in the community. Caregivers can observe where the person pauses, becomes uncertain, or needs prompting, then adjust the wording, image, timing, or number of steps. Reassignment provides another opportunity without erasing the value of the first effort."
+      "The same approach can support a young child learning self-care, a teenager managing school or household responsibilities, or an autistic adult building independence at home, work, or in the community. Caregivers can observe where the person pauses, becomes uncertain, or needs prompting, then adjust the wording, image, timing, or number of steps. Reassignment provides another opportunity without erasing the value of the first effort.",
+      "Optional additional activities provide flexibility when today’s assigned plan is complete but a learner wants another meaningful way to work toward a reward. Parents create them through the same activity form and may use the same steps, pictures, recurrence, and verification choices. They remain hidden until the assigned activities are finished and disappear when dashboard hours or family limits are reached. Choosing one adds it to the learner’s ordinary To Do list, while stopping for the day remains an equally acceptable choice."
     ],
-    "help": "From Dashboard, select a child and open Activities. Use Add Activity to enter instructions, steps, timing, recurrence, images, and rewards.",
+    "help": "From Dashboard, select a child and open Activities Setup. Choose Add Activity, complete the usual details, and select Optional additional activity when the activity should appear only after the learner finishes today’s assigned activities. Set its reward amount and save it normally.",
     "screenshot": {
       "src": "/onboarding/activities.png",
       "alt": "Visual Steps activities screen",
       "caption": "The real Activities workspace where parents plan visual steps, timing, and rewards."
     },
     "introducedOn": "2026-03-01",
+    "updates": [
+      {
+        "updatedOn": "2026-08-31",
+        "title": "Learner-chosen additional activities",
+        "summary": "Parents can mark a normal activity as optional so it becomes a choice after today’s assigned activities are finished.",
+        "details": "Optional activities use the existing activity form, steps, illustrations, schedule, recurrence, verification, and completion history. They stay out of the learner’s assigned list until the daily plan is finished and dashboard hours remain open. A learner may choose an activity, which then enters the ordinary To Do flow, or decide to stop for the day.",
+        "familyImpact": "A child / adult who wants to keep working toward a target reward can choose meaningful additional work without the parent expanding the assigned plan. The clear choice to continue or stop supports autonomy and reduces uncertainty about whether another earning opportunity is available."
+      }
+    ],
     "plan": "starter",
     "icon": "activity",
     "routes": [
@@ -585,6 +595,22 @@ const countAssignedActivitiesCompletedOnDate = (
   && getActivityDateInTimeZone(activity.completion_date as string, timeZone) === targetDate
 )).length;
 
+const getZonedScheduleParts = (timeZone?: string | null) => {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timeZone || 'UTC', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false, weekday: 'short',
+  });
+  const parts = formatter.formatToParts(new Date());
+  const value = (type: string) => parts.find(part => part.type === type)?.value || '';
+  const hour = Number(value('hour')) % 24;
+  const weekdayByName: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  return {
+    date: `${value('year')}-${value('month')}-${value('day')}`,
+    minutes: hour * 60 + Number(value('minute')),
+    weekday: weekdayByName[value('weekday')] ?? 0,
+  };
+};
+
 interface AuthenticationUserUpdates {
   email?: string;
   password?: string;
@@ -862,6 +888,8 @@ export const isKidApiRequestAllowed = (method: string, pathName: string, kidId: 
   if (methodUpper === 'GET' && pathName === `${ownKidBase}/activities`) return true;
   if (methodUpper === 'GET' && pathName === `${ownKidBase}/reward-items`) return true;
   if (methodUpper === 'GET' && pathName === `${ownKidBase}/behavior-bonuses`) return true;
+  if (methodUpper === 'GET' && pathName === `${ownKidBase}/optional-bonus-activities`) return true;
+  if (methodUpper === 'POST' && /^\/api\/activities\/[^/]+\/select-optional$/.test(pathName)) return true;
   if (methodUpper === 'PUT' && /^\/api\/activities\/[^/]+$/.test(pathName)) return true;
   if (methodUpper === 'GET' && /^\/api\/quizzes\/[^/]+$/.test(pathName)) return true;
   if (methodUpper === 'GET' && /^\/api\/quiz-attempts\/[^/]+$/.test(pathName)) return true;
@@ -3493,6 +3521,7 @@ app.post('/api/kids', authenticateToken, async (req: any, res) => {
     reward_type: rewardType, 
     reward_quantity: rewardQuantity, 
     bonus_history_limit: bonusHistoryLimit,
+    optional_bonus_daily_reward_limit: optionalBonusDailyRewardLimit,
     rules, 
     theme, 
     can_print: canPrint, 
@@ -3510,6 +3539,10 @@ app.post('/api/kids', authenticateToken, async (req: any, res) => {
     const rewardQty = rewardQuantity && !isNaN(parseInt(rewardQuantity, 10)) ? parseInt(rewardQuantity, 10) : 1;
     const parsedBonusHistoryLimit = Number.parseInt(String(bonusHistoryLimit), 10);
     const bonusHistoryLimitValue = Number.isFinite(parsedBonusHistoryLimit) ? Math.min(10, Math.max(1, parsedBonusHistoryLimit)) : 5;
+    const parsedOptionalRewardLimit = Number.parseInt(String(optionalBonusDailyRewardLimit), 10);
+    const optionalRewardLimitValue = Number.isFinite(parsedOptionalRewardLimit)
+      ? Math.min(100, Math.max(1, parsedOptionalRewardLimit))
+      : 10;
     const start_time = startTime && startTime !== '' ? startTime : null;
     const end_time = endTime && endTime !== '' ? endTime : null;
     
@@ -3533,6 +3566,7 @@ app.post('/api/kids', authenticateToken, async (req: any, res) => {
       reward_type: rewardType || 'Penny',
       reward_quantity: rewardQty,
       bonus_history_limit: bonusHistoryLimitValue,
+      optional_bonus_daily_reward_limit: optionalRewardLimitValue,
       rules,
       theme: theme || 'sky',
       kid_code: kidCode,
@@ -3988,13 +4022,42 @@ app.get('/api/kids', authenticateToken, async (req: any, res) => {
     await pruneExpiredParentMessages(supabase, userId);
     const latestMessages = await getLatestParentMessagesMap(supabase, userId, messageKidIds);
 
-    const processedKids = (kids || []).map(k => {
-      const kid = k;
+    const processedKids = await Promise.all((kids || []).map(async k => {
+      const kid = { ...k };
       if (latestMessages[kid.id]) {
         kid.parent_message = latestMessages[kid.id];
       }
+
+      // Show parents how much of today's optional-activity reward allowance
+      // remains. A selected activity reserves its reward amount, and completed
+      // activities remain counted through activity history.
+      try {
+        const localDate = getZonedScheduleParts(kid.timezone).date;
+        const [{ data: selectedExtras, error: selectedError }, { data: completedExtras, error: completedError }] = await Promise.all([
+          supabase.from('activities')
+            .select('optional_reward_qty')
+            .eq('kid_id', kid.id)
+            .eq('due_date', localDate)
+            .eq('is_optional_bonus', true)
+            .neq('status', 'completed')
+            .not('optional_selected_at', 'is', null),
+          supabase.from('activity_history')
+            .select('optional_reward_qty, reward_qty')
+            .eq('kid_id', kid.id)
+            .eq('due_date', localDate)
+            .eq('is_optional_bonus', true),
+        ]);
+        if (selectedError) throw selectedError;
+        if (completedError) throw completedError;
+        const used = (selectedExtras || []).reduce((sum: number, item: any) => sum + Number(item.optional_reward_qty || 0), 0)
+          + (completedExtras || []).reduce((sum: number, item: any) => sum + Number(item.optional_reward_qty || item.reward_qty || 0), 0);
+        kid.optional_bonus_remaining_rewards = Math.max(0, Number(kid.optional_bonus_daily_reward_limit || 10) - used);
+      } catch (optionalRewardError) {
+        console.warn(`Unable to calculate remaining extra rewards for ${kid.id}:`, optionalRewardError);
+        kid.optional_bonus_remaining_rewards = Number(kid.optional_bonus_daily_reward_limit || 10);
+      }
       return kid;
-    });
+    }));
     res.json({ kids: processedKids });
   } catch (error) {
     console.error('Unexpected error fetching kids:', error);
@@ -4035,6 +4098,34 @@ app.get('/api/kids/:id', authenticateToken, async (req: any, res) => {
 
     const processedKid = { ...kid };
     try {
+      const localDate = getZonedScheduleParts(kid.timezone).date;
+      const [{ data: selectedExtras, error: selectedError }, { data: completedExtras, error: completedError }] = await Promise.all([
+        supabase.from('activities')
+          .select('optional_reward_qty')
+          .eq('kid_id', id)
+          .eq('due_date', localDate)
+          .eq('is_optional_bonus', true)
+          .neq('status', 'completed')
+          .not('optional_selected_at', 'is', null),
+        supabase.from('activity_history')
+          .select('optional_reward_qty, reward_qty')
+          .eq('kid_id', id)
+          .eq('due_date', localDate)
+          .eq('is_optional_bonus', true),
+      ]);
+      if (selectedError) throw selectedError;
+      if (completedError) throw completedError;
+      const usedExtraRewards = (selectedExtras || []).reduce((sum: number, item: any) => sum + Number(item.optional_reward_qty || 0), 0)
+        + (completedExtras || []).reduce((sum: number, item: any) => sum + Number(item.optional_reward_qty || item.reward_qty || 0), 0);
+      processedKid.optional_bonus_remaining_rewards = Math.max(
+        0,
+        Number(kid.optional_bonus_daily_reward_limit || 10) - usedExtraRewards,
+      );
+    } catch (optionalRewardError) {
+      console.warn(`Unable to calculate remaining extra rewards for ${id}:`, optionalRewardError);
+      processedKid.optional_bonus_remaining_rewards = Number(kid.optional_bonus_daily_reward_limit || 10);
+    }
+    try {
       const messageOwnerId = req.user.userId || req.user.id;
       await pruneExpiredParentMessages(supabase, messageOwnerId, id);
       const latestMessages = await getLatestParentMessagesMap(supabase, messageOwnerId, [id]);
@@ -4073,6 +4164,7 @@ app.put('/api/kids/:id', authenticateToken, async (req: any, res) => {
     reward_type: rewardType, 
     reward_quantity: rewardQuantity, 
     bonus_history_limit: bonusHistoryLimit,
+    optional_bonus_daily_reward_limit: optionalBonusDailyRewardLimit,
     reward_balance: rewardBalance, 
     rules, 
     theme, 
@@ -4132,6 +4224,13 @@ app.put('/api/kids/:id', authenticateToken, async (req: any, res) => {
     if (bonusHistoryLimit !== undefined) {
       const parsedLimit = Number.parseInt(String(bonusHistoryLimit), 10);
       updates.bonus_history_limit = Number.isFinite(parsedLimit) ? Math.min(10, Math.max(1, parsedLimit)) : 5;
+    }
+    if (optionalBonusDailyRewardLimit !== undefined) {
+      const parsedLimit = Number.parseInt(String(optionalBonusDailyRewardLimit), 10);
+      if (!Number.isFinite(parsedLimit) || parsedLimit < 1 || parsedLimit > 100) {
+        return res.status(400).json({ error: 'Daily extra rewards must be between 1 and 100.' });
+      }
+      updates.optional_bonus_daily_reward_limit = parsedLimit;
     }
     if (rewardBalance !== undefined) {
       const parsedBal = parseInt(rewardBalance, 10);
@@ -4667,6 +4766,15 @@ app.get('/api/kids/:kidId/activities', authenticateToken, async (req: any, res) 
     
     let filteredActivities = activities || [];
 
+    // Unchosen additional activities are deliberately hidden from the normal
+    // learner schedule. After the learner chooses one, the same activity row
+    // enters the ordinary To Do, Waiting, and Completed experience.
+    if (mode === 'kid') {
+      filteredActivities = filteredActivities.filter((activity: any) => (
+        activity.is_optional_bonus !== true || activity.optional_selected_at
+      ));
+    }
+
     // Apply max incomplete limit if set
     if (mode === 'kid' && kid.max_incomplete_limit && kid.max_incomplete_limit > 0) {
       const incompleteActivities = filteredActivities.filter((a: any) => a.status === 'pending');
@@ -4803,6 +4911,133 @@ app.get('/api/activity-categories', authenticateToken, async (req: any, res) => 
   }
 });
 
+// Additional activities use the normal activity records and become visible as
+// choices only after no regular activity remains pending for the local day.
+app.get('/api/kids/:kidId/optional-bonus-activities', authenticateToken, async (req: any, res) => {
+  const { kidId } = req.params;
+  if (req.user.role === 'kid' && req.user.kidId !== kidId) return res.status(403).json({ error: 'Forbidden' });
+  try {
+    const admin = getAdminSupabaseClient();
+    const { data: kid, error: kidError } = await admin.from('kids')
+      .select('id, user_id, timezone, start_time, end_time, optional_bonus_enabled, optional_bonus_daily_activity_limit, optional_bonus_daily_reward_limit')
+      .eq('id', kidId).maybeSingle();
+    if (kidError || !kid || kid.user_id !== req.user.id) return res.status(404).json({ error: 'Child profile not found' });
+
+    const local = getZonedScheduleParts(kid.timezone);
+    const { data: todayActivities, error: requiredError } = await admin.from('activities')
+      .select('*, activity_steps(*)').eq('kid_id', kidId).eq('due_date', local.date);
+    if (requiredError) throw requiredError;
+    const regularActivities = (todayActivities || []).filter((item: any) => item.is_optional_bonus !== true);
+    const requiredPlanFinished = regularActivities.length > 0 && regularActivities.every((item: any) => item.status !== 'pending');
+    const parseTime = (value?: string | null) => {
+      if (!value) return null;
+      const [hour, minute] = value.split(':').map(Number);
+      return Number.isFinite(hour) && Number.isFinite(minute) ? hour * 60 + minute : null;
+    };
+    const start = parseTime(kid.start_time);
+    const end = parseTime(kid.end_time);
+    const withinDashboardTime = (start === null || local.minutes >= start) && (end === null || local.minutes <= end);
+
+    const { data: optionalHistory, error: historyError } = await admin.from('activity_history')
+      .select('id, optional_reward_qty, reward_qty').eq('kid_id', kidId).eq('due_date', local.date).eq('is_optional_bonus', true);
+    if (historyError) throw historyError;
+    const chosenActivities = (todayActivities || []).filter((item: any) => item.is_optional_bonus === true
+      && item.status !== 'completed' && item.optional_selected_at);
+    const chosenActivityStillPending = chosenActivities.some((item: any) => item.status === 'pending');
+    const chosenCount = chosenActivities.length + (optionalHistory || []).length;
+    const usedRewards = chosenActivities.reduce((sum: number, item: any) => sum + Number(item.optional_reward_qty || 0), 0)
+      + (optionalHistory || []).reduce((sum: number, item: any) => sum + Number(item.optional_reward_qty || item.reward_qty || 0), 0);
+    const remainingActivities = Math.max(0, Number(kid.optional_bonus_daily_activity_limit || 3) - chosenCount);
+    const remainingRewards = Math.max(0, Number(kid.optional_bonus_daily_reward_limit || 10) - usedRewards);
+    const eligible = Boolean(kid.optional_bonus_enabled && requiredPlanFinished && !chosenActivityStillPending
+      && withinDashboardTime && remainingActivities > 0 && remainingRewards > 0);
+
+    const availableOptionalActivities = (todayActivities || []).filter((item: any) => item.is_optional_bonus === true
+      && item.status === 'pending' && !item.optional_selected_at);
+    const smallestRewardAboveRemaining = availableOptionalActivities.reduce((smallest: number | null, item: any) => {
+      const reward = Math.max(1, Number(item.optional_reward_qty) || 1);
+      if (reward <= remainingRewards) return smallest;
+      return smallest === null ? reward : Math.min(smallest, reward);
+    }, null);
+    const visibleActivities = availableOptionalActivities.filter((item: any) => {
+      const reward = Math.max(1, Number(item.optional_reward_qty) || 1);
+      return reward <= remainingRewards || reward === smallestRewardAboveRemaining;
+    });
+
+    let unavailableReason = '';
+    if (!kid.optional_bonus_enabled) unavailableReason = 'Optional bonus activities are turned off.';
+    else if (!regularActivities.length) unavailableReason = 'Additional choices appear after today’s assigned activities are finished.';
+    else if (!requiredPlanFinished) unavailableReason = 'Finish today’s assigned activities first.';
+    else if (chosenActivityStillPending) unavailableReason = 'The additional activity you chose is already in your To Do list.';
+    else if (!withinDashboardTime) unavailableReason = 'Optional choices are available only during dashboard hours.';
+    else if (remainingActivities === 0 || remainingRewards === 0) unavailableReason = 'Today’s optional activity limit has been reached.';
+
+    res.json({
+      activities: eligible || req.user.role !== 'kid' ? visibleActivities : [],
+      eligibility: { eligible, unavailableReason, requiredCount: regularActivities.length, remainingActivities, remainingRewards, localDate: local.date },
+      settings: {
+        enabled: kid.optional_bonus_enabled,
+        dailyActivityLimit: kid.optional_bonus_daily_activity_limit,
+        dailyRewardLimit: kid.optional_bonus_daily_reward_limit,
+      },
+    });
+  } catch (error) {
+    console.error('Failed to load optional bonus activities:', error);
+    res.status(500).json({ error: 'Unable to load optional bonus activities' });
+  }
+});
+
+app.put('/api/kids/:kidId/optional-bonus-settings', authenticateToken, async (req: any, res) => {
+  if (req.user.role !== 'parent') return res.status(403).json({ error: 'Parent access required' });
+  const { kidId } = req.params;
+  const enabled = req.body?.enabled === true;
+  const dailyActivityLimit = Number(req.body?.dailyActivityLimit);
+  const dailyRewardLimit = Number(req.body?.dailyRewardLimit);
+  if (!Number.isInteger(dailyActivityLimit) || dailyActivityLimit < 1 || dailyActivityLimit > 10 ||
+      !Number.isInteger(dailyRewardLimit) || dailyRewardLimit < 1 || dailyRewardLimit > 100) {
+    return res.status(400).json({ error: 'Choose 1–10 activities and a daily reward limit from 1–100.' });
+  }
+  const supabase = getSupabaseForUser(req);
+  const { data, error } = await supabase.from('kids').update({
+    optional_bonus_enabled: enabled,
+    optional_bonus_daily_activity_limit: dailyActivityLimit,
+    optional_bonus_daily_reward_limit: dailyRewardLimit,
+  }).eq('id', kidId).eq('user_id', req.user.id).select('id').maybeSingle();
+  if (error) return res.status(500).json({ error: 'Unable to save optional activity settings' });
+  if (!data) return res.status(404).json({ error: 'Child profile not found' });
+  res.json({ success: true });
+});
+
+app.post('/api/activities/:activityId/select-optional', authenticateToken, async (req: any, res) => {
+  if (req.user.role !== 'kid') return res.status(403).json({ error: 'Learner access required' });
+  try {
+    const admin = getAdminSupabaseClient();
+    const { data: kid } = await admin.from('kids').select('id, user_id, timezone, start_time, end_time').eq('id', req.user.kidId).maybeSingle();
+    if (!kid || kid.user_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
+    const local = getZonedScheduleParts(kid.timezone);
+    const parseTime = (value?: string | null) => {
+      if (!value) return null;
+      const [hour, minute] = value.split(':').map(Number);
+      return Number.isFinite(hour) && Number.isFinite(minute) ? hour * 60 + minute : null;
+    };
+    const start = parseTime(kid.start_time); const end = parseTime(kid.end_time);
+    if ((start !== null && local.minutes < start) || (end !== null && local.minutes > end)) {
+      return res.status(400).json({ error: 'Optional choices are available only during dashboard hours.' });
+    }
+    const { data, error } = await admin.rpc('select_optional_activity', {
+      activity_id_param: req.params.activityId, kid_id_param: req.user.kidId,
+      user_id_param: req.user.id, activity_date_param: local.date,
+    });
+    if (error) return res.status(400).json({ error: error.message || 'Unable to choose this additional activity' });
+    const selection = Array.isArray(data) ? data[0] : data;
+    const io = req.app.get('io'); if (io) io.to(`kid_${req.user.kidId}`).emit('data_updated', { kidId: req.user.kidId });
+    res.status(200).json({ selection });
+  } catch (error) {
+    console.error('Failed to select additional activity:', error);
+    res.status(500).json({ error: 'Unable to choose this additional activity' });
+  }
+});
+
 // Behavior bonuses are initiated only by parents and always include a reason.
 app.get('/api/kids/:kidId/behavior-bonuses', authenticateToken, async (req: any, res) => {
   const { kidId } = req.params;
@@ -4857,8 +5092,13 @@ app.post('/api/kids/:kidId/behavior-bonuses', authenticateToken, async (req: any
 // Create Activity
 app.post('/api/activities', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
-  const { kidId, activityType, category, repeatFrequency, repeatsTill, timeOfDay, description, link, imageUrl, status, dueDate, steps, repeat_interval, repeat_unit, requiresVerification } = req.body;
+  const { kidId, activityType, category, repeatFrequency, repeatsTill, timeOfDay, description, link, imageUrl, status, dueDate, steps, repeat_interval, repeat_unit, requiresVerification, isOptionalBonus, optionalRewardQty } = req.body;
   const userId = req.user.id;
+
+  if (isOptionalBonus === true && (!Number.isInteger(Number(optionalRewardQty))
+    || Number(optionalRewardQty) < 1 || Number(optionalRewardQty) > 50)) {
+    return res.status(400).json({ error: 'Choose a reward amount from 1 to 50 for the optional activity.' });
+  }
 
   try {
     // Verify kid belongs to user
@@ -4888,6 +5128,9 @@ app.post('/api/activities', authenticateToken, async (req: any, res) => {
           image_url: imageUrl,
           status: status || 'pending',
           requires_verification: requiresVerification === true,
+          is_optional_bonus: isOptionalBonus === true,
+          optional_reward_qty: isOptionalBonus === true ? Math.max(1, Math.min(50, Number(optionalRewardQty) || 1)) : null,
+          optional_selected_at: null,
           due_date: dueDate,
           repeat_interval: repeat_interval || null,
           repeat_unit: repeat_unit || null
@@ -5156,7 +5399,7 @@ app.put('/api/kids/:kidId/confirm-reward', authenticateToken, async (req: any, r
 app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
   const { id } = req.params;
-  let { activityType, category, repeatFrequency, repeatsTill, timeOfDay, description, link, imageUrl, status, dueDate, steps, repeat_interval, repeat_unit, requiresVerification, reassignmentLevel } = req.body;
+  let { activityType, category, repeatFrequency, repeatsTill, timeOfDay, description, link, imageUrl, status, dueDate, steps, repeat_interval, repeat_unit, requiresVerification, reassignmentLevel, isOptionalBonus, optionalRewardQty } = req.body;
   const userId = req.user.id;
 
   try {
@@ -5204,6 +5447,9 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
       if (isHistory || status !== 'completed' || activity.status !== 'pending') {
         return res.status(403).json({ error: 'Children may only submit pending activities' });
       }
+      if (activity.is_optional_bonus && !activity.optional_selected_at) {
+        return res.status(403).json({ error: 'Choose this additional activity before completing it' });
+      }
       status = activity.requires_verification ? 'awaiting_verification' : 'completed';
       activityType = activity.activity_type;
       category = activity.category;
@@ -5217,7 +5463,14 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
       repeat_interval = activity.repeat_interval;
       repeat_unit = activity.repeat_unit;
       requiresVerification = activity.requires_verification;
+      isOptionalBonus = activity.is_optional_bonus;
+      optionalRewardQty = activity.optional_reward_qty;
       steps = undefined;
+    }
+
+    if (req.user.role !== 'kid' && isOptionalBonus === true
+      && (!Number.isInteger(Number(optionalRewardQty)) || Number(optionalRewardQty) < 1 || Number(optionalRewardQty) > 50)) {
+      return res.status(400).json({ error: 'Choose a reward amount from 1 to 50 for the optional activity.' });
     }
 
     const supportedStatuses = new Set(['pending', 'awaiting_verification', 'completed', 'on_hold', 'ended']);
@@ -5261,7 +5514,10 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
             repeat_frequency: repeatFrequency || 'Never',
             repeats_till: repeatsTill,
             repeat_interval: repeat_interval || null,
-            repeat_unit: repeat_unit || null
+            repeat_unit: repeat_unit || null,
+            is_optional_bonus: Boolean(activity.is_optional_bonus),
+            optional_reward_qty: activity.is_optional_bonus ? activity.optional_reward_qty : null,
+            optional_selected_at: null
           });
         
         if (!moveBackError) {
@@ -5309,6 +5565,15 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
         requires_verification: requiresVerification === undefined
           ? Boolean(activity.requires_verification)
           : requiresVerification === true,
+        is_optional_bonus: isOptionalBonus === undefined ? Boolean(activity.is_optional_bonus) : isOptionalBonus === true,
+        optional_reward_qty: (isOptionalBonus === undefined ? Boolean(activity.is_optional_bonus) : isOptionalBonus === true)
+          ? Math.max(1, Math.min(50, Number(optionalRewardQty ?? activity.optional_reward_qty) || 1))
+          : null,
+        optional_selected_at: isReassignment && (isOptionalBonus === undefined
+          ? Boolean(activity.is_optional_bonus)
+          : isOptionalBonus === true)
+          ? null
+          : activity.optional_selected_at,
         submitted_at: submittedAt,
         verified_at: verifiedAt,
         verified_by: verifiedBy,
@@ -5334,7 +5599,10 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
     // If status changed to completed, increment kid's reward balance
     if (isNewCompletion) {
       const kidsData = activity.kids as any;
-      const rewardQty = (Array.isArray(kidsData) ? kidsData[0]?.reward_quantity : kidsData?.reward_quantity) || 0;
+      const standardRewardQty = (Array.isArray(kidsData) ? kidsData[0]?.reward_quantity : kidsData?.reward_quantity) || 0;
+      const rewardQty = activity.is_optional_bonus
+        ? Math.max(1, Number(activity.optional_reward_qty) || 1)
+        : standardRewardQty;
       
       console.log(`Incrementing reward balance for kid ${activity.kid_id} by ${rewardQty}`);
       
@@ -5420,6 +5688,9 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
             image_url: activity.image_url,
             status: 'pending',
             requires_verification: Boolean(activity.requires_verification),
+            is_optional_bonus: Boolean(activity.is_optional_bonus),
+            optional_reward_qty: activity.is_optional_bonus ? activity.optional_reward_qty : null,
+            optional_selected_at: null,
             due_date: nextDueDateStr,
             repeat_interval: activity.repeat_interval || null,
             repeat_unit: activity.repeat_unit || null
@@ -5517,7 +5788,9 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
           image_url: imageUrl,
           due_date: dueDate,
           completion_date: completionDate,
-          reward_qty: rewardQty
+          reward_qty: rewardQty,
+          is_optional_bonus: Boolean(activity.is_optional_bonus),
+          optional_reward_qty: activity.is_optional_bonus ? rewardQty : null
         })
         .select('*')
         .single();

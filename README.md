@@ -232,7 +232,7 @@ This section is generated from `feature-registry.json`. Update the registry when
 
 | Feature | Plan | Introduced | Latest update | Current description |
 | --- | --- | --- | --- | --- |
-| Clear visual activities | starter | 2026-03-01 | — | Build scheduled routines with small steps and illustrations that match what the child / adult is being asked to do. |
+| Clear visual activities | starter | 2026-03-01 | 2026-08-31 | Build clear scheduled routines and offer optional additional choices after today’s assigned activities are finished. |
 | Parent activity verification | starter | 2026-08-20 | — | Choose which activities require parent approval before rewards are earned. |
 | Positive behavior bonuses | starter | 2026-08-20 | — | Parents can recognize a specific calm, focused, helpful, or persistent behavior. |
 | Personalized, fair quizzes | starter | 2026-08-20 | 2026-08-24 | Create an age-respectful quiz around a measurable learning objective, with careful illustration use and one meaningful attempt per assignment. |
@@ -249,6 +249,7 @@ This section is generated from `feature-registry.json`. Update the registry when
 
 | Updated | Feature | Improvement | Family-facing summary |
 | --- | --- | --- | --- |
+| 2026-08-31 | Clear visual activities | Learner-chosen additional activities | Parents can mark a normal activity as optional so it becomes a choice after today’s assigned activities are finished. |
 | 2026-08-27 | Replayable parent tour | Guidance that stays current across the app | Parent and guest tours now include current feature guidance from the shared Visual Steps catalog. |
 | 2026-08-27 | Narrated tour and temporary Guest Login | A narrated Visual Steps tour using real app screens | Visitors can now watch a friendly, chapter-based Visual Steps presentation directly on the Home page before entering Guest Login. |
 | 2026-08-27 | Curated learning samples | Current samples in the familiar learner layout | The sample quiz, worksheet, and social story now mirror the current family-created viewing experience while keeping the same dependable example content. |

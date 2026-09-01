@@ -2,16 +2,26 @@
   {
     "id": "visual-activities",
     "title": "Clear visual activities",
-    "summary": "Build scheduled routines with small steps and illustrations that match what the child / adult is being asked to do.",
-    "details": "Parents and caregivers can turn a routine, responsibility, or learning goal into a clear assigned activity. Each activity can include a description, relevant illustrations, smaller visual steps, timing, recurrence, and a reward amount. The child / adult sees a focused view of what to do now and what comes next rather than unrelated generic imagery. Parents and caregivers can adjust or reassign the same activity when the child / adult needs another try.",
+    "summary": "Build clear scheduled routines and offer optional additional choices after today’s assigned activities are finished.",
+    "details": "Parents and caregivers can turn a routine, responsibility, or learning goal into a clear activity with descriptions, illustrations, smaller steps, timing, recurrence, verification, and rewards. The same Add Activity form can mark an activity as optional and give it a specific reward amount. It stays hidden from the learner until today’s assigned activities are finished and dashboard hours are still open. The child / adult may then choose it or stop for the day; once chosen, it follows the familiar To Do, Waiting, Completed, and History flow.",
     "familyImpact": "Clear visual sequences can reduce uncertainty and make a task easier to begin, understand, and finish for autistic people of different ages and support needs. Parents and caregivers can divide responsibilities into achievable steps, adapt the pace, and use consistent instructions across home, learning, work, therapy support, and community routines.",
     "guideParagraphs": [
       "A visual activity is most useful when it answers the questions a person may naturally have before beginning: what am I doing, how much is expected, what happens next, and how will I know I am finished? Parents can keep the wording concrete, choose an illustration that truly matches the task, and add only the steps that make the activity easier to follow. For a familiar routine, a short instruction may be enough; for a newer or more demanding responsibility, several smaller steps can provide a clearer path.",
-      "The same approach can support a young child learning self-care, a teenager managing school or household responsibilities, or an autistic adult building independence at home, work, or in the community. Caregivers can observe where the person pauses, becomes uncertain, or needs prompting, then adjust the wording, image, timing, or number of steps. Reassignment provides another opportunity without erasing the value of the first effort."
+      "The same approach can support a young child learning self-care, a teenager managing school or household responsibilities, or an autistic adult building independence at home, work, or in the community. Caregivers can observe where the person pauses, becomes uncertain, or needs prompting, then adjust the wording, image, timing, or number of steps. Reassignment provides another opportunity without erasing the value of the first effort.",
+      "Optional additional activities provide flexibility when today’s assigned plan is complete but a learner wants another meaningful way to work toward a reward. Parents create them through the same activity form and may use the same steps, pictures, recurrence, and verification choices. They remain hidden until the assigned activities are finished and disappear when dashboard hours or family limits are reached. Choosing one adds it to the learner’s ordinary To Do list, while stopping for the day remains an equally acceptable choice."
     ],
-    "help": "From Dashboard, select a child and open Activities. Use Add Activity to enter instructions, steps, timing, recurrence, images, and rewards.",
+    "help": "From Dashboard, select a child and open Activities Setup. Choose Add Activity, complete the usual details, and select Optional additional activity when the activity should appear only after the learner finishes today’s assigned activities. Set its reward amount and save it normally.",
     "screenshot": { "src": "/onboarding/activities.png", "alt": "Visual Steps activities screen", "caption": "The real Activities workspace where parents plan visual steps, timing, and rewards." },
     "introducedOn": "2026-03-01",
+    "updates": [
+      {
+        "updatedOn": "2026-08-31",
+        "title": "Learner-chosen additional activities",
+        "summary": "Parents can mark a normal activity as optional so it becomes a choice after today’s assigned activities are finished.",
+        "details": "Optional activities use the existing activity form, steps, illustrations, schedule, recurrence, verification, and completion history. They stay out of the learner’s assigned list until the daily plan is finished and dashboard hours remain open. A learner may choose an activity, which then enters the ordinary To Do flow, or decide to stop for the day.",
+        "familyImpact": "A child / adult who wants to keep working toward a target reward can choose meaningful additional work without the parent expanding the assigned plan. The clear choice to continue or stop supports autonomy and reduces uncertainty about whether another earning opportunity is available."
+      }
+    ],
     "plan": "starter",
     "icon": "activity",
     "routes": ["/dashboard", "/assigned-activities/:kidId", "/kids-dashboard/:kidId"],

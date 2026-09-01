@@ -74,6 +74,7 @@ export default function AddEditKid() {
     rewardType: 'Penny',
     rewardQuantity: '1',
     bonusHistoryLimit: '5',
+    optionalBonusDailyRewardLimit: '10',
     theme: 'sky',
     canPrint: false,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -108,6 +109,7 @@ export default function AddEditKid() {
             rewardType: kid.reward_type || 'Penny',
             rewardQuantity: kid.reward_quantity?.toString() || '1',
             bonusHistoryLimit: kid.bonus_history_limit?.toString() || '5',
+            optionalBonusDailyRewardLimit: kid.optional_bonus_daily_reward_limit?.toString() || '10',
             theme: kid.theme || 'sky',
             canPrint: kid.can_print || false,
             timezone: kid.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -182,6 +184,7 @@ export default function AddEditKid() {
         reward_type: formData.rewardType,
         reward_quantity: parseInt(formData.rewardQuantity),
         bonus_history_limit: parseInt(formData.bonusHistoryLimit),
+        optional_bonus_daily_reward_limit: parseInt(formData.optionalBonusDailyRewardLimit),
         theme: formData.theme,
         can_print: formData.canPrint,
         timezone: formData.timezone,
@@ -518,6 +521,27 @@ export default function AddEditKid() {
                   min="1"
                   max="10"
                   value={formData.bonusHistoryLimit}
+                  onChange={handleChange}
+                  required
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-1.5">
+                  <label className="text-[12px] font-bold text-slate-500 uppercase">Daily Extra Rewards</label>
+                  <div className="group relative">
+                    <HelpCircle className="h-3.5 w-3.5 cursor-help text-brand-500" />
+                    <div className="pointer-events-none absolute right-0 top-full z-[100] mt-2 w-80 rounded-2xl border-2 border-yellow-200 bg-[#fffdea] p-4 font-[Arial] text-slate-800 opacity-0 shadow-2xl transition-all group-hover:opacity-100">
+                      <span className="font-bold text-[15px] leading-tight">Set the most additional rewards this learner can earn from extra activities in one day. Each completed extra activity reduces the amount still available.</span>
+                    </div>
+                  </div>
+                </div>
+                <Input
+                  name="optionalBonusDailyRewardLimit"
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={formData.optionalBonusDailyRewardLimit}
                   onChange={handleChange}
                   required
                   className="h-8 text-sm"

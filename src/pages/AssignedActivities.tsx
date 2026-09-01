@@ -48,6 +48,8 @@ interface Activity {
   completion_date?: string;
   reassignment_level?: ReassignmentLevel;
   repeat_count?: number;
+  is_optional_bonus?: boolean;
+  optional_reward_qty?: number;
 }
 
 interface Kid {
@@ -68,6 +70,8 @@ interface Kid {
   rules?: string;
   reward_balance?: number;
   timezone?: string;
+  optional_bonus_daily_reward_limit?: number;
+  optional_bonus_remaining_rewards?: number;
 }
 
 interface RewardItem {
@@ -674,6 +678,8 @@ export default function AssignedActivities() {
     dueDate: '',
     status: 'pending',
     requiresVerification: false,
+    isOptionalBonus: false,
+    optionalRewardQty: 1,
     steps: [] as ActivityStep[],
   });
   const [formError, setFormError] = useState<string | null>(null);
@@ -967,6 +973,8 @@ export default function AssignedActivities() {
         dueDate: activity.due_date || '',
         status: activity.status,
         requiresVerification: activity.requires_verification === true,
+        isOptionalBonus: activity.is_optional_bonus === true,
+        optionalRewardQty: activity.optional_reward_qty || 1,
         steps: activity.steps || [],
       });
     } else {
@@ -1008,6 +1016,8 @@ export default function AssignedActivities() {
         dueDate: localDateString,
         status: 'pending',
         requiresVerification: false,
+        isOptionalBonus: false,
+        optionalRewardQty: 1,
         steps: [],
       });
     }
@@ -1112,6 +1122,11 @@ export default function AssignedActivities() {
     const needsOutcome = editingActivity && ['completed', 'on_hold', 'ended'].includes(editingActivity.status);
     if (needsOutcome && !activityOutcome) {
       setFormError('Select Reassign, On Hold, or Discontinued / Ended.');
+      return;
+    }
+    if (formData.isOptionalBonus && (!Number.isInteger(formData.optionalRewardQty)
+      || formData.optionalRewardQty < 1 || formData.optionalRewardQty > 50)) {
+      setFormError('Choose a reward amount from 1 to 50 for the optional activity.');
       return;
     }
     const nextStatus: ActivityStatus = activityOutcome === 'reassign'
@@ -2734,6 +2749,7 @@ export default function AssignedActivities() {
                               </div>
                             )}
                             {activity.activity_type}
+                            {activity.is_optional_bonus && <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-blue-700 no-underline">Optional</span>}
                             {activity.link?.includes('/social-stories/view/') && (
                               <div className={`flex h-4 w-4 items-center justify-center rounded-full bg-blue-100 text-blue-600`}>
                                 <Eye className="h-2.5 w-2.5" />
@@ -3224,7 +3240,13 @@ export default function AssignedActivities() {
 
       ) : activeTab === 'rewards' ? (
         <div className="grid gap-5 lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start">
-          <aside className="lg:sticky lg:top-20">
+          <aside className="space-y-3 lg:sticky lg:top-20">
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center shadow-sm">
+            <div className="text-3xl font-black text-emerald-700">
+              {kid?.optional_bonus_remaining_rewards ?? kid?.optional_bonus_daily_reward_limit ?? 0}
+            </div>
+            <div className="mt-0.5 text-xs font-bold text-emerald-800">Extra rewards available today</div>
+          </div>
           <Card className="border-indigo-200 bg-gradient-to-br from-indigo-50 to-emerald-50 shadow-sm">
             <CardContent className="p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -3836,6 +3858,33 @@ export default function AssignedActivities() {
                       </span>
                     </span>
                   </label>
+                </div>
+
+                <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
+                  <label className="flex cursor-pointer items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={formData.isOptionalBonus}
+                      onChange={(event) => setFormData({ ...formData, isOptionalBonus: event.target.checked })}
+                      className="mt-1 h-4 w-4 rounded border-blue-300 text-blue-600"
+                    />
+                    <span>
+                      <span className="block text-sm font-black text-slate-900">Optional additional activity</span>
+                      <span className="mt-0.5 block text-xs text-slate-600">Hide this activity until today’s assigned activities are finished. The learner may choose it or stop for the day.</span>
+                    </span>
+                  </label>
+                  {formData.isOptionalBonus && (
+                    <label className="mt-3 block max-w-xs text-xs font-bold text-slate-600">
+                      Rewards for completing this activity
+                      <Input
+                        type="number"
+                        min={1}
+                        max={50}
+                        value={formData.optionalRewardQty}
+                        onChange={(event) => setFormData({ ...formData, optionalRewardQty: Math.max(1, Number(event.target.value) || 1) })}
+                      />
+                    </label>
+                  )}
                 </div>
 
                 {editingActivity && ['completed', 'on_hold', 'ended'].includes(editingActivity.status) && (
