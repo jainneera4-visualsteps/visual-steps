@@ -110,6 +110,19 @@ test('administrator insights exclude child records and raw network addresses', a
   assert.match(legal, /do not include child \/ adult profiles/);
 });
 
+test('AI usage identifies learning-material features from the explicit generation purpose', async () => {
+  const [server, page] = await Promise.all([read('server.ts'), read('src/pages/AdminInsights.tsx')]);
+  const featureResolver = server.slice(server.indexOf('const aiFeatureFromRequest'), server.indexOf('const aiListPrice'));
+  assert.match(featureResolver, /generationPurpose/);
+  assert.match(featureResolver, /quiz: 'Quiz generation'/);
+  assert.match(featureResolver, /worksheet: 'Worksheet generation'/);
+  assert.match(featureResolver, /social_story: 'Social story generation'/);
+  assert.match(server, /lastUsedAt:[\s\S]*occurred_at/);
+  assert.match(server, /b\.lastUsedAt\.localeCompare\(a\.lastUsedAt\)/);
+  assert.match(page, /Most recently used appears first/);
+  assert.match(page, />Last used</);
+});
+
 test('administrator and membership changes are reversible and audited', async () => {
   const [server, migration] = await Promise.all([read('server.ts'), read('database_updates/2026-08-25_admin_insights.sql')]);
   assert.match(server, /admin_granted/);

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, ChevronLeft, ChevronRight, Inbox, Mail, RefreshCw, Reply, ShieldCheck } from 'lucide-react';
+import { CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Inbox, Mail, RefreshCw, Reply, ShieldCheck } from 'lucide-react';
 import { Button } from '../components/Button';
+import { ConsultationManager } from '../components/ConsultationManager';
 import { SupportComposer } from '../components/SupportComposer';
 import { apiFetch, safeJson } from '../utils/api';
 import { formatAppDateTime } from '../utils/dateUtils';
@@ -20,7 +21,7 @@ async function adminJson(url: string, init?: RequestInit) {
 }
 
 export default function SupportInbox() {
-  const [view, setView] = useState<'inbox' | 'compose'>('inbox');
+  const [view, setView] = useState<'inbox' | 'compose' | 'consultations'>('inbox');
   const [filter, setFilter] = useState<'all' | SupportStatus>('unread');
   const [items, setItems] = useState<SupportMessage[]>([]);
   const [selected, setSelected] = useState<SupportMessage | null>(null);
@@ -84,8 +85,8 @@ export default function SupportInbox() {
 
   return <div className="page-shell"><div className="page-container space-y-6">
     <header className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-widest text-brand-700">Protected administration</p><h1 className="mt-2 flex items-center gap-3 text-4xl font-black"><Inbox className="text-brand-600"/>Support Inbox</h1><p className="mt-2 max-w-3xl text-slate-600">Read Contact-page messages, reply by email, and keep track of conversations that still need attention.</p></div><Button variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4"/>Refresh</Button></header>
-    <nav className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm" aria-label="Support Inbox sections"><button onClick={() => setView('inbox')} className={`rounded-xl px-5 py-2.5 text-sm font-black ${view === 'inbox' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}><Inbox className="mr-2 inline h-4 w-4"/>Inbox</button><button onClick={() => setView('compose')} className={`rounded-xl px-5 py-2.5 text-sm font-black ${view === 'compose' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}><Reply className="mr-2 inline h-4 w-4"/>Compose message</button></nav>
-    {view === 'compose' ? <SupportComposer/> : <>
+    <nav className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm" aria-label="Support Inbox sections"><button onClick={() => setView('inbox')} className={`rounded-xl px-5 py-2.5 text-sm font-black ${view === 'inbox' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}><Inbox className="mr-2 inline h-4 w-4"/>Inbox</button><button onClick={() => setView('compose')} className={`rounded-xl px-5 py-2.5 text-sm font-black ${view === 'compose' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}><Reply className="mr-2 inline h-4 w-4"/>Compose message</button><button onClick={() => setView('consultations')} className={`rounded-xl px-5 py-2.5 text-sm font-black ${view === 'consultations' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}><CalendarDays className="mr-2 inline h-4 w-4"/>Consultations</button></nav>
+    {view === 'compose' ? <SupportComposer/> : view === 'consultations' ? <ConsultationManager/> : <>
     <nav className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm" aria-label="Support message filters">{filters.map(item => <button key={item.id} onClick={() => { setFilter(item.id); setPage(1); setSelected(null); }} className={`rounded-xl px-4 py-2 text-sm font-bold ${filter === item.id ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>{item.label}</button>)}</nav>
     {notice && <p className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-900">{notice}</p>}
     <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">

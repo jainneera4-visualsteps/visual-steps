@@ -2006,6 +2006,258 @@ app.post('/api/contact', async (req, res) => {
   }
 });
 
+const consultationProviderLabel = (provider: string | null | undefined) => ({
+  google_meet: 'Google Meet', microsoft_teams: 'Microsoft Teams', zoom: 'Zoom', phone: 'Phone call', other: 'Other',
+}[String(provider || '')] || 'Online meeting');
+
+const consultationWeekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const consultationLocalTimeToUtc = (dateText: string, timeText: string, timeZone: string): Date | null => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateText) || !/^\d{2}:\d{2}/.test(timeText)) return null;
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone }).format();
+    const [year, month, day] = dateText.split('-').map(Number); const [hour, minute] = timeText.slice(0, 5).split(':').map(Number);
+    const target = Date.UTC(year, month - 1, day, hour, minute); let guess = new Date(target);
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(guess).map(part => [part.type, part.value]));
+      const represented = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), Number(parts.hour), Number(parts.minute));
+      guess = new Date(guess.getTime() + target - represented);
+    }
+    return guess;
+  } catch { return null; }
+};
+
+app.get('/api/consultations/sessions', async (req, res) => {
+  if (!supabaseServiceKey) return res.status(503).json({ error: 'Consultation scheduling is temporarily unavailable' });
+  const sessionType = req.query.type === 'group' ? 'group' : 'private';
+  const admin = getAdminSupabaseClient();
+  if (sessionType === 'private') {
+    const [{ data: rules, error: ruleError }, { data: unavailable, error: unavailableError }] = await Promise.all([
+      admin.from('consultation_availability_rules').select('id,title,description,weekday,start_time,end_time,duration_minutes,timezone').eq('is_active', true).order('weekday').order('start_time'),
+      admin.from('consultation_unavailable_dates').select('unavailable_date').gte('unavailable_date', new Date().toISOString().slice(0, 10)).order('unavailable_date').limit(400),
+    ]);
+    if (ruleError || unavailableError) return res.status(500).json({ error: 'Unable to load private-call availability' });
+    return res.json({ items: (rules || []).map(rule => ({ ...rule, session_type: 'private', is_rule: true, weekday_label: consultationWeekdays[rule.weekday] })), unavailableDates: (unavailable || []).map(item => item.unavailable_date) });
+  }
+  const { data: sessions, error } = await admin.from('consultation_sessions')
+    .select('id,session_type,title,description,starts_at,ends_at,capacity,status')
+    .eq('session_type', sessionType).eq('status', 'open').gt('starts_at', new Date().toISOString())
+    .order('starts_at', { ascending: true }).limit(100);
+  if (error) return res.status(500).json({ error: 'Unable to load available consultation times' });
+  const ids = (sessions || []).map(item => item.id);
+  const { data: bookings } = ids.length
+    ? await admin.from('consultation_bookings').select('session_id,status,confirmation_expires_at').in('session_id', ids).neq('status', 'cancelled')
+    : { data: [] as any[] };
+  const now = Date.now();
+  const counts = new Map<string, number>();
+  for (const booking of bookings || []) {
+    if (booking.status === 'pending_verification' && new Date(booking.confirmation_expires_at || 0).getTime() <= now) continue;
+    counts.set(booking.session_id, (counts.get(booking.session_id) || 0) + 1);
+  }
+  res.json({ items: (sessions || []).map(item => ({ ...item, booked: counts.get(item.id) || 0, available: Math.max(item.capacity - (counts.get(item.id) || 0), 0) })).filter(item => item.available > 0) });
+});
+
+app.post('/api/consultations/bookings', async (req, res) => {
+  if (isContactRequestRateLimited(req)) return res.status(429).json({ error: 'Too many requests were sent from this connection. Please wait and try again.' });
+  if (!supabaseServiceKey) return res.status(503).json({ error: 'Consultation scheduling is temporarily unavailable' });
+  const sessionId = String(req.body?.sessionId || '');
+  const availabilityRuleId = String(req.body?.availabilityRuleId || '');
+  const requestedDate = String(req.body?.requestedDate || '');
+  const requestedTime = String(req.body?.requestedTime || '');
+  const parentName = String(req.body?.parentName || '').trim();
+  const parentEmail = String(req.body?.parentEmail || '').trim().toLowerCase();
+  const reason = String(req.body?.reason || '').trim();
+  const accessibilityRequest = String(req.body?.accessibilityRequest || '').trim();
+  const parentTimezone = String(req.body?.parentTimezone || 'America/New_York').trim().slice(0, 100);
+  const groupPrivacyAcknowledged = req.body?.groupPrivacyAcknowledged === true;
+  if (!/^[0-9a-f-]{36}$/i.test(sessionId) && !/^[0-9a-f-]{36}$/i.test(availabilityRuleId)) return res.status(400).json({ error: 'Choose an available consultation time' });
+  if (parentName.length < 2 || parentName.length > 100) return res.status(400).json({ error: 'Enter your name using 2–100 characters' });
+  if (!newsletterEmailPattern.test(parentEmail) || parentEmail.length > 254) return res.status(400).json({ error: 'Enter a valid email address' });
+  if (reason.length < 10 || reason.length > 2000) return res.status(400).json({ error: 'Briefly explain what you would like help with' });
+  if (accessibilityRequest.length > 1000) return res.status(400).json({ error: 'Keep communication requests under 1,000 characters' });
+  const admin = getAdminSupabaseClient();
+  let session: any = null;
+  if (availabilityRuleId) {
+    const { data: rule } = await admin.from('consultation_availability_rules').select('*').eq('id', availabilityRuleId).eq('is_active', true).maybeSingle();
+    if (!rule) return res.status(409).json({ error: 'That private-call availability is no longer offered' });
+    const durationMinutes = Number(rule.duration_minutes);
+    if (!Number.isInteger(durationMinutes) || durationMinutes < 15 || durationMinutes > 180) return res.status(409).json({ error: 'This private-call availability is not configured correctly' });
+    if (!/^\d{2}:\d{2}$/.test(requestedTime)) return res.status(400).json({ error: 'Choose an available call time' });
+    const toMinutes = (value: string) => { const [hours, minutes] = value.slice(0, 5).split(':').map(Number); return hours * 60 + minutes; };
+    const requestedMinutes = toMinutes(requestedTime); const windowStart = toMinutes(rule.start_time); const windowEnd = toMinutes(rule.end_time);
+    if (requestedMinutes < windowStart || requestedMinutes + durationMinutes > windowEnd || (requestedMinutes - windowStart) % durationMinutes !== 0) return res.status(400).json({ error: 'Choose one of the available call times' });
+    const { data: unavailableDate } = await admin.from('consultation_unavailable_dates').select('unavailable_date').eq('unavailable_date', requestedDate).maybeSingle();
+    if (unavailableDate) return res.status(409).json({ error: 'The administrator is unavailable on that date. Please choose another available date.' });
+    const start = consultationLocalTimeToUtc(requestedDate, requestedTime, rule.timezone);
+    if (!start || start.getTime() <= Date.now()) return res.status(400).json({ error: 'Choose a future date for this private-call time' });
+    const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(new Intl.DateTimeFormat('en-US', { timeZone: rule.timezone, weekday: 'short' }).format(start));
+    if (weekday !== rule.weekday) return res.status(400).json({ error: `Choose a ${consultationWeekdays[rule.weekday]} for this private-call time` });
+    const { data: conflict } = await admin.from('consultation_sessions').select('id').eq('session_type', 'private').eq('starts_at', start.toISOString()).neq('status', 'cancelled').limit(1).maybeSingle();
+    if (conflict) return res.status(409).json({ error: 'That private-call date has already been requested. Please choose another date.' });
+    const end = new Date(start.getTime() + durationMinutes * 60_000);
+    const { data: createdSession, error: createError } = await admin.from('consultation_sessions').insert({ session_type: 'private', title: rule.title, description: rule.description, starts_at: start.toISOString(), ends_at: end.toISOString(), capacity: 1, status: 'draft', availability_rule_id: rule.id }).select().single();
+    if (createError || !createdSession) return res.status(500).json({ error: 'Unable to save the requested private-call date' });
+    session = createdSession;
+  } else {
+    const { data: selectedSession, error: sessionError } = await admin.from('consultation_sessions').select('*').eq('id', sessionId).eq('status', 'open').gt('starts_at', new Date().toISOString()).maybeSingle();
+    if (sessionError || !selectedSession) return res.status(409).json({ error: 'That consultation time is no longer available' });
+    session = selectedSession;
+  }
+  if (session.session_type === 'group' && !groupPrivacyAcknowledged) return res.status(400).json({ error: 'Please acknowledge the group-session privacy reminder' });
+  const { data: existing } = await admin.from('consultation_bookings').select('status,confirmation_expires_at').eq('session_id', session.id).neq('status', 'cancelled');
+  const now = Date.now();
+  const occupied = (existing || []).filter(item => item.status !== 'pending_verification' || new Date(item.confirmation_expires_at || 0).getTime() > now).length;
+  if (occupied >= session.capacity) return res.status(409).json({ error: 'That session has just filled. Please choose another time.' });
+  const token = randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const { data: booking, error: insertError } = await admin.from('consultation_bookings').insert({
+    session_id: session.id, parent_name: parentName, parent_email: parentEmail, reason,
+    accessibility_request: accessibilityRequest, parent_timezone: parentTimezone,
+    group_privacy_acknowledged: session.session_type === 'group' ? groupPrivacyAcknowledged : false,
+    confirmation_token_hash: hashNewsletterToken(token), confirmation_expires_at: expiresAt,
+  }).select('id').single();
+  if (insertError || !booking) {
+    if (availabilityRuleId) await admin.from('consultation_sessions').delete().eq('id', session.id);
+    return res.status(500).json({ error: 'Unable to save the consultation request' });
+  }
+  try {
+    const transporter = await getTransporter();
+    const from = cleanEnvVar('SMTP_FROM') || cleanEnvVar('SMTP_USER');
+    if (!transporter || !from) throw new Error('SMTP unavailable');
+    const confirmUrl = `${getPublicAppOrigin(req)}/api/consultations/confirm?token=${encodeURIComponent(token)}`;
+    await transporter.sendMail({
+      from, to: { name: parentName, address: parentEmail }, subject: 'Verify your Visual Steps consultation request',
+      text: `Confirm your consultation request within 24 hours: ${confirmUrl}`,
+      html: `<div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;line-height:1.65;color:#1f2937"><h1 style="color:#176b87">Confirm your consultation request</h1><p>Hello ${escapeEmailHtml(parentName)},</p><p>Select the button below within 24 hours to verify your email and submit your ${session.session_type === 'group' ? 'group-session registration' : 'private-call request'}.</p><p><a href="${escapeEmailHtml(confirmUrl)}" style="display:inline-block;background:#2563eb;color:white;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:bold">Confirm request</a></p><p>Creating a Visual Steps account is not required.</p></div>`,
+    });
+    res.status(201).json({ message: 'Check your email and confirm your request within 24 hours. Your place is not final until the email is verified.' });
+  } catch (error) {
+    await admin.from('consultation_bookings').delete().eq('id', booking.id);
+    if (availabilityRuleId) await admin.from('consultation_sessions').delete().eq('id', session.id);
+    res.status(503).json({ error: 'We could not send the verification email. Please try again.' });
+  }
+});
+
+app.get('/api/consultations/confirm', async (req, res) => {
+  const token = String(req.query.token || '');
+  const origin = getPublicAppOrigin(req);
+  if (!token || !supabaseServiceKey) return res.redirect(303, `${origin}/contact?consultation=invalid`);
+  const admin = getAdminSupabaseClient();
+  const { data: booking } = await admin.from('consultation_bookings').select('*,consultation_sessions(title,session_type,starts_at)')
+    .eq('confirmation_token_hash', hashNewsletterToken(token)).eq('status', 'pending_verification').gt('confirmation_expires_at', new Date().toISOString()).maybeSingle();
+  if (!booking) return res.redirect(303, `${origin}/contact?consultation=invalid`);
+  const now = new Date().toISOString();
+  const { error } = await admin.from('consultation_bookings').update({ status: 'requested', email_verified_at: now, confirmation_token_hash: null, confirmation_expires_at: null, updated_at: now }).eq('id', booking.id);
+  if (error) return res.redirect(303, `${origin}/contact?consultation=invalid`);
+  try {
+    const transporter = await getTransporter();
+    const from = cleanEnvVar('SMTP_FROM') || cleanEnvVar('SMTP_USER');
+    const adminEmail = cleanEnvVar('CONTACT_TO_EMAIL') || cleanEnvVar('SMTP_USER');
+    if (transporter && from && adminEmail) await transporter.sendMail({
+      from, to: adminEmail, replyTo: { name: booking.parent_name, address: booking.parent_email },
+      subject: `[Visual Steps Consultation] ${booking.consultation_sessions?.title || 'New verified request'}`,
+      text: `${booking.parent_name} (${booking.parent_email}) verified a consultation request.\n\nReason: ${booking.reason}`,
+    });
+  } catch (notificationError) { console.error('Consultation administrator notification failed:', getSafeSmtpError(notificationError)); }
+  return res.redirect(303, `${origin}/contact?consultation=verified`);
+});
+
+app.get('/api/admin/consultations', authenticateToken, requireAppAdmin, async (_req, res) => {
+  const admin = getAdminSupabaseClient();
+  const [{ data, error }, { data: rules, error: rulesError }, { data: unavailableDates, error: unavailableError }] = await Promise.all([admin.from('consultation_sessions')
+    .select('id,session_type,title,description,starts_at,ends_at,capacity,status,meeting_provider,meeting_link,created_at,updated_at,consultation_bookings(id,parent_name,parent_email,reason,accessibility_request,parent_timezone,group_privacy_acknowledged,status,email_verified_at,admin_notes,created_at,updated_at)')
+    .order('starts_at', { ascending: true }).limit(250), admin.from('consultation_availability_rules').select('*').order('weekday').order('start_time'), admin.from('consultation_unavailable_dates').select('*').order('unavailable_date')]);
+  if (error || rulesError || unavailableError) return res.status(500).json({ error: 'Unable to load consultations' });
+  res.json({ items: data || [], availabilityRules: rules || [], unavailableDates: unavailableDates || [] });
+});
+
+app.post('/api/admin/consultations/availability', authenticateToken, requireAppAdmin, async (req: any, res) => {
+  const title = String(req.body?.title || '').trim(); const description = String(req.body?.description || '').trim();
+  const weekdays = Array.isArray(req.body?.weekdays) ? [...new Set(req.body.weekdays.map(Number).filter((day: number) => Number.isInteger(day) && day >= 0 && day <= 6))] : [];
+  const startTime = String(req.body?.startTime || ''); const endTime = String(req.body?.endTime || '');
+  const durationMinutes = Number(req.body?.durationMinutes);
+  const timezone = String(req.body?.timezone || 'America/New_York').trim();
+  try { new Intl.DateTimeFormat('en-US', { timeZone: timezone }).format(); } catch { return res.status(400).json({ error: 'Choose a valid timezone' }); }
+  const toMinutes = (value: string) => { const [hours, minutes] = value.split(':').map(Number); return hours * 60 + minutes; };
+  if (title.length < 3 || title.length > 150 || !weekdays.length || !Number.isInteger(durationMinutes) || durationMinutes < 15 || durationMinutes > 180 || !/^\d{2}:\d{2}$/.test(startTime) || !/^\d{2}:\d{2}$/.test(endTime) || toMinutes(endTime) - toMinutes(startTime) < durationMinutes) return res.status(400).json({ error: 'Choose weekdays, a call length from 15–180 minutes, and an availability period long enough for at least one call' });
+  const rows = weekdays.map((weekday: number) => ({ title, description, weekday, start_time: startTime, end_time: endTime, duration_minutes: durationMinutes, timezone, is_active: true, created_by: req.user.id }));
+  const { data, error } = await getAdminSupabaseClient().from('consultation_availability_rules').insert(rows).select();
+  if (error) return res.status(500).json({ error: 'Unable to save private-call availability' });
+  res.status(201).json({ items: data || [], message: `Private-call availability published for ${weekdays.length} day${weekdays.length === 1 ? '' : 's'}.` });
+});
+
+app.post('/api/admin/consultations/unavailable-dates', authenticateToken, requireAppAdmin, async (req: any, res) => {
+  const unavailableDate = String(req.body?.unavailableDate || ''); const reason = String(req.body?.reason || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(unavailableDate) || reason.length > 500) return res.status(400).json({ error: 'Choose a valid unavailable date' });
+  const { data, error } = await getAdminSupabaseClient().from('consultation_unavailable_dates').upsert({ unavailable_date: unavailableDate, reason, created_by: req.user.id }, { onConflict: 'unavailable_date' }).select().single();
+  if (error) return res.status(500).json({ error: 'Unable to block that date' });
+  res.status(201).json({ item: data, message: 'Date marked unavailable.' });
+});
+
+app.delete('/api/admin/consultations/unavailable-dates/:date', authenticateToken, requireAppAdmin, async (req, res) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(req.params.date)) return res.status(400).json({ error: 'Choose a valid date' });
+  const { error } = await getAdminSupabaseClient().from('consultation_unavailable_dates').delete().eq('unavailable_date', req.params.date);
+  if (error) return res.status(500).json({ error: 'Unable to reopen that date' });
+  res.json({ message: 'Date reopened for consultation requests.' });
+});
+
+app.patch('/api/admin/consultations/availability/:id', authenticateToken, requireAppAdmin, async (req, res) => {
+  const { data, error } = await getAdminSupabaseClient().from('consultation_availability_rules').update({ is_active: req.body?.isActive === true, updated_at: new Date().toISOString() }).eq('id', req.params.id).select().single();
+  if (error) return res.status(500).json({ error: 'Unable to update private-call availability' });
+  res.json({ item: data });
+});
+
+app.post('/api/admin/consultations/sessions', authenticateToken, requireAppAdmin, async (req: any, res) => {
+  const sessionType = req.body?.sessionType === 'group' ? 'group' : 'private';
+  const title = String(req.body?.title || '').trim();
+  const description = String(req.body?.description || '').trim();
+  const startsAt = new Date(req.body?.startsAt);
+  const endsAt = new Date(req.body?.endsAt);
+  const capacity = sessionType === 'private' ? 1 : Math.min(50, Math.max(2, Number(req.body?.capacity) || 6));
+  if (title.length < 3 || title.length > 150) return res.status(400).json({ error: 'Enter a session title using 3–150 characters' });
+  if (!Number.isFinite(startsAt.getTime()) || !Number.isFinite(endsAt.getTime()) || endsAt <= startsAt) return res.status(400).json({ error: 'Choose a valid start and end time' });
+  const { data, error } = await getAdminSupabaseClient().from('consultation_sessions').insert({ session_type: sessionType, title, description, starts_at: startsAt.toISOString(), ends_at: endsAt.toISOString(), capacity, status: 'open', created_by: req.user.id }).select().single();
+  if (error) return res.status(500).json({ error: 'Unable to create the consultation session' });
+  res.status(201).json({ item: data, message: 'Consultation session published.' });
+});
+
+app.patch('/api/admin/consultations/sessions/:id', authenticateToken, requireAppAdmin, async (req, res) => {
+  const status = ['draft', 'open', 'full', 'completed', 'cancelled'].includes(String(req.body?.status)) ? String(req.body.status) : undefined;
+  const provider = ['google_meet', 'microsoft_teams', 'zoom', 'phone', 'other'].includes(String(req.body?.meetingProvider)) ? String(req.body.meetingProvider) : null;
+  const meetingLink = String(req.body?.meetingLink || '').trim().slice(0, 1000) || null;
+  if (meetingLink && !/^https:\/\//i.test(meetingLink)) return res.status(400).json({ error: 'Meeting links must begin with https://' });
+  const updates: any = { updated_at: new Date().toISOString() };
+  if (status) updates.status = status;
+  if (req.body?.meetingProvider !== undefined) updates.meeting_provider = provider;
+  if (req.body?.meetingLink !== undefined) updates.meeting_link = meetingLink;
+  const { data, error } = await getAdminSupabaseClient().from('consultation_sessions').update(updates).eq('id', req.params.id).select().single();
+  if (error) return res.status(500).json({ error: 'Unable to update the consultation session' });
+  res.json({ item: data });
+});
+
+app.patch('/api/admin/consultations/bookings/:id', authenticateToken, requireAppAdmin, async (req, res) => {
+  const status = String(req.body?.status || '');
+  if (!['requested', 'confirmed', 'completed', 'cancelled', 'no_show'].includes(status)) return res.status(400).json({ error: 'Choose a valid booking status' });
+  const admin = getAdminSupabaseClient();
+  const { data: booking } = await admin.from('consultation_bookings').select('*,consultation_sessions(*)').eq('id', req.params.id).maybeSingle();
+  if (!booking) return res.status(404).json({ error: 'Consultation booking not found' });
+  if (status === 'confirmed' && !booking.consultation_sessions?.meeting_link && booking.consultation_sessions?.meeting_provider !== 'phone') return res.status(400).json({ error: 'Add the meeting provider and link before confirming this booking' });
+  const { data, error } = await admin.from('consultation_bookings').update({ status, admin_notes: String(req.body?.adminNotes || '').trim().slice(0, 3000) || null, updated_at: new Date().toISOString() }).eq('id', req.params.id).select().single();
+  if (error) return res.status(500).json({ error: 'Unable to update the booking' });
+  if (status === 'confirmed') {
+    try {
+      const transporter = await getTransporter();
+      const from = cleanEnvVar('SMTP_FROM') || cleanEnvVar('SMTP_USER');
+      const session = booking.consultation_sessions;
+      if (transporter && from) await transporter.sendMail({
+        from, to: { name: booking.parent_name, address: booking.parent_email }, subject: `Confirmed: ${session.title}`,
+        text: `Hello ${booking.parent_name},\n\nYour Visual Steps consultation is confirmed for ${new Date(session.starts_at).toLocaleString()}.\nMeeting method: ${consultationProviderLabel(session.meeting_provider)}\n${session.meeting_link ? `Join link: ${session.meeting_link}\n` : ''}\nVisual Steps Support`,
+        html: `<div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;line-height:1.65;color:#1f2937"><h1 style="color:#176b87">Consultation confirmed</h1><p>Hello ${escapeEmailHtml(booking.parent_name)},</p><p><strong>${escapeEmailHtml(session.title)}</strong><br>${escapeEmailHtml(new Date(session.starts_at).toLocaleString())}<br>${escapeEmailHtml(consultationProviderLabel(session.meeting_provider))}</p>${session.meeting_link ? `<p><a href="${escapeEmailHtml(session.meeting_link)}" style="display:inline-block;background:#2563eb;color:white;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:bold">Join consultation</a></p>` : ''}<p>Visual Steps Support</p></div>`,
+      });
+    } catch (emailError) { return res.status(502).json({ item: data, error: 'Booking updated, but the confirmation email could not be sent' }); }
+  }
+  res.json({ item: data, message: `Booking marked ${status.replace('_', ' ')}.` });
+});
+
 app.get('/api/admin/support-messages', authenticateToken, requireAppAdmin, async (req, res) => {
   const status = ['unread', 'open', 'resolved'].includes(String(req.query.status)) ? String(req.query.status) : '';
   const page = Math.max(1, Number(req.query.page) || 1);
@@ -2952,7 +3204,8 @@ app.get('/api/admin/ai-usage', authenticateToken, requireAppAdmin, async (req, r
     inputTokens: rows.reduce((sum, row) => sum + Number(row.input_tokens || 0), 0),
     outputTokens: rows.reduce((sum, row) => sum + Number(row.output_tokens || 0), 0),
     estimatedCostUsd: Number(rows.reduce((sum, row) => sum + Number(row.estimated_cost_usd || 0), 0).toFixed(6)),
-  })).sort((a, b) => b.estimatedCostUsd - a.estimatedCostUsd || b.requests - a.requests);
+    lastUsedAt: rows.reduce((latest, row) => String(row.occurred_at || '') > latest ? String(row.occurred_at || '') : latest, ''),
+  })).sort((a, b) => b.lastUsedAt.localeCompare(a.lastUsedAt));
   const totalCost = events.reduce((sum: number, event: any) => sum + Number(event.estimated_cost_usd || 0), 0);
   const imageRequests = events.filter((event: any) => event.request_kind === 'image').length;
   const byFeature = summarize('feature');
@@ -6957,6 +7210,13 @@ const aiResolvedModelByResult = new WeakMap<object, string>();
 
 const aiFeatureFromRequest = (req: any, fallback = 'AI generation') => {
   if (req.path === '/api/parent-assistant') return 'Parent Assistant';
+  const purposeFeatures: Record<string, string> = {
+    quiz: 'Quiz generation',
+    worksheet: 'Worksheet generation',
+    social_story: 'Social story generation',
+  };
+  const generationPurpose = String(req.body?.generationPurpose || '');
+  if (purposeFeatures[generationPurpose]) return purposeFeatures[generationPurpose];
   try {
     const pathname = new URL(String(req.get('referer') || ''), 'https://visualsteps.invalid').pathname;
     if (pathname.includes('quiz')) return 'Quiz generation';
@@ -7054,7 +7314,7 @@ export const parentAssistantFeatureCatalog = [
   { area: 'Parent account settings', routes: ['/profile'], help: 'Select the parent name in the top navigation to open Account Settings. In Profile Information update Full Name or Email. In Change Password enter a new password or leave it blank to keep the current password. In Parent Messaging set Days to Keep Messages. Select Save Changes. Profile also provides welcome-email resend and email-delivery checks when configured.' },
   { area: 'Parent-controlled data management', routes: ['/data-management'], help: 'Select Data beside the parent name in the desktop navigation, or open the mobile menu and select Data Management. Saved record overview shows totals for profiles, activities, activity history, quiz results, saved learning resources, reward purchases, parent messages, and behavior bonuses. Under Review reminder choose a period from 3 to 36 months; this changes the review list and never deletes records automatically. In Older records to review, select a Record, Type, Learner, or Date heading to sort. Use Per page and the previous or next controls to move through the list. Select individual checkboxes or the header checkbox to select all rows on the current page; selections remain selected across pages. Select Delete selected and confirm permanent deletion only for records the family no longer needs.' },
   { area: 'Parent and caregiver testimonials', routes: ['/testimonials'], help: 'Open Testimonials from the footer or mobile menu to read reviewed experiences that families and caregivers explicitly permitted Visual Steps to publish. Signed-in parents can use Public display name, Experience title, and Your testimonial, confirm publication permission, then select Submit privately for review. The submission remains private until an administrator reviews and approves it in Newsletter Administration. Visual Steps never converts private profiles, child records, messages, or activities into public quotes.' },
-  { area: 'Contact Visual Steps', routes: ['/contact'], help: 'Open Contact from the top navigation, footer, or mobile menu. Enter your name, reply email, subject, and message, then select Open email to send. The form opens your own email application and does not save the form with a Visual Steps account. Never include passwords, child login codes, or sensitive clinical information.' },
+  { area: 'Contact & Support', routes: ['/contact'], help: 'Open Contact from the navigation or footer. Use Send a Message for written support, Book a Private Call for account or family-specific help, or Join a Group Session for demonstrations and shared questions. Consultation requests are available without an account but require email verification. Never include passwords, child access codes, medical records, or sensitive family information.' },
   { area: 'Privacy, terms, cookies, and analytics', routes: ['/privacy', '/terms', '/cookies'], help: 'Open Privacy, Terms, or Cookies & Analytics from the footer on any page. Privacy explains what family information Visual Steps handles, why it is used, limited service-provider processing, AI requests, social-story sharing, uploaded-image links, retention choices, account deletion, and security responsibilities. Terms explains responsible use, caregiver review, community content, availability, and why Visual Steps is not medical or clinical advice. Cookies & Analytics explains essential sign-in and preference storage, the installed-app cache, browser controls, and the current absence of advertising cookies and product analytics. On Create an account, review the Terms and Privacy links and select the agreement checkbox before selecting Sign Up.' },
   { area: 'Visual Steps weekly newsletter', routes: ['/newsletter', '/newsletter/subscribe', '/newsletter/community', '/newsletter/archive/:month', '/newsletter/issues/:issueDate', '/newsletter-admin'], help: 'Open the Newsletter menu in the main navigation. Choose Subscribe to open the dedicated signup page, enter Email address, and select Subscribe; confirm the subscription from the email you receive. Choose Weekly archive, then select a month; months and issues are ordered latest first. A month opens its issue list in the current tab, and selecting an issue opens the complete newsletter in a new tab. Choose Share with the community to open its dedicated submission page. Approved administrators open Admin and choose Manage newsletter for publication controls. Each upcoming weekly issue uses a calm, scannable format with a contents page, new and updated feature details, approved parent stories/news/information/tips, testimonials, popular features, activities and games, books and resources, ideas for using Visual Steps meaningfully, current membership details, practical caregiver tips, and clearly labeled mission-aligned advertisements when approved. Published archive issues retain the content and layout saved when they were released. General non-clinical topics may include communication and speech support, occupational support, positive behavior support, daily living, learning, work, leisure, and community participation for autistic people of all ages. Submissions remain private until reviewed and approved. The protected Newsletter Administration page lets administrators manage submissions, change the weekly delivery day and time in their timezone, edit and save the next issue template, preview it without publishing, and send a prepared issue. Every issue includes Visual Steps Home, Pricing, Subscribe Newsletter, optional configured Facebook and Instagram links, and one-click unsubscribe.' },
   { area: 'Protected administration', routes: ['/admin/insights', '/newsletter-admin'], help: 'The Admin menu appears only for approved administrators. Choose Insights to review account growth, registration status, parent journey signals, interpreted feature health, the last 24 hours or longer reporting periods, operations, retention, privacy-conscious traffic, and AI Use. AI Use shows where AI is requested, model and token totals, individual request estimates, and aggregate estimated standard paid-tier cost without retaining prompts, responses, or family content. Cost tracking begins after its database update and deployment; estimates are not invoices and free-tier billing may be lower or zero. Child / adult profiles and family content are intentionally excluded. Choose Manage newsletter for publication and subscriber controls. Administrator and membership changes require confirmation and are recorded for accountability.' },

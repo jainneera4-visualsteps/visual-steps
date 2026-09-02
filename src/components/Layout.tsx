@@ -111,7 +111,7 @@ export function Layout() {
     else if (path === '/pricing') title = 'Plans & Pricing | Visual Steps';
     else if (path === '/demo' || path === '/guest') title = 'Guest Login | Visual Steps';
     else if (path === '/testimonials') title = 'Testimonials | Visual Steps';
-    else if (path === '/contact') title = 'Contact | Visual Steps';
+    else if (path === '/contact') title = 'Contact & Support | Visual Steps';
     else if (path === '/privacy') title = 'Privacy Policy | Visual Steps';
     else if (path === '/terms') title = 'Terms of Service | Visual Steps';
     else if (path === '/cookies') title = 'Cookies & Analytics | Visual Steps';

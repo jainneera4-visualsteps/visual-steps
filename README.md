@@ -127,6 +127,10 @@ Supabase sends the reset-link email, so configure Supabase Auth SMTP for reliabl
 
 Contact-page submissions are stored in `support_messages` before the application attempts its administrator notification email. Approved administrators can open **Admin → Support Inbox** to review unread, open, and resolved conversations, reply by email, and retain the latest reply with the support record. The **Compose message** section displays database-backed parent names, emails, account statuses, and signup dates and can send Visual Steps updates, general announcements, or account information to all signed-up parents or selected accounts. Recipient addresses remain private through BCC batches, and delivery totals are retained for administrator review. Run `database_updates/2026-09-02_support_inbox.sql` and `database_updates/2026-09-02_support_inbox_outbound.sql` before deploying this feature. The inbox uses the server-side Supabase service role and is never available to browser clients directly.
 
+### Consultation scheduling
+
+The public **Contact & Support** page combines direct messages, private-call requests, and group-session registration. Administrators publish recurring private-call availability by selecting multiple weekdays, a start/end time window, a configurable call length, and a timezone. A parent selects a matching date and then chooses one of the automatically generated times for administrator confirmation. The administration calendar shows consultation bookings and lets the administrator block or reopen individual dates without removing the weekly schedule. Group sessions use a fixed date and configurable capacity. Administrators add Google Meet, Microsoft Teams, Zoom, phone, or other meeting details before confirming a booking. Signed-in and guest parents can request a place; all consultation requests require email verification within 24 hours. Group registration includes a privacy acknowledgement and never exposes participant addresses. Run `database_updates/2026-09-03_consultation_scheduler.sql` before deploying the scheduler.
+
 ## Environment variables
 
 | Variable | Required | Purpose |
