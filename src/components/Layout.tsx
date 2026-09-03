@@ -1,7 +1,7 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from './Button';
-import { LogOut, Menu, X, Lightbulb, ChevronDown, BookOpen, FileText, Gamepad2, Activity, TrendingUp, Facebook, Instagram, Mail, Newspaper, Users, Settings, Database, ShieldCheck, BarChart3 } from 'lucide-react';
+import { LogOut, Menu, X, Lightbulb, ChevronDown, BookOpen, FileText, Gamepad2, Puzzle, Activity, TrendingUp, Facebook, Instagram, Mail, Newspaper, Users, Settings, Database, ShieldCheck, BarChart3 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Tooltip } from './ui/Tooltip';
 import { ParentAssistant } from './ParentAssistant';
@@ -96,6 +96,11 @@ export function Layout() {
     else if (path === '/saved-quizzes') title = 'Saved Quizzes | Visual Steps';
     else if (path === '/social-stories') title = 'Social Stories | Visual Steps';
     else if (path === '/saved-worksheets') title = 'Saved Worksheets | Visual Steps';
+    else if (path === '/games') title = 'Learning Games | Visual Steps';
+    else if (path === '/games/place-value') title = 'Place Value Builder | Visual Steps';
+    else if (path === '/games/expanded-form') title = 'Expanded Form Explorer | Visual Steps';
+    else if (path === '/games/digit-value') title = 'Digit Value Detective | Visual Steps';
+    else if (path === '/games/place-value-clues') title = 'Place Value Clues | Visual Steps';
     else if (path === '/add-kid') title = 'Add Kid | Visual Steps';
     else if (path.startsWith('/edit-kid/')) title = 'Edit Kid | Visual Steps';
     else if (path.startsWith('/assigned-activities/')) title = 'Assigned Activities | Visual Steps';
@@ -164,7 +169,8 @@ export function Layout() {
                         location.pathname.includes('activities') || 
                         location.pathname.includes('quizzes') || 
                         location.pathname.includes('social-stories') || 
-                        location.pathname.includes('worksheets') 
+                        location.pathname.includes('worksheets') ||
+                        location.pathname.includes('games')
                           ? 'bg-brand-50 text-brand-700' : 'text-slate-600'
                       }`}
                     >
@@ -208,6 +214,16 @@ export function Layout() {
                             <FileText size={18} />
                           </div>
                           Worksheets
+                        </Link>
+                        <Link
+                          to="/games"
+                          className="app-menu-item"
+                          onClick={() => setIsActivitiesOpen(false)}
+                        >
+                          <div className="h-8 w-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
+                            <Puzzle size={18} />
+                          </div>
+                          Games
                         </Link>
                       </div>
                     )}
@@ -384,6 +400,9 @@ export function Layout() {
                     </Link>
                     <Link to="/saved-worksheets" className="text-[12px] font-bold text-slate-600 uppercase flex items-center gap-2" onClick={() => setIsMenuOpen(false)}>
                       <FileText size={14} className="text-amber-500" /> Worksheets
+                    </Link>
+                    <Link to="/games" className="text-[12px] font-bold text-slate-600 uppercase flex items-center gap-2" onClick={() => setIsMenuOpen(false)}>
+                      <Puzzle size={14} className="text-emerald-600" /> Games
                     </Link>
                   </div>
                   <div className="flex flex-col gap-1.5 pl-2 border-l-2 border-blue-100">

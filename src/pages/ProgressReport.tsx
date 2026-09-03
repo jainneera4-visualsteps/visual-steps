@@ -79,6 +79,15 @@ interface QuizResult {
   };
 }
 
+interface GameResult {
+  id: string;
+  game_key: string;
+  level: number;
+  score: number;
+  total_questions: number;
+  completed_at: string;
+}
+
 export default function ProgressReport() {
   const { kidId } = useParams();
   const navigate = useNavigate();
@@ -89,6 +98,7 @@ export default function ProgressReport() {
   
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [quizResults, setQuizResults] = useState<QuizResult[]>([]);
+  const [gameResults, setGameResults] = useState<GameResult[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [viewingQuizResult, setViewingQuizResult] = useState<QuizResult | null>(null);
   const [deletingQuizId, setDeletingQuizId] = useState<string | null>(null);
@@ -127,12 +137,13 @@ export default function ProgressReport() {
         }
       };
 
-      const [kidRes, actRes, histRes, redRes, quizRes] = await Promise.all([
+      const [kidRes, actRes, histRes, redRes, quizRes, gameRes] = await Promise.all([
         fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId)}`), 'kid'),
         fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId)}/activities?mode=parent`), 'activities'),
         fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId)}/activity-history`), 'history'),
         fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId)}/purchases`), 'purchases'),
-        fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId)}/quiz-results`), 'quiz-results')
+        fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId)}/quiz-results`), 'quiz-results'),
+        fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId)}/game-results`), 'game-results')
       ]);
 
       if (kidRes.ok) {
@@ -162,6 +173,10 @@ export default function ProgressReport() {
       if (quizRes.ok) {
         const data = await safeJson(quizRes);
         setQuizResults(data.results || []);
+      }
+      if (gameRes.ok) {
+        const data = await safeJson(gameRes);
+        setGameResults(data.results || []);
       }
     } catch (error: any) {
       console.error('ProgressReport: Failed to fetch progress data', {
@@ -350,6 +365,18 @@ export default function ProgressReport() {
   const averageQuizScore = sortedQuizzes.length
     ? Math.round(sortedQuizzes.reduce((sum, result) => sum + (result.total_questions ? result.score / result.total_questions * 100 : 0), 0) / sortedQuizzes.length)
     : null;
+  const filteredGames = gameResults.filter(result => {
+    if (reportDuration === 'all') return true;
+    const hours = Math.abs(Date.now() - new Date(result.completed_at).getTime()) / (1000 * 60 * 60);
+    return reportDuration === '24h' ? hours <= 24 : reportDuration === '7d' ? hours <= 168 : hours <= 720;
+  });
+  const gameNames: Record<string, string> = { place_value_builder: 'Place Value Builder', expanded_form: 'Expanded Form Explorer', digit_value: 'Digit Value Detective', place_value_clues: 'Place Value Clues' };
+  const gameSummary = Object.values(filteredGames.reduce<Record<string, { key: string; level: number; correct: number; attempts: number; latest: string }>>((summary, result) => {
+    const key = `${result.game_key}-${result.level}`;
+    const current = summary[key] || { key: result.game_key, level: result.level, correct: 0, attempts: 0, latest: result.completed_at };
+    current.correct += result.score; current.attempts += result.total_questions; if (new Date(result.completed_at) > new Date(current.latest)) current.latest = result.completed_at; summary[key] = current;
+    return summary;
+  }, {})).sort((a, b) => new Date(b.latest).getTime() - new Date(a.latest).getTime());
 
   const rewardIcon = kid?.reward_type ? `https://cdn-icons-png.flaticon.com/512/2489/2489756.png` : ''; // Fallback
 
@@ -712,6 +739,11 @@ export default function ProgressReport() {
           </div>
           {sortedHistory.length > 0 && <Pagination currentPage={historyPage} totalPages={Math.max(1, totalHistoryPages)} pageSize={historyItemsPerPage} onPageChange={setHistoryPage} onPageSizeChange={(size) => { setHistoryItemsPerPage(size); setHistoryPage(1); }} />}
         </CardContent>
+      </Card>
+
+      <Card className="border-none ring-1 ring-slate-200 shadow-sm overflow-hidden">
+        <CardHeader className="bg-slate-50/50 border-b border-slate-100 p-6"><CardTitle className="text-lg font-bold flex items-center gap-2"><Sparkles className="text-blue-600 h-5 w-5"/>Game Scores ({filteredGames.length} questions)</CardTitle><p className="mt-2 text-sm text-slate-500">Scores are grouped by game and difficulty level without storing the questions or answers.</p></CardHeader>
+        <CardContent className="p-0"><div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-slate-50 text-[10px] uppercase tracking-widest text-slate-500"><tr><th className="px-6 py-4 text-left">Game</th><th className="px-6 py-4 text-center">Level</th><th className="px-6 py-4 text-center">Score</th><th className="px-6 py-4 text-center">Accuracy</th><th className="px-6 py-4 text-right">Last played</th></tr></thead><tbody className="divide-y divide-slate-100">{gameSummary.length ? gameSummary.map(result => <tr key={`${result.key}-${result.level}`}><td className="px-6 py-4 font-bold text-slate-900">{gameNames[result.key] || result.key}</td><td className="px-6 py-4 text-center">{result.level}</td><td className="px-6 py-4 text-center font-bold">{result.correct} / {result.attempts}</td><td className="px-6 py-4 text-center font-black text-blue-700">{Math.round(result.correct / result.attempts * 100)}%</td><td className="px-6 py-4 text-right text-slate-500">{formatSimpleDate(result.latest)}</td></tr>) : <tr><td colSpan={5} className="px-6 py-10 text-center italic text-slate-400">No game scores for this period.</td></tr>}</tbody></table></div></CardContent>
       </Card>
 
       {/* Quiz Results History Table */}

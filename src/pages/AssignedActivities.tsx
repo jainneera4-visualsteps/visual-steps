@@ -3970,6 +3970,7 @@ export default function AssignedActivities() {
                         <option value="quiz">Quizzes</option>
                         <option value="story">Social Stories</option>
                         <option value="worksheet">Worksheets</option>
+                        <option value="game">Games</option>
                       </select>
                     </div>
 
@@ -4036,6 +4037,23 @@ export default function AssignedActivities() {
                                 status: 'pending'
                               });
                             }
+                          } else if (predefinedType === 'game') {
+                            const game = [
+                              { id: 'place-value', title: 'Place Value Builder' },
+                              { id: 'expanded-form', title: 'Expanded Form Explorer' },
+                              { id: 'digit-value', title: 'Digit Value Detective' },
+                              { id: 'place-value-clues', title: 'Place Value Clues' },
+                            ].find(item => item.id === val);
+                            if (game) {
+                              setFormData({
+                                ...formData,
+                                activityType: 'Learning Game',
+                                description: game.title,
+                                link: `/kids-games/${game.id}/${kidId}`,
+                                category: 'Education',
+                                status: 'pending'
+                              });
+                            }
                           }
                         }}
                       >
@@ -4055,6 +4073,12 @@ export default function AssignedActivities() {
                           .map(w => (
                           <option key={w.id} value={w.id}>{w.title}</option>
                         ))}
+                        {predefinedType === 'game' && <>
+                          <option value="place-value">Place Value Builder</option>
+                          <option value="expanded-form">Expanded Form Explorer</option>
+                          <option value="digit-value">Digit Value Detective</option>
+                          <option value="place-value-clues">Place Value Clues</option>
+                        </>}
                       </select>
                     </div>
                   </div>

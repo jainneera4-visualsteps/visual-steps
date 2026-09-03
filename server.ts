@@ -430,6 +430,45 @@ const productFeatureRegistry = [
     ]
   },
   {
+    "id": "learning-games",
+    "title": "Adaptive place-value learning games",
+    "summary": "Practice place value through four focused games with five levels, automatic progression, optional assignment, personalized companions, and parent-visible scores.",
+    "details": "Parents select a compact game companion for each child / adult and can offer games for free practice or assign one through the existing Add Activity form. Place Value Builder teaches digit placement; Expanded Form Explorer connects standard, expanded, and missing-number forms; Digit Value Detective asks what a highlighted digit is worth; and Place Value Clues asks the learner to identify a number from a positional clue. Each game uses five increasingly demanding levels. Learners advance automatically after demonstrating mastery, while an incorrect response reveals the answer and a focused explanation before the next question. Progress Report groups recorded scores by game and level without storing question or answer content.",
+    "familyImpact": "Short, focused games give learners repeated opportunities to observe number structure, think, and respond without turning place-value learning into long calculation practice. Automatic progression increases challenge after demonstrated success, while corrective explanations and familiar companions keep mistakes informative and emotionally manageable. Parents can include a game in the daily plan and see accuracy patterns without collecting unnecessary learning content.",
+    "guideParagraphs": [
+      "The Games library contains four complementary ways to learn place value. Place Value Builder uses draggable or tappable digits. Expanded Form Explorer practices standard form, expanded form, and a missing place-value part. Digit Value Detective highlights one digit and asks what it is worth, while Place Value Clues reverses the task by asking which number matches a positional clue.",
+      "Each game has five levels and a visible mastery count. A learner moves to the next level automatically after eight correct responses at the current level. Correct responses continue directly to a new challenge. After an incorrect response, the correct answer and a concise place-value explanation remain visible until the learner chooses Next Question.",
+      "Parents can select a learner and save one of four compact companion avatars from Games. To include a game in the learner's plan, open Activities Setup, add an activity, choose Games as the predefined type, and select the game. Each answered game question records only the game, level, correct-or-incorrect score, and date. Progress Report groups those attempts by game and level and shows accuracy and the latest play date."
+    ],
+    "help": "Open Games below Worksheets to choose a learner, save a companion, and play. To assign a game, open Activities Setup, choose Add Activity, select Games under the predefined activity type, and select a game. Open Progress Report to review Game Scores by game and level.",
+    "screenshot": {
+      "src": "/onboarding/child-dashboard.png",
+      "alt": "Visual Steps learner dashboard",
+      "caption": "Assigned learning games open from the learner's familiar Visual Steps activity flow and return to the dashboard when finished."
+    },
+    "introducedOn": "2026-09-03",
+    "plan": "starter",
+    "icon": "game",
+    "routes": [
+      "/games",
+      "/games/place-value",
+      "/games/expanded-form",
+      "/games/digit-value",
+      "/games/place-value-clues",
+      "/assigned-activities/:kidId",
+      "/progress-report/:kidId"
+    ],
+    "surfaces": [
+      "home",
+      "about",
+      "onboarding",
+      "chatbot",
+      "pricing",
+      "guest",
+      "help"
+    ]
+  },
+  {
     "id": "learning-progress-rewards",
     "title": "Learning, progress, and meaningful rewards",
     "summary": "Create personalized resources, understand progress, and connect earned rewards to meaningful goals.",
@@ -5577,6 +5616,44 @@ app.get('/api/kids/:kidId/optional-bonus-activities', authenticateToken, async (
     console.error('Failed to load optional bonus activities:', error);
     res.status(500).json({ error: 'Unable to load optional bonus activities' });
   }
+});
+
+app.put('/api/kids/:kidId/game-companion', authenticateToken, async (req: any, res) => {
+  if (req.user.role !== 'parent') return res.status(403).json({ error: 'Parent access required' });
+  const companion = String(req.body?.companion || '');
+  if (!['robot', 'fox', 'owl', 'dinosaur'].includes(companion)) return res.status(400).json({ error: 'Choose an available game companion' });
+  const supabase = getSupabaseForUser(req);
+  const { data, error } = await supabase.from('kids').update({ game_companion: companion }).eq('id', req.params.kidId).eq('user_id', req.user.id).select('id,game_companion').maybeSingle();
+  if (error) return res.status(500).json({ error: 'Unable to save the game companion' });
+  if (!data) return res.status(404).json({ error: 'Child / adult profile not found' });
+  res.json({ kid: data, message: 'Game companion saved.' });
+});
+
+app.post('/api/kids/:kidId/game-results', authenticateToken, async (req: any, res) => {
+  const { kidId } = req.params;
+  const gameKey = String(req.body?.gameKey || '');
+  const level = Number(req.body?.level);
+  const correct = req.body?.correct === true;
+  const allowedGames = ['place_value_builder', 'expanded_form', 'digit_value', 'place_value_clues'];
+  if (!allowedGames.includes(gameKey) || !Number.isInteger(level) || level < 1 || level > 5) return res.status(400).json({ error: 'Invalid game result' });
+  const admin = getAdminSupabaseClient();
+  const { data: kid } = await admin.from('kids').select('id,user_id').eq('id', kidId).maybeSingle();
+  if (!kid) return res.status(404).json({ error: 'Child / adult profile not found' });
+  if (req.user.role === 'kid' ? req.user.kidId !== kidId : req.user.id !== kid.user_id) return res.status(403).json({ error: 'Forbidden' });
+  const { error } = await admin.from('game_results').insert({ user_id: kid.user_id, kid_id: kidId, game_key: gameKey, level, score: correct ? 1 : 0, total_questions: 1 });
+  if (error) return res.status(500).json({ error: 'Unable to save game progress' });
+  res.status(201).json({ saved: true });
+});
+
+app.get('/api/kids/:kidId/game-results', authenticateToken, async (req: any, res) => {
+  const { kidId } = req.params;
+  const admin = getAdminSupabaseClient();
+  const { data: kid } = await admin.from('kids').select('id,user_id').eq('id', kidId).maybeSingle();
+  if (!kid) return res.status(404).json({ error: 'Child / adult profile not found' });
+  if (req.user.role === 'kid' ? req.user.kidId !== kidId : req.user.id !== kid.user_id) return res.status(403).json({ error: 'Forbidden' });
+  const { data, error } = await admin.from('game_results').select('*').eq('kid_id', kidId).order('completed_at', { ascending: false }).limit(500);
+  if (error) return res.status(500).json({ error: 'Unable to load game progress' });
+  res.json({ results: data || [] });
 });
 
 app.put('/api/kids/:kidId/optional-bonus-settings', authenticateToken, async (req: any, res) => {

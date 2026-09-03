@@ -77,6 +77,7 @@ Visual Steps provides a shared system in which a parent or caregiver can prepare
 - Generate, save, edit, assign, play, and delete quizzes.
 - Limit a child to one submitted quiz attempt per assigned activity occurrence; parent reassignment permits one new attempt while preserving prior results.
 - Record quiz results and include them in child reporting.
+- Provide four place-value learning games with five difficulty levels, automatic mastery progression, learner-specific companion avatars, activity assignment, and privacy-limited scores in Progress Report.
 - Celebrate correct answers and meaningful completions with accessible animations that respect reduced-motion preferences.
 - Generate, save, edit, print, and delete worksheets.
 - Generate, edit, assign, view, and delete personalized social stories.
@@ -269,6 +270,7 @@ This section is generated from `feature-registry.json`. Update the registry when
 | Controlled social-story sharing | family | 2026-08-19 | — | Share one social story using a private link that can expire or be revoked. |
 | Parent stories and community publishing | starter | 2026-08-25 | — | Write, preview, and submit family experiences or practical ideas through a reviewed community publishing process. |
 | Narrated tour and temporary Guest Login | starter | 2026-08-21 | 2026-08-27 | Visitors can now watch a friendly, chapter-based Visual Steps presentation directly on the Home page before entering Guest Login. |
+| Adaptive place-value learning games | starter | 2026-09-03 | — | Practice place value through four focused games with five levels, automatic progression, optional assignment, personalized companions, and parent-visible scores. |
 | Learning, progress, and meaningful rewards | starter | 2026-03-15 | — | Create personalized resources, understand progress, and connect earned rewards to meaningful goals. |
 | Parent-controlled data management | starter | 2026-08-24 | — | Review saved family records, set a reminder period, and selectively remove history that is no longer useful. |
 

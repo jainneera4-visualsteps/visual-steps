@@ -20,6 +20,10 @@ import CreateSocialStory from './pages/CreateSocialStory';
 import ViewSocialStory from './pages/ViewSocialStory';
 import WorksheetGenerator from './pages/WorksheetGenerator';
 import SavedWorksheets from './pages/SavedWorksheets';
+import Games from './pages/Games';
+import PlaceValueGame from './pages/PlaceValueGame';
+import ExpandedFormGame from './pages/ExpandedFormGame';
+import { DigitValueDetective, PlaceValueClueGame } from './pages/PlaceValuePracticeGames';
 import QuizGenerator from './pages/QuizGenerator';
 import SavedQuizzes from './pages/SavedQuizzes';
 import PlayQuiz from './pages/PlayQuiz';
@@ -86,6 +90,11 @@ export default function App() {
               <Route path="social-stories/edit/:id" element={<CreateSocialStory />} />
               <Route path="worksheet-generator" element={<WorksheetGenerator />} />
               <Route path="saved-worksheets" element={<SavedWorksheets />} />
+              <Route path="games" element={<Games />} />
+              <Route path="games/place-value" element={<PlaceValueGame />} />
+              <Route path="games/expanded-form" element={<ExpandedFormGame />} />
+              <Route path="games/digit-value" element={<DigitValueDetective />} />
+              <Route path="games/place-value-clues" element={<PlaceValueClueGame />} />
               <Route path="quiz-generator" element={<QuizGenerator />} />
               <Route path="saved-quizzes" element={<SavedQuizzes />} />
               <Route path="play-quiz/:id" element={<PlayQuiz />} />
@@ -102,6 +111,10 @@ export default function App() {
           <Route element={<KidProtectedRoute />}>
             <Route path="/kids-dashboard/:kidId" element={<KidsDashboard />} />
             <Route path="/play-quiz/:id/:kidId" element={<PlayQuiz />} />
+            <Route path="/kids-games/place-value/:kidId" element={<PlaceValueGame />} />
+            <Route path="/kids-games/expanded-form/:kidId" element={<ExpandedFormGame />} />
+            <Route path="/kids-games/digit-value/:kidId" element={<DigitValueDetective />} />
+            <Route path="/kids-games/place-value-clues/:kidId" element={<PlaceValueClueGame />} />
           </Route>
         </Routes>
         </WalkthroughProvider>

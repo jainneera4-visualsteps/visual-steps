@@ -15,6 +15,7 @@ Visual Steps is a full-stack web application that helps parents and caregivers c
 - Schedule recurring activities, optionally require parent verification, and review completion history.
 - Let parents type why a positive behavior deserves a limited bonus, with optional suggestions. The child dashboard shows a profile-configurable number of recent bonuses as compact reason-and-amount entries, and the child / adult cannot request them.
 - Generate and edit AI-assisted quizzes, worksheets, and social stories.
+- Choose a learner-specific game companion, assign place-value games through the normal activity form, and review scores by game and level.
 - Assign quizzes for one attempt per activity occurrence and review results through progress and summary reports. A deliberate reassignment unlocks one new attempt without deleting earlier results.
 - Configure reward-shop items and approve purchases.
 - Send messages to a child's dashboard.
@@ -26,6 +27,7 @@ Visual Steps is a full-stack web application that helps parents and caregivers c
 - Follow activity instructions with text, images, and links.
 - Receive small, reduced-motion-aware celebrations for correct quiz answers and meaningful completions.
 - Submit assigned work and earn configured tokens or stickers only after the completion requirements are satisfied.
+- Play four place-value games with five levels and automatic progression after demonstrated mastery.
 
 For activities marked **Parent verification required**, a child / adult submission moves to a waiting queue. It does not update completion totals or rewards until the parent selects **Verify & complete**. A parent can instead reassign it to pending without granting a reward. Existing activities default to immediate completion.
 - Read assigned social stories and messages from a parent.
@@ -130,6 +132,12 @@ Contact-page submissions are stored in `support_messages` before the application
 ### Consultation scheduling
 
 The public **Contact & Support** page combines direct messages, private-call requests, and group-session registration. Administrators publish recurring private-call availability by selecting multiple weekdays, a start/end time window, a configurable call length, and a timezone. A parent selects a matching date and then chooses one of the automatically generated times for administrator confirmation. The administration calendar shows consultation bookings and lets the administrator block or reopen individual dates without removing the weekly schedule. Group sessions use a fixed date and configurable capacity. Administrators add Google Meet, Microsoft Teams, Zoom, phone, or other meeting details before confirming a booking. Signed-in and guest parents can request a place; all consultation requests require email verification within 24 hours. Group registration includes a privacy acknowledgement and never exposes participant addresses. Run `database_updates/2026-09-03_consultation_scheduler.sql` before deploying the scheduler.
+
+### Learning games
+
+The **Games** library includes Place Value Builder, Expanded Form Explorer, Digit Value Detective, and Place Value Clues. Each game has five levels and advances automatically after eight correct responses at the current level. Parents can save a companion avatar for each learner, play from the library, or select **Games** as the predefined type while adding an activity. Child-session game links return to the learner dashboard. Progress Report groups scores by game and level; only the game key, difficulty level, correct/incorrect result, and completion time are stored—not the generated question or selected answer.
+
+Existing Supabase projects must run `database_updates/2026-09-02_game_companions.sql` and then `database_updates/2026-09-03_game_results.sql` before testing saved companions or game scores.
 
 ## Environment variables
 
@@ -251,6 +259,7 @@ This section is generated from `feature-registry.json`. Update the registry when
 | Controlled social-story sharing | family | 2026-08-19 | — | Share one social story using a private link that can expire or be revoked. |
 | Parent stories and community publishing | starter | 2026-08-25 | — | Write, preview, and submit family experiences or practical ideas through a reviewed community publishing process. |
 | Narrated tour and temporary Guest Login | starter | 2026-08-21 | 2026-08-27 | Visitors can now watch a friendly, chapter-based Visual Steps presentation directly on the Home page before entering Guest Login. |
+| Adaptive place-value learning games | starter | 2026-09-03 | — | Practice place value through four focused games with five levels, automatic progression, optional assignment, personalized companions, and parent-visible scores. |
 | Learning, progress, and meaningful rewards | starter | 2026-03-15 | — | Create personalized resources, understand progress, and connect earned rewards to meaningful goals. |
 | Parent-controlled data management | starter | 2026-08-24 | — | Review saved family records, set a reminder period, and selectively remove history that is no longer useful. |
 

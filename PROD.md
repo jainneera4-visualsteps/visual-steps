@@ -21,6 +21,7 @@ This section is generated from `feature-registry.json`. Update the registry when
 | Controlled social-story sharing | family | 2026-08-19 | — | Share one social story using a private link that can expire or be revoked. |
 | Parent stories and community publishing | starter | 2026-08-25 | — | Write, preview, and submit family experiences or practical ideas through a reviewed community publishing process. |
 | Narrated tour and temporary Guest Login | starter | 2026-08-21 | 2026-08-27 | Visitors can now watch a friendly, chapter-based Visual Steps presentation directly on the Home page before entering Guest Login. |
+| Adaptive place-value learning games | starter | 2026-09-03 | — | Practice place value through four focused games with five levels, automatic progression, optional assignment, personalized companions, and parent-visible scores. |
 | Learning, progress, and meaningful rewards | starter | 2026-03-15 | — | Create personalized resources, understand progress, and connect earned rewards to meaningful goals. |
 | Parent-controlled data management | starter | 2026-08-24 | — | Review saved family records, set a reminder period, and selectively remove history that is no longer useful. |
 
@@ -48,3 +49,7 @@ Apply `database_updates/2026-09-02_support_inbox.sql` and `database_updates/2026
 ### Consultation scheduler deployment
 
 Apply `database_updates/2026-09-03_consultation_scheduler.sql`. In **Admin → Support Inbox → Consultations**, select multiple recurring private-call weekdays, publish a time window such as 4:00–6:00 PM, and choose a call length. On the public Contact page, choose a date matching a published weekday and verify that times are generated using that configured length. In the administration calendar, mark a future date unavailable and verify parents cannot choose a time on it; reopen the date and verify its times return. Also publish and test one fixed-date group session. Confirm the guest verification email, review the booking status and private administrator notes, add test meeting details, and confirm the booking. Verify the parent receives the provider-independent meeting confirmation without seeing any other participant information.
+
+### Learning games deployment
+
+Apply `database_updates/2026-09-02_game_companions.sql` followed by `database_updates/2026-09-03_game_results.sql`. From **Games**, save a different companion for a test learner, reload, and confirm the selection persists. Assign each game once through **Activities Setup → Add Activity → Pre-defined Activity Type → Games** and confirm the assigned link opens in the child session. Answer one question correctly and one incorrectly, then open Progress Report and confirm **Game Scores** shows the game, level, combined score, accuracy, and latest play date. Verify that `game_results` contains no question text or selected-answer content.
