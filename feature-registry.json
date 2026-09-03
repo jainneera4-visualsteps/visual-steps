@@ -267,7 +267,7 @@
       "Parents can select a learner and save one of four compact companion avatars from Games. To include a game in the learner's plan, open Activities Setup, add an activity, choose Games as the predefined type, and select the game. Each answered game question records only the game, level, correct-or-incorrect score, and date. Progress Report groups those attempts by game and level and shows accuracy and the latest play date."
     ],
     "help": "Open Games below Worksheets to choose a learner, save a companion, and play. To assign a game, open Activities Setup, choose Add Activity, select Games under the predefined activity type, and select a game. Open Progress Report to review Game Scores by game and level.",
-    "screenshot": { "src": "/onboarding/child-dashboard.png", "alt": "Visual Steps learner dashboard", "caption": "Assigned learning games open from the learner's familiar Visual Steps activity flow and return to the dashboard when finished." },
+    "screenshot": { "src": "/onboarding/games.svg", "alt": "Visual Steps Games page with four adaptive place-value games and compact companion avatars", "caption": "The Games library offers four focused place-value experiences, a compact learner companion choice, five levels, and automatic mastery progression." },
     "introducedOn": "2026-09-03",
     "plan": "starter",
     "icon": "game",

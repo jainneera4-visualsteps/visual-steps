@@ -442,9 +442,9 @@ const productFeatureRegistry = [
     ],
     "help": "Open Games below Worksheets to choose a learner, save a companion, and play. To assign a game, open Activities Setup, choose Add Activity, select Games under the predefined activity type, and select a game. Open Progress Report to review Game Scores by game and level.",
     "screenshot": {
-      "src": "/onboarding/child-dashboard.png",
-      "alt": "Visual Steps learner dashboard",
-      "caption": "Assigned learning games open from the learner's familiar Visual Steps activity flow and return to the dashboard when finished."
+      "src": "/onboarding/games.svg",
+      "alt": "Visual Steps Games page with four adaptive place-value games and compact companion avatars",
+      "caption": "The Games library offers four focused place-value experiences, a compact learner companion choice, five levels, and automatic mastery progression."
     },
     "introducedOn": "2026-09-03",
     "plan": "starter",
