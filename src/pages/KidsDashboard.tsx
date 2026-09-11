@@ -6,7 +6,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Calendar, Star, Lightbulb, CheckCircle, Circle, Clock, LayoutList, WifiOff, Sun, CloudSun, Moon, Sparkles, LogOut, Trophy, Eye, MessageSquare, ShieldCheck } from 'lucide-react';
 import { Card, CardContent } from '../components/Card';
-import { Button } from '../components/Button';
 import { ActivityDetailModal } from '../components/ActivityDetailModal';
 import { getZonedTime, formatInTimezone, convertDateToTimeZone } from '../utils/dateUtils';
 import { SocialStoryModal } from '../components/SocialStoryModal';
@@ -43,6 +42,11 @@ interface Activity {
   is_optional_bonus?: boolean;
   optional_reward_qty?: number;
   optional_selected_at?: string;
+  activity_meaning?: 'available_choice' | 'important_today';
+  time_guidance?: 'suggested' | 'fixed';
+  exact_time?: string;
+  preparation_minutes?: number;
+  after_time_passes?: 'keep_available' | 'request_reschedule' | 'hide';
 }
 
 interface Kid {
@@ -87,16 +91,6 @@ interface BehaviorBonusAward {
   awarded_at: string;
 }
 
-interface OptionalBonusActivity {
-  id: string;
-  activity_type: string;
-  description?: string;
-  optional_reward_qty?: number;
-  image_url?: string;
-  steps?: ActivityStep[];
-  requires_verification: boolean;
-}
-
 export default function KidsDashboard() {
   const { kidId } = useParams();
   const navigate = useNavigate();
@@ -111,10 +105,12 @@ export default function KidsDashboard() {
   const [isAccessAllowed, setIsAccessAllowed] = useState(true);
   const [accessMessage, setAccessMessage] = useState('');
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
-  const [activeTab, setActiveTab] = useState<'todo' | 'verification' | 'completed' | 'bonus' | 'rewards'>('todo');
+  const [activeTab, setActiveTab] = useState<'todo' | 'verification' | 'completed' | 'rewards'>('todo');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [timezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [completedTodayCount, setCompletedTodayCount] = useState(0);
+  const [showAllActivityChoices, setShowAllActivityChoices] = useState(false);
+  const [showLaterActivities, setShowLaterActivities] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -432,13 +428,23 @@ export default function KidsDashboard() {
   const currentTheme = themes[kid?.theme || 'sky'] || themes.sky;
   const isDarkTheme = currentTheme.isDark === true;
 
+  const isCompletedOnDate = (activity: Activity, targetDate: string) => {
+    if (!activity.completion_date) return activity.due_date === targetDate;
+    const completedAt = new Date(activity.completion_date);
+    if (Number.isNaN(completedAt.getTime())) return activity.due_date === targetDate;
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: kid?.timezone || 'UTC',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(completedAt);
+    const part = (type: string) => parts.find(item => item.type === type)?.value || '';
+    return `${part('year')}-${part('month')}-${part('day')}` === targetDate;
+  };
+
   // Exit Modal State
   const [rewardItems, setRewardItems] = useState<RewardItem[]>([]);
   const [behaviorBonuses, setBehaviorBonuses] = useState<BehaviorBonusAward[]>([]);
-  const [optionalBonusActivities, setOptionalBonusActivities] = useState<OptionalBonusActivity[]>([]);
-  const [optionalBonusEligibility, setOptionalBonusEligibility] = useState({ eligible: false, remainingActivities: 0, remainingRewards: 0, unavailableReason: '' });
-  const [selectedOptionalActivityId, setSelectedOptionalActivityId] = useState('');
-  const [submittingOptionalId, setSubmittingOptionalId] = useState<string | null>(null);
 
   const safeLocalStorageGet = (key: string) => {
     try {
@@ -649,12 +655,11 @@ export default function KidsDashboard() {
           }
         };
 
-        const [kidRes, actRes, rewardRes, bonusRes, optionalBonusRes] = await Promise.all([
+        const [kidRes, actRes, rewardRes, bonusRes] = await Promise.all([
           fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}`), 'kid'),
           fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/activities?mode=kid&localDate=${localDate}&localTime=${localTime}&_t=${Date.now()}`), 'activities'),
           fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/reward-items?onlyActive=true`), 'rewards'),
-          fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/behavior-bonuses`), 'behavior bonuses'),
-          fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/optional-bonus-activities`), 'optional bonus activities')
+          fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/behavior-bonuses`), 'behavior bonuses')
         ]);
 
         // Process Kid Data
@@ -700,11 +705,6 @@ export default function KidsDashboard() {
           const bonusData = await safeJson(bonusRes);
           setBehaviorBonuses(bonusData.awards || []);
         }
-        if (optionalBonusRes.ok) {
-          const optionalData = await safeJson(optionalBonusRes);
-          setOptionalBonusActivities(optionalData.activities || []);
-          if (optionalData.eligibility) setOptionalBonusEligibility(optionalData.eligibility);
-        }
 
       } catch (error: any) {
         console.error('KidsDashboard: Failed to fetch data', {
@@ -719,37 +719,9 @@ export default function KidsDashboard() {
     if (!silent) setIsLoading(false);
   }, [kidId]);
 
-  const chooseOptionalBonusActivity = async (activity: OptionalBonusActivity) => {
-    setSubmittingOptionalId(activity.id);
-    try {
-      const response = await apiFetch(`/api/activities/${encodeURIComponent(activity.id)}/select-optional`, { method: 'POST' });
-      const data = await safeJson(response);
-      if (!response.ok) throw new Error(data.error || 'Unable to choose this additional activity');
-      setSelectedOptionalActivityId('');
-      await fetchData(true);
-      setActiveTab('todo');
-    } catch (error: any) {
-      window.alert(error.message || 'Unable to choose this additional activity');
-    } finally {
-      setSubmittingOptionalId(null);
-    }
-  };
-
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-
-  useEffect(() => {
-    if (activeTab === 'todo' && optionalBonusEligibility.eligible && optionalBonusActivities.length > 0) {
-      setActiveTab('bonus');
-    }
-  }, [activeTab, optionalBonusActivities.length, optionalBonusEligibility.eligible]);
-
-  useEffect(() => {
-    if (selectedOptionalActivityId && !optionalBonusActivities.some(activity => activity.id === selectedOptionalActivityId)) {
-      setSelectedOptionalActivityId('');
-    }
-  }, [optionalBonusActivities, selectedOptionalActivityId]);
 
   useEffect(() => {
     // Check for new parent message with persistence
@@ -1040,10 +1012,10 @@ export default function KidsDashboard() {
                           ? 'bg-blue-600 text-white shadow-sm' 
                           : `${isDarkTheme ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-500 hover:bg-slate-50'}`
                       }`}
-                      title="View activities to be done"
+                      title="Choose an activity"
                     >
                       <Clock className="h-3.5 w-3.5" />
-                      📝 To Be Done
+                      📝 Choose an Activity
                     </button>
                     <button
                       onClick={() => setActiveTab('verification')}
@@ -1069,20 +1041,6 @@ export default function KidsDashboard() {
                       <CheckCircle className="h-3.5 w-3.5" />
                       ✅ Completed
                     </button>
-                    {optionalBonusEligibility.eligible && optionalBonusActivities.length > 0 && (
-                      <button
-                        onClick={() => setActiveTab('bonus')}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                          activeTab === 'bonus'
-                            ? 'bg-blue-600 text-white shadow-sm'
-                            : `${isDarkTheme ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-500 hover:bg-slate-50'}`
-                        }`}
-                        title="Choose an optional activity after finishing today's plan"
-                      >
-                        <Star className="h-3.5 w-3.5" />
-                        ⭐ Extra Activities
-                      </button>
-                    )}
                     <button
                       onClick={() => setActiveTab('rewards')}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
@@ -1107,51 +1065,6 @@ export default function KidsDashboard() {
                         </div>
                         <h2 className={`text-2xl font-black ${currentTheme.cardTitle} mb-2 tracking-tight`}>{accessMessage}</h2>
                         <p className={`${currentTheme.cardSubtext} font-medium max-w-xs`}>Ask your parent if you need to see your activities or want to keep playing!</p>
-                      </div>
-                    ) : activeTab === 'bonus' ? (
-                      <div className="space-y-5">
-                        <div className={`rounded-2xl p-5 ring-1 ${currentTheme.banner}`}>
-                          <div className="flex items-start gap-3">
-                            <div className="rounded-full bg-blue-100 p-3"><Star className="h-6 w-6 text-blue-600" /></div>
-                            <div>
-                              <h2 className={`text-xl font-black ${currentTheme.bannerText}`}>Extra Activities</h2>
-                              <p className={`mt-1 text-sm font-bold ${currentTheme.bannerSubtext}`}>You can earn {optionalBonusEligibility.remainingRewards} more {formatReward(kid?.reward_type, optionalBonusEligibility.remainingRewards)}. If you want, choose an extra activity.</p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col gap-3">
-                          {optionalBonusActivities.map(activity => (
-                            <label key={activity.id} className="block cursor-pointer">
-                            <Card className={`h-full overflow-hidden border-none ring-2 transition-all ${selectedOptionalActivityId === activity.id ? 'ring-blue-500 shadow-lg' : currentTheme.card}`}>
-                              <CardContent className="flex items-start gap-3 p-3">
-                                <div className="flex items-start gap-3">
-                                  <input type="radio" name="optional-activity" value={activity.id} checked={selectedOptionalActivityId === activity.id} onChange={() => setSelectedOptionalActivityId(activity.id)} className="mt-1 h-5 w-5 shrink-0 accent-blue-600" />
-                                  {activity.image_url && <img src={activity.image_url} alt="" className="h-20 w-24 shrink-0 rounded-lg bg-slate-50 object-contain" referrerPolicy="no-referrer" />}
-                                  <div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-3"><div><h3 className={`text-lg font-black ${currentTheme.cardTitle}`}>{activity.activity_type}</h3>{activity.description && <p className={`mt-1 text-sm ${currentTheme.cardSubtext}`}>{activity.description}</p>}</div><span className="shrink-0 rounded-full bg-emerald-100 px-2.5 py-1 text-sm font-black text-emerald-800">+{activity.optional_reward_qty || 1}</span></div>
-                                {activity.steps && activity.steps.length > 0 && <ol className={`mt-3 list-decimal space-y-1 pl-5 text-sm ${currentTheme.cardSubtext}`}>{activity.steps.map((step, index) => <li key={`${activity.id}-${index}`}>{step.description}</li>)}</ol>}
-                                <div className={`mt-3 text-xs font-bold ${currentTheme.bannerSubtext}`}>{activity.requires_verification ? 'A parent will check it before rewards are added.' : 'Rewards are added after completion.'}</div>
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-                            </label>
-                          ))}
-                        </div>
-                        {optionalBonusActivities.length > 0 && (
-                          <div className="flex justify-center">
-                            <Button
-                              disabled={!selectedOptionalActivityId || Boolean(submittingOptionalId)}
-                              onClick={() => {
-                                const selected = optionalBonusActivities.find(activity => activity.id === selectedOptionalActivityId);
-                                if (selected) void chooseOptionalBonusActivity(selected);
-                              }}
-                            >
-                              {submittingOptionalId ? 'Choosing…' : 'Choose Activity'}
-                            </Button>
-                          </div>
-                        )}
-                        {!optionalBonusActivities.length && <div className="rounded-xl border-2 border-dashed border-slate-200 p-8 text-center text-slate-500"><p className="font-bold">No more optional choices are available today.</p><p className="mt-1 text-sm">You have already done enough—enjoy the rest of your day.</p></div>}
                       </div>
                     ) : activeTab === 'rewards' ? (
                       <div className="space-y-6">
@@ -1226,6 +1139,13 @@ export default function KidsDashboard() {
                       </div>
                     ) : (
                       <div className="w-full">
+                        {activeTab === 'todo' && (
+                          <div className={`mb-4 rounded-xl p-4 ring-1 ${currentTheme.banner}`}>
+                            <p className={`text-sm font-bold ${currentTheme.bannerText}`}>
+                              Choose any activity below. You can do them in the order that works for you.
+                            </p>
+                          </div>
+                        )}
                         {(() => {
                           const effectiveToday = today || getZonedTime(kid?.timezone).isoDate;
                           const filtered = activities.filter(a => {
@@ -1236,7 +1156,7 @@ export default function KidsDashboard() {
                               return a.status === 'awaiting_verification';
                             }
                             if (activeTab === 'completed') {
-                              return a.status === 'completed' && a.due_date === effectiveToday;
+                              return a.status === 'completed' && isCompletedOnDate(a, effectiveToday);
                             }
                             return false;
                           });
@@ -1257,17 +1177,65 @@ export default function KidsDashboard() {
                           }
 
                           const timeOfDayOrder = ['Morning', 'Afternoon', 'Evening', 'Night', 'Any time'];
-                          const grouped = timeOfDayOrder.reduce((acc, time) => {
-                            const items = filtered.filter(a => (a.time_of_day || 'Any time') === time);
-                            if (items.length > 0) {
-                              acc.push({ time, items });
-                            }
-                            return acc;
-                          }, [] as { time: string, items: Activity[] }[]);
+                          const nowMinutes = getZonedTime(kid?.timezone).totalMinutes;
+                          const exactMinutes = (activity: Activity) => {
+                            if (!activity.exact_time) return null;
+                            const [hour, minute] = activity.exact_time.slice(0, 5).split(':').map(Number);
+                            return Number.isFinite(hour) && Number.isFinite(minute) ? hour * 60 + minute : null;
+                          };
+                          const periodStart: Record<string, number> = { Morning: 5 * 60, Afternoon: 12 * 60, Evening: 17 * 60, Night: 21 * 60 };
+                          const isComingUp = (activity: Activity) => {
+                            const start = exactMinutes(activity);
+                            return start !== null && nowMinutes >= start - (activity.preparation_minutes || 0) && nowMinutes <= start + 30;
+                          };
+                          const isLater = (activity: Activity) => {
+                            const start = exactMinutes(activity);
+                            if (start !== null) return nowMinutes < start - (activity.preparation_minutes || 0);
+                            const period = periodStart[activity.time_of_day];
+                            return period !== undefined && nowMinutes < period;
+                          };
+                          const isHiddenAfterTime = (activity: Activity) => {
+                            const start = exactMinutes(activity);
+                            return start !== null && nowMinutes > start + 30 && activity.time_guidance === 'fixed' && activity.after_time_passes === 'hide';
+                          };
+                          const comingUp = activeTab === 'todo' ? filtered.filter(isComingUp) : [];
+                          const later = activeTab === 'todo' ? filtered.filter(activity => isLater(activity) && !isComingUp(activity)) : [];
+                          const available = activeTab === 'todo'
+                            ? filtered.filter(activity => !isComingUp(activity) && !isLater(activity) && !isHiddenAfterTime(activity))
+                            : filtered;
+                          const orderedAvailable = [
+                            ...available.filter(activity => activity.activity_meaning === 'important_today'),
+                            ...available.filter(activity => activity.activity_meaning !== 'important_today'),
+                          ];
+                          const visibleAvailable = showAllActivityChoices ? orderedAvailable : orderedAvailable.slice(0, 6);
+                          const grouped: { time: string; items: Activity[]; description?: string }[] = activeTab === 'todo'
+                            ? [
+                                {
+                                  time: 'Coming Up',
+                                  items: comingUp,
+                                  description: 'It is almost time. Open the activity when you are ready.',
+                                },
+                                {
+                                  time: 'Important Today',
+                                  items: visibleAvailable.filter(activity => activity.activity_meaning === 'important_today'),
+                                  description: 'These are important today. You can choose which one to do first.',
+                                },
+                                {
+                                  time: 'Choose an Activity',
+                                  items: visibleAvailable.filter(activity => activity.activity_meaning !== 'important_today'),
+                                  description: 'Choose any activity you would like to do.',
+                                },
+                                ...(showLaterActivities ? [{ time: 'Later Today', items: later, description: 'These activities will be available later.' }] : []),
+                              ].filter(group => group.items.length > 0)
+                            : timeOfDayOrder.reduce((acc, time) => {
+                                const items = filtered.filter(a => (a.time_of_day || 'Any time') === time);
+                                if (items.length > 0) acc.push({ time, items });
+                                return acc;
+                              }, [] as { time: string; items: Activity[]; description?: string }[]);
 
-                          const others = filtered.filter(a => !timeOfDayOrder.includes(a.time_of_day || 'Any time'));
-                          if (others.length > 0) {
-                            grouped.push({ time: 'Other', items: others });
+                          if (activeTab !== 'todo') {
+                            const others = filtered.filter(a => !timeOfDayOrder.includes(a.time_of_day || 'Any time'));
+                            if (others.length > 0) grouped.push({ time: 'Other', items: others });
                           }
 
                           const timeIcons: Record<string, any> = {
@@ -1276,7 +1244,11 @@ export default function KidsDashboard() {
                             'Evening': <Moon className="h-4 w-4 text-indigo-400" />,
                             'Night': <Sparkles className="h-4 w-4 text-slate-400" />,
                             'Any time': <Clock className="h-4 w-4 text-slate-400" />,
-                            'Other': <Clock className="h-4 w-4 text-slate-400" />
+                            'Other': <Clock className="h-4 w-4 text-slate-400" />,
+                            'Important Today': <Star className="h-4 w-4 text-amber-500" />,
+                            'Choose an Activity': <Sparkles className="h-4 w-4 text-emerald-500" />,
+                            'Coming Up': <Clock className="h-4 w-4 text-blue-500" />,
+                            'Later Today': <Calendar className="h-4 w-4 text-slate-500" />,
                           };
 
                           return (
@@ -1290,9 +1262,12 @@ export default function KidsDashboard() {
                                     </h3>
                                     <div className={`kid-section-divider h-px flex-1 ${isDarkTheme ? 'bg-slate-600' : 'bg-slate-200'}`} />
                                   </div>
+                                  {group.description && (
+                                    <p className={`px-1 text-sm font-semibold ${currentTheme.cardSubtext}`}>{group.description}</p>
+                                  )}
                                   <div className="flex flex-col gap-3">
                                     {group.items.map((activity) => (
-                                      <Card 
+                                      <Card
                                         key={activity.id} 
                                         className={`kid-activity-card transition-all border-none ring-1 ${currentTheme.card} ${activity.status === 'completed' ? (isDarkTheme ? 'kid-activity-card--completed bg-slate-900/75' : 'bg-slate-50') + ' opacity-75 cursor-default' : activity.status === 'awaiting_verification' ? (isDarkTheme ? 'bg-slate-900' : 'bg-amber-50') + ' cursor-default' : (isDarkTheme ? 'bg-slate-900' : 'bg-white') + ' cursor-pointer hover:shadow-sm'}`}
                                         onClick={() => {
@@ -1345,6 +1320,15 @@ export default function KidsDashboard() {
                                               </div>
                                             )}
 
+                                            {activeTab === 'todo' && activity.exact_time && activity.time_guidance === 'fixed'
+                                              && activity.after_time_passes === 'request_reschedule'
+                                              && (exactMinutes(activity) ?? Number.POSITIVE_INFINITY) + 30 < nowMinutes && (
+                                              <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-800">
+                                                <MessageSquare className="h-3.5 w-3.5" />
+                                                Ask your parent about another time.
+                                              </div>
+                                            )}
+
                                             <div className={`mt-2 flex items-center gap-3 text-[11px] font-bold ${currentTheme.bannerSubtext} uppercase tracking-wider`}>
                                               {activity.due_date && activity.due_date !== today && (
                                                 <div className="flex items-center gap-1">
@@ -1356,6 +1340,12 @@ export default function KidsDashboard() {
                                                 <div className="flex items-center gap-1">
                                                   <LayoutList className="h-3 w-3" />
                                                   {activity.steps.length} steps
+                                                </div>
+                                              )}
+                                              {activity.exact_time && (
+                                                <div className="flex items-center gap-1">
+                                                  <Clock className="h-3 w-3" />
+                                                  {new Date(`2000-01-01T${activity.exact_time}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
                                                 </div>
                                               )}
                                             </div>
@@ -1378,6 +1368,16 @@ export default function KidsDashboard() {
                                   </div>
                                 </div>
                               ))}
+                              {activeTab === 'todo' && orderedAvailable.length > 6 && (
+                                <button type="button" onClick={() => setShowAllActivityChoices(value => !value)} className={`mx-auto block rounded-xl px-5 py-2 text-sm font-black ${currentTheme.button} text-white`}>
+                                  {showAllActivityChoices ? 'Show Fewer Activities' : `Show ${orderedAvailable.length - 6} More Activities`}
+                                </button>
+                              )}
+                              {activeTab === 'todo' && later.length > 0 && (
+                                <button type="button" onClick={() => setShowLaterActivities(value => !value)} className={`mx-auto block rounded-xl border px-5 py-2 text-sm font-black ${isDarkTheme ? 'border-slate-600 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-700'}`}>
+                                  {showLaterActivities ? 'Hide Later Activities' : `Later Today (${later.length})`}
+                                </button>
+                              )}
                             </div>
                           );
                         })()}

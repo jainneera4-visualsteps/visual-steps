@@ -24,15 +24,15 @@ const productFeatureRegistry = [
   {
     "id": "visual-activities",
     "title": "Clear visual activities",
-    "summary": "Build clear scheduled routines and offer optional additional choices after today’s assigned activities are finished.",
-    "details": "Parents and caregivers can turn a routine, responsibility, or learning goal into a clear activity with descriptions, illustrations, smaller steps, timing, recurrence, verification, and rewards. The same Add Activity form can mark an activity as optional and give it a specific reward amount. It stays hidden from the learner until today’s assigned activities are finished and dashboard hours are still open. The child / adult may then choose it or stop for the day; once chosen, it follows the familiar To Do, Waiting, Completed, and History flow.",
+    "summary": "Build clear visual activities and decide whether each is an available choice or important today.",
+    "details": "Parents and caregivers can turn a routine, responsibility, or learning goal into a clear activity with descriptions, real-life images, smaller steps, timing, recurrence, verification, and rewards. Each activity can be prepared as an Available Choice or Important Today. Both parent and learner activity views separate these meanings under clear headings instead of repeating labels on every activity. Important Today communicates significance without forcing an order, while the learner may open any visible choice in the order that works for them.",
     "familyImpact": "Clear visual sequences can reduce uncertainty and make a task easier to begin, understand, and finish for autistic people of different ages and support needs. Parents and caregivers can divide responsibilities into achievable steps, adapt the pace, and use consistent instructions across home, learning, work, therapy support, and community routines.",
     "guideParagraphs": [
       "A visual activity is most useful when it answers the questions a person may naturally have before beginning: what am I doing, how much is expected, what happens next, and how will I know I am finished? Parents can keep the wording concrete, choose an illustration that truly matches the task, and add only the steps that make the activity easier to follow. For a familiar routine, a short instruction may be enough; for a newer or more demanding responsibility, several smaller steps can provide a clearer path.",
       "The same approach can support a young child learning self-care, a teenager managing school or household responsibilities, or an autistic adult building independence at home, work, or in the community. Caregivers can observe where the person pauses, becomes uncertain, or needs prompting, then adjust the wording, image, timing, or number of steps. Reassignment provides another opportunity without erasing the value of the first effort.",
-      "Optional additional activities provide flexibility when today’s assigned plan is complete but a learner wants another meaningful way to work toward a reward. Parents create them through the same activity form and may use the same steps, pictures, recurrence, and verification choices. They remain hidden until the assigned activities are finished and disappear when dashboard hours or family limits are reached. Choosing one moves it to the learner’s To Be Done list, while stopping for the day remains an equally acceptable choice."
+      "While adding or editing an activity, parents choose how it should be offered. Available Choice means it may be selected when it is useful or meaningful. Important Today gives the parent a way to communicate that an activity matters today without imposing an order. The learner dashboard brings these activities into one choice-based view and calmly labels Important Today activities without forcing them to be completed first."
     ],
-    "help": "From Dashboard, select a child and open Activities Setup. Choose Add Activity, complete the usual details, and select Optional additional activity when the activity should appear only after the learner finishes today’s assigned activities. Set its reward amount and save it normally.",
+    "help": "From Dashboard, select a child / adult and open Activities Setup. Choose Add Activity or edit an existing activity. Under How should this activity be offered?, select Available Choice or Important Today, then save. The Activities list places the activity under the matching section so existing activities can be reviewed gradually.",
     "screenshot": {
       "src": "/onboarding/activities.png",
       "alt": "Visual Steps activities screen",
@@ -40,6 +40,32 @@ const productFeatureRegistry = [
     },
     "introducedOn": "2026-03-01",
     "updates": [
+      {
+        "updatedOn": "2026-09-11",
+        "title": "Calm time guidance without a rigid schedule",
+        "summary": "Parents can add suggested periods or exact times, while learners see what is relevant now without facing one long schedule.",
+        "details": "Ordinary activities remain flexible and unrestricted. Parents may continue using a broad morning, afternoon, evening, or night suggestion, or choose Specific time for an appointment or meeting. Exact-time activities support a preparation offset, suggested or fixed timing, and a parent-selected action after the time passes. The learner view keeps Important Today and Choose an Activity, adds a small Coming Up section, keeps future choices under a collapsible Later Today control, and initially shows up to six available choices.",
+        "familyImpact": "Learners can prepare for appointments and meaningful time-based events without having to scan a long chronological schedule. Current choices stay easy to find, future information remains available when wanted, and ordinary activities continue to support autonomy.",
+        "guideParagraphs": [
+          "Use broad time periods as gentle guidance for routines that do not need an exact start. Any time activities remain available without unnecessary time labels.",
+          "Choose Specific time for appointments, meetings, travel, or another event tied to the clock. A preparation offset can show the activity shortly before it begins, while the passed-time setting decides whether it remains available, asks the learner to check with a parent, or leaves the learner view.",
+          "The learner does not receive one long morning-to-night schedule. Coming Up stays focused, available activities remain grouped by meaning, Later Today is collapsed, and Show More keeps a larger collection manageable."
+        ],
+        "help": "In Activities Setup, add or edit an activity and open Time. Select a broad period or Specific time. For a specific time, choose the start time, preparation time, flexibility, and what should happen after the time passes."
+      },
+      {
+        "updatedOn": "2026-09-11",
+        "title": "Flexible activity meanings and learner choice",
+        "summary": "Parents classify activities as Available Choice or Important Today, while learners choose from one clear activity view.",
+        "details": "The Add and Edit Activity form replaces the user-facing Optional additional activity setting with two straightforward meanings. Existing activities are safely treated as Available Choice unless a parent identifies one as Important Today. On the learner dashboard, To Be Done is now Choose an Activity, regular and legacy Extra Activities appear together, and a short instruction makes it clear that visible activities may be completed in the order that works for the learner. Existing records and completion behavior are preserved.",
+        "familyImpact": "Families can describe activities according to their meaning without presenting every visible item as a compulsory scheduled task. Learners receive a clearer invitation to choose while important responsibilities remain easy to recognize.",
+        "guideParagraphs": [
+          "Available Choice is the everyday default. It tells the parent that the activity may be offered as one meaningful option and does not need to be completed in a fixed order.",
+          "Important Today is for an activity that genuinely matters on that day, such as preparing for an appointment or completing an essential responsibility. It communicates importance, not a first-to-last sequence.",
+          "On both the parent and learner dashboards, Important Today and Available Choices appear as separate, plainly explained sections instead of repeated tags. Empty sections stay out of the way. The learner may choose within either section, and steps, completion, verification, rewards, and history continue through the established activity flow."
+        ],
+        "help": "Open Activities Setup for a child / adult. Add or edit an activity, choose Available Choice or Important Today under How should this activity be offered?, and save. Review the two clearly headed sections in the activity list."
+      },
       {
         "updatedOn": "2026-08-31",
         "title": "Learner-chosen additional activities",
@@ -5404,14 +5430,10 @@ app.get('/api/kids/:kidId/activities', authenticateToken, async (req: any, res) 
     
     let filteredActivities = activities || [];
 
-    // Unchosen additional activities are deliberately hidden from the normal
-    // learner schedule. After the learner chooses one, the same activity row
-    // enters the ordinary To Do, Waiting, and Completed experience.
-    if (mode === 'kid') {
-      filteredActivities = filteredActivities.filter((activity: any) => (
-        activity.is_optional_bonus !== true || activity.optional_selected_at
-      ));
-    }
+    // Stage 1 of the choice-based learner experience keeps all existing
+    // activity records intact while presenting regular and legacy additional
+    // activities together. Nothing is automatically prioritized or ordered
+    // by its meaning.
 
     // Apply max incomplete limit if set
     if (mode === 'kid' && kid.max_incomplete_limit && kid.max_incomplete_limit > 0) {
@@ -5445,10 +5467,45 @@ app.get('/api/kids/:kidId/activities', authenticateToken, async (req: any, res) 
       allSteps = data || [];
     }
 
-    const activitiesWithSteps = filteredActivities.map((activity: any) => {
+    let activitiesWithSteps = filteredActivities.map((activity: any) => {
       const steps = allSteps?.filter(s => s.activity_id === activity.id) || [];
       return { ...activity, steps };
     });
+
+    // Some completion paths preserve the finished record in activity_history.
+    // Return today's history-only completions to the learner as read-only
+    // completed activities, without moving records or touching rewards.
+    let historyOnlyCompletionCount = 0;
+    if (mode === 'kid') {
+      const { data: recentHistory, error: recentHistoryError } = await supabase
+        .from('activity_history')
+        .select('*, activity_history_steps(*)')
+        .eq('kid_id', kidId)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (recentHistoryError) {
+        console.warn('Unable to include recent activity history on child dashboard:', recentHistoryError);
+      } else {
+        const activeCompletionKeys = new Set(
+          activitiesWithSteps
+            .filter((activity: any) => activity.status === 'completed')
+            .map((activity: any) => `${activity.activity_type}|${activity.due_date || ''}`),
+        );
+        const historyCompletions = (recentHistory || [])
+          .filter((activity: any) => String(activity.completion_date || '').startsWith(today))
+          .filter((activity: any) => activity.activity_type !== 'Parent Bonus')
+          .filter((activity: any) => !activeCompletionKeys.has(`${activity.activity_type}|${activity.due_date || ''}`))
+          .map((activity: any) => ({
+            ...activity,
+            status: 'completed',
+            isHistory: true,
+            steps: activity.activity_history_steps || [],
+          }));
+        historyOnlyCompletionCount = historyCompletions.length;
+        activitiesWithSteps = [...activitiesWithSteps, ...historyCompletions];
+      }
+    }
 
     // Each repeated/reassigned occurrence is a separate activity row. Count
     // completion timestamps on those assignments instead of inferring them
@@ -5461,7 +5518,7 @@ app.get('/api/kids/:kidId/activities', authenticateToken, async (req: any, res) 
       activities || [],
       completionTargetDate,
       kid.timezone || 'UTC',
-    );
+    ) + historyOnlyCompletionCount;
 
     res.json({ activities: activitiesWithSteps, completedTodayCount });
   } catch (error) {
@@ -5768,13 +5825,9 @@ app.post('/api/kids/:kidId/behavior-bonuses', authenticateToken, async (req: any
 // Create Activity
 app.post('/api/activities', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
-  const { kidId, activityType, category, repeatFrequency, repeatsTill, timeOfDay, description, link, imageUrl, status, dueDate, steps, repeat_interval, repeat_unit, requiresVerification, isOptionalBonus, optionalRewardQty } = req.body;
+  const { kidId, activityType, category, repeatFrequency, repeatsTill, timeOfDay, timeGuidance, exactTime, preparationMinutes, afterTimePasses, description, link, imageUrl, status, dueDate, steps, repeat_interval, repeat_unit, requiresVerification, activityMeaning } = req.body;
   const userId = req.user.id;
-
-  if (isOptionalBonus === true && (!Number.isInteger(Number(optionalRewardQty))
-    || Number(optionalRewardQty) < 1 || Number(optionalRewardQty) > 50)) {
-    return res.status(400).json({ error: 'Choose a reward amount from 1 to 50 for the optional activity.' });
-  }
+  const normalizedActivityMeaning = activityMeaning === 'important_today' ? 'important_today' : 'available_choice';
 
   try {
     // Verify kid belongs to user
@@ -5799,13 +5852,18 @@ app.post('/api/activities', authenticateToken, async (req: any, res) => {
           repeat_frequency: repeatFrequency,
           repeats_till: repeatsTill,
           time_of_day: timeOfDay,
+          time_guidance: timeGuidance === 'fixed' ? 'fixed' : 'suggested',
+          exact_time: timeOfDay === 'Specific time' && exactTime ? exactTime : null,
+          preparation_minutes: Math.max(0, Math.min(1440, Number(preparationMinutes) || 0)),
+          after_time_passes: ['request_reschedule', 'hide'].includes(afterTimePasses) ? afterTimePasses : 'keep_available',
           description,
           link,
           image_url: imageUrl,
           status: status || 'pending',
           requires_verification: requiresVerification === true,
-          is_optional_bonus: isOptionalBonus === true,
-          optional_reward_qty: isOptionalBonus === true ? Math.max(1, Math.min(50, Number(optionalRewardQty) || 1)) : null,
+          activity_meaning: normalizedActivityMeaning,
+          is_optional_bonus: false,
+          optional_reward_qty: null,
           optional_selected_at: null,
           due_date: dueDate,
           repeat_interval: repeat_interval || null,
@@ -6075,7 +6133,7 @@ app.put('/api/kids/:kidId/confirm-reward', authenticateToken, async (req: any, r
 app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
   const { id } = req.params;
-  let { activityType, category, repeatFrequency, repeatsTill, timeOfDay, description, link, imageUrl, status, dueDate, steps, repeat_interval, repeat_unit, requiresVerification, reassignmentLevel, isOptionalBonus, optionalRewardQty } = req.body;
+  let { activityType, category, repeatFrequency, repeatsTill, timeOfDay, timeGuidance, exactTime, preparationMinutes, afterTimePasses, description, link, imageUrl, status, dueDate, steps, repeat_interval, repeat_unit, requiresVerification, reassignmentLevel, activityMeaning, isOptionalBonus, optionalRewardQty } = req.body;
   const userId = req.user.id;
 
   try {
@@ -6123,15 +6181,16 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
       if (isHistory || status !== 'completed' || activity.status !== 'pending') {
         return res.status(403).json({ error: 'Children may only submit pending activities' });
       }
-      if (activity.is_optional_bonus && !activity.optional_selected_at) {
-        return res.status(403).json({ error: 'Choose this additional activity before completing it' });
-      }
       status = activity.requires_verification ? 'awaiting_verification' : 'completed';
       activityType = activity.activity_type;
       category = activity.category;
       repeatFrequency = activity.repeat_frequency;
       repeatsTill = activity.repeats_till;
       timeOfDay = activity.time_of_day;
+      timeGuidance = activity.time_guidance;
+      exactTime = activity.exact_time;
+      preparationMinutes = activity.preparation_minutes;
+      afterTimePasses = activity.after_time_passes;
       description = activity.description;
       link = activity.link;
       imageUrl = activity.image_url;
@@ -6139,6 +6198,7 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
       repeat_interval = activity.repeat_interval;
       repeat_unit = activity.repeat_unit;
       requiresVerification = activity.requires_verification;
+      activityMeaning = activity.activity_meaning;
       isOptionalBonus = activity.is_optional_bonus;
       optionalRewardQty = activity.optional_reward_qty;
       steps = undefined;
@@ -6162,10 +6222,15 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
           activity_type: activityType,
           category,
           time_of_day: timeOfDay,
+          time_guidance: timeGuidance === 'fixed' ? 'fixed' : 'suggested',
+          exact_time: timeOfDay === 'Specific time' && exactTime ? exactTime : null,
+          preparation_minutes: Math.max(0, Math.min(1440, Number(preparationMinutes ?? activity.preparation_minutes) || 0)),
+          after_time_passes: ['request_reschedule', 'hide'].includes(afterTimePasses) ? afterTimePasses : (activity.after_time_passes || 'keep_available'),
           description,
           link,
           image_url: imageUrl,
-          due_date: dueDate
+          due_date: dueDate,
+          activity_meaning: activityMeaning === 'important_today' ? 'important_today' : (activity.activity_meaning || 'available_choice')
         })
         .eq('id', id);
       
@@ -6182,6 +6247,10 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
             activity_type: activityType,
             category,
             time_of_day: timeOfDay,
+            time_guidance: timeGuidance === 'fixed' ? 'fixed' : 'suggested',
+            exact_time: timeOfDay === 'Specific time' && exactTime ? exactTime : null,
+            preparation_minutes: Math.max(0, Math.min(1440, Number(preparationMinutes ?? activity.preparation_minutes) || 0)),
+            after_time_passes: ['request_reschedule', 'hide'].includes(afterTimePasses) ? afterTimePasses : (activity.after_time_passes || 'keep_available'),
             description,
             link,
             image_url: imageUrl,
@@ -6190,7 +6259,8 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
             repeat_frequency: repeatFrequency || 'Never',
             repeats_till: repeatsTill,
             repeat_interval: repeat_interval || null,
-            repeat_unit: repeat_unit || null,
+          repeat_unit: repeat_unit || null,
+            activity_meaning: activityMeaning === 'important_today' ? 'important_today' : (activity.activity_meaning || 'available_choice'),
             is_optional_bonus: Boolean(activity.is_optional_bonus),
             optional_reward_qty: activity.is_optional_bonus ? activity.optional_reward_qty : null,
             optional_selected_at: null
@@ -6234,6 +6304,10 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
         repeat_frequency: repeatFrequency,
         repeats_till: repeatsTill,
         time_of_day: timeOfDay,
+        time_guidance: timeGuidance === 'fixed' ? 'fixed' : 'suggested',
+        exact_time: timeOfDay === 'Specific time' && exactTime ? exactTime : null,
+        preparation_minutes: Math.max(0, Math.min(1440, Number(preparationMinutes ?? activity.preparation_minutes) || 0)),
+        after_time_passes: ['request_reschedule', 'hide'].includes(afterTimePasses) ? afterTimePasses : (activity.after_time_passes || 'keep_available'),
         description,
         link,
         image_url: imageUrl,
@@ -6241,6 +6315,7 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
         requires_verification: requiresVerification === undefined
           ? Boolean(activity.requires_verification)
           : requiresVerification === true,
+        activity_meaning: activityMeaning === 'important_today' ? 'important_today' : 'available_choice',
         is_optional_bonus: isOptionalBonus === undefined ? Boolean(activity.is_optional_bonus) : isOptionalBonus === true,
         optional_reward_qty: (isOptionalBonus === undefined ? Boolean(activity.is_optional_bonus) : isOptionalBonus === true)
           ? Math.max(1, Math.min(50, Number(optionalRewardQty ?? activity.optional_reward_qty) || 1))
@@ -6359,11 +6434,16 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
             repeat_frequency: repeatFrequency,
             repeats_till: repeatsTill,
             time_of_day: activity.time_of_day,
+            time_guidance: activity.time_guidance || 'suggested',
+            exact_time: activity.exact_time || null,
+            preparation_minutes: activity.preparation_minutes || 0,
+            after_time_passes: activity.after_time_passes || 'keep_available',
             description: activity.description,
             link: activity.link,
             image_url: activity.image_url,
             status: 'pending',
             requires_verification: Boolean(activity.requires_verification),
+            activity_meaning: activity.activity_meaning || 'available_choice',
             is_optional_bonus: Boolean(activity.is_optional_bonus),
             optional_reward_qty: activity.is_optional_bonus ? activity.optional_reward_qty : null,
             optional_selected_at: null,
@@ -6459,12 +6539,17 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
           activity_type: activityType,
           category: category,
           time_of_day: timeOfDay,
+          time_guidance: activity.time_guidance || 'suggested',
+          exact_time: activity.exact_time || null,
+          preparation_minutes: activity.preparation_minutes || 0,
+          after_time_passes: activity.after_time_passes || 'keep_available',
           description: description,
           link: link,
           image_url: imageUrl,
           due_date: dueDate,
           completion_date: completionDate,
           reward_qty: rewardQty,
+          activity_meaning: activity.activity_meaning || 'available_choice',
           is_optional_bonus: Boolean(activity.is_optional_bonus),
           optional_reward_qty: activity.is_optional_bonus ? rewardQty : null
         })
@@ -7402,7 +7487,7 @@ export const parentAssistantFeatureCatalog = [
   { area: 'Privacy, terms, cookies, and analytics', routes: ['/privacy', '/terms', '/cookies'], help: 'Open Privacy, Terms, or Cookies & Analytics from the footer on any page. Privacy explains what family information Visual Steps handles, why it is used, limited service-provider processing, AI requests, social-story sharing, uploaded-image links, retention choices, account deletion, and security responsibilities. Terms explains responsible use, caregiver review, community content, availability, and why Visual Steps is not medical or clinical advice. Cookies & Analytics explains essential sign-in and preference storage, the installed-app cache, browser controls, and the current absence of advertising cookies and product analytics. On Create an account, review the Terms and Privacy links and select the agreement checkbox before selecting Sign Up.' },
   { area: 'Visual Steps weekly newsletter', routes: ['/newsletter', '/newsletter/subscribe', '/newsletter/community', '/newsletter/archive/:month', '/newsletter/issues/:issueDate', '/newsletter-admin'], help: 'Open the Newsletter menu in the main navigation. Choose Subscribe to open the dedicated signup page, enter Email address, and select Subscribe; confirm the subscription from the email you receive. Choose Weekly archive, then select a month; months and issues are ordered latest first. A month opens its issue list in the current tab, and selecting an issue opens the complete newsletter in a new tab. Choose Share with the community to open its dedicated submission page. Approved administrators open Admin and choose Manage newsletter for publication controls. Each upcoming weekly issue uses a calm, scannable format with a contents page, new and updated feature details, approved parent stories/news/information/tips, testimonials, popular features, activities and games, books and resources, ideas for using Visual Steps meaningfully, current membership details, practical caregiver tips, and clearly labeled mission-aligned advertisements when approved. Published archive issues retain the content and layout saved when they were released. General non-clinical topics may include communication and speech support, occupational support, positive behavior support, daily living, learning, work, leisure, and community participation for autistic people of all ages. Submissions remain private until reviewed and approved. The protected Newsletter Administration page lets administrators manage submissions, change the weekly delivery day and time in their timezone, edit and save the next issue template, preview it without publishing, and send a prepared issue. Every issue includes Visual Steps Home, Pricing, Subscribe Newsletter, optional configured Facebook and Instagram links, and one-click unsubscribe.' },
   { area: 'Protected administration', routes: ['/admin/insights', '/newsletter-admin'], help: 'The Admin menu appears only for approved administrators. Choose Insights to review account growth, registration status, parent journey signals, interpreted feature health, the last 24 hours or longer reporting periods, operations, retention, privacy-conscious traffic, and AI Use. AI Use shows where AI is requested, model and token totals, individual request estimates, and aggregate estimated standard paid-tier cost without retaining prompts, responses, or family content. Cost tracking begins after its database update and deployment; estimates are not invoices and free-tier billing may be lower or zero. Child / adult profiles and family content are intentionally excluded. Choose Manage newsletter for publication and subscriber controls. Administrator and membership changes require confirmation and are recorded for accountability.' },
-  { area: 'Child dashboard', routes: ['/kids-dashboard/:kidId'], help: 'Children sign in with their Kid Code. To Be Done lists pending activities, Waiting for parent verification lists submitted work, Completed shows completed activities, and Rewards shows items they may purchase with earned tokens. Meaningful completions show celebrations. A verification-required submission tells the child to wait and does not award tokens until parent approval.' },
+  { area: 'Child dashboard', routes: ['/kids-dashboard/:kidId'], help: 'Children sign in with their Kid Code. Choose an Activity presents visible activities as choices that may be opened in the order that works for the learner; Important Today identifies significance without forcing it to be first. Waiting lists work submitted for parent verification, Completed shows completed activities, and Rewards shows items they may purchase with earned tokens. Meaningful completions show celebrations. A verification-required submission tells the child to wait and does not award tokens until parent approval.' },
   { area: 'Offline and installation', routes: ['/'], help: 'Visual Steps can be installed from a supported browser. On an iPhone or iPad, use Safari Share > Add to Home Screen. When internet access is lost, the app displays an offline notice. Sign-in, saved family information, and AI features become available again after reconnection.' },
 ] as const;
 

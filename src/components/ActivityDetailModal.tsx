@@ -22,6 +22,8 @@ interface Activity {
   category: string;
   repeat_frequency: string;
   time_of_day: string;
+  exact_time?: string;
+  preparation_minutes?: number;
   description: string;
   link: string;
   image_url: string;
@@ -61,6 +63,9 @@ export function ActivityDetailModal({
   if (!activity) return null;
 
   const hasImages = !!(activity.image_url || activity.steps?.some(s => s.image_url));
+  const displayedTime = activity.time_of_day === 'Specific time' && activity.exact_time
+    ? new Date(`2000-01-01T${activity.exact_time}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    : activity.time_of_day;
 
   const [showPraise, setShowPraise] = useState(false);
   const [includeImages, setIncludeImages] = useState(false);
@@ -314,8 +319,13 @@ export function ActivityDetailModal({
                     </span>
                   )}
                   <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700 uppercase tracking-wider print:bg-transparent print:border print:border-slate-200">
-                    {activity.time_of_day}
+                    {displayedTime}
                   </span>
+                  {activity.time_of_day === 'Specific time' && Boolean(activity.preparation_minutes) && (
+                    <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-800 print:bg-transparent print:border print:border-slate-200">
+                      Get ready {activity.preparation_minutes} minutes before
+                    </span>
+                  )}
                   <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700 uppercase tracking-wider print:bg-transparent print:border print:border-slate-200">
                     {activity.repeat_frequency}
                   </span>

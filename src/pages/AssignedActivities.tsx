@@ -2,7 +2,7 @@ import { Tooltip as CustomTooltip } from '../components/ui/Tooltip';
 import { io } from 'socket.io-client';
 import { apiFetch, safeJson } from '../utils/api';
 import { formatReward } from '../utils/rewardUtils';
-import { useState, useEffect } from 'react';
+import { Fragment, useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
@@ -22,6 +22,7 @@ interface ActivityStep {
 type ActivityStatus = 'pending' | 'awaiting_verification' | 'completed' | 'on_hold' | 'ended';
 type ActivityOutcome = '' | 'reassign' | 'on_hold' | 'ended';
 type ReassignmentLevel = 'same' | 'up' | 'down';
+type ActivityMeaning = 'available_choice' | 'important_today';
 
 interface Activity {
   id: string;
@@ -50,6 +51,11 @@ interface Activity {
   repeat_count?: number;
   is_optional_bonus?: boolean;
   optional_reward_qty?: number;
+  activity_meaning?: ActivityMeaning;
+  time_guidance?: 'suggested' | 'fixed';
+  exact_time?: string;
+  preparation_minutes?: number;
+  after_time_passes?: 'keep_available' | 'request_reschedule' | 'hide';
 }
 
 interface Kid {
@@ -212,6 +218,13 @@ export default function AssignedActivities() {
 
   useEffect(() => {
     setSelectedActivityIds([]);
+    // Preserve the selected view while moving between activity tabs that
+    // support both List and Calendar. This also prevents the guided tour's
+    // direct Calendar callout from being reset to List after the button is
+    // activated. Tabs without a calendar always return to their grid view.
+    if (!['activities', 'completed', 'on_hold', 'ended', 'history'].includes(activeTab)) {
+      setViewMode('list');
+    }
   }, [activeTab]);
 
   const rewardImages: Record<string, string> = {
@@ -260,6 +273,11 @@ export default function AssignedActivities() {
     return formatKidDate(dateStr, { year: undefined, month: undefined, day: undefined, hour: '2-digit', minute: '2-digit', hour12: true });
   };
 
+  const formatActivityTime = (activity: Activity) => {
+    if (activity.time_of_day !== 'Specific time' || !activity.exact_time) return activity.time_of_day;
+    return new Date(`2000-01-01T${activity.exact_time}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  };
+
   const activitiesToRender = activeTab === 'activities' 
     ? activities.filter(a => a.status === 'pending' || !a.status) 
     : activeTab === 'verification'
@@ -285,7 +303,13 @@ export default function AssignedActivities() {
       const comparison = aValue! < bValue! ? -1 : 1;
       return activitiesSortConfig.direction === 'asc' ? comparison : -comparison;
     });
-    return sorted.slice((activitiesPage - 1) * activitiesItemsPerPage, activitiesPage * activitiesItemsPerPage);
+    const groupedSorted = activeTab === 'activities'
+      ? [
+          ...sorted.filter(activity => activity.activity_meaning === 'important_today'),
+          ...sorted.filter(activity => activity.activity_meaning !== 'important_today'),
+        ]
+      : sorted;
+    return groupedSorted.slice((activitiesPage - 1) * activitiesItemsPerPage, activitiesPage * activitiesItemsPerPage);
   })();
   const visibleRewardItems = rewardItems
     .filter(item => !locationFilter || item.location === locationFilter)
@@ -672,12 +696,17 @@ export default function AssignedActivities() {
     repeatUnit: 'day',
     repeatsTill: '',
     timeOfDay: 'Any time',
+    timeGuidance: 'suggested' as 'suggested' | 'fixed',
+    exactTime: '',
+    preparationMinutes: 0,
+    afterTimePasses: 'keep_available' as 'keep_available' | 'request_reschedule' | 'hide',
     description: '',
     link: '',
     imageUrl: '',
     dueDate: '',
     status: 'pending',
     requiresVerification: false,
+    activityMeaning: 'available_choice' as ActivityMeaning,
     isOptionalBonus: false,
     optionalRewardQty: 1,
     steps: [] as ActivityStep[],
@@ -967,12 +996,17 @@ export default function AssignedActivities() {
         repeatUnit,
         repeatsTill: activity.repeats_till || '',
         timeOfDay: activity.time_of_day || 'Any time',
+        timeGuidance: activity.time_guidance || 'suggested',
+        exactTime: activity.exact_time?.slice(0, 5) || '',
+        preparationMinutes: activity.preparation_minutes || 0,
+        afterTimePasses: activity.after_time_passes || 'keep_available',
         description: activity.description || '',
         link: activity.link || '',
         imageUrl: activity.image_url || '',
         dueDate: activity.due_date || '',
         status: activity.status,
         requiresVerification: activity.requires_verification === true,
+        activityMeaning: activity.activity_meaning || 'available_choice',
         isOptionalBonus: activity.is_optional_bonus === true,
         optionalRewardQty: activity.optional_reward_qty || 1,
         steps: activity.steps || [],
@@ -1010,12 +1044,17 @@ export default function AssignedActivities() {
         repeatUnit: 'day',
         repeatsTill: '',
         timeOfDay: 'Any time',
+        timeGuidance: 'suggested',
+        exactTime: '',
+        preparationMinutes: 0,
+        afterTimePasses: 'keep_available',
         description: '',
         link: '',
         imageUrl: '',
         dueDate: localDateString,
         status: 'pending',
         requiresVerification: false,
+        activityMeaning: 'available_choice',
         isOptionalBonus: false,
         optionalRewardQty: 1,
         steps: [],
@@ -1124,9 +1163,8 @@ export default function AssignedActivities() {
       setFormError('Select Reassign, On Hold, or Discontinued / Ended.');
       return;
     }
-    if (formData.isOptionalBonus && (!Number.isInteger(formData.optionalRewardQty)
-      || formData.optionalRewardQty < 1 || formData.optionalRewardQty > 50)) {
-      setFormError('Choose a reward amount from 1 to 50 for the optional activity.');
+    if (formData.timeOfDay === 'Specific time' && !formData.exactTime) {
+      setFormError('Choose an exact start time.');
       return;
     }
     const nextStatus: ActivityStatus = activityOutcome === 'reassign'
@@ -1996,7 +2034,7 @@ export default function AssignedActivities() {
                         {formatSimpleDate(activity.due_date)}
                       </td>
                       <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
-                        {activity.time_of_day}
+                        {formatActivityTime(activity)}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
@@ -2422,6 +2460,7 @@ export default function AssignedActivities() {
                     List
                   </button>
                   <button
+                    aria-pressed={viewMode === 'calendar'}
                     onClick={() => setViewMode('calendar')}
                     className={`px-4 py-2 text-sm font-medium transition-all ${
                       viewMode === 'calendar' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:text-slate-700'
@@ -2440,7 +2479,7 @@ export default function AssignedActivities() {
                 <div key={i} className="h-12 animate-pulse rounded bg-slate-100" />
               ))}
             </div>
-          ) : viewMode === 'calendar' ? (
+          ) : viewMode === 'calendar' && ['activities', 'completed', 'on_hold', 'ended', 'history'].includes(activeTab) ? (
             <Card className="border-none ring-1 ring-slate-200 shadow-sm">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -2709,7 +2748,23 @@ export default function AssignedActivities() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {visibleActivityRows.map((activity) => (
+                    {visibleActivityRows.map((activity, index) => (
+                      <Fragment key={activity.id}>
+                      {activeTab === 'activities' && (index === 0
+                        || visibleActivityRows[index - 1]?.activity_meaning !== activity.activity_meaning) && (
+                        <tr className={activity.activity_meaning === 'important_today' ? 'bg-amber-50' : 'bg-emerald-50'}>
+                          <td colSpan={7} className="px-4 py-3">
+                            <div className="font-black text-slate-900">
+                              {activity.activity_meaning === 'important_today' ? '⭐ Important Today' : '🌱 Available Choices'}
+                            </div>
+                            <div className="mt-0.5 text-xs font-medium text-slate-600">
+                              {activity.activity_meaning === 'important_today'
+                                ? 'Activities you want the learner to recognize as important today.'
+                                : 'Activities the learner may choose in the order that works for them.'}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
                       <tr key={activity.id} className={`hover:bg-slate-50 transition-colors ${activity.status === 'completed' ? 'bg-slate-50 opacity-75' : 'bg-white'}`}>
                         <td className="px-4 py-3">
                           <input
@@ -2749,7 +2804,6 @@ export default function AssignedActivities() {
                               </div>
                             )}
                             {activity.activity_type}
-                            {activity.is_optional_bonus && <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-blue-700 no-underline">Optional</span>}
                             {activity.link?.includes('/social-stories/view/') && (
                               <div className={`flex h-4 w-4 items-center justify-center rounded-full bg-blue-100 text-blue-600`}>
                                 <Eye className="h-2.5 w-2.5" />
@@ -2769,7 +2823,7 @@ export default function AssignedActivities() {
                           {formatSimpleDate(activity.due_date)}
                         </td>
                         <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
-                          {activity.time_of_day}
+                          {formatActivityTime(activity)}
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-1">
@@ -2811,6 +2865,7 @@ export default function AssignedActivities() {
                           </div>
                         </td>
                       </tr>
+                      </Fragment>
                     ))}
                   </tbody>
                 </table>
@@ -3529,7 +3584,7 @@ export default function AssignedActivities() {
   ) : isRewardModalOpen ? (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <Button 
+        <Button
           variant="ghost" 
           size="xs" 
           onClick={() => {
@@ -3806,7 +3861,7 @@ export default function AssignedActivities() {
                 >
                   Cancel
                 </Button>
-                <Button 
+                <Button
                   type="submit" 
                   size="xs" 
                   disabled={isSavingReward} 
@@ -3860,32 +3915,38 @@ export default function AssignedActivities() {
                   </label>
                 </div>
 
-                <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
-                  <label className="flex cursor-pointer items-start gap-3">
-                    <input
-                      type="checkbox"
-                      checked={formData.isOptionalBonus}
-                      onChange={(event) => setFormData({ ...formData, isOptionalBonus: event.target.checked })}
-                      className="mt-1 h-4 w-4 rounded border-blue-300 text-blue-600"
-                    />
-                    <span>
-                      <span className="block text-sm font-black text-slate-900">Optional additional activity</span>
-                      <span className="mt-0.5 block text-xs text-slate-600">Hide this activity until today’s assigned activities are finished. The learner may choose it or stop for the day.</span>
-                    </span>
-                  </label>
-                  {formData.isOptionalBonus && (
-                    <label className="mt-3 block max-w-xs text-xs font-bold text-slate-600">
-                      Rewards for completing this activity
-                      <Input
-                        type="number"
-                        min={1}
-                        max={50}
-                        value={formData.optionalRewardQty}
-                        onChange={(event) => setFormData({ ...formData, optionalRewardQty: Math.max(1, Number(event.target.value) || 1) })}
-                      />
-                    </label>
+                <fieldset className="rounded-xl border border-blue-200 bg-blue-50 p-3">
+                  <legend className="px-1 text-sm font-black text-slate-900">How should this activity be offered?</legend>
+                  <p className="mb-3 text-xs leading-5 text-slate-600">
+                    This prepares the activity for the simpler choice-based learner experience. The child dashboard will continue to work as it does now until Part 2 is introduced.
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {([
+                      ['available_choice', 'Available Choice', 'Offer this as one of the activities the learner may choose.'],
+                      ['important_today', 'Important Today', 'Clearly identify that this activity is important today without placing it in a strict order.'],
+                    ] as const).map(([value, label, help]) => (
+                      <label key={value} className={`cursor-pointer rounded-lg border p-3 ${formData.activityMeaning === value ? 'border-blue-500 bg-white ring-1 ring-blue-400' : 'border-blue-100 bg-white/70 hover:border-blue-300'}`}>
+                        <span className="flex items-center gap-2 text-sm font-bold text-slate-900">
+                          <input
+                            type="radio"
+                            name="activityMeaning"
+                            value={value}
+                            checked={formData.activityMeaning === value}
+                            onChange={() => setFormData({ ...formData, activityMeaning: value })}
+                            className="h-4 w-4 border-blue-300 text-blue-600"
+                          />
+                          {label}
+                        </span>
+                        <span className="mt-1 block pl-6 text-xs leading-5 text-slate-600">{help}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {editingActivity?.is_optional_bonus && (
+                    <p className="mt-3 rounded-lg bg-amber-50 p-2 text-xs leading-5 text-amber-900">
+                      This was created under the earlier Extra Activities system. It now appears with the learner’s other choices, while its existing record and reward settings remain safely preserved.
+                    </p>
                   )}
-                </div>
+                </fieldset>
 
                 {editingActivity && ['completed', 'on_hold', 'ended'].includes(editingActivity.status) && (
                   <fieldset className="rounded-xl border border-blue-200 bg-blue-50/70 p-3">
@@ -4410,8 +4471,44 @@ export default function AssignedActivities() {
                       <option value="Afternoon">Afternoon</option>
                       <option value="Evening">Evening</option>
                       <option value="Night">Night</option>
+                      <option value="Specific time">Specific time</option>
                     </select>
                   </div>
+
+                  {formData.timeOfDay === 'Specific time' && (
+                    <div className="col-span-full grid gap-2.5 rounded-lg border border-blue-200 bg-blue-50/70 p-3 md:grid-cols-2 lg:grid-cols-4">
+                      <label className="space-y-1 text-xs font-bold text-slate-600">
+                        Exact start time
+                        <Input type="time" value={formData.exactTime} onChange={event => setFormData({ ...formData, exactTime: event.target.value })} required />
+                      </label>
+                      <label className="space-y-1 text-xs font-bold text-slate-600">
+                        Start preparing
+                        <select className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 text-sm" value={formData.preparationMinutes} onChange={event => setFormData({ ...formData, preparationMinutes: Number(event.target.value) })}>
+                          <option value={0}>At the start time</option>
+                          <option value={15}>15 minutes before</option>
+                          <option value={30}>30 minutes before</option>
+                          <option value={45}>45 minutes before</option>
+                          <option value={60}>1 hour before</option>
+                        </select>
+                      </label>
+                      <label className="space-y-1 text-xs font-bold text-slate-600">
+                        Time flexibility
+                        <select className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 text-sm" value={formData.timeGuidance} onChange={event => setFormData({ ...formData, timeGuidance: event.target.value as 'suggested' | 'fixed' })}>
+                          <option value="suggested">Suggested time</option>
+                          <option value="fixed">Must happen at this time</option>
+                        </select>
+                      </label>
+                      <label className="space-y-1 text-xs font-bold text-slate-600">
+                        After the time passes
+                        <select className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 text-sm" value={formData.afterTimePasses} onChange={event => setFormData({ ...formData, afterTimePasses: event.target.value as 'keep_available' | 'request_reschedule' | 'hide' })}>
+                          <option value="keep_available">Keep available</option>
+                          <option value="request_reschedule">Ask parent to reschedule</option>
+                          <option value="hide">Hide from learner</option>
+                        </select>
+                      </label>
+                      <p className="col-span-full text-xs leading-5 text-blue-800">Exact times use the child/adult profile timezone. Preparation time helps the learner get ready without turning ordinary activities into appointments.</p>
+                    </div>
+                  )}
 
                   <div className="space-y-0.5">
                     <div className="flex items-center gap-1.5 mb-1">
