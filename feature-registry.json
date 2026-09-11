@@ -138,15 +138,15 @@
   },
   {
     "id": "parent-onboarding",
-    "title": "Replayable parent tour",
-    "summary": "New parents receive a guided introduction, and existing parents can replay it anytime.",
-    "details": "New parents receive a visual introduction to the main Visual Steps workflow. The tour explains child profiles, activities, verification, learning resources, rewards, and progress with practical examples. Existing parents can replay it whenever they want a refresher or need to discover a newer feature. Completing or dismissing the tour is remembered without preventing future replay.",
-    "familyImpact": "The tour reduces setup confusion by showing caregivers the important workflow in a manageable order rather than expecting them to discover every screen alone. A parent can revisit it when needs change, another caregiver joins the support team, or a new feature could help the autistic person’s daily participation and growth.",
+    "title": "Parent Quick Start and replayable tour",
+    "summary": "Parents can create their first useful visual activity through a short Quick Start and open the detailed tour whenever they need it.",
+    "details": "The Parent Dashboard provides a three-step Quick Start: add the child or adult being supported, create one meaningful visual activity with small concrete steps, and preview the learner experience. The panel recognizes when a profile and activity already exist, confirms that the first activity is ready, and can be hidden by the parent. The longer visual tour remains available through Start tour but is not forced when a parent first opens the dashboard. It explains profiles, activities, verification, learning resources, rewards, progress, and other established features when the parent is ready to explore them.",
+    "familyImpact": "Quick Start reduces setup confusion by helping a caregiver accomplish one useful outcome before introducing the wider application. Keeping the detailed tour optional prevents new parents from being overwhelmed while still giving families, support workers, and returning caregivers a dependable way to learn or revisit major features.",
     "guideParagraphs": [
-      "The tour begins with the child profile because schedules, interests, preferred rewards, support needs, and dashboard choices shape many later decisions. It then follows the practical order of planning activities, reviewing completion, creating learning resources, and reading progress information. Real application screens accompany the explanations so parents can recognize the same controls when they begin working independently.",
-      "Replay is useful even after the first setup is complete. A parent may return when adding another child, showing the app to a partner or support worker, or learning about a newly introduced workflow. The tour remains optional and can be closed at any point, so experienced families can go directly to the task they need."
+      "Quick Start appears on the Parent Dashboard and concentrates on one practical outcome rather than asking a new caregiver to configure every feature. First add the person being supported, then open Activities Setup to create one meaningful activity and divide it into small concrete steps. Preview the learner dashboard to see the result before handing over the device. Rewards, schedules, learning tools, verification, and other advanced options remain available when they are useful, but they are not prerequisites for understanding the central Activity to Steps workflow.",
+      "The detailed tour remains useful after the first setup is complete. A parent may open Start tour when adding another child or adult, showing the app to a partner or support worker, or learning about an established workflow. Because the tour is optional, a caregiver can complete Quick Start first, explore independently, or return to the broader explanation later."
     ],
-    "help": "On the Parent Dashboard select Replay Tour to review child profiles, activities, verification, learning materials, and reports.",
+    "help": "On the Parent Dashboard, follow Quick Start to add the person you support, create one visual activity, and preview the learner experience. Select Start tour whenever you want a broader explanation of profiles, activities, verification, learning materials, rewards, and reports.",
     "screenshot": { "src": "/onboarding/child-profile.png", "alt": "Visual Steps child profile screen used in the guided tour", "caption": "The parent tour begins with the real child-profile screen and continues through the family workflow." },
     "introducedOn": "2026-08-20",
     "plan": "starter",
@@ -159,6 +159,13 @@
         "summary": "Parent and guest tours now include current feature guidance from the shared Visual Steps catalog.",
         "details": "When an approved feature description changes, the Home and About pages, guided tours, Parent Assistant knowledge, upcoming newsletter, welcome information, and project guides receive the same wording through the documentation checks. Newly registered features can also be added to the tours without maintaining a separate list of feature cards.",
         "familyImpact": "Parents and caregivers receive consistent instructions wherever they learn about Visual Steps, making newer workflows easier to discover and reducing conflicting guidance."
+      },
+      {
+        "updatedOn": "2026-09-10",
+        "title": "A simpler first experience for parents",
+        "summary": "A three-step Quick Start helps parents prepare and preview their first visual activity without forcing the detailed product tour.",
+        "details": "The public Home page now introduces Visual Steps through a concrete appointment-preparation activity for a child or adult and explains how small visual steps provide predictability without turning every activity into a fixed sequence. After sign-in, Quick Start links directly to the existing profile, Activities Setup, and learner-preview screens, recognizes completed setup, and can be hidden. Start tour remains available on demand, and the existing Home illustration slideshow is unchanged.",
+        "familyImpact": "Parents can understand the central purpose of Visual Steps and accomplish one meaningful setup task before deciding whether to explore rewards, schedules, learning materials, reports, and other established features."
       }
     ],
     "surfaces": ["home", "about", "onboarding", "chatbot", "pricing", "guest", "help"]

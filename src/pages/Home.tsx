@@ -197,15 +197,28 @@ export default function Home() {
             {/* Left: Hero Text */}
             <div className="flex-1 text-center lg:text-left space-y-4">
               <div className="inline-flex items-center rounded-full border border-brand-200 bg-white/80 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-brand-800">
-                Calmer routines • clearer next steps
+                Meaningful activities • clear visual steps
               </div>
               <h1 className="text-4xl md:text-6xl font-bold text-slate-950 leading-[0.98] tracking-tight">
-                Make every day feel more <span className="text-brand-600">possible.</span>
+                Make everyday activities easier to <span className="text-brand-600">understand.</span>
               </h1>
               <p className="text-lg leading-8 text-slate-600 max-w-2xl">
-                Visual Steps helps families turn routines, learning and everyday responsibilities into clear visual activities a child / adult can understand, complete and celebrate.
+                Create meaningful activities for a child or adult, then break each activity into small, concrete visual steps. Activities can stay flexible while the steps inside them provide predictability.
               </p>
               <HomeIllustrationSlideshow />
+              <div className="rounded-2xl border border-brand-100 bg-white/85 p-5 text-left shadow-sm" aria-label="Example visual activity">
+                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-brand-700">One activity, made manageable</p>
+                <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-start">
+                  <div className="shrink-0 rounded-xl bg-brand-50 px-4 py-3">
+                    <span className="text-xs font-bold uppercase tracking-wider text-brand-600">Activity</span>
+                    <strong className="mt-1 block text-lg text-slate-950">Get Ready for an Appointment</strong>
+                  </div>
+                  <ol className="grid flex-1 gap-2 text-sm font-semibold text-slate-700 sm:grid-cols-2">
+                    {['Check the time and place','Get dressed','Pack what I need','Bring sensory supports','Review the travel plan'].map((step,index)=><li key={step} className="flex items-center gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-100 text-xs font-black text-emerald-800">{index+1}</span>{step}</li>)}
+                  </ol>
+                </div>
+                <p className="mt-4 text-sm leading-6 text-slate-600">A child or adult can use familiar visual information to prepare with less uncertainty. Parents choose what is available without making every activity part of a fixed sequence.</p>
+              </div>
             </div>
 
             {/* Right: Login Card */}
@@ -410,8 +423,8 @@ export default function Home() {
 
                 <article className="rounded-3xl border border-white bg-white/90 p-6 shadow-lg shadow-slate-400/10 sm:p-7">
                   <span className="grid h-14 w-14 place-items-center rounded-2xl bg-emerald-100 text-emerald-700"><ListTodo className="h-7 w-7" /></span>
-                  <h3 className="mt-6 text-2xl font-black leading-tight text-slate-950">Clear, manageable next steps</h3>
-                  <p className="mt-3 text-sm leading-6 text-slate-600">Turn plans into visual activities, schedules, learning resources, and meaningful rewards. The learner sees a focused view of what to do next without unnecessary clutter.</p>
+                  <h3 className="mt-6 text-2xl font-black leading-tight text-slate-950">Clear, manageable steps</h3>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">Break an activity into small visual steps. Keep familiar information predictable while allowing the overall collection of activities to remain flexible.</p>
                 </article>
 
                 <article className="rounded-3xl border border-white bg-white/90 p-6 shadow-lg shadow-slate-400/10 sm:p-7">
@@ -421,10 +434,10 @@ export default function Home() {
                 </article>
               </div>
 
-              <div className="mt-6 rounded-2xl border border-white/80 bg-white/65 px-5 py-4 text-center text-sm font-semibold leading-6 text-slate-700 backdrop-blur-sm">Parents and caregivers create the plan. The child or adult sees a clear, focused schedule on their own device.</div>
+              <div className="mt-6 rounded-2xl border border-white/80 bg-white/65 px-5 py-4 text-center text-sm font-semibold leading-6 text-slate-700 backdrop-blur-sm">Parents and caregivers make meaningful activities available. The child or adult sees a simple visual experience with clear steps for the activity they choose.</div>
 
               <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-                <Link to="/signup" className="rounded-full bg-brand-700 px-7 py-3 text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-brand-800">Get started</Link>
+                <Link to="/signup" className="rounded-full bg-brand-700 px-7 py-3 text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-brand-800">Create Your First Visual Activity</Link>
                 <Link to="/about" className="rounded-full border border-brand-300 bg-white/70 px-7 py-3 text-sm font-black text-brand-800 transition hover:bg-white">Learn more</Link>
               </div>
             </div>
