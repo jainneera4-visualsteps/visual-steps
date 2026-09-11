@@ -76,6 +76,7 @@ export default function AddEditKid() {
     bonusHistoryLimit: '5',
     optionalBonusDailyRewardLimit: '10',
     theme: 'sky',
+    themeCompanionStyle: 'character',
     canPrint: false,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     kidCode: '',
@@ -111,6 +112,7 @@ export default function AddEditKid() {
             bonusHistoryLimit: kid.bonus_history_limit?.toString() || '5',
             optionalBonusDailyRewardLimit: kid.optional_bonus_daily_reward_limit?.toString() || '10',
             theme: kid.theme || 'sky',
+            themeCompanionStyle: kid.theme_companion_style || 'character',
             canPrint: kid.can_print || false,
             timezone: kid.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
             kidCode: kid.kid_code || '',
@@ -186,6 +188,7 @@ export default function AddEditKid() {
         bonus_history_limit: parseInt(formData.bonusHistoryLimit),
         optional_bonus_daily_reward_limit: parseInt(formData.optionalBonusDailyRewardLimit),
         theme: formData.theme,
+        theme_companion_style: formData.themeCompanionStyle,
         can_print: formData.canPrint,
         timezone: formData.timezone,
         kid_code: formData.kidCode,
@@ -239,7 +242,7 @@ export default function AddEditKid() {
           <CardTitle className="text-base font-bold">{isEditing ? 'Edit Profile Details' : 'Profile Details'}</CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-3 !overflow-visible">
-          <form onSubmit={handleSubmit} className="space-y-2.5">
+          <form onSubmit={handleSubmit} className="space-y-2.5" data-guest-tour="child-profile-form">
             {error && (
               <div className="flex items-center gap-2 rounded bg-red-50 p-1.5 text-[12px] text-red-600">
                 <AlertCircle className="h-3 w-3" />
@@ -567,7 +570,7 @@ export default function AddEditKid() {
                     </div>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-1.5" data-guest-tour="reward-type">
                 {[
                   { name: 'Penny', icon: 'https://cdn-icons-png.flaticon.com/512/2489/2489756.png' },
                   { name: 'Cent', icon: 'https://cdn-icons-png.flaticon.com/512/550/550638.png' },
@@ -650,6 +653,20 @@ export default function AddEditKid() {
                     <span className="text-[10px] font-bold uppercase tracking-tight">{theme.name}</span>
                   </button>
                 ))}
+              </div>
+              <div className="mt-3 space-y-1.5">
+                <label className="text-[12px] font-bold uppercase text-slate-500">Theme companion</label>
+                <select
+                  name="themeCompanionStyle"
+                  value={formData.themeCompanionStyle}
+                  onChange={handleChange}
+                  className="flex h-9 w-full max-w-sm rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800"
+                >
+                  <option value="character">Friendly character and message</option>
+                  <option value="simple">Simple theme icon</option>
+                  <option value="none">No companion</option>
+                </select>
+                <p className="text-xs text-slate-500">Choose a friendly character, a quieter icon, or no companion for an older learner or adult.</p>
               </div>
             </div>
 
@@ -909,7 +926,7 @@ export default function AddEditKid() {
               <Button type="button" variant="ghost" size="xs" onClick={() => navigate('/dashboard')} className="h-7 text-[12px] font-bold uppercase">
                 Cancel
               </Button>
-              <Button type="submit" size="xs" className="h-7 text-[12px] font-bold uppercase" isLoading={isLoading} disabled={isAvatarUploading}>
+              <Button data-guest-tour="child-save" type="submit" size="xs" className="h-7 text-[12px] font-bold uppercase" isLoading={isLoading} disabled={isAvatarUploading}>
                 {isEditing ? 'Save Changes' : 'Create Profile'}
               </Button>
             </div>

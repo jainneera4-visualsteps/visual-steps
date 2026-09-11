@@ -404,7 +404,7 @@ export default function SocialStories() {
             <p className="text-lg font-normal text-slate-500 mt-3">Create visual stories to help individuals navigate social situations.</p>
           </div>
           <Link to="/social-stories/create">
-            <Button variant="outline" size="xs" className="h-7 text-[12px]">
+            <Button variant="outline" size="xs" className="h-7 text-[12px]" data-guest-tour="new-story">
               <Plus className="mr-1 h-3 w-3" />
               New Story
             </Button>

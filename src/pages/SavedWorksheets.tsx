@@ -112,7 +112,7 @@ export default function SavedWorksheets() {
             <p className="text-lg font-normal text-slate-500 mt-3">Review and print your educational creations.</p>
           </div>
           <Link to="/worksheet-generator">
-            <Button variant="outline" size="xs" className="h-7 text-[12px]">
+            <Button variant="outline" size="xs" className="h-7 text-[12px]" data-guest-tour="new-worksheet">
               <Sparkles className="mr-1 h-3 w-3" />
               New Worksheet
             </Button>

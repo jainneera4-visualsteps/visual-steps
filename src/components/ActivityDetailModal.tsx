@@ -213,7 +213,7 @@ export function ActivityDetailModal({
   return (
     <div className="w-full" ref={printRef}>
       <div className="flex items-center gap-3 no-print mb-4">
-        <Button variant="ghost" size="xs" onClick={onClose} className="pl-0 h-7 hover:bg-transparent hover:text-blue-600 text-[12px] font-bold uppercase">
+        <Button data-guest-tour="child-activity-close" variant="ghost" size="xs" onClick={onClose} className="pl-0 h-7 hover:bg-transparent hover:text-blue-600 text-[12px] font-bold uppercase">
           <ArrowLeft className="mr-1 h-3 w-3" />
           Back to List
         </Button>
@@ -243,6 +243,7 @@ export function ActivityDetailModal({
           <div className="flex items-center gap-3">
             {!isReadOnly && onToggleStatus && showToggleOnly && (
               <button
+                data-guest-tour="child-mark-finished"
                 onClick={handleToggle}
                 className={`flex h-6 w-6 items-center justify-center rounded-full border-2 transition-all active:scale-90 no-print ${
                   activity.status === 'completed'
@@ -412,7 +413,7 @@ export function ActivityDetailModal({
           {!isReadOnly && onToggleStatus && (
             <div className="pt-4 border-t border-blue-100/50 flex flex-col items-center gap-3 no-print">
               {!showToggleOnly ? (
-                <button
+                <button data-guest-tour="child-mark-finished"
                   onClick={handleToggle}
                   disabled={activity.status === 'completed' || showPraise}
                   className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl transition-all active:scale-[0.98] shadow-sm font-black text-sm uppercase tracking-wider ${

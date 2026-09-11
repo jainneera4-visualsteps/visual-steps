@@ -249,7 +249,7 @@ This section is generated from `feature-registry.json`. Update the registry when
 
 | Feature | Plan | Introduced | Latest update | Current description |
 | --- | --- | --- | --- | --- |
-| Clear visual activities | starter | 2026-03-01 | 2026-09-11 | Parents can add suggested periods or exact times, while learners see what is relevant now without facing one long schedule. |
+| Clear visual activities | starter | 2026-03-01 | 2026-09-11 | Learner themes now add calm color, companions, decorations, activity accents, and celebrations without placing text over photographs. |
 | Parent activity verification | starter | 2026-08-20 | — | Choose which activities require parent approval before rewards are earned. |
 | Positive behavior bonuses | starter | 2026-08-20 | — | Parents can recognize a specific calm, focused, helpful, or persistent behavior. |
 | Personalized, fair quizzes | starter | 2026-08-20 | 2026-08-24 | Quiz creation now connects every quiz to a measurable learning objective, lets parents privately try it as the learner, controls illustration use, and turns completed answers into practical planning guidance. |
@@ -267,6 +267,7 @@ This section is generated from `feature-registry.json`. Update the registry when
 
 | Updated | Feature | Improvement | Family-facing summary |
 | --- | --- | --- | --- |
+| 2026-09-11 | Clear visual activities | Readable themed activity worlds | Learner themes now add calm color, companions, decorations, activity accents, and celebrations without placing text over photographs. |
 | 2026-09-11 | Clear visual activities | Flexible activity meanings and learner choice | Parents classify activities as Available Choice or Important Today, while learners choose from one clear activity view. |
 | 2026-09-11 | Clear visual activities | Calm time guidance without a rigid schedule | Parents can add suggested periods or exact times, while learners see what is relevant now without facing one long schedule. |
 | 2026-09-10 | Parent Quick Start and replayable tour | A simpler first experience for parents | A three-step Quick Start helps parents prepare and preview their first visual activity without forcing the detailed product tour. |

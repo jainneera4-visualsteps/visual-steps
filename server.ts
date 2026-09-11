@@ -42,6 +42,20 @@ const productFeatureRegistry = [
     "updates": [
       {
         "updatedOn": "2026-09-11",
+        "title": "Readable themed activity worlds",
+        "summary": "Learner themes now add calm color, companions, decorations, activity accents, and celebrations without placing text over photographs.",
+        "details": "Each learner theme uses a softly tinted background and keeps essential information on reliable high-contrast surfaces. A matching companion can invite the learner to choose an activity, restrained decorations stay around the edges, activity cards receive theme accents, and completion celebrations use the selected theme. The Rewards view carries the same theme into its header and reward cards, while not-yet-affordable rewards remain inviting through clear progress, gentle glow, and encouraging language instead of appearing disabled. Parents can choose a friendly character and message, a quieter theme icon, or no companion for an older learner or adult.",
+        "familyImpact": "Learners receive a more welcoming and personalized dashboard without sacrificing readability or introducing visual clutter. Parents can adjust the amount of playful decoration to suit the person’s age, preferences, and support needs.",
+        "guideParagraphs": [
+          "The theme changes color and decoration rather than the location or behavior of important controls, so the dashboard remains predictable across every style.",
+          "Choose Friendly character and message for a playful invitation, Simple theme icon for a quieter visual cue, or No companion when a minimal presentation is more appropriate.",
+          "Section colors continue to communicate Coming Up, Important Today, available choices, and Later Today consistently. Theme details decorate these sections without changing their meaning or forcing an order.",
+          "In Rewards, each goal shows how many rewards are still needed and a progress bar makes movement toward it visible. A slow glow adds encouragement without rapid blinking, and device reduced-motion preferences are respected."
+        ],
+        "help": "Open the child / adult profile, find Dashboard Theme, select a theme and Theme companion preference, then save. The learner dashboard applies the choice automatically."
+      },
+      {
+        "updatedOn": "2026-09-11",
         "title": "Calm time guidance without a rigid schedule",
         "summary": "Parents can add suggested periods or exact times, while learners see what is relevant now without facing one long schedule.",
         "details": "Ordinary activities remain flexible and unrestricted. Parents may continue using a broad morning, afternoon, evening, or night suggestion, or choose Specific time for an appointment or meeting. Exact-time activities support a preparation offset, suggested or fixed timing, and a parent-selected action after the time passes. The learner view keeps Important Today and Choose an Activity, adds a small Coming Up section, keeps future choices under a collapsible Later Today control, and initially shows up to six available choices.",
@@ -1874,7 +1888,13 @@ const getNewsletterPreviewContents = (issue: any) => {
   const title = (key: string, fallback: string) => issue.section_titles?.[key] || fallback;
   const entries: string[] = [];
   const add = (key: string, fallback: string, items: unknown[]) => { if (visible(key) && items?.length) entries.push(title(key, fallback)); };
+  add('new_features', "What's New in Visual Steps", issue.new_features || []);
   add('feature_previews', 'Feature Previews', issue.feature_previews || []);
+  add('feature_details', 'Practical Ways to Use Visual Steps', issue.feature_details || []);
+  add('popular_features', 'Most Popular Features', issue.popular_features || []);
+  add('parent_tips', 'Tips and Tricks for Parents', issue.parent_tips || []);
+  add('recommended_resources', 'Suggested Activities, Games, Puzzles and Other Ideas', issue.recommended_resources || []);
+  add('suggested_books_resources', 'Suggested Books, Places and Resources', issue.suggested_books_resources || []);
   if (visible('community_posts')) {
     const community = issue.community_posts || [];
     [['story', 'Parent Stories'], ['news', 'Community News'], ['information', 'Helpful Information'], ['tip', 'Community Tips and Tricks']].forEach(([type, fallback]) => {
@@ -1883,13 +1903,7 @@ const getNewsletterPreviewContents = (issue: any) => {
     });
   }
   add('parent_testimonials', 'Parent Testimonials', issue.parent_testimonials || []);
-  add('feature_details', 'Practical Ways to Use Visual Steps', issue.feature_details || []);
-  add('popular_features', 'Most Popular Features', issue.popular_features || []);
-  add('recommended_resources', 'Suggested Activities, Games, Puzzles and Other Ideas', issue.recommended_resources || []);
-  add('suggested_books_resources', 'Suggested Books, Places and Resources', issue.suggested_books_resources || []);
   add('advertisements', 'Mission-Aligned Advertisements', issue.advertisements || []);
-  add('parent_tips', 'Tips and Tricks for Parents', issue.parent_tips || []);
-  add('new_features', "What's New in Visual Steps", issue.new_features || []);
   add('membership_details', 'Current Visual Steps Membership Details', issue.membership_details || []);
   return entries.slice(0, 11);
 };
@@ -1936,25 +1950,8 @@ const sendNewsletterIssue = async (issue: any, appOrigin: string) => {
     const unsubscribeHash = hashNewsletterToken(unsubscribeToken);
     const unsubscribeUrl = `${appOrigin}/api/newsletter/unsubscribe?token=${encodeURIComponent(unsubscribeToken)}`;
     const archiveUrl = `${appOrigin}/newsletter`;
-    let deferredMeaningfulUseSection = '';
     const newsletterSectionHtml = (title: string, items: string[], columns = 1, bulleted = false, numbered = false) => {
-      const rendered = baseNewsletterSectionHtml(title, items, columns, bulleted, numbered);
-      if (issue.section_visibility?.concise_editorial !== true) return rendered;
-      if (title === (issue.section_titles?.feature_details || newsletterSectionTitles.feature_details)) {
-        deferredMeaningfulUseSection = rendered;
-        return '';
-      }
-      if (title === (issue.section_titles?.parent_testimonials || newsletterSectionTitles.parent_testimonials)) {
-        const meaningfulUse = deferredMeaningfulUseSection;
-        deferredMeaningfulUseSection = '';
-        return `${rendered}${meaningfulUse}`;
-      }
-      if (title === (issue.section_titles?.popular_features || newsletterSectionTitles.popular_features) && deferredMeaningfulUseSection) {
-        const meaningfulUse = deferredMeaningfulUseSection;
-        deferredMeaningfulUseSection = '';
-        return `${meaningfulUse}${rendered}`;
-      }
-      return rendered;
+      return baseNewsletterSectionHtml(title, items, columns, bulleted, numbered);
     };
     const featureItems = (issue.new_features || []).map((item: any) => item.compact
       ? `<strong>${escapeEmailHtml(item.title)}</strong><br>${escapeEmailHtml(item.description || [item.bullets?.find((bullet: any) => bullet.label === 'What changed')?.text, item.bullets?.find((bullet: any) => bullet.label === 'How it can help')?.text].filter(Boolean).join(' '))}${item.id ? `<br><a href="${appOrigin}/features/${encodeURIComponent(item.id)}${item.changeType === 'updated' && item.changedOn ? `?update=${encodeURIComponent(item.changedOn)}` : ''}">Read more</a>` : ''}`
@@ -1983,7 +1980,7 @@ const sendNewsletterIssue = async (issue: any, appOrigin: string) => {
       await transporter.sendMail({
         from, to: subscriber.email, subject: issue.title,
         text: `${issue.introduction}\n\nRead this issue: ${issueUrl}\n\nUnsubscribe: ${unsubscribeUrl}`,
-        html: `<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;color:#334155;line-height:1.6;background:#fffdf7;padding:24px"><a href="${escapeEmailHtml(issueUrl)}" style="display:block;margin:0 0 22px;text-decoration:none"><img src="cid:visual-steps-newsletter-preview" width="680" alt="Open the first two pages of ${escapeEmailHtml(issue.title)}" style="display:block;width:100%;height:auto;border:0;border-radius:14px"/></a><div style="background:linear-gradient(135deg,#dbeafe,#d1fae5);border-radius:18px;padding:24px"><h1 style="color:#176b87;margin-top:0">${escapeEmailHtml(issue.title)}</h1><p style="text-align:justify;text-justify:inter-word">${escapeEmailHtml(issue.introduction)}</p></div>${issue.section_visibility?.feature_previews === false ? '' : newsletterSectionHtml(issue.section_titles?.feature_previews || newsletterSectionTitles.feature_previews, previewItems)}${issue.section_visibility?.concise_editorial === true || issue.section_visibility?.new_features === false ? '' : newsletterSectionHtml(issue.section_titles?.new_features || 'New and Updated Feature Details', featureItems, 2)}${issue.section_visibility?.concise_editorial === true && issue.section_visibility?.feature_details !== false ? newsletterSectionHtml(issue.section_titles?.feature_details || newsletterSectionTitles.feature_details, visualStepsSuggestionItems, 1, true) : ''}${issue.section_visibility?.community_posts === false ? '' : communitySectionsHtml}${issue.section_visibility?.parent_testimonials === false ? '' : newsletterSectionHtml(issue.section_titles?.parent_testimonials || newsletterSectionTitles.parent_testimonials, testimonialItems)}${issue.section_visibility?.popular_features === false ? '' : newsletterSectionHtml(issue.section_titles?.popular_features || newsletterSectionTitles.popular_features, popularItems)}${issue.section_visibility?.recommended_resources === false ? '' : newsletterSectionHtml(issue.section_titles?.recommended_resources || newsletterSectionTitles.recommended_resources, resourceItems)}${issue.section_visibility?.suggested_books_resources === false ? '' : newsletterSectionHtml(issue.section_titles?.suggested_books_resources || newsletterSectionTitles.suggested_books_resources, bookResourceItems, 2)}${issue.section_visibility?.advertisements === false ? '' : newsletterSectionHtml(issue.section_titles?.advertisements || newsletterSectionTitles.advertisements, advertisementItems, 2)}${issue.section_visibility?.parent_tips === false ? '' : newsletterSectionHtml(issue.section_titles?.parent_tips || newsletterSectionTitles.parent_tips, tipItems, 1, true)}${issue.section_visibility?.concise_editorial === true && issue.section_visibility?.new_features !== false ? newsletterSectionHtml(issue.section_titles?.new_features || newsletterSectionTitles.new_features, featureItems, 2) : ''}${issue.section_visibility?.membership_details === false ? '' : newsletterSectionHtml(issue.section_titles?.membership_details || newsletterSectionTitles.membership_details, membershipItems)}<p style="margin-top:32px">${footerLinksHtml}</p><p><a href="${archiveUrl}">Read the illustrated newsletter archive</a></p><p style="font-size:12px;color:#64748b">You received this because you confirmed a Visual Steps newsletter subscription. <a href="${unsubscribeUrl}">Unsubscribe with one click</a>.</p></div>`,
+        html: `<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;color:#334155;line-height:1.6;background:#fffdf7;padding:24px"><a href="${escapeEmailHtml(issueUrl)}" style="display:block;margin:0 0 22px;text-decoration:none"><img src="cid:visual-steps-newsletter-preview" width="680" alt="Open the first two pages of ${escapeEmailHtml(issue.title)}" style="display:block;width:100%;height:auto;border:0;border-radius:14px"/></a><div style="background:linear-gradient(135deg,#dbeafe,#d1fae5);border-radius:18px;padding:24px"><h1 style="color:#176b87;margin-top:0">${escapeEmailHtml(issue.title)}</h1><p style="text-align:justify;text-justify:inter-word">${escapeEmailHtml(issue.introduction)}</p></div>${issue.section_visibility?.new_features === false ? '' : newsletterSectionHtml(issue.section_titles?.new_features || (issue.section_visibility?.concise_editorial === true ? newsletterSectionTitles.new_features : 'New and Updated Feature Details'), featureItems, 2)}${issue.section_visibility?.feature_previews === false ? '' : newsletterSectionHtml(issue.section_titles?.feature_previews || newsletterSectionTitles.feature_previews, previewItems)}${issue.section_visibility?.concise_editorial === true && issue.section_visibility?.feature_details !== false ? newsletterSectionHtml(issue.section_titles?.feature_details || newsletterSectionTitles.feature_details, visualStepsSuggestionItems, 1, true) : ''}${issue.section_visibility?.popular_features === false ? '' : newsletterSectionHtml(issue.section_titles?.popular_features || newsletterSectionTitles.popular_features, popularItems)}${issue.section_visibility?.parent_tips === false ? '' : newsletterSectionHtml(issue.section_titles?.parent_tips || newsletterSectionTitles.parent_tips, tipItems, 1, true)}${issue.section_visibility?.recommended_resources === false ? '' : newsletterSectionHtml(issue.section_titles?.recommended_resources || newsletterSectionTitles.recommended_resources, resourceItems)}${issue.section_visibility?.suggested_books_resources === false ? '' : newsletterSectionHtml(issue.section_titles?.suggested_books_resources || newsletterSectionTitles.suggested_books_resources, bookResourceItems, 2)}${issue.section_visibility?.community_posts === false ? '' : communitySectionsHtml}${issue.section_visibility?.parent_testimonials === false ? '' : newsletterSectionHtml(issue.section_titles?.parent_testimonials || newsletterSectionTitles.parent_testimonials, testimonialItems)}${issue.section_visibility?.advertisements === false ? '' : newsletterSectionHtml(issue.section_titles?.advertisements || newsletterSectionTitles.advertisements, advertisementItems, 2)}${issue.section_visibility?.membership_details === false ? '' : newsletterSectionHtml(issue.section_titles?.membership_details || newsletterSectionTitles.membership_details, membershipItems)}<p style="margin-top:32px">${footerLinksHtml}</p><p><a href="${archiveUrl}">Read the illustrated newsletter archive</a></p><p style="font-size:12px;color:#64748b">You received this because you confirmed a Visual Steps newsletter subscription. <a href="${unsubscribeUrl}">Unsubscribe with one click</a>.</p></div>`,
         attachments: [{ filename: `visual-steps-weekly-${issue.issue_date}.png`, content: emailPreview, cid: 'visual-steps-newsletter-preview', contentType: 'image/png' }],
       });
       await admin.from('newsletter_subscribers').update({ last_sent_issue_date: issue.issue_date, unsubscribe_token_hash: unsubscribeHash, updated_at: new Date().toISOString() }).eq('id', subscriber.id);
@@ -4188,6 +4185,7 @@ app.post('/api/kids', authenticateToken, async (req: any, res) => {
     optional_bonus_daily_reward_limit: optionalBonusDailyRewardLimit,
     rules, 
     theme, 
+    theme_companion_style: themeCompanionStyle,
     can_print: canPrint, 
     timezone, 
     kid_code: kidCode,
@@ -4233,6 +4231,7 @@ app.post('/api/kids', authenticateToken, async (req: any, res) => {
       optional_bonus_daily_reward_limit: optionalRewardLimitValue,
       rules,
       theme: theme || 'sky',
+      theme_companion_style: ['simple', 'none'].includes(themeCompanionStyle) ? themeCompanionStyle : 'character',
       kid_code: kidCode,
       reward_balance: 0,
       therapies,
@@ -4832,6 +4831,7 @@ app.put('/api/kids/:id', authenticateToken, async (req: any, res) => {
     reward_balance: rewardBalance, 
     rules, 
     theme, 
+    theme_companion_style: themeCompanionStyle,
     can_print: canPrint, 
     timezone, 
     kid_code: kidCode,
@@ -4951,6 +4951,9 @@ app.put('/api/kids/:id', authenticateToken, async (req: any, res) => {
     }
     if (rules !== undefined) updates.rules = rules;
     if (theme !== undefined) updates.theme = theme;
+    if (themeCompanionStyle !== undefined) {
+      updates.theme_companion_style = ['character', 'simple', 'none'].includes(themeCompanionStyle) ? themeCompanionStyle : 'character';
+    }
     if (timezone !== undefined) updates.timezone = timezone;
     if (kidCode !== undefined) updates.kid_code = kidCode;
     if (parentMessage !== undefined && String(parentMessage).trim()) {

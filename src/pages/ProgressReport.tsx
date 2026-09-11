@@ -554,6 +554,7 @@ export default function ProgressReport() {
             <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Duration:</label>
             <div className="relative">
               <select 
+                data-guest-tour="report-duration"
                 value={reportDuration}
                 onChange={(e) => setReportDuration(e.target.value as any)}
                 className="appearance-none h-10 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 focus:outline-none w-[135px] cursor-pointer pr-8 shadow-sm"

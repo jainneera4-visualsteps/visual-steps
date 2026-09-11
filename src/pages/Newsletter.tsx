@@ -147,11 +147,34 @@ export function IssueCard({issue}:{issue:Issue}){
     return <>{x.compact?<><b className="block text-slate-900">{x.title}</b><span className="mt-1 block">{compactDescription}</span></>:<><span className="mb-2 inline-flex rounded-full bg-blue-100 px-2.5 py-1 text-xs font-black uppercase tracking-wider text-blue-800">{x.changeType==='updated'?'Feature update':'New feature'}</span><b className="block text-slate-900">{x.title}</b><span className="mt-1 block">{x.summary}</span><span className="mt-2 block">{x.details}</span>{x.familyImpact&&<span className="mt-2 block"><b>How this supports growth:</b> {x.familyImpact}</span>}<small className="mt-2 block font-semibold text-brand-800">Where to find it: {x.help}</small></>}{featureId&&<Link to={featureGuideUrl(x,featureId)} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex font-bold text-brand-800 underline underline-offset-4">Read more</Link>}</>;
   })}/>:null;
   const testimonialsSection=visible('parent_testimonials')?<Section tone="rose" title={title('parent_testimonials','Parent Testimonials')} items={(issue.parent_testimonials||[]).map((x:any)=><><b>By {x.displayName}</b><FormattedNewsletterContent content={x.quote}/>{x.editorialContext&&<small className="mt-2 block italic">{x.editorialContext}</small>}</>)}/>:null;
-  return <NewsletterFlipBook issueTitle={issue.title}><header className="newsletter-page"><p className="text-sm font-black uppercase tracking-wider text-brand-700">{displayDate(issue.issue_date)}</p><h3 className="mt-3 text-4xl font-black sm:text-5xl">{issue.title}</h3><p className="mt-5 text-base leading-8 text-slate-600">{issue.introduction}</p><NewsletterLinks links={issue.footer_links}/></header><div className="grid gap-7">
+  const contentsOrder=[
+    title('new_features',conciseEditorial?"What's New in Visual Steps":'New and Updated Feature Details'),
+    title('feature_previews','Feature Previews'),
+    title('feature_details','Using Visual Steps Meaningfully'),
+    title('popular_features','Most Popular Features'),
+    title('parent_tips','Tips and Tricks for Parents'),
+    title('recommended_resources','Suggested Activities, Games and Websites'),
+    title('suggested_books_resources','Suggested Books and Resources'),
+    ...communitySectionTypes.map(section=>title(`community_${section.key}`,section.title)),
+    title('parent_testimonials','Parent Testimonials'),
+    title('advertisements','Mission-Aligned Advertisements'),
+    title('membership_details','Current Visual Steps Membership Details'),
+  ];
+  return <NewsletterFlipBook issueTitle={issue.title} contentsOrder={contentsOrder}><header className="newsletter-page"><p className="text-sm font-black uppercase tracking-wider text-brand-700">{displayDate(issue.issue_date)}</p><h3 className="mt-3 text-4xl font-black sm:text-5xl">{issue.title}</h3><p className="mt-5 text-base leading-8 text-slate-600">{issue.introduction}</p><NewsletterLinks links={issue.footer_links}/></header><div className="grid gap-7">
+    {newFeaturesSection}
     {visible('feature_previews')&&<Section oneItemPerPage fullWidth tone="violet" title={title('feature_previews','Feature Previews')} items={(issue.feature_previews||[]).map((x:any)=>{
       const featureId=featureIdFor(x);
       return <><img src={x.imageUrl} alt={`${x.title} feature preview`} className="mb-3 h-52 w-full rounded-xl object-contain object-top sm:h-64"/><b>{x.title}</b> — {x.caption}{x.familyImpact&&<span className="mt-2 block"><b>Why it matters:</b> {x.familyImpact}</span>}{featureId&&<Link to={`/features/${featureId}`} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex font-bold text-brand-800 underline underline-offset-4">Read more</Link>}</>;
-    })}/>} {!conciseEditorial&&newFeaturesSection} {/* Feature preview page ends here. */}
+    })}/>} {/* Feature preview page ends here. */}
+    {conciseEditorial&&visible('feature_details')&&<Section bulleted tone="violet" title={title('feature_details','Using Visual Steps Meaningfully')} items={issue.feature_details||[]}/>} {/* Practical guidance */}
+    {visible('popular_features') && (
+      <Section tone="emerald" title={title('popular_features','Most Popular Features')} items={(issue.popular_features||[]).map((x:any)=><><b>{x.title}</b> — {x.explanation}</>)}/>
+    )}
+    {visible('parent_tips')&&(
+      <Section bulleted tone="lime" title={title('parent_tips','Tips and Tricks for Parents')} items={issue.parent_tips||[]}/>
+    )}
+    {visible('recommended_resources')&&<Section tone="cyan" title={title('recommended_resources','Suggested Activities, Games and Websites')} items={(issue.recommended_resources||[]).map((x:any)=><><b>{x.title}</b> ({x.type}) — {x.description}{x.url&&<a href={x.url} target="_blank" rel="noreferrer" className="ml-1 underline">Visit</a>}</>)}/>} {/* Activity ideas */}
+    {visible('suggested_books_resources')&&<Section fullWidth itemColumns={2} tone="amber" title={title('suggested_books_resources','Suggested Books and Resources')} items={(issue.suggested_books_resources||[]).map((x:any)=><><b>{x.title}</b> ({x.type}){x.creator&&<> by {x.creator}</>} — {x.description}{x.url&&<a href={x.url} target="_blank" rel="noreferrer" className="ml-1 underline">Visit resource</a>}</>)}/>} {/* Books and resources */}
     {visible('community_posts')&&communitySectionTypes.map(section=>{
       const posts=(issue.community_posts||[]).filter((post:any)=>String(post.type||'').toLowerCase()===section.key);
       if(!posts.length)return null;
@@ -159,28 +182,19 @@ export function IssueCard({issue}:{issue:Issue}){
       return <Section key={section.key} oneItemPerPage tone={section.tone} title={title(`community_${section.key}`,section.title)} items={items}/>;
     })}
     {testimonialsSection}
-    {conciseEditorial&&visible('feature_details')&&<Section bulleted tone="violet" title={title('feature_details','Using Visual Steps Meaningfully')} items={issue.feature_details||[]}/>} {/* Testimonial page ends here. */}
-    {visible('popular_features') && (
-      <Section tone="emerald" title={title('popular_features','Most Popular Features')} items={(issue.popular_features||[]).map((x:any)=><><b>{x.title}</b> — {x.explanation}</>)}/>
-    )}
-    {visible('recommended_resources')&&<Section tone="cyan" title={title('recommended_resources','Suggested Activities, Games and Websites')} items={(issue.recommended_resources||[]).map((x:any)=><><b>{x.title}</b> ({x.type}) — {x.description}{x.url&&<a href={x.url} target="_blank" rel="noreferrer" className="ml-1 underline">Visit</a>}</>)}/>}
-    {visible('suggested_books_resources')&&<Section fullWidth itemColumns={2} tone="amber" title={title('suggested_books_resources','Suggested Books and Resources')} items={(issue.suggested_books_resources||[]).map((x:any)=><><b>{x.title}</b> ({x.type}){x.creator&&<> by {x.creator}</>} — {x.description}{x.url&&<a href={x.url} target="_blank" rel="noreferrer" className="ml-1 underline">Visit resource</a>}</>)}/>}
     {visible('advertisements')&&(
       <Section fullWidth itemColumns={2} tone="orange" title={title('advertisements','Mission-Aligned Advertisements')} items={(issue.advertisements||[]).map((x:any)=><><span className="text-xs font-black uppercase tracking-wider text-amber-800">Advertisement</span><span className="mt-1 block"><b>{x.title}</b> — {x.description}</span><span className="mt-2 block text-xs">From {x.advertiser}. {x.disclosure}</span>{x.destinationUrl&&<a href={x.destinationUrl} target="_blank" rel="sponsored noreferrer" className="mt-2 inline-block font-bold underline">Visit advertiser</a>}</>)}/>
     )}
-    {visible('parent_tips')&&(
-      <Section bulleted tone="lime" title={title('parent_tips','Tips and Tricks for Parents')} items={issue.parent_tips||[]}/>
-    )}
-    {conciseEditorial&&newFeaturesSection}
     {visible('membership_details')&&(
       <Section tone="indigo" title={title('membership_details','Current Visual Steps Membership Details')} items={(issue.membership_details||[]).map((x:any)=><><b>{x.name}: {x.price}</b> — {x.status}. {x.details}</>)}/>
     )}
   </div></NewsletterFlipBook>;
 }
-function NewsletterFlipBook({issueTitle,children}:{issueTitle:string;children:ReactNode}){
+function NewsletterFlipBook({issueTitle,contentsOrder,children}:{issueTitle:string;contentsOrder:string[];children:ReactNode}){
   const suppliedContent:ReactNode[]=[];
   for(const child of Children.toArray(children)){if(isValidElement<{className?:string;children?:ReactNode}>(child)&&child.props.className==='grid gap-7')suppliedContent.push(...Children.toArray(child.props.children));else suppliedContent.push(child);}
-  const sectionTitles=suppliedContent.flatMap(child=>isValidElement<SectionProps>(child)&&child.type===Section&&child.props.items.length?[child.props.title]:[]);
+  const availableSectionTitles=suppliedContent.flatMap(child=>isValidElement<SectionProps>(child)&&child.type===Section&&child.props.items.length?[child.props.title]:[]);
+  const sectionTitles=[...contentsOrder.filter(title=>availableSectionTitles.includes(title)),...availableSectionTitles.filter(title=>!contentsOrder.includes(title))];
   const [page,setPage]=useState(0);
   const [pageCount,setPageCount]=useState(1);
   const [sectionPages,setSectionPages]=useState<Record<string,number>>({});

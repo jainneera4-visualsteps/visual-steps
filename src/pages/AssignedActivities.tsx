@@ -2346,6 +2346,7 @@ export default function AssignedActivities() {
                 <div className="flex rounded-lg border border-slate-200 bg-white p-0.5 overflow-x-auto scrollbar-hide">
                   <CustomTooltip content="View all assigned activities">
                     <button
+                      data-guest-tour="assigned-activities"
                       onClick={() => setActiveTab('activities')}
                       className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
                         activeTab === 'activities' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
@@ -2357,6 +2358,7 @@ export default function AssignedActivities() {
                   </CustomTooltip>
                   <CustomTooltip content="Review activities submitted by your child">
                     <button
+                      data-guest-tour="verification-tab"
                       onClick={() => setActiveTab('verification')}
                       className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
                         activeTab === 'verification' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
@@ -2368,6 +2370,7 @@ export default function AssignedActivities() {
                   </CustomTooltip>
                   <CustomTooltip content="View completed activities">
                     <button
+                      data-guest-tour="completed-tab"
                       onClick={() => setActiveTab('completed')}
                       className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
                         activeTab === 'completed' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
@@ -2379,6 +2382,7 @@ export default function AssignedActivities() {
                   </CustomTooltip>
                   <CustomTooltip content="View activity history">
                     <button
+                      data-guest-tour="on-hold-tab"
                       onClick={() => setActiveTab('on_hold')}
                       className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
                         activeTab === 'on_hold' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
@@ -2390,6 +2394,7 @@ export default function AssignedActivities() {
                   </CustomTooltip>
                   <CustomTooltip content="View discontinued or ended activities">
                     <button
+                      data-guest-tour="ended-tab"
                       onClick={() => setActiveTab('ended')}
                       className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
                         activeTab === 'ended' ? 'bg-slate-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
@@ -2401,6 +2406,7 @@ export default function AssignedActivities() {
                   </CustomTooltip>
                   <CustomTooltip content="View activity history">
                     <button
+                      data-guest-tour="history-tab"
                       onClick={() => setActiveTab('history')}
                       className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
                         activeTab === 'history' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
@@ -2423,6 +2429,7 @@ export default function AssignedActivities() {
                   </CustomTooltip>
                   <CustomTooltip content={`Manage ${kid?.name || 'Kid'}'s Rewards`}>
                     <button
+                      data-guest-tour="rewards-tab"
                       onClick={() => setActiveTab('rewards')}
                       className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
                         activeTab === 'rewards' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
@@ -2436,7 +2443,7 @@ export default function AssignedActivities() {
                 <div className="flex gap-2">
                   {activeTab === 'activities' ? (
                     <CustomTooltip content="Add New Activity">
-                      <Button size="xs" onClick={() => handleOpenForm()} className="h-7 text-[12px] shrink-0">
+                      <Button size="xs" onClick={() => handleOpenForm()} className="h-7 text-[12px] shrink-0" data-guest-tour="add-activity">
                         <Plus className="mr-1 h-3 w-3" />
                         Add Activity
                       </Button>
@@ -2460,6 +2467,7 @@ export default function AssignedActivities() {
                     List
                   </button>
                   <button
+                    data-guest-tour="calendar-view"
                     aria-pressed={viewMode === 'calendar'}
                     onClick={() => setViewMode('calendar')}
                     className={`px-4 py-2 text-sm font-medium transition-all ${
@@ -3302,7 +3310,7 @@ export default function AssignedActivities() {
             </div>
             <div className="mt-0.5 text-xs font-bold text-emerald-800">Extra rewards available today</div>
           </div>
-          <Card className="border-indigo-200 bg-gradient-to-br from-indigo-50 to-emerald-50 shadow-sm">
+          <Card data-guest-tour="bonus-reward" className="border-indigo-200 bg-gradient-to-br from-indigo-50 to-emerald-50 shadow-sm">
             <CardContent className="p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
@@ -3347,7 +3355,7 @@ export default function AssignedActivities() {
                     <option value="">All Locations</option>
                     {[...new Set(rewardItems.map(item => item.location || ''))].filter(Boolean).map(loc => <option key={loc} value={loc}>{loc}</option>)}
                   </select>
-                  <Button size="xs" className="h-9" onClick={() => setIsRewardModalOpen(true)}><Plus className="mr-1 h-3.5 w-3.5" /> Add Reward Item</Button>
+                  <Button data-guest-tour="add-reward" size="xs" className="h-9" onClick={() => setIsRewardModalOpen(true)}><Plus className="mr-1 h-3.5 w-3.5" /> Add Reward Item</Button>
                 </div>
               </div>
               <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
@@ -3584,7 +3592,7 @@ export default function AssignedActivities() {
   ) : isRewardModalOpen ? (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <Button
+        <Button data-guest-tour="reward-form-close"
           variant="ghost" 
           size="xs" 
           onClick={() => {
@@ -3610,7 +3618,7 @@ export default function AssignedActivities() {
         <CardContent className="px-4 pb-3 pt-4">
           <form onSubmit={handleSaveReward} className="space-y-3">
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-1">
+              <div className="space-y-1" data-guest-tour="reward-item-name">
                 <div className="flex items-center gap-1.5">
                   <label className="text-[12px] font-bold text-slate-500 uppercase">Item Name</label>
                   <div className="group relative">
@@ -3637,7 +3645,7 @@ export default function AssignedActivities() {
                 />
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1" data-guest-tour="reward-item-cost">
                 <div className="flex items-center gap-1.5">
                   <label className="text-[12px] font-bold text-slate-500 uppercase">Cost ({formatReward(kid?.reward_type || 'Points', 2)})</label>
                   <div className="group relative">
@@ -3665,7 +3673,7 @@ export default function AssignedActivities() {
                 />
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1" data-guest-tour="reward-item-image">
                 <div className="flex items-center gap-1.5">
                   <label className="text-[12px] font-bold text-slate-500 uppercase">Image URL (Optional)</label>
                   <div className="group relative">
@@ -3728,7 +3736,7 @@ export default function AssignedActivities() {
                 )}
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1" data-guest-tour="reward-item-location">
                 <div className="flex items-center gap-1.5">
                   <label className="text-[12px] font-bold text-slate-500 uppercase">Available At (Optional)</label>
                   <div className="group relative">
@@ -3813,7 +3821,7 @@ export default function AssignedActivities() {
                   </select>
                 )}
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1" data-guest-tour="reward-item-status">
                 <div className="flex items-center gap-1.5">
                   <label className="text-[12px] font-bold text-slate-500 uppercase">Status</label>
                   <div className="group relative">
@@ -3861,7 +3869,7 @@ export default function AssignedActivities() {
                 >
                   Cancel
                 </Button>
-                <Button
+                <Button data-guest-tour="reward-item-save"
                   type="submit" 
                   size="xs" 
                   disabled={isSavingReward} 
@@ -3878,7 +3886,7 @@ export default function AssignedActivities() {
   ) : isModalOpen ? (
     <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="xs" onClick={handleCloseForm} className="pl-0 h-7 hover:bg-transparent hover:text-blue-600 text-[12px] font-bold uppercase">
+            <Button data-guest-tour="activity-form-close" variant="ghost" size="xs" onClick={handleCloseForm} className="pl-0 h-7 hover:bg-transparent hover:text-blue-600 text-[12px] font-bold uppercase">
               <ArrowLeft className="mr-1 h-3 w-3" />
               Back to List
             </Button>
@@ -3898,7 +3906,7 @@ export default function AssignedActivities() {
                   </div>
                 )}
 
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3" data-guest-tour="activity-reward">
                   <label className="flex cursor-pointer items-start gap-3">
                     <input
                       type="checkbox"
@@ -4000,7 +4008,7 @@ export default function AssignedActivities() {
                 )}
 
                 {!editingActivity && (
-                  <div className="grid gap-2.5 md:grid-cols-2">
+                  <div className="grid gap-2.5 md:grid-cols-2" data-guest-tour="predefined-activity">
                     <div className="space-y-0.5 p-2 bg-blue-50 rounded border border-blue-100">
                       <div className="flex items-center gap-1.5 mb-1">
                         <label className="text-[12px] font-bold text-blue-600 uppercase">Select Pre-defined Activity Type (Optional)</label>
@@ -4147,7 +4155,7 @@ export default function AssignedActivities() {
 
                 <div className="flex flex-col gap-2.5">
                   <div className="grid gap-2.5 md:grid-cols-2">
-                    <div className="space-y-0.5">
+                    <div className="space-y-0.5" data-guest-tour="activity-category">
                       <div className="flex items-center gap-1.5 mb-1">
                         <label className="text-[12px] font-bold text-slate-500 uppercase">Activity Category</label>
                         <div className="group relative">
@@ -4180,7 +4188,7 @@ export default function AssignedActivities() {
                       </datalist>
                     </div>
 
-                    <div className="space-y-0.5">
+                    <div className="space-y-0.5" data-guest-tour="activity-name">
                       <div className="flex items-center gap-1.5 mb-1">
                         <label className="text-[12px] font-bold text-slate-500 uppercase">Activity Name</label>
                         <div className="group relative">
@@ -4221,7 +4229,7 @@ export default function AssignedActivities() {
                   </div>
                 </div>
 
-                <div className="space-y-0.5">
+                <div className="space-y-0.5" data-guest-tour="activity-description">
                   <div className="flex items-center gap-1.5 mb-1">
                     <label className="text-[12px] font-bold text-slate-500 uppercase">Description</label>
                     <div className="group relative">
@@ -4334,7 +4342,7 @@ export default function AssignedActivities() {
                 </div>
 
                 {/* Steps Section */}
-                <div className="space-y-1.5">
+                <div className="space-y-1.5" data-guest-tour="activity-steps">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
                       <label className="text-[12px] font-bold text-slate-500 uppercase">Steps</label>
@@ -4416,7 +4424,7 @@ export default function AssignedActivities() {
                   </div>
                 </div>
                 
-                <div className="grid gap-2.5 md:grid-cols-2">
+                <div className="grid gap-2.5 md:grid-cols-2" data-guest-tour="activity-schedule">
                   <div className="space-y-0.5">
                     <div className="flex items-center gap-1.5 mb-1">
                       <label className="text-[12px] font-bold text-slate-500 uppercase">Due Date</label>
@@ -4643,7 +4651,7 @@ export default function AssignedActivities() {
                     <Button type="button" variant="ghost" size="xs" onClick={handleCloseForm} className="h-7 text-[12px]">
                       Cancel
                     </Button>
-                    <Button type="submit" size="xs" className="h-7 text-[12px]">
+                    <Button data-guest-tour="activity-save" type="submit" size="xs" className="h-7 text-[12px]">
                       {editingActivity ? 'Save Changes' : 'Add Activity'}
                     </Button>
                   </div>

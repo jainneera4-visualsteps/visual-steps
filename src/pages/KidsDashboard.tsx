@@ -70,6 +70,7 @@ interface Kid {
   reward_balance?: number;
   rules?: string;
   theme?: string;
+  theme_companion_style?: 'character' | 'simple' | 'none';
   can_print?: boolean;
   timezone?: string;
   parent_message?: string;
@@ -427,6 +428,43 @@ export default function KidsDashboard() {
 
   const currentTheme = themes[kid?.theme || 'sky'] || themes.sky;
   const isDarkTheme = currentTheme.isDark === true;
+  const themeCompanions: Record<string, { character: string; icon: string; name: string; decorations: string[] }> = {
+    sky: { character: '🌈', icon: '☁️', name: 'Rainbow', decorations: ['☁️', '✨', '☀️'] },
+    emerald: { character: '🐢', icon: '🌿', name: 'Turtle', decorations: ['🌿', '🌱', '🍃'] },
+    sunset: { character: '🦊', icon: '☀️', name: 'Fox', decorations: ['☀️', '✨', '🍂'] },
+    royal: { character: '🦉', icon: '✨', name: 'Owl', decorations: ['✨', '⭐', '💫'] },
+    space: { character: '🤖', icon: '🪐', name: 'Robot', decorations: ['⭐', '🪐', '✨'] },
+    jungle: { character: '🐒', icon: '🌿', name: 'Monkey', decorations: ['🌿', '🍃', '🌱'] },
+    ocean: { character: '🐬', icon: '🐚', name: 'Dolphin', decorations: ['🐠', '🐋', '🪼', '🐚'] },
+    dino: { character: '🦕', icon: '🌋', name: 'Dinosaur', decorations: ['🌿', '🥚', '🌋'] },
+    fairy: { character: '🧚', icon: '✨', name: 'Fairy', decorations: ['✨', '🌸', '🦋'] },
+    hero: { character: '🦸', icon: '⭐', name: 'Hero', decorations: ['⭐', '⚡', '✨'] },
+    sports: { character: '🏅', icon: '⭐', name: 'Champion', decorations: ['⭐', '🏆', '⚽'] },
+    safari: { character: '🦁', icon: '🌿', name: 'Lion', decorations: ['🌿', '☀️', '🍃'] },
+    art: { character: '🎨', icon: '🖌️', name: 'Artist', decorations: ['🖌️', '✨', '🎨'] },
+    music: { character: '🎵', icon: '♫', name: 'Melody', decorations: ['♫', '♪', '♬'] },
+    construction: { character: '🚜', icon: '🔧', name: 'Builder', decorations: ['🔧', '⚙️', '✨'] },
+  };
+  const themeCompanion = themeCompanions[kid?.theme || 'sky'] || themeCompanions.sky;
+  const companionStyle = kid?.theme_companion_style || 'character';
+  const themeNavigationIcons: Record<string, [string, string, string, string]> = {
+    sky: ['☁️', '🌤️', '🌈', '⭐'],
+    emerald: ['🌱', '🐢', '🌿', '⭐'],
+    sunset: ['☀️', '🦊', '🍂', '⭐'],
+    royal: ['🪶', '🦉', '✨', '⭐'],
+    space: ['🚀', '🪐', '🤖', '⭐'],
+    jungle: ['🍃', '🦜', '🐒', '🌟'],
+    ocean: ['🐚', '🐠', '🐬', '🪼'],
+    dino: ['🥚', '🌿', '🦕', '🌋'],
+    fairy: ['🌸', '🦋', '🧚', '✨'],
+    hero: ['⚡', '🛡️', '🦸', '⭐'],
+    sports: ['⚽', '🏃', '🏅', '🏆'],
+    safari: ['🌿', '🦒', '🦁', '☀️'],
+    art: ['🖌️', '🖍️', '🎨', '✨'],
+    music: ['♪', '♫', '🎵', '♬'],
+    construction: ['🔧', '⚙️', '🚜', '⭐'],
+  };
+  const navigationIcons = themeNavigationIcons[kid?.theme || 'sky'] || themeNavigationIcons.sky;
 
   const isCompletedOnDate = (activity: Activity, targetDate: string) => {
     if (!activity.completion_date) return activity.due_date === targetDate;
@@ -868,7 +906,18 @@ export default function KidsDashboard() {
   }
 
   return (
-    <div className={`child-page w-full min-h-screen ${currentTheme.bg} ${isDarkTheme ? 'kid-theme-dark' : ''} font-display pb-12`} style={currentTheme.bgStyle}>
+    <div className={`child-page min-h-screen w-full ${currentTheme.bg} ${isDarkTheme ? 'kid-theme-dark' : ''} font-display pb-12`}>
+      <div className="pointer-events-none fixed inset-0 z-0 hidden overflow-hidden sm:block" aria-hidden="true">
+        {themeCompanion.decorations.slice(0, 3).map((decoration, index) => (
+          <span
+            key={`page-${decoration}-${index}`}
+            className="absolute select-none text-6xl opacity-[0.24]"
+            style={{ top: `${22 + index * 27}%`, [index % 2 === 0 ? 'left' : 'right']: `${1 + index}%`, transform: `rotate(${index * 16 - 10}deg)` }}
+          >
+            {decoration}
+          </span>
+        ))}
+      </div>
       {/* Global Header */}
       <header className={`sticky top-0 z-50 w-full border-b border-slate-200 ${currentTheme.header} shadow-sm`}>
         <div className="w-full flex h-12 items-center px-4 relative">
@@ -904,7 +953,7 @@ export default function KidsDashboard() {
         </div>
       </header>
 
-      <main className="w-full px-4 py-3">
+      <main className="relative z-10 w-full px-4 py-3">
         {selectedActivity && isAccessAllowed ? (
           <ActivityDetailModal 
             activity={selectedActivity}
@@ -925,7 +974,7 @@ export default function KidsDashboard() {
           <div className="space-y-3">
             {/* Parent Message - If exists */}
             {kid?.parent_message && (
-              <div className={`rounded-xl p-4 ${currentTheme.rules} border-l-4 border-blue-500 shadow-lg animate-in fade-in slide-in-from-top-4 duration-500 relative overflow-hidden group`}>
+              <div data-guest-tour="child-message" className={`rounded-xl p-4 ${currentTheme.rules} border-l-4 border-blue-500 shadow-lg animate-in fade-in slide-in-from-top-4 duration-500 relative overflow-hidden group`}>
                 {/* Decoration for celebration */}
                 <div className="absolute top-0 right-0 p-2">
                   <div className="relative">
@@ -957,8 +1006,13 @@ export default function KidsDashboard() {
             )}
 
             {/* Dashboard Banner - Full Width */}
-            <div className={`flex flex-col sm:flex-row items-center justify-between rounded-3xl ${currentTheme.banner} p-4 shadow-lg shadow-indigo-200/20 ring-1 gap-4`}>
-              <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div data-guest-tour="learner-dashboard" className={`relative flex flex-col items-center justify-between gap-4 overflow-hidden rounded-3xl p-4 shadow-lg shadow-indigo-200/20 ring-1 sm:flex-row ${currentTheme.banner}`}>
+              <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+                {themeCompanion.decorations.map((decoration, index) => (
+                  <span key={`${decoration}-${index}`} className="absolute text-4xl opacity-[0.28]" style={{ top: index === 1 ? '48%' : '7%', right: `${3 + index * 9}%`, transform: `rotate(${index * 18 - 12}deg)` }}>{decoration}</span>
+                ))}
+              </div>
+              <div className="relative z-10 flex w-full items-center gap-3 sm:w-auto">
                 <div className="flex items-center gap-3">
                   {kid?.avatar ? (
                     <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-white bg-slate-100 shadow-sm">
@@ -979,18 +1033,24 @@ export default function KidsDashboard() {
                     </div>
                     <p className={`mt-0.5 text-xs font-bold ${currentTheme.bannerSubtext}`}>You’re doing great—one step at a time! ✨</p>
                   </div>
+                  {companionStyle !== 'none' && (
+                    <div className={`flex items-center gap-2 rounded-2xl px-3 py-2 shadow-sm ring-2 ${isDarkTheme ? 'bg-slate-800 ring-slate-700' : 'bg-white/85 ring-white'}`}>
+                      <span className="text-3xl" role="img" aria-label={`${themeCompanion.name} theme companion`}>{companionStyle === 'simple' ? themeCompanion.icon : themeCompanion.character}</span>
+                      {companionStyle === 'character' && <span className={`hidden max-w-32 text-sm font-black leading-tight sm:inline ${currentTheme.bannerText}`}>Which activity would you like to try?</span>}
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="flex items-center gap-4 sm:gap-8 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 sm:border-l border-slate-100 pt-3 sm:pt-0 sm:pl-8">
-                <div className="flex flex-col items-center sm:items-end">
+              <div className="relative z-10 flex w-full items-center justify-between gap-4 border-t border-slate-100 pt-3 sm:w-auto sm:justify-end sm:gap-8 sm:border-l sm:border-t-0 sm:pl-8 sm:pt-0">
+                <div data-guest-tour="child-done-today" className="flex flex-col items-center sm:items-end">
                   <span className={`text-[10px] font-black uppercase tracking-widest ${currentTheme.bannerSubtext} opacity-60 mb-0.5`}>Done Today</span>
                   <div className={`flex items-center gap-1.5 text-xl font-black ${currentTheme.bannerText}`}>
                     <CheckCircle className="h-5 w-5 text-emerald-500" />
                     {completedTodayCount}
                   </div>
                 </div>
-                <div className="flex flex-col items-center sm:items-end">
+                <div data-guest-tour="child-token-balance" className="flex flex-col items-center sm:items-end">
                   <span className={`text-[10px] font-black uppercase tracking-widest ${currentTheme.bannerSubtext} opacity-60 mb-0.5`}>Total {kid?.reward_type || 'Rewards'}</span>
                   <div className={`flex items-center gap-1.5 text-xl font-black ${currentTheme.bannerText}`}>
                     <img src={rewardIcon} alt={kid?.reward_type} className="h-6 w-6 object-contain" referrerPolicy="no-referrer" />
@@ -1000,58 +1060,61 @@ export default function KidsDashboard() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-4">
+            <div className={`relative flex flex-col gap-4 overflow-hidden rounded-3xl p-4 shadow-lg ring-1 sm:p-5 ${isDarkTheme ? 'bg-slate-950/95 ring-slate-700' : 'bg-white/75 ring-white/90'}`}>
+              <div className="pointer-events-none absolute right-5 top-3 hidden items-center gap-3 text-4xl opacity-45 xl:flex" aria-hidden="true">
+                {themeCompanion.decorations.slice(0, 3).map((decoration, index) => <span key={`panel-${decoration}-${index}`}>{decoration}</span>)}
+              </div>
               {/* Tabs and View Toggle Area */}
               {isAccessAllowed && (
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="relative z-10 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
                   <div className={`flex flex-wrap rounded-lg border p-0.5 ${isDarkTheme ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'}`}>
-                    <button
+                    <button data-guest-tour="child-activities"
                       onClick={() => setActiveTab('todo')}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
                         activeTab === 'todo' 
-                          ? 'bg-blue-600 text-white shadow-sm' 
-                          : `${isDarkTheme ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-500 hover:bg-slate-50'}`
+                          ? `${currentTheme.button} text-white shadow-sm`
+                          : `${currentTheme.accent} ${isDarkTheme ? 'hover:bg-slate-800' : 'hover:bg-slate-50'}`
                       }`}
                       title="Choose an activity"
                     >
-                      <Clock className="h-3.5 w-3.5" />
-                      📝 Choose an Activity
+                      <span className="text-base leading-none" aria-hidden="true">{navigationIcons[0]}</span>
+                      Choose an Activity
                     </button>
-                    <button
+                    <button data-guest-tour="child-waiting"
                       onClick={() => setActiveTab('verification')}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
                         activeTab === 'verification'
-                          ? 'bg-amber-500 text-white shadow-sm'
-                          : `${isDarkTheme ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-500 hover:bg-slate-50'}`
+                          ? `${currentTheme.button} text-white shadow-sm`
+                          : `${currentTheme.accent} ${isDarkTheme ? 'hover:bg-slate-800' : 'hover:bg-slate-50'}`
                       }`}
                       title="Activities waiting for your parent"
                     >
-                      <ShieldCheck className="h-3.5 w-3.5" />
-                      ⏳ Waiting
+                      <span className="text-base leading-none" aria-hidden="true">{navigationIcons[1]}</span>
+                      Waiting
                     </button>
-                    <button
+                    <button data-guest-tour="child-completed"
                       onClick={() => setActiveTab('completed')}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
                         activeTab === 'completed' 
-                          ? 'bg-emerald-600 text-white shadow-sm' 
-                          : `${isDarkTheme ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-500 hover:bg-slate-50'}`
+                          ? `${currentTheme.button} text-white shadow-sm`
+                          : `${currentTheme.accent} ${isDarkTheme ? 'hover:bg-slate-800' : 'hover:bg-slate-50'}`
                       }`}
                       title="View completed activities"
                     >
-                      <CheckCircle className="h-3.5 w-3.5" />
-                      ✅ Completed
+                      <span className="text-base leading-none" aria-hidden="true">{navigationIcons[2]}</span>
+                      Completed
                     </button>
-                    <button
+                    <button data-guest-tour="child-rewards"
                       onClick={() => setActiveTab('rewards')}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
                         activeTab === 'rewards' 
-                          ? 'bg-amber-500 text-white shadow-sm' 
-                          : `${isDarkTheme ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-500 hover:bg-slate-50'}`
+                          ? `${currentTheme.button} text-white shadow-sm`
+                          : `${currentTheme.accent} ${isDarkTheme ? 'hover:bg-slate-800' : 'hover:bg-slate-50'}`
                       }`}
                       title="View available rewards"
                     >
-                      <Sparkles className="h-3.5 w-3.5" />
-                      🎁 Rewards
+                      <span className="text-base leading-none" aria-hidden="true">{navigationIcons[3]}</span>
+                      Rewards
                     </button>
                   </div>
                 </div>
@@ -1068,14 +1131,20 @@ export default function KidsDashboard() {
                       </div>
                     ) : activeTab === 'rewards' ? (
                       <div className="space-y-6">
-                        <div className={`rounded-xl p-6 shadow-sm ring-1 ${currentTheme.banner} flex flex-col items-center text-center`}>
-                          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 shadow-inner">
+                        <div className={`relative flex flex-col items-center overflow-hidden rounded-2xl p-6 text-center shadow-sm ring-1 ${currentTheme.banner}`}>
+                          <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+                            {themeCompanion.decorations.map((decoration, index) => (
+                              <span key={`reward-heading-${decoration}-${index}`} className="absolute text-4xl opacity-20" style={{ top: `${12 + (index % 2) * 48}%`, left: index % 2 === 0 ? `${4 + index * 5}%` : undefined, right: index % 2 === 1 ? `${3 + index * 4}%` : undefined, transform: `rotate(${index * 18 - 14}deg)` }}>{decoration}</span>
+                            ))}
+                          </div>
+                          <div className="relative z-10 mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 shadow-inner">
                             <img src={rewardIcon} alt={kid?.reward_type} className="h-10 w-10 drop-shadow-md" />
                           </div>
-                          <h2 className={`text-2xl font-black ${currentTheme.bannerText}`}>Available Rewards</h2>
-                          <p className={`mt-1 font-medium ${currentTheme.bannerSubtext}`}>
+                          <h2 className={`relative z-10 text-2xl font-black ${currentTheme.bannerText}`}>Available Rewards</h2>
+                          <p className={`relative z-10 mt-1 font-bold ${currentTheme.bannerSubtext}`}>
                             You have <span className="text-emerald-600 font-bold">{kid?.reward_balance || 0}</span> {formatReward(kid?.reward_type, kid?.reward_balance || 0)}!
                           </p>
+                          {companionStyle === 'character' && <p className={`relative z-10 mt-2 text-sm font-black ${currentTheme.bannerText}`}>{themeCompanion.character} Keep going—choose something you would enjoy working toward!</p>}
                         </div>
 
                         <div className="space-y-6">
@@ -1087,16 +1156,17 @@ export default function KidsDashboard() {
                           }, {} as Record<string, RewardItem[]>)).map(([location, items]) => (
                             <div key={location} className="space-y-3">
                               <h3 className={`text-sm font-bold ${currentTheme.cardSubtext} uppercase tracking-wider`}>{location}</h3>
-                              {items.map((item) => (
+                              {items.map((item, itemIndex) => (
                                 <div 
                                   key={item.id} 
-                                  className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
+                                  className={`relative flex items-center justify-between overflow-hidden rounded-xl border-2 p-4 transition-all ${
                                     (kid?.reward_balance || 0) >= item.cost 
-                                      ? `border-slate-100 ${isDarkTheme ? 'bg-slate-900' : 'bg-white'}`
-                                      : `border-slate-50 ${isDarkTheme ? 'bg-slate-900/40' : 'bg-slate-50'} opacity-60`
+                                      ? `${currentTheme.card} ${isDarkTheme ? 'bg-slate-900' : 'bg-white'} shadow-sm`
+                                      : `kid-reward-goal-card ${isDarkTheme ? 'border-violet-500/60 bg-slate-900' : 'border-violet-200 bg-gradient-to-r from-white via-violet-50/70 to-amber-50/70'}`
                                   }`}
                                 >
-                                  <div className="flex items-center gap-4">
+                                  <span className="pointer-events-none absolute right-3 top-2 text-4xl opacity-25" aria-hidden="true">{themeCompanion.decorations[itemIndex % themeCompanion.decorations.length]}</span>
+                                  <div className="relative z-10 flex items-center gap-4">
                                     <div className="h-12 w-12 rounded-lg bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
                                       {item.image_url ? (
                                         <img src={item.image_url} alt={item.name} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
@@ -1106,15 +1176,20 @@ export default function KidsDashboard() {
                                         </div>
                                       )}
                                     </div>
-                                    <div>
+                                    <div className="min-w-0 flex-1">
                                       <h4 className={`font-bold ${currentTheme.cardTitle}`}>{item.name}</h4>
                                       <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider">
                                         Cost: {item.cost} {formatReward(kid?.reward_type, item.cost)}
                                       </p>
                                       {(kid?.reward_balance || 0) < item.cost && (
-                                        <p className={`mt-0.5 text-[10px] font-bold ${currentTheme.cardSubtext} uppercase`}>
-                                          Need {item.cost - (kid?.reward_balance || 0)} more
-                                        </p>
+                                        <div className="mt-2 max-w-52">
+                                          <p className={`text-xs font-black ${isDarkTheme ? 'text-violet-200' : 'text-violet-700'}`}>
+                                            ✨ Only {item.cost - (kid?.reward_balance || 0)} more to reach this reward!
+                                          </p>
+                                          <div className={`mt-1.5 h-2.5 overflow-hidden rounded-full ${isDarkTheme ? 'bg-slate-700' : 'bg-violet-100'}`} aria-label={`${Math.min(100, Math.round(((kid?.reward_balance || 0) / Math.max(item.cost, 1)) * 100))}% earned toward ${item.name}`}>
+                                            <div className="kid-reward-progress h-full rounded-full bg-gradient-to-r from-violet-500 via-fuchsia-400 to-amber-400" style={{ width: `${Math.min(100, ((kid?.reward_balance || 0) / Math.max(item.cost, 1)) * 100)}%` }} />
+                                          </div>
+                                        </div>
                                       )}
                                     </div>
                                   </div>
@@ -1131,9 +1206,11 @@ export default function KidsDashboard() {
                           )}
                         </div>
 
-                        <div className={`bg-blue-50 p-4 rounded-xl border border-blue-100 text-center`}>
-                          <p className="text-blue-800 font-bold">
-                            Ask your parent to buy these rewards for you! 🎁
+                        <div className={`relative overflow-hidden rounded-xl border p-4 text-center ${isDarkTheme ? 'border-slate-700 bg-slate-900' : 'border-emerald-200 bg-gradient-to-r from-emerald-50 via-sky-50 to-violet-50'}`}>
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-3xl opacity-30" aria-hidden="true">{themeCompanion.icon}</span>
+                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-3xl opacity-30" aria-hidden="true">{themeCompanion.character}</span>
+                          <p className={`relative z-10 font-black ${isDarkTheme ? 'text-slate-100' : 'text-blue-900'}`}>
+                            Ask your parent when you are ready to choose a reward!
                           </p>
                         </div>
                       </div>
@@ -1250,40 +1327,56 @@ export default function KidsDashboard() {
                             'Coming Up': <Clock className="h-4 w-4 text-blue-500" />,
                             'Later Today': <Calendar className="h-4 w-4 text-slate-500" />,
                           };
+                          const sectionTone: Record<string, string> = {
+                            'Coming Up': isDarkTheme ? 'bg-blue-950/70 ring-blue-700/60' : 'bg-blue-50 ring-blue-200',
+                            'Important Today': isDarkTheme ? 'bg-amber-950/60 ring-amber-700/60' : 'bg-amber-50 ring-amber-200',
+                            'Choose an Activity': isDarkTheme ? 'bg-emerald-950/60 ring-emerald-700/60' : 'bg-emerald-50 ring-emerald-200',
+                            'Later Today': isDarkTheme ? 'bg-violet-950/60 ring-violet-700/60' : 'bg-violet-50 ring-violet-200',
+                          };
 
                           return (
                             <div className="space-y-6">
                               {grouped.map((group) => (
                                 <div key={group.time} className="space-y-3">
-                                  <div className="kid-section-heading flex items-center gap-2 px-1">
-                                    {timeIcons[group.time]}
-                                    <h3 className={`text-xs font-black uppercase tracking-[0.2em] ${currentTheme.cardSubtext}`}>
-                                      {group.time}
-                                    </h3>
-                                    <div className={`kid-section-divider h-px flex-1 ${isDarkTheme ? 'bg-slate-600' : 'bg-slate-200'}`} />
+                                  <div className={`rounded-2xl p-3 ring-1 ${sectionTone[group.time] || (isDarkTheme ? 'bg-slate-900 ring-slate-700' : 'bg-sky-50 ring-sky-200')}`}>
+                                    <div className="kid-section-heading flex items-center gap-2">
+                                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${isDarkTheme ? 'bg-slate-800' : 'bg-white/90'}`}>
+                                        {timeIcons[group.time]}
+                                      </div>
+                                      <h3 className={`text-sm font-black uppercase tracking-[0.16em] sm:text-base ${isDarkTheme ? 'text-slate-100' : 'text-blue-900'}`}>
+                                        {group.time}
+                                      </h3>
+                                    </div>
+                                    {group.description && (
+                                      <p className={`mt-1.5 pl-10 text-base font-bold leading-relaxed ${isDarkTheme ? 'text-slate-200' : 'text-slate-700'}`}>
+                                        {group.time === 'Important Today'
+                                          ? 'These are important today. Choose which one you want to do first.'
+                                          : group.description}
+                                      </p>
+                                    )}
                                   </div>
-                                  {group.description && (
-                                    <p className={`px-1 text-sm font-semibold ${currentTheme.cardSubtext}`}>{group.description}</p>
-                                  )}
                                   <div className="flex flex-col gap-3">
-                                    {group.items.map((activity) => (
-                                      <Card
+                                    {group.items.map((activity, activityIndex) => (
+                                      <Card data-guest-tour={activity.status === 'pending' ? 'child-activity-card' : undefined}
                                         key={activity.id} 
-                                        className={`kid-activity-card transition-all border-none ring-1 ${currentTheme.card} ${activity.status === 'completed' ? (isDarkTheme ? 'kid-activity-card--completed bg-slate-900/75' : 'bg-slate-50') + ' opacity-75 cursor-default' : activity.status === 'awaiting_verification' ? (isDarkTheme ? 'bg-slate-900' : 'bg-amber-50') + ' cursor-default' : (isDarkTheme ? 'bg-slate-900' : 'bg-white') + ' cursor-pointer hover:shadow-sm'}`}
+                                        className={`kid-activity-card relative overflow-hidden transition-all border-none ring-2 ${currentTheme.card} ${activity.status === 'completed' ? (isDarkTheme ? 'kid-activity-card--completed bg-slate-900/75' : 'bg-slate-50') + ' opacity-75 cursor-default' : activity.status === 'awaiting_verification' ? (isDarkTheme ? 'bg-slate-900' : 'bg-amber-50') + ' cursor-default' : (isDarkTheme ? 'bg-slate-900' : 'bg-white') + ' cursor-pointer hover:-translate-y-0.5 hover:shadow-md'}`}
                                         onClick={() => {
                                           if (activity.status === 'pending') {
                                             setSelectedActivity(activity);
                                           }
                                         }}
                                       >
-                                        <CardContent className="p-2.5 flex items-start gap-2.5">
+                                        <span className="pointer-events-none absolute right-3 top-2 text-4xl opacity-30" aria-hidden="true">
+                                          {themeCompanion.decorations[activityIndex % themeCompanion.decorations.length] || themeCompanion.icon}
+                                        </span>
+                                        <CardContent className="relative z-10 p-2.5 flex items-start gap-2.5">
                                           <div 
                                             className={`mt-0.5 flex-shrink-0 rounded-full transition-colors ${
                                               activity.status === 'completed'
                                                 ? 'text-emerald-500'
                                                 : activity.status === 'awaiting_verification'
                                                   ? 'text-amber-500'
-                                                  : isDarkTheme ? 'text-sky-300' : 'text-slate-300'
+                                                  : currentTheme.accent
                                             }`}
                                           >
                                             {activity.status === 'completed' ? (
@@ -1416,22 +1509,17 @@ export default function KidsDashboard() {
                       </div>
                   </div>
                   
-                  {/* Decorative background elements (crackers/sprinkles) */}
+                  {/* A calm, theme-specific celebration around the edge. */}
                   <div className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-20 overflow-hidden">
-                    {[...Array(6)].map((_, i) => (
-                      <Sparkles key={i} className={`absolute text-emerald-500 animate-pulse`} 
-                        style={{ 
-                          top: `${Math.random() * 80}%`, 
-                          left: `${Math.random() * 80}%`,
-                          animationDelay: `${i * 0.5}s`,
-                          transform: `scale(${0.5 + Math.random()}) rotate(${Math.random() * 360}deg)`
-                        }} 
-                      />
+                    {[...themeCompanion.decorations, ...themeCompanion.decorations].map((decoration, i) => (
+                      <span key={`${decoration}-${i}`} className="absolute animate-pulse text-2xl" style={{ top: `${10 + (i % 3) * 34}%`, left: `${5 + i * 16}%`, animationDelay: `${i * 0.25}s`, transform: `rotate(${i * 24 - 30}deg)` }}>
+                        {decoration}
+                      </span>
                     ))}
                   </div>
 
                   <div className="h-24 w-24 flex items-center justify-center rounded-full bg-emerald-100 text-emerald-600 mb-6 shadow-inner ring-8 ring-emerald-50/50">
-                      <Trophy className="h-12 w-12 animate-bounce" />
+                      {companionStyle === 'character' ? <span className="animate-bounce text-5xl">{themeCompanion.character}</span> : <Trophy className="h-12 w-12 animate-bounce" />}
                   </div>
                   
                   <h2 className="text-3xl font-black text-slate-800 mb-2 leading-tight">Amazing Job!</h2>

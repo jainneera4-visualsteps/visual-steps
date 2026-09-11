@@ -16,6 +16,20 @@
     "updates": [
       {
         "updatedOn": "2026-09-11",
+        "title": "Readable themed activity worlds",
+        "summary": "Learner themes now add calm color, companions, decorations, activity accents, and celebrations without placing text over photographs.",
+        "details": "Each learner theme uses a softly tinted background and keeps essential information on reliable high-contrast surfaces. A matching companion can invite the learner to choose an activity, restrained decorations stay around the edges, activity cards receive theme accents, and completion celebrations use the selected theme. The Rewards view carries the same theme into its header and reward cards, while not-yet-affordable rewards remain inviting through clear progress, gentle glow, and encouraging language instead of appearing disabled. Parents can choose a friendly character and message, a quieter theme icon, or no companion for an older learner or adult.",
+        "familyImpact": "Learners receive a more welcoming and personalized dashboard without sacrificing readability or introducing visual clutter. Parents can adjust the amount of playful decoration to suit the person’s age, preferences, and support needs.",
+        "guideParagraphs": [
+          "The theme changes color and decoration rather than the location or behavior of important controls, so the dashboard remains predictable across every style.",
+          "Choose Friendly character and message for a playful invitation, Simple theme icon for a quieter visual cue, or No companion when a minimal presentation is more appropriate.",
+          "Section colors continue to communicate Coming Up, Important Today, available choices, and Later Today consistently. Theme details decorate these sections without changing their meaning or forcing an order.",
+          "In Rewards, each goal shows how many rewards are still needed and a progress bar makes movement toward it visible. A slow glow adds encouragement without rapid blinking, and device reduced-motion preferences are respected."
+        ],
+        "help": "Open the child / adult profile, find Dashboard Theme, select a theme and Theme companion preference, then save. The learner dashboard applies the choice automatically."
+      },
+      {
+        "updatedOn": "2026-09-11",
         "title": "Calm time guidance without a rigid schedule",
         "summary": "Parents can add suggested periods or exact times, while learners see what is relevant now without facing one long schedule.",
         "details": "Ordinary activities remain flexible and unrestricted. Parents may continue using a broad morning, afternoon, evening, or night suggestion, or choose Specific time for an appointment or meeting. Exact-time activities support a preparation offset, suggested or fixed timing, and a parent-selected action after the time passes. The learner view keeps Important Today and Choose an Activity, adds a small Coming Up section, keeps future choices under a collapsible Later Today control, and initially shows up to six available choices.",

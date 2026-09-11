@@ -555,7 +555,7 @@ export default function Dashboard() {
                   </div>
                   <div className="flex items-center gap-3 text-xl">
                     <div className="flex items-center gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => handleShowBuyGrid(kid)} className="text-white hover:bg-white/20 p-2 text-2xl" aria-label="Buy">🛍️</Button>
+                      <Button data-guest-tour="parent-shop" size="sm" variant="ghost" onClick={() => handleShowBuyGrid(kid)} className="text-white hover:bg-white/20 p-2 text-2xl" aria-label="Buy">🛍️</Button>
                       <div className="group relative">
                         <HelpCircle className="h-4 w-4 text-white/70 cursor-help transition-colors hover:text-white" />
                         <div className="absolute right-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
@@ -576,7 +576,7 @@ export default function Dashboard() {
                     ) : (
                       <span className="text-3xl">🛍️</span>
                     )}
-                    <span className="font-bold text-2xl text-white">{kid.reward_balance || 0}</span>
+                    <span data-guest-tour="parent-reward-balance" className="font-bold text-2xl text-white">{kid.reward_balance || 0}</span>
                   </div>
                 </div>
                 <div className="absolute -bottom-10 sm:-bottom-12 left-6 h-20 w-20 sm:h-24 sm:w-24 rounded-full bg-white flex items-center justify-center text-3xl sm:text-4xl overflow-hidden border-4 border-white shadow-md z-10">
@@ -595,7 +595,7 @@ export default function Dashboard() {
               <CardContent className="pt-12 sm:pt-14">
                 <div className="flex flex-col gap-4">
                   {/* Parent Message Input */}
-                  <div className="space-y-2">
+                  <div className="space-y-2" data-guest-tour="parent-message">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Send Message to {kid.name}</label>
                     <div className="flex gap-2">
                       <input
@@ -637,7 +637,7 @@ export default function Dashboard() {
                   <div className="flex gap-2 items-center text-sm">
                     <Tooltip content={`Set up ${kid.name}'s activities`}>
                       <Link to={`/assigned-activities/${kid.id}`}>
-                        <Button size="sm" variant="outline">Activities Setup</Button>
+                        <Button data-guest-tour="activities-setup" size="sm" variant="outline">Activities Setup</Button>
                       </Link>
                     </Tooltip>
                   </div>
