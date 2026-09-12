@@ -2,11 +2,11 @@
 
 **Status:** Active product, reflecting the current repository
 
-**Last updated:** August 20, 2026
+**Last updated:** September 12, 2026
 
 ## 1. Product summary
 
-Visual Steps is a web platform for parents and caregivers supporting an autistic child / adult. It combines visual schedules, personalized learning content, progress tracking, family communication, and positive reinforcement in one environment.
+Visual Steps is a flexible visual-support environment for parents and caregivers supporting an autistic child / adult. It combines meaningful visual activities, small concrete steps, personalized learning content, progress tracking, family communication, and positive reinforcement in one environment. It is not primarily a scheduling application and does not require every visible activity to be completed in a fixed order.
 
 Parents and caregivers use a management dashboard to plan activities and tailor the experience to each child / adult. The child / adult uses a simplified dashboard that emphasizes predictability, clear instructions, immediate feedback, and earned rewards.
 
@@ -32,7 +32,7 @@ Visual Steps provides a shared system in which a parent or caregiver can prepare
 ## 4. Product principles
 
 - **Clarity:** Present tasks in small, concrete, visual steps.
-- **Predictability:** Make schedules, rules, completion state, and rewards easy to understand.
+- **Predictability with flexibility:** Make each activity and its steps understandable while allowing the learner to choose an appropriate activity order and receive visual support when plans change.
 - **Personalization:** Adapt content to the child / adult’s age, learning level, interests, strengths, and support needs.
 - **Positive reinforcement:** Reward effort and completion without using punitive mechanics.
 - **Parent control:** Keep assignment, configuration, purchasing, and sensitive information under caregiver supervision.
@@ -53,7 +53,7 @@ Visual Steps provides a shared system in which a parent or caregiver can prepare
 ### 5.2 Child profiles
 
 - Create, edit, view, and delete multiple child profiles.
-- Store profile details including date of birth, grade, interests, hobbies, strengths, challenges, sensory or behavioral context, therapies, schedule boundaries, rules, avatar, theme, printing permission, time zone, and reward configuration.
+- Store profile details including date of birth, grade, interests, hobbies, strengths, challenges, sensory or behavioral context, therapies, activity-hour boundaries, rules, avatar, theme, printing permission, time zone, reward symbol, and current reward balance.
 
 ### 5.3 Visual activities and scheduling
 
@@ -91,8 +91,8 @@ Visual Steps provides a shared system in which a parent or caregiver can prepare
 
 ### 5.6 Rewards and motivation
 
-- Configure a reward type, quantity, and balance per child.
-- Award rewards for completed work.
+- Configure a reward symbol and balance per child / adult, with a separate parent-selected reward amount on each activity.
+- Award the activity's configured reward only after immediate completion or required parent verification.
 - Create reward-shop items with cost, image, location, and active state.
 - Let children request or buy rewards and let parents confirm pending rewards.
 - Keep a purchase history.
@@ -285,13 +285,12 @@ This section is generated from `feature-registry.json`. Update the registry when
 | --- | --- | --- | --- |
 | 2026-09-11 | Clear visual activities | Rewards matched to each activity | Parents choose a reward amount for each activity according to the learner’s effort and challenge. |
 | 2026-09-11 | Clear visual activities | Readable themed activity worlds | Learner themes now add calm color, companions, decorations, activity accents, and celebrations without placing text over photographs. |
-| 2026-09-11 | Clear visual activities | Flexible activity meanings and learner choice | Parents classify activities as Available Choice or Important Today, while learners choose from one clear activity view. |
+| 2026-09-11 | Clear visual activities | Flexible activity meanings and learner choice | Parents use Learner Can Choose or Do Today, while learners choose from one clear activity view. |
 | 2026-09-11 | Clear visual activities | Calm time guidance without a rigid schedule | Parents can add suggested periods or exact times, while learners see what is relevant now without facing one long schedule. |
 | 2026-09-11 | Clear visual activities | A compact activity form that keeps the essentials in view | Activity meaning, rewards, verification, timing, and repetition remain visible in compact rows without large settings panels. |
 | 2026-09-10 | Parent Quick Start and replayable tour | A simpler first experience for parents | A three-step Quick Start helps parents prepare and preview their first visual activity without forcing the detailed product tour. |
 | 2026-09-02 | Curated learning samples | Predictable allowance for AI learning materials | Parents can see one shared daily allowance for AI-created quizzes, worksheets, and social stories, with the exact local time when creation becomes available again. |
 | 2026-09-01 | Visual Steps Parent Assistant | Daily Parent Assistant history and outing planning | The assistant keeps the current day’s conversation until 7:00 AM, offers Copy and Listen controls, and can search current venue information when a parent plans an outing for their child or adult learner. |
-| 2026-08-31 | Clear visual activities | Learner-chosen additional activities | Parents can mark a normal activity as optional so it becomes a choice after today’s assigned activities are finished. |
 | 2026-08-27 | Parent Quick Start and replayable tour | Guidance that stays current across the app | Parent and guest tours now include current feature guidance from the shared Visual Steps catalog. |
 | 2026-08-27 | Narrated tour and temporary Guest Login | A narrated Visual Steps tour using real app screens | Visitors can now watch a friendly, chapter-based Visual Steps presentation directly on the Home page before entering Guest Login. |
 | 2026-08-27 | Curated learning samples | Current samples in the familiar learner layout | The sample quiz, worksheet, and social story now mirror the current family-created viewing experience while keeping the same dependable example content. |
