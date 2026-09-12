@@ -42,6 +42,27 @@ const productFeatureRegistry = [
     "updates": [
       {
         "updatedOn": "2026-09-11",
+        "title": "A compact activity form that keeps the essentials in view",
+        "summary": "Activity meaning, rewards, verification, timing, and repetition remain visible in compact rows without large settings panels.",
+        "details": "The Add and Edit Activity form keeps its established fields and behavior while reducing the space taken by additional settings. The activity’s date, time, and repetition appear immediately after its visual steps. Activity meaning, reward, and verification then use compact rows with a label on the left and direct choices on the right. The parent labels Learner Can Choose and Do Today correspond to the established Available Choice and Important Today meanings. The learner sees the shorter headings Pick an Activity and Do Today. The controls remain visible without requiring parents to open panels, while longer explanatory text and oversized colored blocks no longer push the central activity fields far down the page. Cancel and Save appear in the top-right Activity Details header, so they are visible as soon as the form opens and never cover a form field.",
+        "familyImpact": "Parents can reach the activity name, description, image, and visual steps more quickly without losing detailed controls when those controls are useful. This keeps the central Activity to Steps workflow prominent as Visual Steps gains capabilities.",
+        "help": "Open Add Activity or edit an activity. Use the compact option rows to choose how the activity is offered, its reward, verification, date, time, and repetition, then save."
+      },
+      {
+        "updatedOn": "2026-09-11",
+        "title": "Rewards matched to each activity",
+        "summary": "Parents choose a reward amount for each activity according to the learner’s effort and challenge.",
+        "details": "Reward amounts are now part of the activity rather than the child / adult profile. While adding or editing an activity, the parent can choose a gentle, moderate, or bigger-challenge amount, or enter a custom value from 1 to 50. The learner sees what that activity can earn before choosing it. Rewards are added only when the activity is completed immediately or approved through required parent verification. Existing activities inherit the profile’s former reward amount during the database update so established work does not unexpectedly lose or change its value.",
+        "familyImpact": "Different activities can recognize different levels of effort without defining one fixed reward for everything a learner does. Parents can make harder or less-preferred work more motivating while keeping familiar activities achievable and preserving the established completion and verification flow.",
+        "guideParagraphs": [
+          "Choose rewards according to the effort required from this particular learner, not according to how difficult the activity may look to someone else. A familiar activity may reasonably earn one reward while a newer or more demanding activity earns more.",
+          "The activity card and activity details show the available reward before the learner begins. This keeps the choice understandable and avoids surprising the learner after completion.",
+          "Changing an activity’s reward does not award anything immediately. The configured amount is earned only through the normal completion flow, including parent approval when verification is required."
+        ],
+        "help": "Open Activities Setup, add or edit an activity, and use Reward for completing this activity to choose a suggested or custom amount. Save the activity. The learner will see that amount on the activity, and it will be added after successful completion or required verification."
+      },
+      {
+        "updatedOn": "2026-09-11",
         "title": "Readable themed activity worlds",
         "summary": "Learner themes now add calm color, companions, decorations, activity accents, and celebrations without placing text over photographs.",
         "details": "Each learner theme uses a softly tinted background and keeps essential information on reliable high-contrast surfaces. A matching companion can invite the learner to choose an activity, restrained decorations stay around the edges, activity cards receive theme accents, and completion celebrations use the selected theme. The Rewards view carries the same theme into its header and reward cards, while not-yet-affordable rewards remain inviting through clear progress, gentle glow, and encouraging language instead of appearing disabled. Parents can choose a friendly character and message, a quieter theme icon, or no companion for an older learner or adult.",
@@ -4180,7 +4201,6 @@ app.post('/api/kids', authenticateToken, async (req: any, res) => {
     end_time: endTime, 
     max_incomplete_limit: maxIncompleteLimit, 
     reward_type: rewardType, 
-    reward_quantity: rewardQuantity, 
     bonus_history_limit: bonusHistoryLimit,
     optional_bonus_daily_reward_limit: optionalBonusDailyRewardLimit,
     rules, 
@@ -4198,7 +4218,6 @@ app.post('/api/kids', authenticateToken, async (req: any, res) => {
   try {
     const id = uuidv4();
     const maxLimit = maxIncompleteLimit && !isNaN(parseInt(maxIncompleteLimit, 10)) ? parseInt(maxIncompleteLimit, 10) : null;
-    const rewardQty = rewardQuantity && !isNaN(parseInt(rewardQuantity, 10)) ? parseInt(rewardQuantity, 10) : 1;
     const parsedBonusHistoryLimit = Number.parseInt(String(bonusHistoryLimit), 10);
     const bonusHistoryLimitValue = Number.isFinite(parsedBonusHistoryLimit) ? Math.min(10, Math.max(1, parsedBonusHistoryLimit)) : 5;
     const parsedOptionalRewardLimit = Number.parseInt(String(optionalBonusDailyRewardLimit), 10);
@@ -4226,7 +4245,6 @@ app.post('/api/kids', authenticateToken, async (req: any, res) => {
       end_time: end_time,
       max_incomplete_limit: maxLimit,
       reward_type: rewardType || 'Penny',
-      reward_quantity: rewardQty,
       bonus_history_limit: bonusHistoryLimitValue,
       optional_bonus_daily_reward_limit: optionalRewardLimitValue,
       rules,
@@ -4825,7 +4843,6 @@ app.put('/api/kids/:id', authenticateToken, async (req: any, res) => {
     end_time: endTime, 
     max_incomplete_limit: maxIncompleteLimit, 
     reward_type: rewardType, 
-    reward_quantity: rewardQuantity, 
     bonus_history_limit: bonusHistoryLimit,
     optional_bonus_daily_reward_limit: optionalBonusDailyRewardLimit,
     reward_balance: rewardBalance, 
@@ -4881,10 +4898,6 @@ app.put('/api/kids/:id', authenticateToken, async (req: any, res) => {
     if (startTime !== undefined) updates.start_time = startTime !== '' ? startTime : null;
     if (endTime !== undefined) updates.end_time = endTime !== '' ? endTime : null;
     if (rewardType !== undefined) updates.reward_type = rewardType;
-    if (rewardQuantity !== undefined) {
-      const parsedQty = parseInt(rewardQuantity, 10);
-      updates.reward_quantity = !isNaN(parsedQty) ? parsedQty : 1;
-    }
     if (bonusHistoryLimit !== undefined) {
       const parsedLimit = Number.parseInt(String(bonusHistoryLimit), 10);
       updates.bonus_history_limit = Number.isFinite(parsedLimit) ? Math.min(10, Math.max(1, parsedLimit)) : 5;
@@ -5828,9 +5841,14 @@ app.post('/api/kids/:kidId/behavior-bonuses', authenticateToken, async (req: any
 // Create Activity
 app.post('/api/activities', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
-  const { kidId, activityType, category, repeatFrequency, repeatsTill, timeOfDay, timeGuidance, exactTime, preparationMinutes, afterTimePasses, description, link, imageUrl, status, dueDate, steps, repeat_interval, repeat_unit, requiresVerification, activityMeaning } = req.body;
+  const { kidId, activityType, category, repeatFrequency, repeatsTill, timeOfDay, timeGuidance, exactTime, preparationMinutes, afterTimePasses, description, link, imageUrl, status, dueDate, steps, repeat_interval, repeat_unit, requiresVerification, activityMeaning, rewardQty } = req.body;
   const userId = req.user.id;
   const normalizedActivityMeaning = activityMeaning === 'important_today' ? 'important_today' : 'available_choice';
+  const normalizedRewardQty = Number(rewardQty ?? 1);
+
+  if (!Number.isInteger(normalizedRewardQty) || normalizedRewardQty < 1 || normalizedRewardQty > 50) {
+    return res.status(400).json({ error: 'Choose an activity reward amount from 1 to 50.' });
+  }
 
   try {
     // Verify kid belongs to user
@@ -5865,6 +5883,7 @@ app.post('/api/activities', authenticateToken, async (req: any, res) => {
           status: status || 'pending',
           requires_verification: requiresVerification === true,
           activity_meaning: normalizedActivityMeaning,
+          reward_qty: normalizedRewardQty,
           is_optional_bonus: false,
           optional_reward_qty: null,
           optional_selected_at: null,
@@ -6136,7 +6155,7 @@ app.put('/api/kids/:kidId/confirm-reward', authenticateToken, async (req: any, r
 app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
   const { id } = req.params;
-  let { activityType, category, repeatFrequency, repeatsTill, timeOfDay, timeGuidance, exactTime, preparationMinutes, afterTimePasses, description, link, imageUrl, status, dueDate, steps, repeat_interval, repeat_unit, requiresVerification, reassignmentLevel, activityMeaning, isOptionalBonus, optionalRewardQty } = req.body;
+  let { activityType, category, repeatFrequency, repeatsTill, timeOfDay, timeGuidance, exactTime, preparationMinutes, afterTimePasses, description, link, imageUrl, status, dueDate, steps, repeat_interval, repeat_unit, requiresVerification, reassignmentLevel, activityMeaning, rewardQty, isOptionalBonus, optionalRewardQty } = req.body;
   const userId = req.user.id;
 
   try {
@@ -6150,7 +6169,7 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
     // Verify activity belongs to a kid owned by user
     let { data: activity, error: activityError } = await supabase
       .from('activities')
-      .select('*, kids!inner(user_id, reward_quantity)')
+      .select('*, kids!inner(user_id)')
       .eq('id', id)
       .eq('kids.user_id', userId)
       .single();
@@ -6161,7 +6180,7 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
       // Try activity_history table
       const { data: historyActivity, error: historyError } = await supabase
         .from('activity_history')
-        .select('*, kids!inner(user_id, reward_quantity)')
+        .select('*, kids!inner(user_id)')
         .eq('id', id)
         .eq('kids.user_id', userId)
         .single();
@@ -6202,14 +6221,25 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
       repeat_unit = activity.repeat_unit;
       requiresVerification = activity.requires_verification;
       activityMeaning = activity.activity_meaning;
+      rewardQty = activity.reward_qty;
       isOptionalBonus = activity.is_optional_bonus;
       optionalRewardQty = activity.optional_reward_qty;
       steps = undefined;
     }
 
+    // Preserve the existing value for older clients that do not yet send the
+    // per-activity reward field during an unrelated activity update.
+    if (rewardQty === undefined || rewardQty === null || rewardQty === '') {
+      rewardQty = activity.reward_qty ?? 1;
+    }
+
     if (req.user.role !== 'kid' && isOptionalBonus === true
       && (!Number.isInteger(Number(optionalRewardQty)) || Number(optionalRewardQty) < 1 || Number(optionalRewardQty) > 50)) {
       return res.status(400).json({ error: 'Choose a reward amount from 1 to 50 for the optional activity.' });
+    }
+
+    if (req.user.role !== 'kid' && (!Number.isInteger(Number(rewardQty)) || Number(rewardQty) < 1 || Number(rewardQty) > 50)) {
+      return res.status(400).json({ error: 'Choose an activity reward amount from 1 to 50.' });
     }
 
     const supportedStatuses = new Set(['pending', 'awaiting_verification', 'completed', 'on_hold', 'ended']);
@@ -6233,7 +6263,8 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
           link,
           image_url: imageUrl,
           due_date: dueDate,
-          activity_meaning: activityMeaning === 'important_today' ? 'important_today' : (activity.activity_meaning || 'available_choice')
+          activity_meaning: activityMeaning === 'important_today' ? 'important_today' : (activity.activity_meaning || 'available_choice'),
+          reward_qty: Math.max(1, Math.min(50, Number(rewardQty ?? activity.reward_qty) || 1))
         })
         .eq('id', id);
       
@@ -6264,6 +6295,7 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
             repeat_interval: repeat_interval || null,
           repeat_unit: repeat_unit || null,
             activity_meaning: activityMeaning === 'important_today' ? 'important_today' : (activity.activity_meaning || 'available_choice'),
+            reward_qty: Math.max(1, Math.min(50, Number(rewardQty ?? activity.reward_qty) || 1)),
             is_optional_bonus: Boolean(activity.is_optional_bonus),
             optional_reward_qty: activity.is_optional_bonus ? activity.optional_reward_qty : null,
             optional_selected_at: null
@@ -6319,6 +6351,7 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
           ? Boolean(activity.requires_verification)
           : requiresVerification === true,
         activity_meaning: activityMeaning === 'important_today' ? 'important_today' : 'available_choice',
+        reward_qty: Math.max(1, Math.min(50, Number(rewardQty ?? activity.reward_qty) || 1)),
         is_optional_bonus: isOptionalBonus === undefined ? Boolean(activity.is_optional_bonus) : isOptionalBonus === true,
         optional_reward_qty: (isOptionalBonus === undefined ? Boolean(activity.is_optional_bonus) : isOptionalBonus === true)
           ? Math.max(1, Math.min(50, Number(optionalRewardQty ?? activity.optional_reward_qty) || 1))
@@ -6352,11 +6385,7 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
 
     // If status changed to completed, increment kid's reward balance
     if (isNewCompletion) {
-      const kidsData = activity.kids as any;
-      const standardRewardQty = (Array.isArray(kidsData) ? kidsData[0]?.reward_quantity : kidsData?.reward_quantity) || 0;
-      const rewardQty = activity.is_optional_bonus
-        ? Math.max(1, Number(activity.optional_reward_qty) || 1)
-        : standardRewardQty;
+      const rewardQty = Math.max(1, Math.min(50, Number(activity.reward_qty) || 1));
       
       console.log(`Incrementing reward balance for kid ${activity.kid_id} by ${rewardQty}`);
       
@@ -6447,6 +6476,7 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
             status: 'pending',
             requires_verification: Boolean(activity.requires_verification),
             activity_meaning: activity.activity_meaning || 'available_choice',
+            reward_qty: Math.max(1, Math.min(50, Number(activity.reward_qty) || 1)),
             is_optional_bonus: Boolean(activity.is_optional_bonus),
             optional_reward_qty: activity.is_optional_bonus ? activity.optional_reward_qty : null,
             optional_selected_at: null,
@@ -7469,8 +7499,8 @@ export const parentAssistantFeatureCatalog = [
   { area: 'Detailed feature guides', routes: ['/features/:featureId'], help: 'Select Read more beside a feature or update. The public guide explains what it does, how it can help autistic people, parents, and caregivers, and how to use it in Visual Steps. Select Close when the guide opens in a separate tab.' },
   { area: 'Password recovery', routes: ['/forgot-password'], help: 'On Sign in select Forgot?, enter Email, and select Send Reset Link. Open the Visual Steps recovery email. On the recovery page enter New Password and Confirm Password, then select Update Password.' },
   { area: 'Parent dashboard', routes: ['/dashboard'], help: 'Select a child card to make it active. Add Child creates a profile. The pencil icon edits the selected child. Activities opens that child’s activity management. Parent messages are entered in the message box and sent with the Send button. The dashboard also shows reward balance, starts or replays the parent tour, and opens this assistant.' },
-  { area: 'Child profiles and themes', routes: ['/add-kid', '/edit-kid/:id'], help: 'Profile Details includes Avatar or Upload, Name, Date of Birth, Grade Level, Kid Code, Start Time, End Time, Max Activities, Reward Qty, Reward Type, Dashboard Theme, Therapies Needed, Hobbies, Interests, Strengths, Weaknesses, Sensory Issues, Behavioral Issues, Timezone, and Permissions including child printing. Finish with Create Profile or Save Changes.' },
-  { area: 'Activities', routes: ['/assigned-activities/:kidId'], help: 'From Dashboard select a child and Activities. Add Activity opens the form. Enter activity type/name and description, optional link/image and steps, Due Date, Time, Repeat and Repeats till. For custom repeats set Every and Unit. Enable Parent verification required when approval is needed. Finish with Add Activity or Save Changes. List and Calendar views are available.' },
+  { area: 'Child profiles and themes', routes: ['/add-kid', '/edit-kid/:id'], help: 'Profile Details includes Avatar or Upload, Name, Date of Birth, Grade Level, Kid Code, Start Time, End Time, Max Activities, Reward Type, Dashboard Theme, Therapies Needed, Hobbies, Interests, Strengths, Weaknesses, Sensory Issues, Behavioral Issues, Timezone, and Permissions including child printing. Finish with Create Profile or Save Changes.' },
+  { area: 'Activities', routes: ['/assigned-activities/:kidId'], help: 'From Dashboard select a child and Activities. Add Activity opens the form. Enter activity type/name and description, optional link/image and steps, Due Date, Time, Repeat and Repeats till. Choose the reward for this specific activity according to effort and challenge. For custom repeats set Every and Unit. Enable Parent verification required when approval is needed. Finish with Add Activity or Save Changes. List and Calendar views are available.' },
   { area: 'Activity verification and reassignment', routes: ['/assigned-activities/:kidId'], help: 'The child submits a verification-required activity into Waiting for parent verification. On the parent Activities page open the To Be Verified tab/grid. Select Verify & complete to approve it and award the configured tokens, or Reassign to return the same activity record to pending without awarding tokens. Reassignment intentionally removes it from completed counts until it is completed again.' },
   { area: 'Completed activity history', routes: ['/assigned-activities/:kidId'], help: 'Use Completed for currently completed assignments and History for completion records. Done Today is based on activities.completion_date, so reassigning an activity reduces the current completed count as intended.' },
   { area: 'Rewards and behavior bonuses', routes: ['/dashboard', '/assigned-activities/:kidId', '/kids-dashboard/:kidId'], help: 'Open a child’s Activities page and select Rewards. Add Item creates a reward with its name, token cost, image, and location. Children can purchase an active item only when their earned balance is sufficient. Only a parent can initiate a behavior bonus: select Recognize positive behavior, type the specific observed behavior (suggestions such as Focused effort, Following family rules, Calm communication, Helpful behavior, Trying again, and Positive self-control are available), choose 1 to 10 rewards, and confirm. The child dashboard shows recent bonuses as reason and amount in its sidebar. Edit the child profile and set Bonus History from 1 to 10 to control how many appear. The child has no control for requesting tokens or bonuses.' },

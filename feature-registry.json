@@ -16,6 +16,27 @@
     "updates": [
       {
         "updatedOn": "2026-09-11",
+        "title": "A compact activity form that keeps the essentials in view",
+        "summary": "Activity meaning, rewards, verification, timing, and repetition remain visible in compact rows without large settings panels.",
+        "details": "The Add and Edit Activity form keeps its established fields and behavior while reducing the space taken by additional settings. The activity’s date, time, and repetition appear immediately after its visual steps. Activity meaning, reward, and verification then use compact rows with a label on the left and direct choices on the right. The parent labels Learner Can Choose and Do Today correspond to the established Available Choice and Important Today meanings. The learner sees the shorter headings Pick an Activity and Do Today. The controls remain visible without requiring parents to open panels, while longer explanatory text and oversized colored blocks no longer push the central activity fields far down the page. Cancel and Save appear in the top-right Activity Details header, so they are visible as soon as the form opens and never cover a form field.",
+        "familyImpact": "Parents can reach the activity name, description, image, and visual steps more quickly without losing detailed controls when those controls are useful. This keeps the central Activity to Steps workflow prominent as Visual Steps gains capabilities.",
+        "help": "Open Add Activity or edit an activity. Use the compact option rows to choose how the activity is offered, its reward, verification, date, time, and repetition, then save."
+      },
+      {
+        "updatedOn": "2026-09-11",
+        "title": "Rewards matched to each activity",
+        "summary": "Parents choose a reward amount for each activity according to the learner’s effort and challenge.",
+        "details": "Reward amounts are now part of the activity rather than the child / adult profile. While adding or editing an activity, the parent can choose a gentle, moderate, or bigger-challenge amount, or enter a custom value from 1 to 50. The learner sees what that activity can earn before choosing it. Rewards are added only when the activity is completed immediately or approved through required parent verification. Existing activities inherit the profile’s former reward amount during the database update so established work does not unexpectedly lose or change its value.",
+        "familyImpact": "Different activities can recognize different levels of effort without defining one fixed reward for everything a learner does. Parents can make harder or less-preferred work more motivating while keeping familiar activities achievable and preserving the established completion and verification flow.",
+        "guideParagraphs": [
+          "Choose rewards according to the effort required from this particular learner, not according to how difficult the activity may look to someone else. A familiar activity may reasonably earn one reward while a newer or more demanding activity earns more.",
+          "The activity card and activity details show the available reward before the learner begins. This keeps the choice understandable and avoids surprising the learner after completion.",
+          "Changing an activity’s reward does not award anything immediately. The configured amount is earned only through the normal completion flow, including parent approval when verification is required."
+        ],
+        "help": "Open Activities Setup, add or edit an activity, and use Reward for completing this activity to choose a suggested or custom amount. Save the activity. The learner will see that amount on the activity, and it will be added after successful completion or required verification."
+      },
+      {
+        "updatedOn": "2026-09-11",
         "title": "Readable themed activity worlds",
         "summary": "Learner themes now add calm color, companions, decorations, activity accents, and celebrations without placing text over photographs.",
         "details": "Each learner theme uses a softly tinted background and keeps essential information on reliable high-contrast surfaces. A matching companion can invite the learner to choose an activity, restrained decorations stay around the edges, activity cards receive theme accents, and completion celebrations use the selected theme. The Rewards view carries the same theme into its header and reward cards, while not-yet-affordable rewards remain inviting through clear progress, gentle glow, and encouraging language instead of appearing disabled. Parents can choose a friendly character and message, a quieter theme icon, or no companion for an older learner or adult.",

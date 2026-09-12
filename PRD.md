@@ -178,6 +178,9 @@ Visual Steps provides a shared system in which a parent or caregiver can prepare
 
 ### Maintainability
 
+- Follow [FORM_DESIGN_STANDARD.md](FORM_DESIGN_STANDARD.md) for every new form. Standardize existing forms individually when they are next changed, preserving their data, validation, permissions, tours, and established behavior.
+- Keep basic fields first, present advanced settings compactly, use short help tooltips where needed, and place Cancel plus the primary form action in the top-right form header unless a documented interaction requires another layout.
+
 - Keep shared API, authentication, time-zone, and reward rules centralized.
 - Validate TypeScript with `npm run lint` and produce a production bundle with `npm run build`.
 - Apply database changes through reviewed, non-destructive migrations.
@@ -262,7 +265,7 @@ This section is generated from `feature-registry.json`. Update the registry when
 
 | Feature | Plan | Introduced | Latest update | Current description |
 | --- | --- | --- | --- | --- |
-| Clear visual activities | starter | 2026-03-01 | 2026-09-11 | Learner themes now add calm color, companions, decorations, activity accents, and celebrations without placing text over photographs. |
+| Clear visual activities | starter | 2026-03-01 | 2026-09-11 | Activity meaning, rewards, verification, timing, and repetition remain visible in compact rows without large settings panels. |
 | Parent activity verification | starter | 2026-08-20 | — | Choose which activities require parent approval before rewards are earned. |
 | Positive behavior bonuses | starter | 2026-08-20 | — | Parents can recognize a specific calm, focused, helpful, or persistent behavior. |
 | Personalized, fair quizzes | starter | 2026-08-20 | 2026-08-24 | Quiz creation now connects every quiz to a measurable learning objective, lets parents privately try it as the learner, controls illustration use, and turns completed answers into practical planning guidance. |
@@ -280,9 +283,11 @@ This section is generated from `feature-registry.json`. Update the registry when
 
 | Updated | Feature | Improvement | Family-facing summary |
 | --- | --- | --- | --- |
+| 2026-09-11 | Clear visual activities | Rewards matched to each activity | Parents choose a reward amount for each activity according to the learner’s effort and challenge. |
 | 2026-09-11 | Clear visual activities | Readable themed activity worlds | Learner themes now add calm color, companions, decorations, activity accents, and celebrations without placing text over photographs. |
 | 2026-09-11 | Clear visual activities | Flexible activity meanings and learner choice | Parents classify activities as Available Choice or Important Today, while learners choose from one clear activity view. |
 | 2026-09-11 | Clear visual activities | Calm time guidance without a rigid schedule | Parents can add suggested periods or exact times, while learners see what is relevant now without facing one long schedule. |
+| 2026-09-11 | Clear visual activities | A compact activity form that keeps the essentials in view | Activity meaning, rewards, verification, timing, and repetition remain visible in compact rows without large settings panels. |
 | 2026-09-10 | Parent Quick Start and replayable tour | A simpler first experience for parents | A three-step Quick Start helps parents prepare and preview their first visual activity without forcing the detailed product tour. |
 | 2026-09-02 | Curated learning samples | Predictable allowance for AI learning materials | Parents can see one shared daily allowance for AI-created quizzes, worksheets, and social stories, with the exact local time when creation becomes available again. |
 | 2026-09-01 | Visual Steps Parent Assistant | Daily Parent Assistant history and outing planning | The assistant keeps the current day’s conversation until 7:00 AM, offers Copy and Listen controls, and can search current venue information when a parent plans an outing for their child or adult learner. |

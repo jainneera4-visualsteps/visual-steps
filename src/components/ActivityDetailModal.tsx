@@ -7,6 +7,7 @@ import { SocialStoryModal } from './SocialStoryModal';
 import { Link } from 'react-router-dom';
 import { Tooltip } from './ui/Tooltip';
 import { formatAppDateTime } from '../utils/dateUtils';
+import { formatReward } from '../utils/rewardUtils';
 
 interface ActivityStep {
   id?: number;
@@ -35,6 +36,7 @@ interface Activity {
   isHistory?: boolean;
   completion_date?: string;
   created_at?: string;
+  reward_qty?: number;
 }
 
 export function ActivityDetailModal({ 
@@ -46,7 +48,8 @@ export function ActivityDetailModal({
   canPrint = true,
   showToggleOnly = false,
   timezone,
-  includeAssignmentContext = false
+  includeAssignmentContext = false,
+  rewardType = 'reward'
 }: {
   activity: Activity | null;
   onClose: () => void;
@@ -54,7 +57,6 @@ export function ActivityDetailModal({
   onEdit?: (activity: Activity) => void;
   isReadOnly?: boolean;
   rewardType?: string;
-  rewardQuantity?: number;
   canPrint?: boolean;
   showToggleOnly?: boolean;
   timezone?: string;
@@ -329,6 +331,9 @@ export function ActivityDetailModal({
                   )}
                   <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700 uppercase tracking-wider print:bg-transparent print:border print:border-slate-200">
                     {activity.repeat_frequency}
+                  </span>
+                  <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800 print:bg-transparent print:border print:border-slate-200">
+                    +{Math.max(1, Number(activity.reward_qty) || 1)} {formatReward(rewardType, Math.max(1, Number(activity.reward_qty) || 1))}
                   </span>
                 </div>
               )}

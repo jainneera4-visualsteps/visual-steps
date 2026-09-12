@@ -72,7 +72,6 @@ export default function AddEditKid() {
     endTime: '',
     maxIncompleteLimit: '',
     rewardType: 'Penny',
-    rewardQuantity: '1',
     bonusHistoryLimit: '5',
     optionalBonusDailyRewardLimit: '10',
     theme: 'sky',
@@ -108,7 +107,6 @@ export default function AddEditKid() {
             endTime: kid.end_time || '',
             maxIncompleteLimit: kid.max_incomplete_limit || '',
             rewardType: kid.reward_type || 'Penny',
-            rewardQuantity: kid.reward_quantity?.toString() || '1',
             bonusHistoryLimit: kid.bonus_history_limit?.toString() || '5',
             optionalBonusDailyRewardLimit: kid.optional_bonus_daily_reward_limit?.toString() || '10',
             theme: kid.theme || 'sky',
@@ -184,7 +182,6 @@ export default function AddEditKid() {
         end_time: formData.endTime,
         max_incomplete_limit: formData.maxIncompleteLimit,
         reward_type: formData.rewardType,
-        reward_quantity: parseInt(formData.rewardQuantity),
         bonus_history_limit: parseInt(formData.bonusHistoryLimit),
         optional_bonus_daily_reward_limit: parseInt(formData.optionalBonusDailyRewardLimit),
         theme: formData.theme,
@@ -475,34 +472,6 @@ export default function AddEditKid() {
                   type="number"
                   min="0"
                   value={isNaN(Number(formData.maxIncompleteLimit)) ? '' : formData.maxIncompleteLimit}
-                  onChange={handleChange}
-                  required
-                  className="h-8 text-sm"
-                />
-              </div>
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-1.5">
-                  <label className="text-[12px] font-bold text-slate-500 uppercase">Reward Qty</label>
-                  <div className="group relative">
-                    <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
-                    <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
-                      <div className="flex items-start gap-3">
-                        <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
-                          <HelpCircle className="h-4 w-4 text-yellow-700" />
-                        </div>
-                        <span className="font-bold text-[15px] leading-tight text-slate-900">
-                          Reward Quantity: Specify the number of rewards (e.g., points, stars) earned for each successfully completed activity.
-                        </span>
-                      </div>
-                      <div className="absolute left-3 sm:left-auto sm:right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
-                    </div>
-                  </div>
-                </div>
-                <Input
-                  name="rewardQuantity"
-                  type="number"
-                  min="1"
-                  value={isNaN(Number(formData.rewardQuantity)) ? '' : formData.rewardQuantity}
                   onChange={handleChange}
                   required
                   className="h-8 text-sm"

@@ -132,13 +132,13 @@ export async function guestApiFetch(input: RequestInfo | URL, init?: RequestInit
   }
   if (path.startsWith('/api/activities/') && method === 'PUT') {
     const id = path.split('/').pop();
-    activities = activities.map((item) => item.id === id ? { ...item, ...body, status: body.status || item.status, completion_date: body.status === 'completed' ? now() : body.status === 'pending' ? null : item.completion_date } : item);
+    activities = activities.map((item) => item.id === id ? { ...item, ...body, reward_qty: Math.max(1, Number(body.rewardQty ?? body.reward_qty ?? item.reward_qty) || 1), status: body.status || item.status, completion_date: body.status === 'completed' ? now() : body.status === 'pending' ? null : item.completion_date } : item);
     return json({ activity: activities.find((item) => item.id === id) });
   }
   if (path.startsWith('/api/activities/') && method === 'DELETE') { activities = activities.filter((item) => item.id !== path.split('/').pop()); return json({ success: true }); }
   if (path.includes('/activities')) {
     if (method === 'POST') {
-      const activity = { ...body, id: crypto.randomUUID(), kid_id: GUEST_KID_ID, status: body.status || 'pending', due_date: body.dueDate || body.due_date || today(), steps: body.steps || [] };
+      const activity = { ...body, id: crypto.randomUUID(), kid_id: GUEST_KID_ID, reward_qty: Math.max(1, Number(body.rewardQty ?? body.reward_qty) || 1), status: body.status || 'pending', due_date: body.dueDate || body.due_date || today(), steps: body.steps || [] };
       activities = [...activities, activity];
       return json({ activity }, 201);
     }

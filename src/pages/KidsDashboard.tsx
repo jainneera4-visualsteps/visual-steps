@@ -41,6 +41,7 @@ interface Activity {
   isHistory?: boolean;
   is_optional_bonus?: boolean;
   optional_reward_qty?: number;
+  reward_qty?: number;
   optional_selected_at?: string;
   activity_meaning?: 'available_choice' | 'important_today';
   time_guidance?: 'suggested' | 'fixed';
@@ -65,7 +66,6 @@ interface Kid {
   start_time?: string;
   end_time?: string;
   reward_type?: string;
-  reward_quantity?: number;
   bonus_history_limit?: number;
   reward_balance?: number;
   rules?: string;
@@ -837,7 +837,7 @@ export default function KidsDashboard() {
     
     // Optimistic update for kid's reward balance
     if (kid && newStatus === 'completed') {
-      const rewardQty = activity.is_optional_bonus ? (activity.optional_reward_qty || 1) : (kid.reward_quantity || 0);
+      const rewardQty = Math.max(1, Number(activity.reward_qty) || 1);
       const updatedKid = { ...kid, reward_balance: (kid.reward_balance || 0) + rewardQty };
       setKid(updatedKid);
       safeLocalStorageSet(`kid_${kidId}`, JSON.stringify(updatedKid));
@@ -1033,7 +1033,7 @@ export default function KidsDashboard() {
                     </div>
                     <p className={`mt-0.5 text-xs font-bold ${currentTheme.bannerSubtext}`}>You’re doing great—one step at a time! ✨</p>
                   </div>
-                  {companionStyle !== 'none' && (
+                  {isAccessAllowed && companionStyle !== 'none' && (
                     <div className={`flex items-center gap-2 rounded-2xl px-3 py-2 shadow-sm ring-2 ${isDarkTheme ? 'bg-slate-800 ring-slate-700' : 'bg-white/85 ring-white'}`}>
                       <span className="text-3xl" role="img" aria-label={`${themeCompanion.name} theme companion`}>{companionStyle === 'simple' ? themeCompanion.icon : themeCompanion.character}</span>
                       {companionStyle === 'character' && <span className={`hidden max-w-32 text-sm font-black leading-tight sm:inline ${currentTheme.bannerText}`}>Which activity would you like to try?</span>}
@@ -1293,12 +1293,12 @@ export default function KidsDashboard() {
                                   description: 'It is almost time. Open the activity when you are ready.',
                                 },
                                 {
-                                  time: 'Important Today',
+                                  time: 'Do Today',
                                   items: visibleAvailable.filter(activity => activity.activity_meaning === 'important_today'),
                                   description: 'These are important today. You can choose which one to do first.',
                                 },
                                 {
-                                  time: 'Choose an Activity',
+                                  time: 'Pick an Activity',
                                   items: visibleAvailable.filter(activity => activity.activity_meaning !== 'important_today'),
                                   description: 'Choose any activity you would like to do.',
                                 },
@@ -1322,15 +1322,15 @@ export default function KidsDashboard() {
                             'Night': <Sparkles className="h-4 w-4 text-slate-400" />,
                             'Any time': <Clock className="h-4 w-4 text-slate-400" />,
                             'Other': <Clock className="h-4 w-4 text-slate-400" />,
-                            'Important Today': <Star className="h-4 w-4 text-amber-500" />,
-                            'Choose an Activity': <Sparkles className="h-4 w-4 text-emerald-500" />,
+                            'Do Today': <Star className="h-4 w-4 text-amber-500" />,
+                            'Pick an Activity': <Sparkles className="h-4 w-4 text-emerald-500" />,
                             'Coming Up': <Clock className="h-4 w-4 text-blue-500" />,
                             'Later Today': <Calendar className="h-4 w-4 text-slate-500" />,
                           };
                           const sectionTone: Record<string, string> = {
                             'Coming Up': isDarkTheme ? 'bg-blue-950/70 ring-blue-700/60' : 'bg-blue-50 ring-blue-200',
-                            'Important Today': isDarkTheme ? 'bg-amber-950/60 ring-amber-700/60' : 'bg-amber-50 ring-amber-200',
-                            'Choose an Activity': isDarkTheme ? 'bg-emerald-950/60 ring-emerald-700/60' : 'bg-emerald-50 ring-emerald-200',
+                            'Do Today': isDarkTheme ? 'bg-amber-950/60 ring-amber-700/60' : 'bg-amber-50 ring-amber-200',
+                            'Pick an Activity': isDarkTheme ? 'bg-emerald-950/60 ring-emerald-700/60' : 'bg-emerald-50 ring-emerald-200',
                             'Later Today': isDarkTheme ? 'bg-violet-950/60 ring-violet-700/60' : 'bg-violet-50 ring-violet-200',
                           };
 
@@ -1349,8 +1349,8 @@ export default function KidsDashboard() {
                                     </div>
                                     {group.description && (
                                       <p className={`mt-1.5 pl-10 text-base font-bold leading-relaxed ${isDarkTheme ? 'text-slate-200' : 'text-slate-700'}`}>
-                                        {group.time === 'Important Today'
-                                          ? 'These are important today. Choose which one you want to do first.'
+                                        {group.time === 'Do Today'
+                                          ? 'Please do these today. You can pick which one comes first.'
                                           : group.description}
                                       </p>
                                     )}
@@ -1433,6 +1433,12 @@ export default function KidsDashboard() {
                                                 <div className="flex items-center gap-1">
                                                   <LayoutList className="h-3 w-3" />
                                                   {activity.steps.length} steps
+                                                </div>
+                                              )}
+                                              {activity.status === 'pending' && (
+                                                <div className="flex items-center gap-1 font-black text-emerald-600 normal-case tracking-normal">
+                                                  <img src={rewardIcon} alt="" className="h-4 w-4 object-contain" />
+                                                  Earn {Math.max(1, Number(activity.reward_qty) || 1)} {formatReward(kid?.reward_type, Math.max(1, Number(activity.reward_qty) || 1))}
                                                 </div>
                                               )}
                                               {activity.exact_time && (

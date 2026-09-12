@@ -8,9 +8,9 @@ const migration = readFileSync('database_updates/2026-09-11_activity_meanings.sq
 const timeMigration = readFileSync('database_updates/2026-09-11_activity_time_support.sql', 'utf8');
 
 test('parents can prepare activities as available choices or important today', () => {
-  assert.match(activityPage, /How should this activity be offered\?/);
-  assert.match(activityPage, /Available Choice/);
-  assert.match(activityPage, /Important Today/);
+  assert.match(activityPage, /Offer as/);
+  assert.match(activityPage, /Learner Can Choose/);
+  assert.match(activityPage, /Do Today/);
   assert.doesNotMatch(activityPage, />Optional additional activity</);
 });
 
@@ -23,9 +23,9 @@ test('new activities use standard rewards while legacy extra activity records re
 
 test('learner sees one choice-based activity view without a separate extras menu', () => {
   const childDashboard = readFileSync('src/pages/KidsDashboard.tsx', 'utf8');
-  assert.match(childDashboard, /📝 Choose an Activity/);
+  assert.match(childDashboard, /Choose an Activity/);
   assert.match(childDashboard, /Choose any activity below\. You can do them in the order that works for you\./);
-  assert.match(childDashboard, /Important Today/);
+  assert.match(childDashboard, /Do Today/);
   assert.match(childDashboard, /description: 'Choose any activity you would like to do\.'/);
   assert.doesNotMatch(childDashboard, /⭐ Extra Activities/);
   assert.doesNotMatch(server, /activity\.is_optional_bonus !== true \|\| activity\.optional_selected_at/);
@@ -33,10 +33,10 @@ test('learner sees one choice-based activity view without a separate extras menu
 
 test('parent and learner lists group meanings under headings instead of card tags', () => {
   const childDashboard = readFileSync('src/pages/KidsDashboard.tsx', 'utf8');
-  assert.match(activityPage, /⭐ Important Today/);
-  assert.match(activityPage, /🌱 Available Choices/);
-  assert.match(childDashboard, /time: 'Important Today'/);
-  assert.match(childDashboard, /time: 'Choose an Activity'/);
+  assert.match(activityPage, /⭐ Do Today/);
+  assert.match(activityPage, /🌱 Learner Can Choose/);
+  assert.match(childDashboard, /time: 'Do Today'/);
+  assert.match(childDashboard, /time: 'Pick an Activity'/);
   assert.doesNotMatch(childDashboard, /activity\.activity_meaning === 'important_today' \? 'Important Today' : 'Available Choice'/);
 });
 

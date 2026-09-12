@@ -70,7 +70,6 @@ interface Kid {
   sensory_issues?: string;
   behavioral_issues?: string;
   reward_type?: string;
-  reward_quantity?: number;
   start_time?: string;
   end_time?: string;
   rules?: string;
@@ -707,6 +706,7 @@ export default function AssignedActivities() {
     status: 'pending',
     requiresVerification: false,
     activityMeaning: 'available_choice' as ActivityMeaning,
+    rewardQty: 1,
     isOptionalBonus: false,
     optionalRewardQty: 1,
     steps: [] as ActivityStep[],
@@ -1007,6 +1007,7 @@ export default function AssignedActivities() {
         status: activity.status,
         requiresVerification: activity.requires_verification === true,
         activityMeaning: activity.activity_meaning || 'available_choice',
+        rewardQty: Math.max(1, Number(activity.reward_qty) || 1),
         isOptionalBonus: activity.is_optional_bonus === true,
         optionalRewardQty: activity.optional_reward_qty || 1,
         steps: activity.steps || [],
@@ -1055,6 +1056,7 @@ export default function AssignedActivities() {
         status: 'pending',
         requiresVerification: false,
         activityMeaning: 'available_choice',
+        rewardQty: 1,
         isOptionalBonus: false,
         optionalRewardQty: 1,
         steps: [],
@@ -1448,6 +1450,7 @@ export default function AssignedActivities() {
           description: activity.description,
           link: activity.link,
           imageUrl: activity.image_url,
+          rewardQty: Math.max(1, Number(activity.reward_qty) || 1),
           dueDate: activity.due_date,
           status: newStatus,
           ...(newStatus === 'pending' ? { reassignmentLevel: 'same' } : {}),
@@ -1479,6 +1482,7 @@ export default function AssignedActivities() {
           description: activity.description,
           link: activity.link,
           imageUrl: activity.image_url,
+          rewardQty: Math.max(1, Number(activity.reward_qty) || 1),
           dueDate: activity.due_date,
           repeat_interval: activity.repeat_interval,
           repeat_unit: activity.repeat_unit,
@@ -2763,7 +2767,7 @@ export default function AssignedActivities() {
                         <tr className={activity.activity_meaning === 'important_today' ? 'bg-amber-50' : 'bg-emerald-50'}>
                           <td colSpan={7} className="px-4 py-3">
                             <div className="font-black text-slate-900">
-                              {activity.activity_meaning === 'important_today' ? '⭐ Important Today' : '🌱 Available Choices'}
+                              {activity.activity_meaning === 'important_today' ? '⭐ Do Today' : '🌱 Learner Can Choose'}
                             </div>
                             <div className="mt-0.5 text-xs font-medium text-slate-600">
                               {activity.activity_meaning === 'important_today'
@@ -2823,6 +2827,9 @@ export default function AssignedActivities() {
                               {activity.description}
                             </div>
                           )}
+                          <div className="mt-1 text-xs font-black text-emerald-700">
+                            +{Math.max(1, Number(activity.reward_qty) || 1)} {formatReward(kid?.reward_type, Math.max(1, Number(activity.reward_qty) || 1))}
+                          </div>
                         </td>
                         <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
                           {activity.repeat_frequency}
@@ -3897,64 +3904,84 @@ export default function AssignedActivities() {
           <Card className="border-blue-200 bg-blue-50/50 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between py-2 px-4 space-y-0">
               <CardTitle className="text-base font-bold">{editingActivity ? 'Edit Activity Details' : 'Activity Details'}</CardTitle>
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="ghost" size="xs" onClick={handleCloseForm} className="h-8 px-3 text-[12px] font-bold">
+                  Cancel
+                </Button>
+                <Button data-guest-tour="activity-save" type="submit" form="activity-details-form" size="xs" className="h-8 px-3 text-[12px] font-bold">
+                  {editingActivity ? 'Save Changes' : 'Add Activity'}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="px-4 pb-3">
-              <form onSubmit={handleSubmit} className="space-y-2.5">
+              <form id="activity-details-form" onSubmit={handleSubmit} className="flex flex-col gap-2.5">
                 {formError && (
                   <div className="rounded-md bg-red-50 p-2 text-xs font-medium text-red-600 border border-red-100">
                     {formError}
                   </div>
                 )}
 
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3" data-guest-tour="activity-reward">
-                  <label className="flex cursor-pointer items-start gap-3">
-                    <input
-                      type="checkbox"
-                      checked={formData.requiresVerification}
-                      onChange={(event) => setFormData({ ...formData, requiresVerification: event.target.checked })}
-                      className="mt-0.5 h-4 w-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
-                    />
-                    <span>
-                      <span className="block text-sm font-bold text-amber-950">Parent verification required</span>
-                      <span className="mt-0.5 block text-xs leading-5 text-amber-800">
-                        When selected, your child can submit this activity, but rewards are added only after you verify it.
+                <div className="order-2 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white px-3" data-guest-tour="activity-options-summary">
+                  <div className="flex min-h-11 flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-between">
+                    <span className="flex items-center gap-1.5 text-sm font-bold text-slate-800">
+                      Offer as
+                      <span className="group relative">
+                        <HelpCircle className="h-3.5 w-3.5 cursor-help text-brand-500" />
+                        <span className="pointer-events-none absolute bottom-full left-0 z-[100] mb-2 w-72 translate-y-1 rounded-2xl border-2 border-yellow-200 bg-[#fffdea] p-3 text-sm font-bold normal-case leading-5 text-slate-900 opacity-0 shadow-2xl transition-all group-hover:translate-y-0 group-hover:opacity-100">
+                          Learner Can Choose offers this as an option. Do Today shows that it matters today without forcing a first-to-last order.
+                        </span>
                       </span>
                     </span>
-                  </label>
-                </div>
-
-                <fieldset className="rounded-xl border border-blue-200 bg-blue-50 p-3">
-                  <legend className="px-1 text-sm font-black text-slate-900">How should this activity be offered?</legend>
-                  <p className="mb-3 text-xs leading-5 text-slate-600">
-                    This prepares the activity for the simpler choice-based learner experience. The child dashboard will continue to work as it does now until Part 2 is introduced.
-                  </p>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {([
-                      ['available_choice', 'Available Choice', 'Offer this as one of the activities the learner may choose.'],
-                      ['important_today', 'Important Today', 'Clearly identify that this activity is important today without placing it in a strict order.'],
-                    ] as const).map(([value, label, help]) => (
-                      <label key={value} className={`cursor-pointer rounded-lg border p-3 ${formData.activityMeaning === value ? 'border-blue-500 bg-white ring-1 ring-blue-400' : 'border-blue-100 bg-white/70 hover:border-blue-300'}`}>
-                        <span className="flex items-center gap-2 text-sm font-bold text-slate-900">
-                          <input
-                            type="radio"
-                            name="activityMeaning"
-                            value={value}
-                            checked={formData.activityMeaning === value}
-                            onChange={() => setFormData({ ...formData, activityMeaning: value })}
-                            className="h-4 w-4 border-blue-300 text-blue-600"
-                          />
+                    <div className="flex flex-wrap gap-x-5 gap-y-2">
+                      {([['available_choice', 'Learner Can Choose'], ['important_today', 'Do Today']] as const).map(([value, label]) => (
+                        <label key={value} className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-600">
+                          <input type="radio" name="activityMeaning" value={value} checked={formData.activityMeaning === value} onChange={() => setFormData({ ...formData, activityMeaning: value })} className="h-4 w-4 border-slate-300 text-blue-600" />
                           {label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex min-h-11 flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-between" data-guest-tour="activity-reward-amount">
+                    <span className="flex items-center gap-1.5 text-sm font-bold text-slate-800">
+                      Reward
+                      <span className="group relative">
+                        <HelpCircle className="h-3.5 w-3.5 cursor-help text-brand-500" />
+                        <span className="pointer-events-none absolute bottom-full left-0 z-[100] mb-2 w-72 translate-y-1 rounded-2xl border-2 border-yellow-200 bg-[#fffdea] p-3 text-sm font-bold normal-case leading-5 text-slate-900 opacity-0 shadow-2xl transition-all group-hover:translate-y-0 group-hover:opacity-100">
+                          Choose what this activity earns based on the effort and challenge for this learner. The reward is added only after completion or approval.
                         </span>
-                        <span className="mt-1 block pl-6 text-xs leading-5 text-slate-600">{help}</span>
-                      </label>
-                    ))}
+                      </span>
+                    </span>
+                    <div className="flex flex-wrap items-center gap-3">
+                      {([['Gentle', 1], ['Moderate', 2], ['Challenge', 3]] as const).map(([label, amount]) => (
+                        <label key={amount} className="flex cursor-pointer items-center gap-1.5 text-sm font-semibold text-slate-600">
+                          <input type="radio" name="rewardQtyPreset" checked={formData.rewardQty === amount} onChange={() => setFormData({ ...formData, rewardQty: amount })} className="h-4 w-4 border-slate-300 text-emerald-600" />
+                          {label} {amount}
+                        </label>
+                      ))}
+                      <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">Custom <input aria-label="Custom reward amount" type="number" min="1" max="50" value={formData.rewardQty} onChange={(event) => setFormData({ ...formData, rewardQty: Math.max(1, Math.min(50, Number(event.target.value) || 1)) })} className="h-8 w-20 rounded border border-slate-300 bg-white px-2 font-bold text-slate-900" required /></label>
+                    </div>
+                  </div>
+                  <div className="flex min-h-11 flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-between" data-guest-tour="activity-reward">
+                    <span className="flex items-center gap-1.5 text-sm font-bold text-slate-800">
+                      Parent verification
+                      <span className="group relative">
+                        <HelpCircle className="h-3.5 w-3.5 cursor-help text-brand-500" />
+                        <span className="pointer-events-none absolute bottom-full left-0 z-[100] mb-2 w-72 translate-y-1 rounded-2xl border-2 border-yellow-200 bg-[#fffdea] p-3 text-sm font-bold normal-case leading-5 text-slate-900 opacity-0 shadow-2xl transition-all group-hover:translate-y-0 group-hover:opacity-100">
+                          Required sends completed work to the parent for approval before rewards are added. Not required completes and rewards it immediately.
+                        </span>
+                      </span>
+                    </span>
+                    <div className="flex gap-5">
+                      <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-600"><input type="radio" name="requiresVerification" checked={formData.requiresVerification} onChange={() => setFormData({ ...formData, requiresVerification: true })} className="h-4 w-4 border-slate-300 text-amber-600" />Required</label>
+                      <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-600"><input type="radio" name="requiresVerification" checked={!formData.requiresVerification} onChange={() => setFormData({ ...formData, requiresVerification: false })} className="h-4 w-4 border-slate-300 text-amber-600" />Not required</label>
+                    </div>
                   </div>
                   {editingActivity?.is_optional_bonus && (
-                    <p className="mt-3 rounded-lg bg-amber-50 p-2 text-xs leading-5 text-amber-900">
+                    <p className="py-2 text-xs leading-5 text-amber-900">
                       This was created under the earlier Extra Activities system. It now appears with the learner’s other choices, while its existing record and reward settings remain safely preserved.
                     </p>
                   )}
-                </fieldset>
+                </div>
 
                 {editingActivity && ['completed', 'on_hold', 'ended'].includes(editingActivity.status) && (
                   <fieldset className="rounded-xl border border-blue-200 bg-blue-50/70 p-3">
@@ -4424,7 +4451,7 @@ export default function AssignedActivities() {
                   </div>
                 </div>
                 
-                <div className="grid gap-2.5 md:grid-cols-2" data-guest-tour="activity-schedule">
+                <div className="order-1 grid gap-x-3 gap-y-2 rounded-lg border border-slate-200 bg-white p-3 md:grid-cols-4" data-guest-tour="activity-schedule">
                   <div className="space-y-0.5">
                     <div className="flex items-center gap-1.5 mb-1">
                       <label className="text-[12px] font-bold text-slate-500 uppercase">Due Date</label>
@@ -4646,16 +4673,6 @@ export default function AssignedActivities() {
                   )}
                 </div>
 
-                <div className="flex justify-end items-center pt-1">
-                  <div className="flex gap-2">
-                    <Button type="button" variant="ghost" size="xs" onClick={handleCloseForm} className="h-7 text-[12px]">
-                      Cancel
-                    </Button>
-                    <Button data-guest-tour="activity-save" type="submit" size="xs" className="h-7 text-[12px]">
-                      {editingActivity ? 'Save Changes' : 'Add Activity'}
-                    </Button>
-                  </div>
-                </div>
               </form>
             </CardContent>
           </Card>
@@ -4672,7 +4689,6 @@ export default function AssignedActivities() {
           isReadOnly={previewActivity?.status === 'completed'}
           canPrint={!previewActivity?.isHistory}
           rewardType={kid?.reward_type}
-          rewardQuantity={kid?.reward_quantity}
           showToggleOnly={true}
           timezone={kid?.timezone}
         />
