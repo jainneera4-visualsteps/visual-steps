@@ -6,7 +6,7 @@ import { celebrate } from '../utils/celebration';
 import { SocialStoryModal } from './SocialStoryModal';
 import { Link } from 'react-router-dom';
 import { Tooltip } from './ui/Tooltip';
-import { formatAppDateTime } from '../utils/dateUtils';
+import { formatAppDate, formatAppDateTime } from '../utils/dateUtils';
 import { formatReward } from '../utils/rewardUtils';
 
 interface ActivityStep {
@@ -90,6 +90,18 @@ export function ActivityDetailModal({
   const displayedTime = activity.time_of_day === 'Specific time' && activity.exact_time
     ? new Date(`2000-01-01T${activity.exact_time}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
     : activity.time_of_day;
+  const statusLabel = activity.status === 'awaiting_verification'
+    ? 'Waiting for verification'
+    : activity.status === 'on_hold'
+      ? 'On Hold'
+      : activity.status === 'ended'
+        ? 'Discontinued / Ended'
+        : activity.status === 'completed'
+          ? 'Completed'
+          : 'Assigned';
+  const assignedDate = /^\d{4}-\d{2}-\d{2}/.test(activity.due_date || '')
+    ? formatAppDate(`${activity.due_date.slice(0, 10)}T12:00:00Z`, 'UTC')
+    : formatAppDate(activity.due_date, timezone);
 
   const [showPraise, setShowPraise] = useState(false);
   const [includeImages, setIncludeImages] = useState(false);
@@ -233,6 +245,9 @@ export function ActivityDetailModal({
   const activityLink = includeAssignmentContext && childAwareLink?.startsWith('/')
     ? `${childAwareLink}${childAwareLink.includes('?') ? '&' : '?'}activityId=${encodeURIComponent(activity.id)}`
     : childAwareLink;
+  const printableActivityLink = activityLink?.startsWith('/')
+    ? `${window.location.origin}${activityLink}`
+    : activityLink;
   
   return (
     <div className="w-full" ref={printRef}>
@@ -245,6 +260,16 @@ export function ActivityDetailModal({
           <h1 className="text-xl font-bold tracking-tight text-slate-900 leading-none">
             View Activity Details
           </h1>
+          {isReadOnly && (
+            <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Activity schedule and reward">
+              <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-blue-700">{displayedTime}</span>
+              {activity.time_of_day === 'Specific time' && Boolean(activity.preparation_minutes) && (
+                <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-800">Get ready {activity.preparation_minutes} minutes before</span>
+              )}
+              <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-blue-700">{activity.repeat_frequency}</span>
+              <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-black text-emerald-800">+{Math.max(1, Number(activity.reward_qty) || 1)} {formatReward(rewardType, Math.max(1, Number(activity.reward_qty) || 1))}</span>
+            </div>
+          )}
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           {hasImages && canPrint && (
@@ -293,7 +318,7 @@ export function ActivityDetailModal({
         </div>
       )}
 
-      <Card className="border-blue-200 bg-blue-50/50 shadow-sm print:shadow-none print:border-none print:bg-transparent">
+      <Card className="activity-print-card border-blue-200 bg-blue-50/50 shadow-sm print:shadow-none print:border-none print:bg-transparent">
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 py-2 px-4 space-y-0 border-b border-blue-100/50 print:hidden">
           <div className="flex items-center gap-3">
             {!isReadOnly && onToggleStatus && !showToggleOnly && (
@@ -311,7 +336,7 @@ export function ActivityDetailModal({
               </button>
             )}
             <CardTitle className="text-base font-bold flex items-center gap-2">
-              {activity.activity_type}
+              {activity.category || 'Activity'} - {statusLabel}
               {isSocialStoryLink && (
                 <div className={`flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-blue-600`}>
                   <Eye className="h-3 w-3" />
@@ -381,13 +406,8 @@ export function ActivityDetailModal({
               </div>
             )}
             <div className="space-y-3">
-              {!showToggleOnly && (
+              {!showToggleOnly && !isReadOnly && (
                 <div className="flex flex-wrap gap-1.5">
-                  {activity.category && (
-                    <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700 uppercase tracking-wider print:bg-transparent print:border print:border-slate-200">
-                      {activity.category}
-                    </span>
-                  )}
                   <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700 uppercase tracking-wider print:bg-transparent print:border print:border-slate-200">
                     {displayedTime}
                   </span>
@@ -404,23 +424,30 @@ export function ActivityDetailModal({
                   </span>
                 </div>
               )}
-              {activity.description && (
-                activity.link ? (
-                  <div className="space-y-2">
-                    {isSocialStoryLink ? (
+              {!showToggleOnly && (
+                <div className="text-[12px] font-bold uppercase tracking-widest text-slate-500">
+                  Assigned Date: {assignedDate}
+                </div>
+              )}
+              <div className="text-lg font-bold leading-relaxed text-slate-800">
+                <span>{activity.activity_type}</span>
+                {activity.description && <span aria-hidden="true"> — </span>}
+                {activity.description && (
+                  activity.link ? (
+                    isSocialStoryLink ? (
                       <button
                         onClick={() => {
                           const storyId = activity.link.split('/').pop();
                           if (storyId) setViewingStoryId(storyId);
                         }}
-                        className="text-lg text-blue-600 hover:underline font-bold leading-relaxed block text-left"
+                        className="inline text-blue-600 hover:underline"
                       >
                         {activity.description}
                       </button>
                     ) : activity.link.startsWith('/') ? (
                       <Link 
                         to={activityLink}
-                        className="text-lg text-blue-600 hover:underline font-bold leading-relaxed block"
+                        className="inline text-blue-600 hover:underline"
                       >
                         {activity.description}
                       </Link>
@@ -429,21 +456,21 @@ export function ActivityDetailModal({
                         href={activity.link} 
                         target="_blank" 
                         rel="noopener noreferrer" 
-                        className="text-lg text-blue-600 hover:underline font-bold leading-relaxed block"
+                        className="inline text-blue-600 hover:underline"
                       >
                         {activity.description}
                       </a>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-lg text-slate-800 font-bold leading-relaxed">{activity.description}</p>
-                )
+                    )
+                  ) : <span>{activity.description}</span>
+                )}
+              </div>
+              {printableActivityLink && (
+                <div className="activity-print-url break-all text-[11px] font-normal leading-5 text-slate-600">
+                  URL: {printableActivityLink}
+                </div>
               )}
               {!showToggleOnly && (
                 <div className="space-y-1">
-                  <div className="text-[12px] font-bold text-slate-500 uppercase tracking-widest">
-                    Due Date: {activity.due_date}
-                  </div>
                   {activity.status === 'completed' && (activity.completion_date || activity.created_at) && (
                     <div className="text-[12px] font-bold text-emerald-500 uppercase tracking-widest flex items-center gap-1">
                       <CheckCircle className="h-2.5 w-2.5" />
@@ -528,8 +555,20 @@ export function ActivityDetailModal({
         .print-header {
           display: none;
         }
+        .activity-print-url {
+          display: none;
+        }
 
         @media print {
+          .activity-print-card {
+            background: transparent !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+          }
+          .activity-print-url {
+            display: block !important;
+          }
           .print-header {
             display: flex !important;
             align-items: center;

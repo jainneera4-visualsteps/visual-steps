@@ -165,6 +165,12 @@ export default function AssignedActivities() {
   useEffect(() => {
     const nextTab = searchParams.get('tab');
     setActiveTab(ACTIVITY_WORKSPACE_TABS.includes(nextTab as ActivityWorkspaceTab) ? nextTab as ActivityWorkspaceTab : 'activities');
+    // The fixed workspace submenu remains available while forms are open.
+    // Changing its route must reveal the requested grid, not leave the prior
+    // activity editor covering the newly selected submenu.
+    setIsModalOpen(false);
+    setEditingActivity(null);
+    setPreviewActivity(null);
   }, [searchParams]);
 
   const [templates, setTemplates] = useState<ActivityTemplate[]>([]);
@@ -238,6 +244,7 @@ export default function AssignedActivities() {
 
   useEffect(() => {
     setSelectedActivityIds([]);
+    setCompletedPage(1);
     // Preserve the selected view while moving between activity tabs that
     // support both List and Calendar. This also prevents the guided tour's
     // direct Calendar callout from being reset to List after the button is
@@ -734,6 +741,7 @@ export default function AssignedActivities() {
     steps: [] as ActivityStep[],
   });
   const [formError, setFormError] = useState<string | null>(null);
+  const [isSavingActivity, setIsSavingActivity] = useState(false);
 
   const fetchData = async (options: { silent?: boolean; skipSamples?: boolean } = {}) => {
     const { silent = false, skipSamples = false } = options;
@@ -1232,6 +1240,7 @@ export default function AssignedActivities() {
       }
     }
 
+    setIsSavingActivity(true);
     try {
       const url = editingActivity 
         ? `/api/activities/${encodeURIComponent(editingActivity.id)}` 
@@ -1262,9 +1271,11 @@ export default function AssignedActivities() {
 
       if (res.ok) {
         handleCloseForm();
-        fetchData(); // Refresh list
-        fetchActivityTypes(); // Refresh types list
-        fetchActivityCategories(); // Refresh categories list
+        await Promise.all([
+          fetchData({ silent: true, skipSamples: true }),
+          fetchActivityTypes(),
+          fetchActivityCategories(),
+        ]);
       } else {
         let errData;
         try {
@@ -1278,6 +1289,8 @@ export default function AssignedActivities() {
     } catch (error) {
       console.error('Failed to save activity', error);
       setFormError('An error occurred while saving.');
+    } finally {
+      setIsSavingActivity(false);
     }
   };
 
@@ -2059,7 +2072,8 @@ export default function AssignedActivities() {
                             </Button>
                           </CustomTooltip>
                           {status === 'completed' && <CustomTooltip content="Edit or reassign activity"><Button variant="ghost" size="xs" className="h-7 w-7 p-0" onClick={() => handleOpenForm(activity)}><Edit2 className="h-4 w-4 text-slate-400 hover:text-blue-600" /></Button></CustomTooltip>}
-                          {(status === 'on_hold' || status === 'ended') && <CustomTooltip content="Return to Assigned Activities"><Button variant="ghost" size="xs" className="h-7 w-7 p-0" onClick={() => handleOpenForm(activity)}><RotateCcw className="h-4 w-4 text-blue-600" /></Button></CustomTooltip>}
+                          {status === 'on_hold' && <CustomTooltip content="Edit on-hold activity"><Button variant="ghost" size="xs" className="h-7 w-7 p-0" onClick={() => handleOpenForm(activity)}><Edit2 className="h-4 w-4 text-slate-400 hover:text-blue-600" /></Button></CustomTooltip>}
+                          {status === 'ended' && <CustomTooltip content="Edit ended activity"><Button variant="ghost" size="xs" className="h-7 w-7 p-0" onClick={() => handleOpenForm(activity)}><Edit2 className="h-4 w-4 text-slate-400 hover:text-blue-600" /></Button></CustomTooltip>}
                         </div>
                       </td>
                     </tr>
@@ -3816,6 +3830,7 @@ export default function AssignedActivities() {
               {editingActivity ? 'Edit Activity' : 'New Activity'}
             </h1>
           </div>
+          <form id="activity-details-form" onSubmit={handleSubmit} className="flex flex-col gap-2.5">
           <Card className="border-blue-200 bg-blue-50/50 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between py-2 px-4 space-y-0">
               <CardTitle className="text-base font-bold">{editingActivity ? 'Edit Activity Details' : 'Activity Details'}</CardTitle>
@@ -3823,13 +3838,12 @@ export default function AssignedActivities() {
                 <Button type="button" variant="ghost" size="xs" onClick={handleCloseForm} className="h-8 px-3 text-[12px] font-bold">
                   Cancel
                 </Button>
-                <Button data-guest-tour="activity-save" type="submit" form="activity-details-form" size="xs" className="h-8 px-3 text-[12px] font-bold">
+                <Button data-guest-tour="activity-save" type="submit" size="xs" isLoading={isSavingActivity} disabled={isSavingActivity} className="h-8 px-3 text-[12px] font-bold">
                   {editingActivity ? 'Save Changes' : 'Add Activity'}
                 </Button>
               </div>
             </CardHeader>
-            <CardContent className="px-4 pb-3">
-              <form id="activity-details-form" onSubmit={handleSubmit} className="flex flex-col gap-2.5">
+            <CardContent className="flex flex-col gap-2.5 px-4 pb-3">
                 {formError && (
                   <div className="rounded-md bg-red-50 p-2 text-xs font-medium text-red-600 border border-red-100">
                     {formError}
@@ -3899,19 +3913,17 @@ export default function AssignedActivities() {
                 </div>
 
                 {editingActivity && ['completed', 'on_hold', 'ended'].includes(editingActivity.status) && (
-                  <fieldset className="rounded-xl border border-blue-200 bg-blue-50/70 p-3">
-                    <legend className="px-1 text-sm font-bold text-blue-950">What should happen next? <span className="text-red-600">*</span></legend>
-                    <p className="mb-3 text-xs leading-5 text-blue-800">
-                      Select one outcome. Rewards are not added again when an activity is reassigned.
-                    </p>
-                    <div className="grid gap-2 sm:grid-cols-3">
+                  <fieldset className="rounded-lg border border-blue-200 bg-blue-50/60 px-3 pb-3 pt-2">
+                    <legend className="px-1 text-xs font-black text-blue-950">What should happen next? <span className="text-red-600">*</span></legend>
+                    <div className="mb-2 text-[11px] leading-4 text-blue-800">Choose one. Reassigning does not add the reward again.</div>
+                    <div className="grid gap-1.5 sm:grid-cols-3">
                       {([
                         ['reassign', 'Reassign', 'Return it to Assigned Activities.'],
                         ['on_hold', 'On Hold', 'Pause it until the child is ready.'],
                         ['ended', 'Discontinued / Ended', 'Stop it without deleting its record.'],
                       ] as const).map(([value, label, help]) => (
-                        <label key={value} className={`cursor-pointer rounded-lg border p-3 transition-colors ${activityOutcome === value ? 'border-blue-500 bg-white ring-1 ring-blue-400' : 'border-blue-100 bg-white/70 hover:border-blue-300'}`}>
-                          <span className="flex items-center gap-2 text-sm font-bold text-slate-900">
+                        <label key={value} title={help} className={`cursor-pointer rounded-md border px-2.5 py-2 transition-colors ${activityOutcome === value ? 'border-blue-500 bg-white ring-1 ring-blue-400' : 'border-blue-100 bg-white/70 hover:border-blue-300'}`}>
+                          <span className="flex items-center gap-2 text-xs font-bold text-slate-900">
                             <input
                               type="radio"
                               name="activity-outcome"
@@ -3923,7 +3935,7 @@ export default function AssignedActivities() {
                             />
                             {label}
                           </span>
-                          <span className="mt-1 block pl-6 text-xs leading-4 text-slate-600">{help}</span>
+                          <span className="sr-only">{help}</span>
                         </label>
                       ))}
                     </div>
@@ -4588,23 +4600,18 @@ export default function AssignedActivities() {
                   )}
                 </div>
 
-              </form>
             </CardContent>
           </Card>
+          </form>
         </div>
       ) : (
         <ActivityDetailModal
           activity={previewActivity}
           onClose={() => setPreviewActivity(null)}
-          onToggleStatus={toggleStatus}
-          onEdit={(activity) => {
-            handleOpenForm(activity);
-            setPreviewActivity(null);
-          }}
-          isReadOnly={previewActivity?.status === 'completed'}
+          isReadOnly={true}
           canPrint={!previewActivity?.isHistory}
           rewardType={kid?.reward_type}
-          showToggleOnly={true}
+          showToggleOnly={false}
           timezone={kid?.timezone}
         />
       )}

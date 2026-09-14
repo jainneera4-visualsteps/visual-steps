@@ -9,6 +9,16 @@ test('completed activity form requires an explicit outcome and reassignment leve
   assert.match(source, /Same level — count as a repeated activity/);
   assert.match(source, /renderCompletedTab\('on_hold'\)/);
   assert.match(source, /renderCompletedTab\('ended'\)/);
+  assert.match(source, /setActivityOutcome\(activity\.status === 'on_hold' \? 'on_hold'/);
+  assert.match(source, /status === 'on_hold' && <CustomTooltip content="Edit on-hold activity"/);
+  assert.match(source, /activity\.status === 'ended' \? 'ended'/);
+  assert.match(source, /status === 'ended' && <CustomTooltip content="Edit ended activity"/);
+  assert.match(source, /Changing its route must reveal the requested grid/);
+  assert.match(source, /setPreviewActivity\(null\)/);
+  assert.match(source, /filteredCompleted\.length > 0 && totalCompletedPages > 1/);
+  assert.doesNotMatch(source, /status === 'ended' \|\| totalCompletedPages > 1/);
+  assert.match(source, /setCompletedPage\(1\)/);
+  assert.doesNotMatch(source, /\(status === 'on_hold' \|\| status === 'ended'\) && <CustomTooltip content="Return to Assigned Activities"/);
 });
 
 test('only same-level reassignment increments the repeat count', async () => {
