@@ -13,6 +13,8 @@ test('child API allowlist includes only required self-service routes', () => {
     ['GET', `/api/kids/${kidId}/reward-items`],
     ['GET', `/api/kids/${kidId}/behavior-bonuses`],
     ['PUT', '/api/activities/activity-123'],
+    ['POST', '/api/activities/activity-123/help-request'],
+    ['PUT', '/api/activity-steps/step-123/completion'],
     ['GET', '/api/quizzes/quiz-123'],
     ['GET', '/api/quiz-attempts/activity-123'],
     ['GET', '/api/social-stories/story-123'],
@@ -42,6 +44,7 @@ test('child API allowlist rejects parent operations and sibling routes', () => {
     ['DELETE', '/api/social-stories/story-123/share'],
     ['POST', `/api/kids/${kidId}/buy`],
     ['DELETE', '/api/activities/activity-123'],
+    ['PUT', '/api/activity-help-requests/request-123'],
   ];
 
   for (const [method, path] of forbidden) {

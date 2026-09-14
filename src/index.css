@@ -1150,3 +1150,27 @@ p.text-right {
   min-width: 0.45rem;
   animation: kid-reward-progress-shimmer 2.4s ease-in-out infinite;
 }
+
+/* Focused progress views reuse the established result tables without showing
+   the charts and unrelated report sections around them. */
+.report-quiz-results-only > :not(#quiz-results),
+.report-game-results-only > :not(#game-results) {
+  display: none;
+}
+
+/* The fixed application frame keeps scrolling available without reserving a
+   contrasting strip beside full-width page content. */
+.app-page-scroll {
+  scrollbar-width: none;
+}
+
+.app-page-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+[data-dashboard-content] {
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+}

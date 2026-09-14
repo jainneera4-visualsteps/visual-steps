@@ -1,8 +1,8 @@
 import { Tooltip as CustomTooltip } from '../components/ui/Tooltip';
 import { io } from 'socket.io-client';
 import { apiFetch, safeJson } from '../utils/api';
-import { formatReward } from '../utils/rewardUtils';
-import { Fragment, useState, useEffect } from 'react';
+import { formatReward, getRewardIcon } from '../utils/rewardUtils';
+import { Fragment, useState, useEffect, useRef, type ReactNode } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
@@ -23,6 +23,9 @@ type ActivityStatus = 'pending' | 'awaiting_verification' | 'completed' | 'on_ho
 type ActivityOutcome = '' | 'reassign' | 'on_hold' | 'ended';
 type ReassignmentLevel = 'same' | 'up' | 'down';
 type ActivityMeaning = 'available_choice' | 'important_today';
+type ActivityWorkspaceTab = 'activities' | 'help_requested' | 'verification' | 'completed' | 'on_hold' | 'ended' | 'history' | 'quiz_results' | 'rewards';
+
+const ACTIVITY_WORKSPACE_TABS: ActivityWorkspaceTab[] = ['activities', 'help_requested', 'verification', 'completed', 'on_hold', 'ended', 'history', 'quiz_results', 'rewards'];
 
 interface Activity {
   id: string;
@@ -58,6 +61,15 @@ interface Activity {
   after_time_passes?: 'keep_available' | 'request_reschedule' | 'hide';
 }
 
+interface ActivityHelpRequest {
+  id: string;
+  activity_id: string;
+  kid_id: string;
+  status: 'open' | 'resolved';
+  requested_at: string;
+  current_step_number?: number | null;
+}
+
 interface Kid {
   id: string;
   name: string;
@@ -70,6 +82,7 @@ interface Kid {
   sensory_issues?: string;
   behavioral_issues?: string;
   reward_type?: string;
+  reward_icon?: string;
   start_time?: string;
   end_time?: string;
   rules?: string;
@@ -118,6 +131,7 @@ export default function AssignedActivities() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [helpRequests, setHelpRequests] = useState<ActivityHelpRequest[]>([]);
   const [activitiesLoadError, setActivitiesLoadError] = useState<string | null>(null);
   
   const [historyActivities, setHistoryActivities] = useState<Activity[]>([]);
@@ -129,6 +143,7 @@ export default function AssignedActivities() {
   const [activityCategories, setActivityCategories] = useState<string[]>([]);
   const [previewActivity, setPreviewActivity] = useState<Activity | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+  const fetchGenerationRef = useRef(0);
 
   useEffect(() => {
     if (kidId) {
@@ -144,7 +159,13 @@ export default function AssignedActivities() {
     return new Date(zoned.year, zoned.month - 1, 1);
   });
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'activities' | 'verification' | 'completed' | 'on_hold' | 'ended' | 'history' | 'quiz_results' | 'rewards'>((searchParams.get('tab') as any) || 'activities');
+  const requestedTab = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState<ActivityWorkspaceTab>(ACTIVITY_WORKSPACE_TABS.includes(requestedTab as ActivityWorkspaceTab) ? requestedTab as ActivityWorkspaceTab : 'activities');
+
+  useEffect(() => {
+    const nextTab = searchParams.get('tab');
+    setActiveTab(ACTIVITY_WORKSPACE_TABS.includes(nextTab as ActivityWorkspaceTab) ? nextTab as ActivityWorkspaceTab : 'activities');
+  }, [searchParams]);
 
   const [templates, setTemplates] = useState<ActivityTemplate[]>([]);
   const [socialStories, setSocialStories] = useState<any[]>([]);
@@ -234,6 +255,7 @@ export default function AssignedActivities() {
     'Star': 'https://cdn-icons-png.flaticon.com/512/1828/1828884.png',
     'Point': 'https://cdn-icons-png.flaticon.com/512/1170/1170611.png',
     'Sticker': 'https://cdn-icons-png.flaticon.com/512/4359/4359922.png',
+    'Coin': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ctext x="50%" y="50%" dominant-baseline="central" text-anchor="middle" font-size="80"%3E%F0%9F%AA%99%3C/text%3E%3C/svg%3E',
     'Dollar': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ctext x="50%" y="50%" dominant-baseline="central" text-anchor="middle" font-size="80"%3E%F0%9F%92%B5%3C/text%3E%3C/svg%3E',
     'Coffee': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ctext x="50%" y="50%" dominant-baseline="central" text-anchor="middle" font-size="80"%3E%E2%98%95%3C/text%3E%3C/svg%3E',
     'Drink': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ctext x="50%" y="50%" dominant-baseline="central" text-anchor="middle" font-size="80"%3E%F0%9F%8D%B9%3C/text%3E%3C/svg%3E',
@@ -242,7 +264,7 @@ export default function AssignedActivities() {
     'Credit': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ctext x="50%" y="50%" dominant-baseline="central" text-anchor="middle" font-size="80"%3E%F0%9F%92%B3%3C/text%3E%3C/svg%3E'
   };
 
-  const rewardIcon = kid?.reward_type ? (rewardImages[kid.reward_type] || rewardImages['Penny']) : rewardImages['Penny'];
+  const rewardIcon = getRewardIcon(kid?.reward_type, kid?.reward_icon);
 
   const formatKidDate = (date: Date | string | null | undefined, options?: Intl.DateTimeFormatOptions) => {
     if (!date) return '';
@@ -718,13 +740,31 @@ export default function AssignedActivities() {
     
     if (!kidId) return;
     
+    const requestedKidId = kidId;
+    const fetchGeneration = ++fetchGenerationRef.current;
+    const isCurrentRequest = () => fetchGeneration === fetchGenerationRef.current && requestedKidId === kidId;
+
     if (!silent) {
       setIsLoading(true);
       setActivitiesLoadError(null);
+      setKid(null);
+      setActivities([]);
+      setHelpRequests([]);
+      setHistoryActivities([]);
+      setBehaviorBonuses([]);
     }
     try {
-      // Fetch kid details for the header
-      const kidRes = await apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}`);
+      // Load independent learner collections concurrently. The activities API
+      // resolves the learner timezone itself, so it does not need to wait for
+      // the profile request first.
+      const [kidRes, actRes, histRes, bonusRes] = await Promise.all([
+        apiFetch(`/api/kids/${encodeURIComponent(requestedKidId)}`),
+        apiFetch(`/api/kids/${encodeURIComponent(requestedKidId)}/activities?mode=parent`),
+        apiFetch(`/api/kids/${encodeURIComponent(requestedKidId)}/activity-history`),
+        apiFetch(`/api/kids/${encodeURIComponent(requestedKidId)}/behavior-bonuses`),
+      ]);
+      if (!isCurrentRequest()) return;
+
       let currentKid: Kid | null = null;
       if (kidRes.ok) {
         const kidData = await safeJson(kidRes);
@@ -732,23 +772,10 @@ export default function AssignedActivities() {
         setKid(currentKid);
       }
 
-      // Fetch activities
-      const zoned = getZonedTime(currentKid?.timezone);
-      const localDate = zoned.isoDate;
-      const localTime = zoned.totalMinutes;
-
-      const actRes = await apiFetch(`/api/kids/${encodeURIComponent(kidId)}/activities?mode=parent&localDate=${localDate}&localTime=${localTime}&_t=${Date.now()}`, {
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
-      });
       let currentActivities: Activity[] = [];
       if (actRes.ok) {
         const actData = await safeJson(actRes);
-        console.log('AssignedActivities: Fetched activities:', actData.activities);
         if (actData.activities) {
-          console.log('AssignedActivities: Activity statuses:', actData.activities.map((a: Activity) => a.status));
           // Sort by due_date ascending, then by time_of_day order
           currentActivities = actData.activities.sort((a: Activity, b: Activity) => {
             if (a.due_date !== b.due_date) {
@@ -763,19 +790,17 @@ export default function AssignedActivities() {
           });
         }
         setActivities(currentActivities);
+        const currentHelpRequests = Array.isArray(actData.helpRequests) ? actData.helpRequests : [];
+        setHelpRequests(currentHelpRequests);
+        window.dispatchEvent(new CustomEvent('visual-steps:activity-workspace-counts', {
+          detail: { kidId: requestedKidId, activities: currentActivities, helpRequests: currentHelpRequests },
+        }));
         setActivitiesLoadError(null);
       } else {
         setActivitiesLoadError('Activities could not be loaded. Please try again.');
         console.error('AssignedActivities: Failed to fetch activities:', actRes.status, actRes.statusText);
       }
 
-      // Fetch history
-      const histRes = await apiFetch(`/api/kids/${encodeURIComponent(kidId)}/activity-history?_t=${Date.now()}`, {
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
-      });
       if (histRes.ok) {
         const histData = await safeJson(histRes);
         // Map history to match Activity interface where possible
@@ -789,7 +814,6 @@ export default function AssignedActivities() {
         setHistoryActivities(mappedHistory);
       }
 
-      const bonusRes = await apiFetch(`/api/kids/${encodeURIComponent(kidId)}/behavior-bonuses`);
       if (bonusRes.ok) {
         const bonusData = await safeJson(bonusRes);
         setBehaviorBonuses(bonusData.awards || []);
@@ -807,20 +831,23 @@ export default function AssignedActivities() {
         kidId
       });
     } finally {
-      if (!silent) setIsLoading(false);
+      if (!silent && isCurrentRequest()) setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
     fetchActivityTypes();
     fetchActivityCategories();
-    fetchRewardItems();
     fetchTemplates();
     fetchSocialStories();
     fetchQuizzes();
-    fetchQuizResults();
     fetchWorksheets();
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+    fetchRewardItems();
+    fetchQuizResults();
 
     // Set up socket connection
     const socket = io(window.location.origin);
@@ -837,12 +864,6 @@ export default function AssignedActivities() {
       }
     });
 
-    const intervalId = setInterval(() => {
-      const zoned = getZonedTime(kid?.timezone);
-      const currentLocalDate = zoned.isoDate;
-      fetchData({ silent: true, skipSamples: true });
-    }, 10000);
-
     // Also refresh when tab becomes visible
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -852,7 +873,7 @@ export default function AssignedActivities() {
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      clearInterval(intervalId);
+      fetchGenerationRef.current += 1;
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (kidId) {
         socket.emit('leave_kid_room', kidId);
@@ -1468,6 +1489,93 @@ export default function AssignedActivities() {
     }
   };
 
+  const resolveHelpRequest = async (request: ActivityHelpRequest, resolution: 'helped' | 'ready_again' | 'put_on_hold') => {
+    try {
+      const response = await apiFetch(`/api/activity-help-requests/${encodeURIComponent(request.id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resolution }),
+      });
+      const data = await safeJson(response);
+      if (!response.ok) throw new Error(data.error || 'The help request could not be updated.');
+      setHelpRequests(current => current.filter(item => item.id !== request.id));
+      await fetchData({ silent: true, skipSamples: true });
+    } catch (error: any) {
+      alert(error.message || 'The help request could not be updated.');
+    }
+  };
+
+  const renderStandardActivityTable = (
+    rows: Activity[],
+    actions: (activity: Activity) => ReactNode,
+    emptyState: ReactNode,
+  ) => rows.length === 0 ? emptyState : (
+    <Card className="border-none ring-1 ring-slate-200 shadow-sm">
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1100px] table-fixed text-left text-sm [&_td]:break-words [&_td]:whitespace-normal [&_th]:whitespace-normal">
+            <colgroup>
+              <col className="w-20" />
+              <col className="w-[18%]" />
+              <col className="w-[24%]" />
+              <col className="w-[12%]" />
+              <col className="w-[10%]" />
+              <col className="w-[12%]" />
+              <col className="w-[10%]" />
+              <col className="w-52" />
+            </colgroup>
+            <thead className="border-y border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
+              <tr>
+                <th className="w-20 px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <input type="checkbox" aria-label="Select all activities on this page" checked={rows.length > 0 && rows.every(activity => selectedActivityIds.includes(activity.id))} ref={element => { if (element) { const count = rows.filter(activity => selectedActivityIds.includes(activity.id)).length; element.indeterminate = count > 0 && count < rows.length; } }} onChange={event => { const ids = rows.map(activity => activity.id); setSelectedActivityIds(current => event.target.checked ? Array.from(new Set([...current, ...ids])) : current.filter(id => !ids.includes(id))); }} className="h-4 w-4 rounded border-slate-300 text-blue-600" />
+                    <CustomTooltip content={selectedActivityIds.length ? `Delete ${selectedActivityIds.length} selected` : 'Select activities to delete'}><button type="button" aria-label="Delete selected activities" disabled={selectedActivityIds.length === 0} onClick={deleteSelectedActivities} className="grid h-7 w-7 place-items-center rounded text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-35"><Trash2 className="h-4 w-4" /></button></CustomTooltip>
+                  </div>
+                </th>
+                {[
+                  ['Activity', 'The title or type of activity.'],
+                  ['Description', 'A short explanation of what the learner will do in this activity.'],
+                  ['Reward Amount', 'The reward earned when this activity is successfully completed.'],
+                  ['Repeat', 'How frequently this activity is offered.'],
+                  ['Activity Date', 'The date when this activity is available or planned.'],
+                  ['Time of Day', 'The preferred time or time period for this activity.'],
+                ].map(([label, tip]) => <th key={label} className="px-3 py-2 font-bold"><div className="flex items-center gap-1.5"><span className="break-words">{label}</span><CustomTooltip content={tip}><HelpCircle className="h-3.5 w-3.5 shrink-0 cursor-help text-brand-500" /></CustomTooltip></div></th>)}
+                <th className="px-3 py-2 text-right font-bold"><div className="flex items-center justify-end gap-1.5"><span>Actions</span><CustomTooltip content="Actions available for this activity’s current status."><HelpCircle className="h-3.5 w-3.5 cursor-help text-brand-500" /></CustomTooltip></div></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {rows.map(activity => <tr key={activity.id} className="bg-white transition-colors hover:bg-slate-50">
+                <td className="px-3 py-2"><input type="checkbox" aria-label={`Select ${activity.activity_type}`} checked={selectedActivityIds.includes(activity.id)} onChange={event => setSelectedActivityIds(current => event.target.checked ? Array.from(new Set([...current, activity.id])) : current.filter(id => id !== activity.id))} className="h-4 w-4 rounded border-slate-300 text-blue-600" /></td>
+                <td className="px-3 py-2"><div className="flex items-center gap-2 font-bold text-slate-900">{activity.image_url && <div className="h-8 w-8 shrink-0 overflow-hidden rounded border border-slate-200"><img src={activity.image_url} alt="" className="h-full w-full object-contain p-0.5" referrerPolicy="no-referrer" /></div>}<span className="min-w-0 break-words">{activity.activity_type}</span></div></td>
+                <td className="px-3 py-2 text-xs text-slate-600"><span className="break-words">{activity.description || '—'}</span></td>
+                <td className="px-3 py-2 break-words text-xs font-black text-emerald-700">+{Math.max(1, Number(activity.reward_qty) || 1)} {formatReward(kid?.reward_type, Math.max(1, Number(activity.reward_qty) || 1))}</td>
+                <td className="px-3 py-2 break-words text-slate-600">{activity.repeat_frequency}</td>
+                <td className="px-3 py-2 break-words text-slate-600">{formatSimpleDate(activity.due_date)}</td>
+                <td className="px-3 py-2 break-words text-slate-600">{formatActivityTime(activity)}</td>
+                <td className="px-3 py-2"><div className="flex items-center justify-end gap-1">{actions(activity)}</div></td>
+              </tr>)}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  const renderHelpRequestedTab = () => {
+    const requests = helpRequests
+      .map(request => ({ request, activity: activities.find(activity => activity.id === request.activity_id) }))
+      .filter((item): item is { request: ActivityHelpRequest; activity: Activity } => Boolean(item.activity));
+    const requestByActivity = new Map(requests.map(item => [item.activity.id, item.request]));
+    return renderStandardActivityTable(
+      requests.map(item => item.activity),
+      activity => {
+        const request = requestByActivity.get(activity.id)!;
+        return <CustomTooltip content={`Tell ${kid?.name || 'the learner'} that you are coming to help${request.current_step_number ? ` with step ${request.current_step_number}` : ''}`}><Button size="xs" className="h-8 px-3 text-[11px] font-black uppercase tracking-wide" onClick={() => resolveHelpRequest(request, 'helped')}>I’m coming{request.current_step_number ? ` · Step ${request.current_step_number}` : ''}</Button></CustomTooltip>;
+      },
+      <div className="flex flex-col items-center justify-center py-12 text-center"><HelpCircle className="h-9 w-9 text-sky-400" /><p className="mt-2 font-bold text-slate-700">No open help requests</p><p className="text-sm text-slate-500">A learner’s request will appear here.</p></div>,
+    );
+  };
+
   const reviewActivity = async (activity: Activity, decision: 'complete' | 'reassign') => {
     try {
       const res = await apiFetch(`/api/activities/${encodeURIComponent(activity.id)}`, {
@@ -1504,84 +1612,10 @@ export default function AssignedActivities() {
 
   const renderVerificationTab = () => {
     const waiting = activities.filter(activity => activity.status === 'awaiting_verification');
-
-    return (
-      <Card className="border-none ring-1 ring-amber-200 shadow-sm">
-        <CardContent className="p-0">
-          <div className="border-b border-amber-100 bg-amber-50 px-5 py-4">
-            <p className="font-bold text-amber-950">Waiting for your review</p>
-            <p className="mt-1 text-sm text-amber-800">
-              Rewards are not added until you verify an activity as completed.
-            </p>
-          </div>
-          {waiting.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-14 text-center">
-              <ShieldCheck className="h-10 w-10 text-emerald-400" />
-              <p className="mt-3 font-bold text-slate-700">Nothing is waiting for verification</p>
-              <p className="mt-1 text-sm text-slate-500">Submitted activities will appear here.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] text-left text-sm">
-                <thead className="border-y border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
-                  <tr>
-                    <th className="px-4 py-3 font-bold">Status</th>
-                    <th className="px-4 py-3 font-bold">Activity</th>
-                    <th className="px-4 py-3 font-bold">Category</th>
-                    <th className="px-4 py-3 font-bold">Due date</th>
-                    <th className="px-4 py-3 font-bold">Submitted</th>
-                    <th className="px-4 py-3 text-right font-bold">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {waiting.map(activity => (
-                    <tr key={activity.id} className="bg-white transition-colors hover:bg-amber-50/40">
-                      <td className="px-4 py-3">
-                        <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-bold text-amber-800">
-                          <ShieldCheck className="h-3.5 w-3.5" /> Waiting
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          {activity.image_url && (
-                            <div className="h-9 w-9 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-                              <img src={activity.image_url} alt="" className="h-full w-full object-contain p-0.5" referrerPolicy="no-referrer" />
-                            </div>
-                          )}
-                          <div className="min-w-0">
-                            <p className="truncate font-bold text-slate-900">{activity.activity_type}</p>
-                            {activity.description && <p className="max-w-xs truncate text-xs text-slate-500">{activity.description}</p>}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-slate-600">{activity.category || 'Uncategorized'}</td>
-                      <td className="whitespace-nowrap px-4 py-3 text-slate-600">{formatSimpleDate(activity.due_date)}</td>
-                      <td className="whitespace-nowrap px-4 py-3 text-slate-600">
-                        {activity.submitted_at ? formatKidDate(activity.submitted_at) : 'Submitted'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <CustomTooltip content="Review activity details">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPreviewActivity(activity)}>
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </CustomTooltip>
-                          <Button variant="outline" size="xs" onClick={() => reviewActivity(activity, 'reassign')}>
-                            <RotateCcw className="mr-1 h-3.5 w-3.5" /> Reassign
-                          </Button>
-                          <Button size="xs" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => reviewActivity(activity, 'complete')}>
-                            <CheckCircle className="mr-1 h-3.5 w-3.5" /> Verify &amp; complete
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+    return renderStandardActivityTable(
+      waiting,
+      activity => <><CustomTooltip content="Review activity details"><Button variant="ghost" size="xs" className="h-7 w-7 p-0" onClick={() => setPreviewActivity(activity)}><Eye className="h-4 w-4" /></Button></CustomTooltip><Button variant="outline" size="xs" onClick={() => reviewActivity(activity, 'reassign')}><RotateCcw className="mr-1 h-3.5 w-3.5" />Reassign</Button><Button size="xs" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => reviewActivity(activity, 'complete')}><CheckCircle className="mr-1 h-3.5 w-3.5" />Verify</Button></>,
+      <div className="flex flex-col items-center justify-center py-12 text-center"><ShieldCheck className="h-9 w-9 text-emerald-400" /><p className="mt-2 font-bold text-slate-700">Nothing is waiting for verification</p><p className="text-sm text-slate-500">Submitted activities will appear here.</p></div>,
     );
   };
 
@@ -1735,7 +1769,7 @@ export default function AssignedActivities() {
               </Button>
             </div>
           )}
-          <div className="flex items-center gap-2 p-4 border-b border-slate-100">
+          <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-2">
             <input
               type="text"
               placeholder="Search by name or keyword..."
@@ -1821,18 +1855,13 @@ export default function AssignedActivities() {
             </div>
           ) : (
             <div>
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/70 px-4 py-3">
-                <span className="text-sm font-semibold text-slate-600">{selectedActivityIds.length} selected</span>
-                <Button variant="danger" size="xs" disabled={selectedActivityIds.length === 0} onClick={deleteSelectedActivities}>
-                  <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete selected
-                </Button>
-              </div>
               <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
+              <table className="w-full min-w-[1100px] table-fixed text-sm text-left [&_td]:break-words [&_td]:whitespace-normal [&_th]:whitespace-normal">
+                <colgroup><col className="w-20" /><col className="w-[18%]" /><col className="w-[24%]" /><col className="w-[12%]" /><col className="w-[10%]" /><col className="w-[12%]" /><col className="w-[10%]" /><col className="w-52" /></colgroup>
                 <thead className="text-xs text-slate-500 bg-slate-50 uppercase border-y border-slate-200">
                   <tr>
-                    <th className="w-12 px-4 py-3">
-                      <input
+                    <th className="w-20 px-3 py-2">
+                      <div className="flex items-center gap-2"><input
                         type="checkbox"
                         aria-label={`Select all ${statusLabel} activities on this page`}
                         checked={paginatedCompleted.length > 0 && paginatedCompleted.every(activity => selectedActivityIds.includes(activity.id))}
@@ -1848,27 +1877,7 @@ export default function AssignedActivities() {
                             ? Array.from(new Set([...current, ...pageIds]))
                             : current.filter(id => !pageIds.includes(id)));
                         }}
-                      />
-                    </th>
-                    <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortCompleted('status')}>
-                      <div className="flex items-center gap-1.5">
-                        <span>Status</span>
-                        <SortIndicator config={completedSortConfig} columnKey="status" />
-                        <div className="group relative">
-                          <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
-                          <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
-                            <div className="flex items-start gap-3">
-                              <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
-                                <HelpCircle className="h-4 w-4 text-yellow-700" />
-                              </div>
-                              <span className="font-bold text-[15px] leading-tight text-slate-900 text-left">
-                                Current status of the activity. Marked as completed.
-                              </span>
-                            </div>
-                            <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
-                          </div>
-                        </div>
-                      </div>
+                      /><CustomTooltip content={selectedActivityIds.length ? `Delete ${selectedActivityIds.length} selected` : 'Select activities to delete'}><button type="button" aria-label="Delete selected activities" disabled={selectedActivityIds.length === 0} onClick={deleteSelectedActivities} className="grid h-7 w-7 place-items-center rounded text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-35"><Trash2 className="h-4 w-4" /></button></CustomTooltip></div>
                     </th>
                     <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortCompleted('activity_type')}>
                       <div className="flex items-center gap-1.5">
@@ -1910,6 +1919,7 @@ export default function AssignedActivities() {
                         </div>
                       </div>
                     </th>
+                    <th className="px-3 py-2 font-bold whitespace-nowrap"><div className="flex items-center gap-1.5"><span>Reward Amount</span><CustomTooltip content="The reward earned for completing this activity."><HelpCircle className="h-3.5 w-3.5 cursor-help text-brand-500" /></CustomTooltip></div></th>
                     <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortCompleted('repeat_frequency')}>
                       <div className="flex items-center gap-1.5">
                         <span>Repeat</span>
@@ -1932,7 +1942,7 @@ export default function AssignedActivities() {
                     </th>
                     <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSortCompleted('completion_date')}>
                       <div className="flex items-center gap-1.5">
-                        <span>Completion Date</span>
+                        <span>Activity Date</span>
                         <SortIndicator config={completedSortConfig} columnKey="completion_date" />
                         <div className="group relative">
                           <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
@@ -2005,11 +2015,6 @@ export default function AssignedActivities() {
                         />
                       </td>
                       <td className="px-4 py-3">
-                        <div className={status === 'completed' ? 'text-emerald-500' : status === 'on_hold' ? 'text-amber-500' : 'text-slate-500'}>
-                          {status === 'completed' ? <CheckCircle className="h-5 w-5" /> : status === 'on_hold' ? <PauseCircle className="h-5 w-5" /> : <Ban className="h-5 w-5" />}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
                         <div className="font-bold text-slate-900 flex items-center gap-2">
                           {activity.image_url && (
                             <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded border border-slate-200">
@@ -2031,6 +2036,7 @@ export default function AssignedActivities() {
                           </div>
                         )}
                       </td>
+                      <td className="px-3 py-2 whitespace-nowrap text-xs font-black text-emerald-700">+{Math.max(1, Number(activity.reward_qty) || 1)} {formatReward(kid?.reward_type, Math.max(1, Number(activity.reward_qty) || 1))}</td>
                       <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
                         {activity.repeat_frequency}
                       </td>
@@ -2052,29 +2058,8 @@ export default function AssignedActivities() {
                               <Eye className="h-4 w-4 text-slate-400 hover:text-blue-600" />
                             </Button>
                           </CustomTooltip>
-                          <CustomTooltip content="Edit Activity Details">
-                            <Button
-                              variant="ghost"
-                              size="xs"
-                              className="h-7 w-7 p-0"
-                              onClick={() => handleOpenForm(activity)}
-                            >
-                              <Edit2 className="h-4 w-4 text-slate-400 hover:text-blue-600" />
-                            </Button>
-                          </CustomTooltip>
-                          <CustomTooltip content="Delete Activity">
-                            <button
-                              type="button"
-                              className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-red-50 group transition-all active:scale-95"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleDelete(activity.id);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4 text-slate-400 group-hover:text-red-500" />
-                            </button>
-                          </CustomTooltip>
+                          {status === 'completed' && <CustomTooltip content="Edit or reassign activity"><Button variant="ghost" size="xs" className="h-7 w-7 p-0" onClick={() => handleOpenForm(activity)}><Edit2 className="h-4 w-4 text-slate-400 hover:text-blue-600" /></Button></CustomTooltip>}
+                          {(status === 'on_hold' || status === 'ended') && <CustomTooltip content="Return to Assigned Activities"><Button variant="ghost" size="xs" className="h-7 w-7 p-0" onClick={() => handleOpenForm(activity)}><RotateCcw className="h-4 w-4 text-blue-600" /></Button></CustomTooltip>}
                         </div>
                       </td>
                     </tr>
@@ -2288,36 +2273,35 @@ export default function AssignedActivities() {
   };
 
   return (
-    <div className="space-y-3 w-full">
+    <div className="w-full space-y-2 px-0">
       {!isModalOpen && !previewActivity && !viewingQuizResult && !isRewardModalOpen ? (
         <>
-          <div className="mb-6">
-            <button onClick={() => navigate('/dashboard')} className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1 mb-2 transition-colors">
-              <ArrowLeft className="h-4 w-4" /> Back to Dashboard
-            </button>
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 no-print">
+          <div className="mb-1">
+            <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start no-print">
               <div>
-                <h1 className="text-5xl font-normal text-slate-900 tracking-tight leading-none">
+                <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-tight">
                   {activeTab === 'activities' 
-                    ? <div className="flex items-center gap-4"><LayoutList className="h-12 w-12 text-blue-600" /> {kid?.name ? `${kid.name}'s ` : ''}Assigned Activities</div>
+                    ? <div className="flex items-center gap-3"><LayoutList className="h-8 w-8 text-blue-600" /> {kid?.name ? `${kid.name}'s ` : ''}Assigned Activities</div>
+                    : activeTab === 'help_requested'
+                      ? <div className="flex items-center gap-3"><HelpCircle className="h-8 w-8 text-sky-600" /> {kid?.name ? `${kid.name} Needs Help` : 'Learner Needs Help'}</div>
                     : activeTab === 'verification'
-                      ? <div className="flex items-center gap-4"><ShieldCheck className="h-12 w-12 text-amber-500" /> Waiting for Verification</div>
+                      ? <div className="flex items-center gap-3"><ShieldCheck className="h-8 w-8 text-amber-500" /> Waiting for Verification</div>
                     : activeTab === 'completed' 
-                        ? <div className="flex items-center gap-4"><CheckCircle className="h-12 w-12 text-emerald-600" /> {kid?.name ? `${kid.name}'s ` : ''}Completed Activities</div>
+                        ? <div className="flex items-center gap-3"><CheckCircle className="h-8 w-8 text-emerald-600" /> {kid?.name ? `${kid.name}'s ` : ''}Completed Activities</div>
                         : activeTab === 'on_hold'
-                          ? <div className="flex items-center gap-4"><PauseCircle className="h-12 w-12 text-amber-500" /> {kid?.name ? `${kid.name}'s ` : ''}On Hold Activities</div>
+                          ? <div className="flex items-center gap-3"><PauseCircle className="h-8 w-8 text-amber-500" /> {kid?.name ? `${kid.name}'s ` : ''}On Hold Activities</div>
                           : activeTab === 'ended'
-                            ? <div className="flex items-center gap-4"><Ban className="h-12 w-12 text-slate-500" /> {kid?.name ? `${kid.name}'s ` : ''}Discontinued / Ended Activities</div>
+                            ? <div className="flex items-center gap-3"><Ban className="h-8 w-8 text-slate-500" /> {kid?.name ? `${kid.name}'s ` : ''}Discontinued / Ended Activities</div>
                           : activeTab === 'quiz_results'
-                            ? <div className="flex items-center gap-4"><ClipboardCheck className="h-12 w-12 text-indigo-600" /> {kid?.name ? `${kid.name}'s ` : ''}Quiz Results</div>
+                            ? <div className="flex items-center gap-3"><ClipboardCheck className="h-8 w-8 text-indigo-600" /> {kid?.name ? `${kid.name}'s ` : ''}Quiz Results</div>
                         : activeTab === 'history'
                             ? <div className="flex flex-col gap-1">
                                 <div className="flex items-center gap-4">
-                                  <History className="h-12 w-12 text-purple-600" /> 
+                                  <History className="h-8 w-8 text-purple-600" />
                                   {kid?.name ? `${kid.name}'s ` : ''}Activities History
                                 </div>
                                 {kid?.timezone && (
-                                  <div className="flex items-center gap-2 ml-16">
+                                  <div className="flex items-center gap-2 ml-11">
                                     <Clock className="h-4 w-4 text-slate-400" />
                                     <span className="text-sm font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
                                       Timezone: {kid.timezone}
@@ -2325,11 +2309,13 @@ export default function AssignedActivities() {
                                   </div>
                                 )}
                               </div>
-                                : <div className="flex items-center gap-4"><Award className="h-12 w-12 text-amber-500" /> {kid?.name ? `${kid.name}'s ` : ''}Reward Items</div>}
+                                : <div className="flex items-center gap-3"><Award className="h-8 w-8 text-amber-500" /> {kid?.name ? `${kid.name}'s ` : ''}Reward Items</div>}
                 </h1>
-                <p className="text-lg font-normal text-slate-500 mt-3">
+                <p className="mt-1 text-sm font-normal text-slate-500">
                   {activeTab === 'activities' 
                     ? 'Organize daily tasks and track learning progress' 
+                    : activeTab === 'help_requested'
+                      ? `Respond when ${kid?.name || 'your learner'} needs support with an activity.`
                     : activeTab === 'verification'
                       ? `Review activities ${kid?.name || 'your child'} submitted before rewards are granted.`
                     : activeTab === 'completed' 
@@ -2346,113 +2332,59 @@ export default function AssignedActivities() {
                 </p>
               </div>
               
-              <div className="flex gap-2">
-                <div className="flex rounded-lg border border-slate-200 bg-white p-0.5 overflow-x-auto scrollbar-hide">
-                  <CustomTooltip content="View all assigned activities">
-                    <button
-                      data-guest-tour="assigned-activities"
-                      onClick={() => setActiveTab('activities')}
-                      className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
-                        activeTab === 'activities' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
-                      }`}
-                    >
-                      <LayoutList className="h-3 w-3" />
-                      Activities
-                    </button>
-                  </CustomTooltip>
-                  <CustomTooltip content="Review activities submitted by your child">
-                    <button
-                      data-guest-tour="verification-tab"
-                      onClick={() => setActiveTab('verification')}
-                      className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
-                        activeTab === 'verification' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
-                      }`}
-                    >
-                      <ShieldCheck className="h-3 w-3" />
-                      Verify ({activities.filter(activity => activity.status === 'awaiting_verification').length})
-                    </button>
-                  </CustomTooltip>
-                  <CustomTooltip content="View completed activities">
-                    <button
-                      data-guest-tour="completed-tab"
-                      onClick={() => setActiveTab('completed')}
-                      className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
-                        activeTab === 'completed' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
-                      }`}
-                    >
-                      <CheckCircle className="h-3 w-3" />
-                      Completed
-                    </button>
-                  </CustomTooltip>
-                  <CustomTooltip content="View activity history">
-                    <button
-                      data-guest-tour="on-hold-tab"
-                      onClick={() => setActiveTab('on_hold')}
-                      className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
-                        activeTab === 'on_hold' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
-                      }`}
-                    >
-                      <PauseCircle className="h-3 w-3" />
-                      On Hold
-                    </button>
-                  </CustomTooltip>
-                  <CustomTooltip content="View discontinued or ended activities">
-                    <button
-                      data-guest-tour="ended-tab"
-                      onClick={() => setActiveTab('ended')}
-                      className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
-                        activeTab === 'ended' ? 'bg-slate-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
-                      }`}
-                    >
-                      <Ban className="h-3 w-3" />
-                      Ended
-                    </button>
-                  </CustomTooltip>
-                  <CustomTooltip content="View activity history">
-                    <button
-                      data-guest-tour="history-tab"
-                      onClick={() => setActiveTab('history')}
-                      className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
-                        activeTab === 'history' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
-                      }`}
-                    >
-                      <History className="h-3 w-3" />
-                      History
-                    </button>
-                  </CustomTooltip>
-                  <CustomTooltip content="Review completed quiz attempts and answers">
-                    <button
-                      onClick={() => setActiveTab('quiz_results')}
-                      className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
-                        activeTab === 'quiz_results' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
-                      }`}
-                    >
-                      <ClipboardCheck className="h-3 w-3" />
-                      Quiz Results ({quizResults.length})
-                    </button>
-                  </CustomTooltip>
-                  <CustomTooltip content={`Manage ${kid?.name || 'Kid'}'s Rewards`}>
-                    <button
-                      data-guest-tour="rewards-tab"
-                      onClick={() => setActiveTab('rewards')}
-                      className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${
-                        activeTab === 'rewards' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
-                      }`}
-                    >
-                      <Sparkles className="h-3 w-3" />
-                      Rewards
-                    </button>
-                  </CustomTooltip>
+              <div className="flex max-w-full flex-col items-end gap-1.5">
+                <div className="hidden" aria-hidden="true">
+                  {[
+                    { id: 'activities', label: 'Activities', icon: LayoutList, selected: ['activities', 'on_hold', 'ended'].includes(activeTab) },
+                    { id: 'help_requested', label: 'Needs Attention', icon: HelpCircle, selected: ['help_requested', 'verification'].includes(activeTab), count: helpRequests.length + activities.filter(activity => activity.status === 'awaiting_verification').length },
+                    { id: 'completed', label: 'Progress', icon: ClipboardCheck, selected: ['completed', 'history', 'quiz_results'].includes(activeTab) },
+                    { id: 'rewards', label: 'Rewards', icon: Sparkles, selected: activeTab === 'rewards' },
+                  ].map(item => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={item.label}
+                        data-guest-tour={item.id === 'activities' ? 'assigned-activities' : item.id === 'rewards' ? 'rewards-tab' : undefined}
+                        type="button"
+                        aria-pressed={item.selected}
+                        onClick={() => setActiveTab(item.id as typeof activeTab)}
+                        className={`flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-[11px] font-bold transition-all ${item.selected ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-blue-50 hover:text-blue-700'}`}
+                      >
+                        <Icon className="h-3.5 w-3.5" /> {item.label}
+                        {Boolean(item.count) && <span className={`grid min-w-5 place-items-center rounded-full px-1.5 py-0.5 text-[10px] ${item.selected ? 'bg-white text-blue-700' : 'bg-rose-500 text-white'}`}>{item.count}</span>}
+                      </button>
+                    );
+                  })}
                 </div>
-                <div className="flex gap-2">
-                  {activeTab === 'activities' ? (
+
+                <div className="flex flex-wrap items-center justify-end gap-1">
+                  {false && ['activities', 'on_hold', 'ended'].includes(activeTab) && (
+                    <>
+                      <button type="button" onClick={() => setActiveTab('activities')} className={`rounded-md px-2 py-1 text-[11px] font-bold ${activeTab === 'activities' ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50'}`}>Current</button>
+                      <button data-guest-tour="on-hold-tab" type="button" onClick={() => setActiveTab('on_hold')} className={`rounded-md px-2 py-1 text-[11px] font-bold ${activeTab === 'on_hold' ? 'bg-amber-50 text-amber-700' : 'text-slate-500 hover:bg-slate-50'}`}>On Hold</button>
+                      <button data-guest-tour="ended-tab" type="button" onClick={() => setActiveTab('ended')} className={`rounded-md px-2 py-1 text-[11px] font-bold ${activeTab === 'ended' ? 'bg-slate-100 text-slate-700' : 'text-slate-500 hover:bg-slate-50'}`}>Ended</button>
+                    </>
+                  )}
+                  {false && ['help_requested', 'verification'].includes(activeTab) && (
+                    <>
+                      <button type="button" onClick={() => setActiveTab('help_requested')} className={`rounded-md px-2 py-1 text-[11px] font-bold ${activeTab === 'help_requested' ? 'bg-sky-50 text-sky-700' : 'text-slate-500 hover:bg-slate-50'}`}>Help Requested ({helpRequests.length})</button>
+                      <button data-guest-tour="verification-tab" type="button" onClick={() => setActiveTab('verification')} className={`rounded-md px-2 py-1 text-[11px] font-bold ${activeTab === 'verification' ? 'bg-amber-50 text-amber-700' : 'text-slate-500 hover:bg-slate-50'}`}>Verify ({activities.filter(activity => activity.status === 'awaiting_verification').length})</button>
+                    </>
+                  )}
+                  {false && ['completed', 'history', 'quiz_results'].includes(activeTab) && (
+                    <>
+                      <button data-guest-tour="completed-tab" type="button" onClick={() => setActiveTab('completed')} className={`rounded-md px-2 py-1 text-[11px] font-bold ${activeTab === 'completed' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-500 hover:bg-slate-50'}`}>Completed</button>
+                      <button data-guest-tour="history-tab" type="button" onClick={() => setActiveTab('history')} className={`rounded-md px-2 py-1 text-[11px] font-bold ${activeTab === 'history' ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50'}`}>History</button>
+                      <button type="button" onClick={() => setActiveTab('quiz_results')} className={`rounded-md px-2 py-1 text-[11px] font-bold ${activeTab === 'quiz_results' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:bg-slate-50'}`}>Quiz Results ({quizResults.length})</button>
+                    </>
+                  )}
+                  {activeTab === 'activities' && (
                     <CustomTooltip content="Add New Activity">
-                      <Button size="xs" onClick={() => handleOpenForm()} className="h-7 text-[12px] shrink-0" data-guest-tour="add-activity">
-                        <Plus className="mr-1 h-3 w-3" />
-                        Add Activity
+                      <Button size="xs" onClick={() => handleOpenForm()} className="ml-1 h-7 shrink-0 text-[12px]" data-guest-tour="add-activity">
+                        <Plus className="mr-1 h-3 w-3" /> Add Activity
                       </Button>
                     </CustomTooltip>
-                  ) : null}
+                  )}
                 </div>
               </div>
             </div>
@@ -2463,7 +2395,7 @@ export default function AssignedActivities() {
                 <div className="flex border-b border-slate-200">
                   <button
                     onClick={() => setViewMode('list')}
-                    className={`px-4 py-2 text-sm font-medium transition-all ${
+                    className={`px-3 py-1.5 text-sm font-medium transition-all ${
                       viewMode === 'list' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:text-slate-700'
                     }`}
                   >
@@ -2474,7 +2406,7 @@ export default function AssignedActivities() {
                     data-guest-tour="calendar-view"
                     aria-pressed={viewMode === 'calendar'}
                     onClick={() => setViewMode('calendar')}
-                    className={`px-4 py-2 text-sm font-medium transition-all ${
+                    className={`px-3 py-1.5 text-sm font-medium transition-all ${
                       viewMode === 'calendar' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:text-slate-700'
                     }`}
                   >
@@ -2507,6 +2439,8 @@ export default function AssignedActivities() {
                 {renderCalendar(activitiesToRender)}
               </CardContent>
             </Card>
+          ) : activeTab === 'help_requested' ? (
+            renderHelpRequestedTab()
           ) : activeTab === 'verification' ? (
             renderVerificationTab()
           ) : activeTab === 'activities' ? (
@@ -2560,12 +2494,6 @@ export default function AssignedActivities() {
                     </Button>
                   </div>
                 )}
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/70 px-4 py-3">
-                  <span className="text-sm font-semibold text-slate-600">{selectedActivityIds.length} selected</span>
-                  <Button variant="danger" size="xs" disabled={selectedActivityIds.length === 0} onClick={deleteSelectedActivities}>
-                    <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete selected
-                  </Button>
-                </div>
                 {(() => {
                   const filteredCount = activitiesToRender.filter(a => !selectedDate || a.due_date === selectedDate).length;
                   const totalActivitiesPages = Math.ceil(filteredCount / activitiesItemsPerPage);
@@ -2615,50 +2543,44 @@ export default function AssignedActivities() {
                   );
                 })()}
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm text-left">
+                  <table className="w-full min-w-[1100px] table-fixed text-sm text-left [&_td]:break-words [&_td]:whitespace-normal [&_th]:whitespace-normal">
+                    <colgroup><col className="w-20" /><col className="w-[18%]" /><col className="w-[24%]" /><col className="w-[12%]" /><col className="w-[10%]" /><col className="w-[12%]" /><col className="w-[10%]" /><col className="w-52" /></colgroup>
                     <thead className="text-xs text-slate-500 bg-slate-50 uppercase border-y border-slate-200">
                     <tr>
-                      <th className="w-12 px-4 py-3">
-                        <input
-                          type="checkbox"
-                          aria-label="Select all activities on this page"
-                          checked={visibleActivityRows.length > 0 && visibleActivityRows.every(activity => selectedActivityIds.includes(activity.id))}
-                          ref={element => {
-                            if (element) {
-                              const selectedOnPage = visibleActivityRows.filter(activity => selectedActivityIds.includes(activity.id)).length;
-                              element.indeterminate = selectedOnPage > 0 && selectedOnPage < visibleActivityRows.length;
-                            }
-                          }}
-                          onChange={event => {
-                            const pageIds = visibleActivityRows.map(activity => activity.id);
-                            setSelectedActivityIds(current => event.target.checked
-                              ? Array.from(new Set([...current, ...pageIds]))
-                              : current.filter(id => !pageIds.includes(id)));
-                          }}
-                          className="h-4 w-4 rounded border-slate-300 text-blue-600"
-                        />
-                      </th>
-                      <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSort('status')}>
-                        <div className="flex items-center gap-1.5">
-                          <span>Status</span>
-                          <SortIndicator config={activitiesSortConfig} columnKey="status" />
-                          <div className="group relative">
-                            <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
-                            <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial] font-normal normal-case">
-                              <div className="flex items-start gap-3">
-                                <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
-                                  <HelpCircle className="h-4 w-4 text-yellow-700" />
-                                </div>
-                                <span className="font-bold text-[15px] leading-tight text-slate-900 text-left">
-                                  Current status of the activity. Click the circle icon to mark as completed.
-                                </span>
-                              </div>
-                              <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
-                            </div>
-                          </div>
+                      <th className="w-20 px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            aria-label="Select all activities on this page"
+                            checked={visibleActivityRows.length > 0 && visibleActivityRows.every(activity => selectedActivityIds.includes(activity.id))}
+                            ref={element => {
+                              if (element) {
+                                const selectedOnPage = visibleActivityRows.filter(activity => selectedActivityIds.includes(activity.id)).length;
+                                element.indeterminate = selectedOnPage > 0 && selectedOnPage < visibleActivityRows.length;
+                              }
+                            }}
+                            onChange={event => {
+                              const pageIds = visibleActivityRows.map(activity => activity.id);
+                              setSelectedActivityIds(current => event.target.checked
+                                ? Array.from(new Set([...current, ...pageIds]))
+                                : current.filter(id => !pageIds.includes(id)));
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                          />
+                          <CustomTooltip content={selectedActivityIds.length ? `Delete ${selectedActivityIds.length} selected` : 'Select activities to delete'}>
+                            <button
+                              type="button"
+                              aria-label="Delete selected activities"
+                              disabled={selectedActivityIds.length === 0}
+                              onClick={deleteSelectedActivities}
+                              className="grid h-7 w-7 place-items-center rounded text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-35"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </CustomTooltip>
                         </div>
                       </th>
-                      <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSort('activity_type')}>
+                      <th className="px-3 py-2 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSort('activity_type')}>
                         <div className="flex items-center gap-1.5">
                           <span>Activity</span>
                           <SortIndicator config={activitiesSortConfig} columnKey="activity_type" />
@@ -2678,7 +2600,23 @@ export default function AssignedActivities() {
                           </div>
                         </div>
                       </th>
-                      <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSort('repeat_frequency')}>
+                      <th className="px-3 py-2 font-bold">
+                        <div className="flex items-center gap-1.5">
+                          <span>Description</span>
+                          <CustomTooltip content="A short explanation of what the learner will do in this activity.">
+                            <HelpCircle className="h-3.5 w-3.5 cursor-help text-brand-500 transition-colors hover:text-brand-600" />
+                          </CustomTooltip>
+                        </div>
+                      </th>
+                      <th className="px-3 py-2 font-bold whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <span>Reward Amount</span>
+                          <CustomTooltip content="The number of reward tokens the learner earns after successfully completing this activity.">
+                            <HelpCircle className="h-3.5 w-3.5 cursor-help text-brand-500 transition-colors hover:text-brand-600" />
+                          </CustomTooltip>
+                        </div>
+                      </th>
+                      <th className="px-3 py-2 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSort('repeat_frequency')}>
                         <div className="flex items-center gap-1.5">
                           <span>Repeat</span>
                           <SortIndicator config={activitiesSortConfig} columnKey="repeat_frequency" />
@@ -2698,9 +2636,9 @@ export default function AssignedActivities() {
                           </div>
                         </div>
                       </th>
-                      <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSort('due_date')}>
+                      <th className="px-3 py-2 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSort('due_date')}>
                         <div className="flex items-center gap-1.5">
-                          <span>Due Date</span>
+                          <span>Activity Date</span>
                           <SortIndicator config={activitiesSortConfig} columnKey="due_date" />
                           <div className="group relative">
                             <HelpCircle className="h-3.5 w-3.5 text-brand-500 cursor-help transition-colors hover:text-brand-600" />
@@ -2710,7 +2648,7 @@ export default function AssignedActivities() {
                                   <HelpCircle className="h-4 w-4 text-yellow-700" />
                                 </div>
                                 <span className="font-bold text-[15px] leading-tight text-slate-900 text-left">
-                                  The date for which this activity is assigned.
+                                  The date when this activity is available or planned for the learner.
                                 </span>
                               </div>
                               <div className="absolute right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
@@ -2718,7 +2656,7 @@ export default function AssignedActivities() {
                           </div>
                         </div>
                       </th>
-                      <th className="px-4 py-3 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSort('time_of_day')}>
+                      <th className="px-3 py-2 font-bold cursor-pointer hover:text-slate-700" onClick={() => handleSort('time_of_day')}>
                         <div className="flex items-center gap-1.5">
                           <span>Time of day</span>
                           <SortIndicator config={activitiesSortConfig} columnKey="time_of_day" />
@@ -2738,7 +2676,7 @@ export default function AssignedActivities() {
                           </div>
                         </div>
                       </th>
-                      <th className="px-4 py-3 font-bold text-right">
+                      <th className="px-3 py-2 font-bold text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <span>Actions</span>
                           <div className="group relative">
@@ -2765,7 +2703,7 @@ export default function AssignedActivities() {
                       {activeTab === 'activities' && (index === 0
                         || visibleActivityRows[index - 1]?.activity_meaning !== activity.activity_meaning) && (
                         <tr className={activity.activity_meaning === 'important_today' ? 'bg-amber-50' : 'bg-emerald-50'}>
-                          <td colSpan={7} className="px-4 py-3">
+                          <td colSpan={8} className="px-3 py-2">
                             <div className="font-black text-slate-900">
                               {activity.activity_meaning === 'important_today' ? '⭐ Do Today' : '🌱 Learner Can Choose'}
                             </div>
@@ -2790,25 +2728,6 @@ export default function AssignedActivities() {
                           />
                         </td>
                         <td className="px-4 py-3">
-                          <button 
-                            onClick={() => {
-                              if (activity.status !== 'completed') {
-                                toggleStatus(activity);
-                              }
-                            }}
-                            disabled={activity.status === 'completed'}
-                            className={`flex-shrink-0 rounded-full transition-colors ${
-                              activity.status === 'completed' ? 'text-emerald-500 cursor-default' : 'text-slate-300 hover:text-blue-500'
-                            }`}
-                          >
-                            {activity.status === 'completed' ? (
-                              <CheckCircle className="h-5 w-5" />
-                            ) : (
-                              <Circle className="h-5 w-5" />
-                            )}
-                          </button>
-                        </td>
-                        <td className="px-4 py-3">
                           <div className={`font-bold flex items-center gap-2 ${activity.status === 'completed' ? 'text-slate-500 line-through' : 'text-slate-900'}`}>
                             {activity.image_url && (
                               <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded border border-slate-200">
@@ -2822,14 +2741,12 @@ export default function AssignedActivities() {
                               </div>
                             )}
                           </div>
-                          {activity.description && (
-                            <div className="text-xs text-slate-500 line-clamp-1 mt-0.5">
-                              {activity.description}
-                            </div>
-                          )}
-                          <div className="mt-1 text-xs font-black text-emerald-700">
-                            +{Math.max(1, Number(activity.reward_qty) || 1)} {formatReward(kid?.reward_type, Math.max(1, Number(activity.reward_qty) || 1))}
-                          </div>
+                        </td>
+                        <td className="max-w-xs px-4 py-3 text-xs text-slate-600">
+                          <span className="line-clamp-2">{activity.description || '—'}</span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-xs font-black text-emerald-700">
+                          +{Math.max(1, Number(activity.reward_qty) || 1)} {formatReward(kid?.reward_type, Math.max(1, Number(activity.reward_qty) || 1))}
                         </td>
                         <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
                           {activity.repeat_frequency}
@@ -2842,6 +2759,17 @@ export default function AssignedActivities() {
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-1">
+                            <CustomTooltip content={activity.status === 'completed' ? 'Activity completed' : 'Mark activity complete'}>
+                              <button
+                                type="button"
+                                onClick={() => activity.status !== 'completed' && toggleStatus(activity)}
+                                disabled={activity.status === 'completed'}
+                                aria-label={activity.status === 'completed' ? 'Activity completed' : 'Mark activity complete'}
+                                className={`grid h-7 w-7 place-items-center rounded-full transition-colors ${activity.status === 'completed' ? 'cursor-default text-emerald-500' : 'text-slate-300 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                              >
+                                {activity.status === 'completed' ? <CheckCircle className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
+                              </button>
+                            </CustomTooltip>
                             <CustomTooltip content="View Activity Details">
                               <Button
                                 variant="ghost"
@@ -2864,19 +2792,6 @@ export default function AssignedActivities() {
                                 </Button>
                               </CustomTooltip>
                             )}
-                            <CustomTooltip content="Delete Activity">
-                              <button
-                                type="button"
-                                className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-red-50 group transition-all active:scale-95"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handleDelete(activity.id);
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4 text-slate-400 group-hover:text-red-500" />
-                              </button>
-                            </CustomTooltip>
                           </div>
                         </td>
                       </tr>

@@ -1,4 +1,4 @@
-import { CheckCircle, Circle, Sparkles, Edit2, ArrowLeft, Printer, Eye } from 'lucide-react';
+import { CheckCircle, Circle, Sparkles, Edit2, ArrowLeft, Printer, Eye, RotateCcw, Pause, Volume2 } from 'lucide-react';
 import { Button } from './Button';
 import { Card, CardHeader, CardTitle, CardContent } from './Card';
 import { useRef, useState, useEffect } from 'react';
@@ -10,10 +10,12 @@ import { formatAppDateTime } from '../utils/dateUtils';
 import { formatReward } from '../utils/rewardUtils';
 
 interface ActivityStep {
-  id?: number;
+  id?: number | string;
   step_number: number;
   description: string;
   image_url?: string;
+  is_completed?: boolean;
+  completed_at?: string | null;
 }
 
 interface Activity {
@@ -43,20 +45,40 @@ export function ActivityDetailModal({
   activity, 
   onClose, 
   onToggleStatus, 
+  onRequestHelp,
+  onToggleStep,
+  helpRequested = false,
+  parentComing = false,
+  isRequestingHelp = false,
   onEdit,
   isReadOnly = false, 
   canPrint = true,
   showToggleOnly = false,
   timezone,
   includeAssignmentContext = false,
-  rewardType = 'reward'
+  rewardType = 'reward',
+  helpCommunicationMethod = 'spoken',
+  helpPromptText = 'Help please',
+  helpPromptAudioUrl,
+  helpSignImageUrl,
+  helpCardImageUrl
 }: {
   activity: Activity | null;
   onClose: () => void;
   onToggleStatus?: (activity: Activity) => void;
+  onRequestHelp?: (activity: Activity) => void;
+  onToggleStep?: (activity: Activity, step: ActivityStep, isCompleted: boolean) => void;
+  helpRequested?: boolean;
+  parentComing?: boolean;
+  isRequestingHelp?: boolean;
   onEdit?: (activity: Activity) => void;
   isReadOnly?: boolean;
   rewardType?: string;
+  helpCommunicationMethod?: 'spoken' | 'sign' | 'card';
+  helpPromptText?: string;
+  helpPromptAudioUrl?: string;
+  helpSignImageUrl?: string;
+  helpCardImageUrl?: string;
   canPrint?: boolean;
   showToggleOnly?: boolean;
   timezone?: string;
@@ -214,14 +236,45 @@ export function ActivityDetailModal({
   
   return (
     <div className="w-full" ref={printRef}>
-      <div className="flex items-center gap-3 no-print mb-4">
-        <Button data-guest-tour="child-activity-close" variant="ghost" size="xs" onClick={onClose} className="pl-0 h-7 hover:bg-transparent hover:text-blue-600 text-[12px] font-bold uppercase">
-          <ArrowLeft className="mr-1 h-3 w-3" />
-          Back to List
-        </Button>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900 leading-none">
-          View Activity Details
-        </h1>
+      <div className="mb-4 flex flex-col gap-3 no-print sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <Button data-guest-tour="child-activity-close" variant="ghost" size="xs" onClick={onClose} className="mb-2 h-7 pl-0 text-[12px] font-bold uppercase transition-colors hover:bg-transparent hover:text-blue-600">
+            <ArrowLeft className="mr-1 h-3 w-3" />
+            Back to List
+          </Button>
+          <h1 className="text-xl font-bold tracking-tight text-slate-900 leading-none">
+            View Activity Details
+          </h1>
+        </div>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {hasImages && canPrint && (
+            <label className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 no-print">
+              <input
+                type="checkbox"
+                checked={includeImages}
+                onChange={(e) => setIncludeImages(e.target.checked)}
+                className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="text-[10px] font-bold uppercase text-slate-500">Include Images</span>
+            </label>
+          )}
+          {canPrint && (
+            <Tooltip content="Print activity details">
+              <Button variant="outline" size="xs" className="h-8 text-[12px]" onClick={handlePrint}>
+                <Printer className="mr-1.5 h-3.5 w-3.5" />
+                Print
+              </Button>
+            </Tooltip>
+          )}
+          {!isReadOnly && onEdit && (
+            <Tooltip content="Edit activity">
+              <Button variant="outline" size="xs" className="h-8 text-[12px]" onClick={() => onEdit(activity)}>
+                <Edit2 className="mr-1.5 h-3.5 w-3.5" />
+                Edit
+              </Button>
+            </Tooltip>
+          )}
+        </div>
       </div>
 
       {showPraise && (
@@ -241,9 +294,9 @@ export function ActivityDetailModal({
       )}
 
       <Card className="border-blue-200 bg-blue-50/50 shadow-sm print:shadow-none print:border-none print:bg-transparent">
-        <CardHeader className="flex flex-row items-center justify-between py-2 px-4 space-y-0 border-b border-blue-100/50 print:hidden">
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 py-2 px-4 space-y-0 border-b border-blue-100/50 print:hidden">
           <div className="flex items-center gap-3">
-            {!isReadOnly && onToggleStatus && showToggleOnly && (
+            {!isReadOnly && onToggleStatus && !showToggleOnly && (
               <button
                 data-guest-tour="child-mark-finished"
                 onClick={handleToggle}
@@ -266,47 +319,61 @@ export function ActivityDetailModal({
               )}
             </CardTitle>
           </div>
-          <div className="flex items-center gap-3 no-print">
-            {hasImages && canPrint && (
-              <label className="flex items-center gap-2 cursor-pointer mr-2 no-print">
-                <input 
-                  type="checkbox" 
-                  checked={includeImages} 
-                  onChange={(e) => setIncludeImages(e.target.checked)}
-                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-3.5 w-3.5"
-                />
-                <span className="text-[10px] font-bold text-slate-500 uppercase">Include Images</span>
-              </label>
-            )}
-            {canPrint && (
-              <Tooltip content="Print activity details">
-                <Button
-                  variant="outline"
-                  size="xs"
-                  className="h-7 text-[12px]"
-                  onClick={handlePrint}
-                >
-                  <Printer className="mr-1.5 h-3.5 w-3.5" />
-                  Print
-                </Button>
-              </Tooltip>
-            )}
-            {!isReadOnly && onEdit && (
-              <Tooltip content="Edit activity">
-                <Button
-                  variant="outline"
-                  size="xs"
-                  className="h-7 text-[12px]"
-                  onClick={() => onEdit(activity)}
-                >
-                  <Edit2 className="mr-1.5 h-3.5 w-3.5" />
-                  Edit
-                </Button>
-              </Tooltip>
-            )}
-          </div>
+          {!isReadOnly && onToggleStatus && showToggleOnly && (
+            <div className="flex flex-wrap items-center justify-end gap-2 no-print">
+              {!helpRequested && !parentComing && (
+                <div role="note" aria-label="How to ask for help" className="flex min-h-10 items-center gap-2 rounded-xl border-2 border-sky-300 bg-white px-3 py-1.5 text-sky-900 shadow-sm">
+                  {(helpCommunicationMethod === 'sign' && helpSignImageUrl) || (helpCommunicationMethod === 'card' && helpCardImageUrl) ? (
+                    <img src={helpCommunicationMethod === 'sign' ? helpSignImageUrl : helpCardImageUrl} alt={helpCommunicationMethod === 'sign' ? 'Help sign' : 'Help card'} className="h-14 w-16 rounded-md bg-white object-contain" />
+                  ) : <span className="text-2xl" aria-hidden="true">{helpCommunicationMethod === 'sign' ? '🤟' : helpCommunicationMethod === 'card' ? '🆘' : '🗣️'}</span>}
+                  <span className="text-left leading-tight"><span className="block text-[10px] font-black uppercase tracking-wide text-sky-600">Need help?</span>{helpCommunicationMethod === 'spoken' ? <span className="block"><span className="text-[10px] font-black uppercase text-slate-500">Say</span><span className="ml-1 text-sm font-black">“{helpPromptText}”</span></span> : <span className="block text-xs font-black">{helpCommunicationMethod === 'sign' ? 'Use your help sign' : 'Show your help card'}</span>}</span>
+                  {helpCommunicationMethod === 'spoken' && helpPromptAudioUrl && (
+                    <button type="button" onClick={() => void new Audio(helpPromptAudioUrl).play()} className="ml-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white shadow-sm" aria-label={`Play: ${helpPromptText}`}><Volume2 className="h-5 w-5" /></button>
+                  )}
+                </div>
+              )}
+              <button
+                data-guest-tour="child-mark-finished"
+                onClick={handleToggle}
+                disabled={activity.status === 'completed' || showPraise}
+                className="flex h-8 items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 text-[11px] font-black uppercase tracking-wider text-white shadow-sm transition-all hover:bg-blue-700 active:scale-[0.98]"
+              >
+                <CheckCircle className="h-4 w-4" />
+                Mark as Finished
+              </button>
+            </div>
+          )}
         </CardHeader>
         <CardContent className="px-4 py-4 space-y-4">
+          {(helpRequested || parentComing) && (
+            <div role="status" aria-live="polite" className="w-full rounded-xl border-2 border-sky-300 bg-sky-50 px-4 py-4 no-print">
+              <div className="mx-auto grid max-w-2xl grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-2 text-center">
+                <div className="rounded-xl bg-white p-3 shadow-sm ring-1 ring-sky-200">
+                  <div aria-hidden="true" className="text-4xl">🙋</div>
+                  <p className="mt-1 text-sm font-black text-sky-900">HELP</p>
+                </div>
+                <span aria-hidden="true" className="text-2xl font-black text-sky-500">→</span>
+                <div className="rounded-xl bg-white p-3 shadow-sm ring-2 ring-emerald-300">
+                  <div aria-hidden="true" className="text-4xl">🧑‍🧒</div>
+                  <p className="mt-1 text-sm font-black text-emerald-800">COMING</p>
+                </div>
+                <span aria-hidden="true" className="text-2xl font-black text-sky-500">→</span>
+                <div className="rounded-xl bg-white p-3 shadow-sm ring-1 ring-amber-200">
+                  <div aria-hidden="true" className="text-4xl">🎁</div>
+                  <p className="mt-1 text-sm font-black text-amber-800">REWARD STAYS</p>
+                </div>
+              </div>
+              <p className="mt-3 text-center text-base font-black text-sky-900">{parentComing ? 'Parent is coming.' : 'You asked for help. Help is coming.'}</p>
+              <div className="mt-3 flex flex-wrap justify-center gap-3">
+                <button type="button" onClick={onClose} className="flex min-h-12 items-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-black uppercase tracking-wide text-white shadow-sm">
+                  <RotateCcw className="h-6 w-6" aria-hidden="true" /> Try again
+                </button>
+                <button type="button" onClick={onClose} className="flex min-h-12 items-center gap-2 rounded-xl border-2 border-sky-300 bg-white px-5 text-sm font-black uppercase tracking-wide text-sky-900">
+                  <Pause className="h-6 w-6" aria-hidden="true" /> Take a break
+                </button>
+              </div>
+            </div>
+          )}
           <div className={`grid gap-4 ${activity.image_url ? 'md:grid-cols-2' : ''}`}>
             {activity.image_url && (
               <div className="overflow-hidden rounded-xl border border-blue-100 bg-white print:bg-transparent print-image">
@@ -393,16 +460,20 @@ export function ActivityDetailModal({
               <h3 className="text-[12px] font-bold text-slate-500 uppercase tracking-widest">Steps</h3>
               <div className="grid gap-3 sm:grid-cols-2 print:grid-cols-1">
                 {activity.steps.map((step, index) => (
-                  <div key={index} className="flex gap-3 print:gap-2 items-start print:items-center rounded-xl border border-blue-100 bg-white p-3 shadow-sm print:shadow-none print:break-inside-avoid print:border-0 print:bg-transparent print:p-2">
+                  <div key={step.id || index} className={`flex gap-3 print:gap-2 items-start print:items-center rounded-xl border p-3 shadow-sm transition-colors print:shadow-none print:break-inside-avoid print:border-0 print:bg-transparent print:p-2 ${step.is_completed ? 'border-emerald-200 bg-emerald-50/70' : 'border-blue-100 bg-white'}`}>
                     <div className="hidden print:!flex items-center gap-2 flex-shrink-0">
                       <div className="h-4 w-4 border border-slate-400 rounded-sm bg-white"></div>
                       <span className="text-sm font-bold text-slate-900">{index + 1}.</span>
                     </div>
-                    <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[10px] font-black text-blue-600 print:hidden">
-                      {index + 1}
-                    </span>
+                    {!isReadOnly && onToggleStep && activity.status === 'pending' ? (
+                      <button type="button" onClick={() => onToggleStep(activity, step, !step.is_completed)} disabled={!step.id} aria-label={`${step.is_completed ? 'Mark incomplete' : 'Mark complete'}: step ${index + 1}`} aria-pressed={step.is_completed === true} className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border-2 transition print:hidden ${step.is_completed ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-blue-300 bg-white text-blue-700 hover:border-blue-500'}`}>
+                        {step.is_completed ? <CheckCircle className="h-4 w-4" /> : <span className="text-[10px] font-black">{index + 1}</span>}
+                      </button>
+                    ) : (
+                      <span className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg text-[10px] font-black text-white print:hidden ${step.is_completed ? 'bg-emerald-500' : 'bg-blue-600'}`}>{step.is_completed ? <CheckCircle className="h-4 w-4" /> : index + 1}</span>
+                    )}
                     <div className="flex-1">
-                      <p className="text-[13px] text-slate-800 font-bold leading-snug">{step.description}</p>
+                      <p className={`text-[13px] font-bold leading-snug ${step.is_completed ? 'text-emerald-800' : 'text-slate-800'}`}>{step.description}</p>
                       {step.image_url && (
                         <div className="mt-2 rounded-lg overflow-hidden border border-blue-50 print-image">
                           <img src={step.image_url} alt={`Step ${index + 1}`} className="max-h-32 w-full bg-slate-50 object-contain p-1" />
@@ -418,6 +489,7 @@ export function ActivityDetailModal({
           {!isReadOnly && onToggleStatus && (
             <div className="pt-4 border-t border-blue-100/50 flex flex-col items-center gap-3 no-print">
               {!showToggleOnly ? (
+                <div className="w-full">
                 <button data-guest-tour="child-mark-finished"
                   onClick={handleToggle}
                   disabled={activity.status === 'completed' || showPraise}
@@ -438,6 +510,7 @@ export function ActivityDetailModal({
                     {activity.status === 'completed' ? 'Activity Completed!' : 'Mark as Finished'}
                   </span>
                 </button>
+                </div>
               ) : null}
             </div>
           )}

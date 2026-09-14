@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   TrendingUp, 
   Activity, 
@@ -54,6 +54,7 @@ interface Kid {
   id: string;
   name: string;
   reward_type?: string;
+  reward_icon?: string;
   reward_balance?: number;
   timezone?: string;
 }
@@ -91,6 +92,8 @@ interface GameResult {
 export default function ProgressReport() {
   const { kidId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const reportView = searchParams.get('view');
   
   const [kid, setKid] = useState<Kid | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -100,6 +103,7 @@ export default function ProgressReport() {
   const [quizResults, setQuizResults] = useState<QuizResult[]>([]);
   const [gameResults, setGameResults] = useState<GameResult[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
   const [viewingQuizResult, setViewingQuizResult] = useState<QuizResult | null>(null);
   const [deletingQuizId, setDeletingQuizId] = useState<string | null>(null);
   
@@ -534,7 +538,7 @@ export default function ProgressReport() {
   }
 
   return (
-    <div className="space-y-3 w-full">
+    <div className={`space-y-3 w-full ${reportView === 'quiz-results' ? 'report-quiz-results-only' : reportView === 'game-results' ? 'report-game-results-only' : ''}`}>
       <div className="mb-6">
         <button onClick={() => navigate('/dashboard')} className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1 mb-2 transition-colors">
           <ArrowLeft className="h-4 w-4" /> Back to Dashboard
@@ -742,13 +746,13 @@ export default function ProgressReport() {
         </CardContent>
       </Card>
 
-      <Card className="border-none ring-1 ring-slate-200 shadow-sm overflow-hidden">
+      <Card id="game-results" className="scroll-mt-32 border-none ring-1 ring-slate-200 shadow-sm overflow-hidden">
         <CardHeader className="bg-slate-50/50 border-b border-slate-100 p-6"><CardTitle className="text-lg font-bold flex items-center gap-2"><Sparkles className="text-blue-600 h-5 w-5"/>Game Scores ({filteredGames.length} questions)</CardTitle><p className="mt-2 text-sm text-slate-500">Scores are grouped by game and difficulty level without storing the questions or answers.</p></CardHeader>
         <CardContent className="p-0"><div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-slate-50 text-[10px] uppercase tracking-widest text-slate-500"><tr><th className="px-6 py-4 text-left">Game</th><th className="px-6 py-4 text-center">Level</th><th className="px-6 py-4 text-center">Score</th><th className="px-6 py-4 text-center">Accuracy</th><th className="px-6 py-4 text-right">Last played</th></tr></thead><tbody className="divide-y divide-slate-100">{gameSummary.length ? gameSummary.map(result => <tr key={`${result.key}-${result.level}`}><td className="px-6 py-4 font-bold text-slate-900">{gameNames[result.key] || result.key}</td><td className="px-6 py-4 text-center">{result.level}</td><td className="px-6 py-4 text-center font-bold">{result.correct} / {result.attempts}</td><td className="px-6 py-4 text-center font-black text-blue-700">{Math.round(result.correct / result.attempts * 100)}%</td><td className="px-6 py-4 text-right text-slate-500">{formatSimpleDate(result.latest)}</td></tr>) : <tr><td colSpan={5} className="px-6 py-10 text-center italic text-slate-400">No game scores for this period.</td></tr>}</tbody></table></div></CardContent>
       </Card>
 
       {/* Quiz Results History Table */}
-      <Card className="border-none ring-1 ring-slate-200 shadow-sm overflow-hidden">
+      <Card id="quiz-results" className="scroll-mt-32 border-none ring-1 ring-slate-200 shadow-sm overflow-hidden">
         <CardHeader className="bg-slate-50/50 border-b border-slate-100 p-6 flex flex-row items-center justify-between">
           <CardTitle className="text-lg font-bold flex items-center gap-2">
             <TrendingUp className="text-brand-600 h-5 w-5" />

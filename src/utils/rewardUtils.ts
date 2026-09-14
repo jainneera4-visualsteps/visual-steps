@@ -6,12 +6,20 @@ export const rewardImages: Record<string, string> = {
   'Star': 'https://cdn-icons-png.flaticon.com/512/1828/1828884.png',
   'Point': 'https://cdn-icons-png.flaticon.com/512/1170/1170611.png',
   'Sticker': 'https://cdn-icons-png.flaticon.com/512/4359/4359922.png',
+  'Coin': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ctext x="50%" y="50%" dominant-baseline="central" text-anchor="middle" font-size="80"%3E%F0%9F%AA%99%3C/text%3E%3C/svg%3E',
   'Dollar': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ctext x="50%" y="50%" dominant-baseline="central" text-anchor="middle" font-size="80"%3E%F0%9F%92%B5%3C/text%3E%3C/svg%3E',
   'Coffee': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ctext x="50%" y="50%" dominant-baseline="central" text-anchor="middle" font-size="80"%3E%E2%98%95%3C/text%3E%3C/svg%3E',
   'Drink': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ctext x="50%" y="50%" dominant-baseline="central" text-anchor="middle" font-size="80"%3E%F0%9F%8D%B9%3C/text%3E%3C/svg%3E',
   'Ticket': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ctext x="50%" y="50%" dominant-baseline="central" text-anchor="middle" font-size="80"%3E%F0%9F%8E%9F%EF%B8%8F%3C/text%3E%3C/svg%3E',
   'Hour': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ctext x="50%" y="50%" dominant-baseline="central" text-anchor="middle" font-size="80"%3E%E2%8C%9B%3C/text%3E%3C/svg%3E',
   'Credit': 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ctext x="50%" y="50%" dominant-baseline="central" text-anchor="middle" font-size="80"%3E%F0%9F%92%B3%3C/text%3E%3C/svg%3E'
+};
+
+export const getRewardIcon = (type?: string, customIcon?: string): string => {
+  if (type && rewardImages[type]) return rewardImages[type];
+  if (customIcon && (/^https?:\/\//i.test(customIcon) || customIcon.startsWith('data:image/'))) return customIcon;
+  const icon = String(customIcon || '🎁').trim().slice(0, 8) || '🎁';
+  return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text x="50%" y="50%" dominant-baseline="central" text-anchor="middle" font-size="76">${icon}</text></svg>`)}`;
 };
 
 export const formatReward = (type: string | undefined, count: number): string => {
@@ -26,6 +34,7 @@ export const formatReward = (type: string | undefined, count: number): string =>
     'Star': 'Stars',
     'Point': 'Points',
     'Sticker': 'Stickers',
+    'Coin': 'Coins',
     'Dollar': 'Dollars',
     'Coffee': 'Coffees',
     'Drink': 'Drinks',

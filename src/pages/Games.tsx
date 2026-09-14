@@ -25,6 +25,15 @@ export default function Games() {
   const [companion, setCompanion] = useState('robot');
   const [saving, setSaving] = useState(false); const [notice, setNotice] = useState('');
 
+  useEffect(() => {
+    const handleLearnerChange = (event: Event) => {
+      const nextKidId = (event as CustomEvent<string>).detail;
+      if (nextKidId) setKidId(nextKidId);
+    };
+    window.addEventListener('visual-steps:selected-kid', handleLearnerChange);
+    return () => window.removeEventListener('visual-steps:selected-kid', handleLearnerChange);
+  }, []);
+
   useEffect(() => { apiFetch('/api/kids').then(async response => { const data = await safeJson(response); if (!response.ok) return; const rows = Array.isArray(data) ? data : data.kids || []; setKids(rows); const selected = rows.find((kid: Kid) => kid.id === kidId) || rows[0]; if (selected) { setKidId(selected.id); setCompanion(selected.game_companion || 'robot'); } }).catch(() => undefined); }, []);
   useEffect(() => { const selected = kids.find(kid => kid.id === kidId); if (selected) setCompanion(selected.game_companion || 'robot'); }, [kidId, kids]);
 

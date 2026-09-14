@@ -8,7 +8,7 @@ import { Pagination } from '../components/Pagination';
 import { formatInTimezone } from '../utils/dateUtils';
 import { formatReward } from '../utils/rewardUtils';
 
-interface Kid { name: string; timezone?: string; reward_type?: string; reward_balance?: number }
+interface Kid { name: string; timezone?: string; reward_type?: string; reward_icon?: string; reward_balance?: number }
 interface Assigned { id: string; activity_type: string; category?: string; description?: string; status: string; completion_date?: string; created_at?: string; reward_qty?: number; attempt_generation?: number; repeat_count?: number }
 interface Quiz { id: string; score: number; total_questions: number; completed_at: string; quizzes?: { title?: string } }
 interface Purchase { id: string; item_name: string; cost: number; purchased_at: string; location?: string }

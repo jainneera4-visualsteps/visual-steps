@@ -72,7 +72,16 @@ export default function ActivityLibrary() {
   const [view, setView] = useState<'library' | 'create' | 'edit'>('library');
   const [isUploading, setIsUploading] = useState(false);
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
-  const [selectedKidForSuggestions, setSelectedKidForSuggestions] = useState<string>('');
+  const [selectedKidForSuggestions, setSelectedKidForSuggestions] = useState<string>(() => localStorage.getItem('dashboard_selected_kid_id') || '');
+
+  useEffect(() => {
+    const handleLearnerChange = (event: Event) => {
+      const nextKidId = (event as CustomEvent<string>).detail;
+      if (nextKidId) setSelectedKidForSuggestions(nextKidId);
+    };
+    window.addEventListener('visual-steps:selected-kid', handleLearnerChange);
+    return () => window.removeEventListener('visual-steps:selected-kid', handleLearnerChange);
+  }, []);
   const [aiSuggestions, setAiSuggestions] = useState<any[]>([]);
   const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false);
   const [predefinedType, setPredefinedType] = useState<string>('');

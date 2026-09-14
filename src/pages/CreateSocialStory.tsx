@@ -35,7 +35,16 @@ export default function CreateSocialStory() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [prompt, setPrompt] = useState('');
-  const [selectedKidId, setSelectedKidId] = useState('');
+  const [selectedKidId, setSelectedKidId] = useState(() => localStorage.getItem('dashboard_selected_kid_id') || '');
+
+  useEffect(() => {
+    const handleLearnerChange = (event: Event) => {
+      const nextKidId = (event as CustomEvent<string>).detail;
+      if (nextKidId) setSelectedKidId(nextKidId);
+    };
+    window.addEventListener('visual-steps:selected-kid', handleLearnerChange);
+    return () => window.removeEventListener('visual-steps:selected-kid', handleLearnerChange);
+  }, []);
   const [, setKidStrengths] = useState('');
   const [, setKidWeaknesses] = useState('');
   const [, setKidHobbies] = useState('');

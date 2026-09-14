@@ -15,6 +15,31 @@
     "introducedOn": "2026-03-01",
     "updates": [
       {
+        "updatedOn": "2026-09-12",
+        "title": "A clearer parent workspace as Visual Steps grows",
+        "summary": "Stable parent navigation groups related tools without turning every new feature into another top-level menu.",
+        "details": "The parent header now uses six stable areas: Dashboard, Activities, Learning, Communication, Progress, and Support, while administrator tools remain separate. A slim second row shows only the choices related to the selected area, such as quizzes and games under Learning or reports under Progress. Learner cards use the same hierarchy through compact workspace choices and a shorter identity header, allowing useful content to begin higher on the screen. Existing pages, saved information, and workflows keep their established destinations and behavior.",
+        "familyImpact": "Parents can build a mental map of the application and find a growing set of tools without scanning one increasingly crowded menu. Related options remain close together, attention items stay noticeable, and Visual Steps retains its warm colors and friendly presentation.",
+        "guideParagraphs": [
+          "Begin with the broad area that matches what you want to do. Activities contains current work and items needing attention, Learning contains quizzes, worksheets, social stories, and games, Communication contains messages and family contact options, and Progress contains completed work and reports.",
+          "The second navigation row changes with the selected area, so it does not present every possible destination at once. Direct links and existing workflows remain available, while the compact learner identity and workspace controls leave more room for the task the parent selected."
+        ],
+        "help": "Use the main parent navigation to select an area, then use the smaller row beneath it to open the specific tool. On the dashboard, select a learner and use the workspace choices directly beneath that learner's profile header."
+      },
+      {
+        "updatedOn": "2026-09-12",
+        "title": "A calm way to ask for help",
+        "summary": "Learners see a familiar picture-led prompt for asking a nearby parent or caregiver for help.",
+        "details": "The learner may check each visual step as it is completed. Progress saves immediately and remains available after a break, reload, or return to the activity. Step checks are supportive rather than compulsory: Mark as Finished remains available without changing unchecked steps, so parents see the learner’s actual step progress during review. The profile records whether the learner asks for help with spoken words, a familiar sign or gesture, or a help picture card. For spoken communication, the parent saves the exact displayed words and records the same phrase for the learner to play. For sign or card communication, the parent uploads the familiar image used at home. Activity details display that method as a compact visual prompt instead of requiring a digital help-request workflow.",
+        "familyImpact": "The prompt reinforces the communication method the family already practices and assumes a parent or caregiver is nearby. It does not ask the learner to understand notifications, explain the problem in a form, or wait for a remote response. Asking for support never reduces the activity reward.",
+        "guideParagraphs": [
+          "Each completed visual step receives a clear checkmark. Taking a break does not erase those checks, while a new repeated or reassigned occurrence begins with fresh unchecked steps.",
+          "The help prompt is a communication cue, not a failure state. The activity stays visible and its full configured reward remains available through the ordinary completion or verification flow.",
+          "Choose Spoken words, Sign or gesture, or Help card in the learner profile. Record and enter the spoken phrase, upload the learner’s familiar sign image, or upload their PECS/help card. The activity screen then repeats that same familiar cue whenever help may be needed."
+        ],
+        "help": "Open the learner profile and choose how the learner asks for help. On activity details, the learner sees a picture and a short cue to say Help please, use their familiar help sign, or show their help card."
+      },
+      {
         "updatedOn": "2026-09-11",
         "title": "A compact activity form that keeps the essentials in view",
         "summary": "Activity meaning, rewards, verification, timing, and repetition remain visible in compact rows without large settings panels.",
@@ -47,7 +72,7 @@
           "Section colors continue to communicate Coming Up, Do Today, Pick an Activity, and Later Today consistently. Theme details decorate these sections without changing their meaning or forcing an order.",
           "In Rewards, each goal shows how many rewards are still needed and a progress bar makes movement toward it visible. A slow glow adds encouragement without rapid blinking, and device reduced-motion preferences are respected."
         ],
-        "help": "Open the child / adult profile, find Dashboard Theme, select a theme and Theme companion preference, then save. The learner dashboard applies the choice automatically."
+        "help": "Open the child / adult profile and use the compact Personalize the learner's experience section. Choose any established Reward name from the list, or choose Custom name, enter the family's wording, and upload a custom icon. Then choose a Favorite world and Friendly helper style, review the live preview, and save. The learner dashboard applies the choices automatically."
       },
       {
         "updatedOn": "2026-09-11",

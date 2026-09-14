@@ -3,15 +3,16 @@ import { apiFetch, safeJson } from '../utils/api';
 import { formatAppDate } from '../utils/dateUtils';
 import { io } from 'socket.io-client';
 import { formatReward, rewardImages } from '../utils/rewardUtils';
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import { Select } from '../components/Select';
-import { Plus, User, Loader2, ArrowLeft, ArrowRight, CheckCircle2, Edit2, Eye, Send, HelpCircle, Trash2 } from 'lucide-react';
+import { Plus, User, Loader2, ArrowLeft, ArrowRight, CheckCircle2, Edit2, Eye, Send, HelpCircle, Trash2, Smile } from 'lucide-react';
 import { ParentOnboarding } from '../components/ParentOnboarding';
 import { useAuth } from '../context/AuthContext';
 import { isGuestSession } from '../guest/guestSession';
+import EmojiPicker, { type EmojiClickData } from 'emoji-picker-react';
 
 interface Kid {
   id: string;
@@ -26,6 +27,7 @@ interface Kid {
   avatar: string;
   reward_balance: number;
   reward_type: string;
+  reward_icon?: string;
   parent_message?: string;
   timezone?: string;
 }
@@ -39,10 +41,13 @@ interface ParentMessageRecord {
 
 export default function Dashboard() {
   const { user, refreshProfile } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [kids, setKids] = useState<Kid[]>([]);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [activityCount, setActivityCount] = useState<number | null>(null);
+  const [needsAttentionCount, setNeedsAttentionCount] = useState(0);
+  const [attentionRefreshKey, setAttentionRefreshKey] = useState(0);
   const [quickStartDismissed, setQuickStartDismissed] = useState(false);
   const safeLocalStorageSet = (key: string, value: string) => {
     try {
@@ -94,6 +99,32 @@ export default function Dashboard() {
   });
   const [parentMessage, setParentMessage] = useState<string>('');
   const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+  const emojiButtonRef = useRef<HTMLButtonElement | null>(null);
+  const [emojiPickerPosition, setEmojiPickerPosition] = useState({ top: 0, left: 0 });
+
+  const positionEmojiPicker = () => {
+    const button = emojiButtonRef.current;
+    if (!button) return;
+    const bounds = button.getBoundingClientRect();
+    const pickerWidth = Math.min(350, window.innerWidth - 16);
+    const pickerHeight = Math.min(420, window.innerHeight - 16);
+    const left = Math.max(8, Math.min(bounds.right - pickerWidth, window.innerWidth - pickerWidth - 8));
+    const below = bounds.bottom + 8;
+    const top = below + pickerHeight <= window.innerHeight ? below : Math.max(8, bounds.top - pickerHeight - 8);
+    setEmojiPickerPosition({ top, left });
+  };
+
+  useEffect(() => {
+    if (!isEmojiPickerOpen) return;
+    positionEmojiPicker();
+    window.addEventListener('resize', positionEmojiPicker);
+    window.addEventListener('scroll', positionEmojiPicker, true);
+    return () => {
+      window.removeEventListener('resize', positionEmojiPicker);
+      window.removeEventListener('scroll', positionEmojiPicker, true);
+    };
+  }, [isEmojiPickerOpen]);
   const [messagesByKid, setMessagesByKid] = useState<Record<string, ParentMessageRecord[]>>({});
   const [isMessagesLoadingByKid, setIsMessagesLoadingByKid] = useState<Record<string, boolean>>({});
   const [selectedMessageIdsByKid, setSelectedMessageIdsByKid] = useState<Record<string, string[]>>({});
@@ -136,7 +167,20 @@ export default function Dashboard() {
     if (dashboardSelectedKidId) {
       safeLocalStorageSet('dashboard_selected_kid_id', dashboardSelectedKidId);
     }
-  }, [dashboardSelectedKidId]);
+  }, [dashboardSelectedKidId, attentionRefreshKey]);
+
+  useEffect(() => {
+    const handleHeaderSelection = (event: Event) => {
+      const kidId = (event as CustomEvent<string>).detail;
+      if (kidId) setDashboardSelectedKidId(kidId);
+    };
+    window.addEventListener('visual-steps:selected-kid', handleHeaderSelection);
+    return () => window.removeEventListener('visual-steps:selected-kid', handleHeaderSelection);
+  }, []);
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('tour') === '1') setShowOnboarding(true);
+  }, []);
 
 
 
@@ -212,6 +256,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!dashboardSelectedKidId || isGuestSession()) {
       setActivityCount(null);
+      setNeedsAttentionCount(0);
       return;
     }
     let cancelled = false;
@@ -222,6 +267,11 @@ export default function Dashboard() {
         if (cancelled) return;
         const activities = Array.isArray(data) ? data : data?.activities || [];
         setActivityCount(Array.isArray(activities) ? activities.length : 0);
+        const verificationCount = Array.isArray(activities)
+          ? activities.filter((activity: any) => activity.status === 'awaiting_verification').length
+          : 0;
+        const helpCount = Array.isArray(data?.helpRequests) ? data.helpRequests.length : 0;
+        setNeedsAttentionCount(verificationCount + helpCount);
       })
       .catch(error => {
         if (!cancelled) console.error('Dashboard: failed to load Quick Start progress', error);
@@ -264,6 +314,7 @@ export default function Dashboard() {
 
         if (data?.kidId) {
           fetchMessagesForKid(data.kidId);
+          if (data.kidId === dashboardSelectedKidId) setAttentionRefreshKey(key => key + 1);
         }
       }
     });
@@ -274,7 +325,7 @@ export default function Dashboard() {
       });
       socket.disconnect();
     };
-  }, [kids.map(k => k.id).join(',')]);
+  }, [kids.map(k => k.id).join(','), dashboardSelectedKidId]);
 
   const handleShowBuyGrid = async (kid: Kid) => {
     setSelectedKid(kid);
@@ -291,6 +342,17 @@ export default function Dashboard() {
       console.error('Failed to fetch reward items:', err);
     }
   };
+
+  useEffect(() => {
+    if (searchParams.get('shop') !== '1') {
+      if (showBuyGrid) setShowBuyGrid(false);
+      return;
+    }
+    if (kids.length === 0 || !dashboardSelectedKidId) return;
+    const selected = kids.find(kid => kid.id === dashboardSelectedKidId);
+    if (!selected || (showBuyGrid && selectedKid?.id === selected.id)) return;
+    void handleShowBuyGrid(selected);
+  }, [searchParams, kids, dashboardSelectedKidId, showBuyGrid, selectedKid?.id]);
 
   const handleBuyReward = async (item: any) => {
     if (!selectedKid) return;
@@ -446,43 +508,47 @@ export default function Dashboard() {
       const filteredItems = rewardItems.filter(item => (item.location || 'General') === selectedLocation);
       
       return (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="flex items-center justify-between">
-            <Button variant="ghost" onClick={() => setShowBuyGrid(false)}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
+        <div className="space-y-4 animate-in fade-in duration-300">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="xs" onClick={() => setSearchParams(current => { const next = new URLSearchParams(current); next.delete('shop'); return next; }, { replace: true })} className="h-7 pl-0 text-[12px] font-bold uppercase hover:bg-transparent hover:text-blue-600">
+              <ArrowLeft className="mr-1 h-3 w-3" />
               Back to Dashboard
             </Button>
+            <h1 className="text-xl font-bold leading-none tracking-tight text-slate-900">Reward Shop</h1>
+          </div>
 
-            <div className="flex items-center gap-4">
+          <Card className="border-blue-200 bg-blue-50/50 shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-blue-100 bg-white/50 px-4 py-2">
+              <CardTitle className="text-base font-bold">Buy Rewards for {selectedKid.name}</CardTitle>
+              <div className="flex items-center gap-3">
               {locations.length > 0 && (
                 <select
                   value={selectedLocation}
                   onChange={(e) => setSelectedLocation(e.target.value)}
-                  className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  className="h-8 rounded-lg border border-slate-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   {locations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
                 </select>
               )}
 
-              <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-full border border-blue-100">
-                <span className="text-sm font-medium text-blue-900">
-                  {selectedKid.name}'s Balance:
-                </span>
-                <span className="text-lg font-bold text-blue-600">
+              <div className="flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-1.5">
+                <span className="text-xs font-medium text-blue-900">Balance:</span>
+                <span className="text-sm font-bold text-blue-600">
                   {selectedKid.reward_balance} {formatReward(selectedKid.reward_type, selectedKid.reward_balance)}
                 </span>
               </div>
             </div>
-          </div>
+            </CardHeader>
+            <CardContent className="p-4">
 
           {filteredItems.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-2xl border border-slate-200">
+            <div className="border border-slate-200 bg-white py-12 text-center">
               <span className="block text-5xl mb-4">🛍️</span>
               <h3 className="text-lg font-medium text-slate-900">No rewards available</h3>
               <p className="text-slate-500 mt-1">Add some rewards in the child's settings.</p>
             </div>
           ) : (
-            <div className="grid gap-4 md:grid-cols-4 lg:grid-cols-5">
+            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5">
               {filteredItems.map((item) => (
                 <Card key={item.id} className="flex flex-col overflow-hidden hover:shadow-md transition-shadow">
                   <div className="h-28 bg-slate-50 flex items-center justify-center p-4 border-b border-slate-100">
@@ -520,6 +586,8 @@ export default function Dashboard() {
               ))}
             </div>
           )}
+            </CardContent>
+          </Card>
         </div>
       );
     }
@@ -544,69 +612,49 @@ export default function Dashboard() {
     }
 
     return (
-      <div className="space-y-6">
-        <div className="w-full mx-auto">
+      <div className="h-full w-full">
+        <div className="h-full w-full">
           {kids.filter(k => k.id === dashboardSelectedKidId).map((kid) => (
-            <Card key={kid.id} className="rounded-xl shadow-lg bg-white relative overflow-hidden">
-              <CardHeader className="bg-blue-600 text-white relative h-24 p-4 flex flex-col justify-start rounded-t-xl">
-                <div className="flex justify-between items-start w-full">
-                  <div>
-                    <CardTitle className="text-2xl font-bold text-white leading-tight">{kid.name}</CardTitle>
-                  </div>
-                  <div className="flex items-center gap-3 text-xl">
-                    <div className="flex items-center gap-1">
-                      <Button data-guest-tour="parent-shop" size="sm" variant="ghost" onClick={() => handleShowBuyGrid(kid)} className="text-white hover:bg-white/20 p-2 text-2xl" aria-label="Buy">🛍️</Button>
-                      <div className="group relative">
-                        <HelpCircle className="h-4 w-4 text-white/70 cursor-help transition-colors hover:text-white" />
-                        <div className="absolute right-0 top-full mt-2 w-80 p-4 bg-[#fffdea] text-slate-800 rounded-2xl shadow-2xl border-2 border-yellow-200 opacity-0 group-hover:opacity-100 transition-all transform -translate-y-1 group-hover:translate-y-0 pointer-events-none z-[100] font-[Arial]">
-                          <div className="flex items-start gap-3">
-                            <div className="h-7 w-7 rounded-lg bg-yellow-200/50 flex items-center justify-center shrink-0 mt-0.5">
-                              <HelpCircle className="h-4 w-4 text-yellow-700" />
-                            </div>
-                            <span className="font-bold text-[14px] leading-tight text-slate-900 normal-case">
-                              Click the shop icon to view and buy reward items your child has earned.
-                            </span>
-                          </div>
-                          <div className="absolute right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
-                        </div>
-                      </div>
-                    </div>
-                    {rewardImages[kid.reward_type] ? (
-                      <img src={rewardImages[kid.reward_type]} alt={kid.reward_type} className="h-8 w-8" referrerPolicy="no-referrer" />
-                    ) : (
-                      <span className="text-3xl">🛍️</span>
-                    )}
-                    <span data-guest-tour="parent-reward-balance" className="font-bold text-2xl text-white">{kid.reward_balance || 0}</span>
-                  </div>
-                </div>
-                <div className="absolute -bottom-10 sm:-bottom-12 left-6 h-20 w-20 sm:h-24 sm:w-24 rounded-full bg-white flex items-center justify-center text-3xl sm:text-4xl overflow-hidden border-4 border-white shadow-md z-10">
-                    {kid.avatar && (kid.avatar.startsWith('http') || kid.avatar.startsWith('data:')) ? (
-                      <img src={kid.avatar} alt={kid.name} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                    ) : (
-                      kid.avatar || '👤'
-                    )}
-                  </div>
-                    <Tooltip content="Edit child profile settings">
-                      <Link to={`/edit-kid/${kid.id}`} className="absolute bottom-4 right-4 text-white hover:text-blue-100">
-                        <Edit2 className="h-5 w-5" />
-                      </Link>
-                    </Tooltip>
-                </CardHeader>
-              <CardContent className="pt-12 sm:pt-14">
-                <div className="flex flex-col gap-4">
+            <Card key={kid.id} data-dashboard-content className="relative h-full !rounded-none !border-0 bg-white !shadow-none !ring-0 !outline-none">
+              <CardContent className="h-full !p-0">
+                <div className="h-full w-full">
+                  <section className="h-full w-full rounded-none border-0 bg-white px-0 pb-5 pt-0 shadow-none" aria-label="Learner communication">
                   {/* Parent Message Input */}
                   <div className="space-y-2" data-guest-tour="parent-message">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Send Message to {kid.name}</label>
                     <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="Type a message or emoji... 🌟"
-                        className="flex-1 h-9 px-3 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={parentMessage}
-                        onChange={(e) => setParentMessage(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSendMessage(kid.id)}
-                        title="Enter a message to send to your child"
-                      />
+                      <div className="relative min-w-0 flex-1">
+                        <input
+                          type="text"
+                          placeholder="Type a message or emoji... 🌟"
+                          className="h-9 w-full rounded-lg border border-slate-200 bg-white py-2 pl-3 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          value={parentMessage}
+                          onChange={(e) => setParentMessage(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleSendMessage(kid.id)}
+                          title="Enter a message to send to your child"
+                        />
+                        <Tooltip content="Add an emoji">
+                          <button ref={emojiButtonRef} type="button" onClick={() => setIsEmojiPickerOpen(open => !open)} aria-label="Choose an emoji" aria-expanded={isEmojiPickerOpen} className="absolute right-1 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md border-0 bg-transparent text-slate-500 transition-colors hover:bg-blue-50/70 hover:text-blue-700">
+                            <Smile className="h-5 w-5" />
+                          </button>
+                        </Tooltip>
+                        {isEmojiPickerOpen && createPortal(
+                          <div className="fixed z-[200] max-w-[calc(100vw-1rem)] shadow-2xl" style={{ top: emojiPickerPosition.top, left: emojiPickerPosition.left }} aria-label="Message emojis">
+                            <EmojiPicker
+                              onEmojiClick={(emojiData: EmojiClickData) => {
+                                setParentMessage(previous => previous + emojiData.emoji);
+                                setIsEmojiPickerOpen(false);
+                              }}
+                              width={350}
+                              height={420}
+                              lazyLoadEmojis
+                              searchPlaceHolder="Search emojis"
+                              previewConfig={{ showPreview: false }}
+                            />
+                          </div>,
+                          document.body,
+                        )}
+                      </div>
                       <Tooltip content="Send message">
                         <Button 
                           size="sm" 
@@ -618,31 +666,9 @@ export default function Dashboard() {
                         </Button>
                       </Tooltip>
                     </div>
-                    <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
-                      {['🌟', '❤️', '👍', '🎉', '😊', '🚀', '🌈', '🍦', '🎮', '📚'].map(emoji => (
-                        <button
-                          key={emoji}
-                          type="button"
-                          onClick={() => setParentMessage(prev => prev + emoji)}
-                          className="text-lg hover:scale-125 transition-transform p-1"
-                          title={`Add ${emoji}`}
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
                   </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex gap-2 items-center text-sm">
-                    <Tooltip content={`Set up ${kid.name}'s activities`}>
-                      <Link to={`/assigned-activities/${kid.id}`}>
-                        <Button data-guest-tour="activities-setup" size="sm" variant="outline">Activities Setup</Button>
-                      </Link>
-                    </Tooltip>
-                  </div>
-
-                  <div className="space-y-2">
+                  <div className="mt-4 space-y-2">
                     <div className="flex items-center justify-between">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                         Message History
@@ -709,6 +735,8 @@ export default function Dashboard() {
                     )}
                   </div>
 
+                  </section>
+
                 </div>
               </CardContent>
             </Card>
@@ -719,45 +747,26 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="w-full space-y-4">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-2">
-        <div className="space-y-1">
-          <h1 className="text-4xl font-display font-extrabold text-slate-900 tracking-tight">Dashboard</h1>
-          <p className="text-lg text-slate-600 max-w-2xl leading-relaxed">
-            Climb together. Effortless tools for certain steps and positive growth.
-          </p>
+    <div className="flex min-h-full w-full flex-col">
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-200 p-3 lg:hidden">
+        <div className="flex w-full min-w-0 items-center gap-3">
+          <span className="shrink-0 text-[11px] font-black uppercase tracking-[0.16em] text-brand-700">Dashboard</span>
+          <span className="h-4 w-px shrink-0 bg-slate-300" aria-hidden="true" />
+          <p className="truncate text-sm font-semibold text-slate-600">Climb together. Effortless tools for certain steps and positive growth.</p>
         </div>
-        <div className="flex flex-wrap items-end gap-3">
-          <Button type="button" variant="outline" size="md" className="h-11 border-blue-600 bg-blue-600 text-white shadow-xl hover:border-blue-700 hover:bg-blue-700 hover:text-white" onClick={() => setShowOnboarding(true)}>
-            <HelpCircle className="mr-2 h-4 w-4" />
-            Start tour
-          </Button>
-          {kids.length > 0 && !showBuyGrid && (
-            <div className="w-44">
-              <Select
-                label="Select Child"
-                value={dashboardSelectedKidId}
-                onChange={(e) => setDashboardSelectedKidId(e.target.value)}
-              >
-                {kids.map(k => (
-                  <option key={k.id} value={k.id}>{k.name}</option>
-                ))}
-              </Select>
-            </div>
-          )}
-          <Link to="/add-kid" data-guest-tour="add-child">
-            <Tooltip content="Add Child / Adult Profile">
-              <Button size="md" className="h-11 shadow-brand-200">
-                <Plus className="mr-2 h-5 w-5" />
-                Add Child / Adult
-              </Button>
-            </Tooltip>
-          </Link>
-        </div>
+        <Button type="button" size="sm" className="h-9" onClick={() => setShowOnboarding(true)}>
+          <HelpCircle className="mr-1.5 h-4 w-4" />Start tour
+        </Button>
+        {kids.length > 0 && !showBuyGrid && (
+          <select aria-label="Select Child" value={dashboardSelectedKidId} onChange={(event) => setDashboardSelectedKidId(event.target.value)} className="h-9 min-w-32 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold">
+            {kids.map(kid => <option key={kid.id} value={kid.id}>{kid.name}</option>)}
+          </select>
+        )}
+        <Link to="/add-kid" data-guest-tour="add-child"><Button size="sm" className="h-9"><Plus className="mr-1.5 h-4 w-4" />Add Child / Adult</Button></Link>
       </div>
 
-      {!isGuestSession() && !quickStartDismissed && (
-        <section className="rounded-2xl border border-brand-200 bg-gradient-to-br from-brand-50 via-white to-emerald-50 p-5 shadow-sm" aria-labelledby="quick-start-title">
+      {searchParams.get('shop') !== '1' && !showBuyGrid && !isGuestSession() && !quickStartDismissed && (
+        <section className="m-4 shrink-0 rounded-2xl border border-brand-200 bg-gradient-to-br from-brand-50 via-white to-emerald-50 p-5 shadow-sm" aria-labelledby="quick-start-title">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.18em] text-brand-700">Quick Start</p>
@@ -777,7 +786,7 @@ export default function Dashboard() {
             {kids.length > 0 ? <Link to={`/assigned-activities/${dashboardSelectedKidId || kids[0]?.id}`} className="group rounded-xl border border-white bg-white/90 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-200">
               <div className="flex items-center justify-between gap-3"><span className="grid h-8 w-8 place-items-center rounded-full bg-brand-100 text-sm font-black text-brand-800">2</span>{activityCount !== null && activityCount > 0 ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <ArrowRight className="h-5 w-5 text-brand-600 transition group-hover:translate-x-1" />}</div>
               <h3 className="mt-3 font-black text-slate-950">{activityCount !== null && activityCount > 0 ? 'Visual activity ready' : 'Create the first activity'}</h3>
-              <p className="mt-1 text-sm leading-5 text-slate-600">Open Activities Setup, add one meaningful activity, and break it into small concrete steps.</p>
+              <p className="mt-1 text-sm leading-5 text-slate-600">Open Activities, add one meaningful activity, and break it into small concrete steps.</p>
             </Link> : <div className="rounded-xl border border-dashed border-slate-200 bg-white/60 p-4 opacity-70">
               <span className="grid h-8 w-8 place-items-center rounded-full bg-slate-100 text-sm font-black text-slate-500">2</span><h3 className="mt-3 font-black text-slate-700">Create the first activity</h3><p className="mt-1 text-sm leading-5 text-slate-500">This becomes available after you add a profile.</p>
             </div>}
@@ -795,7 +804,7 @@ export default function Dashboard() {
         </section>
       )}
 
-      {renderContent()}
+      <div className="min-h-0 flex-1">{renderContent()}</div>
       {showOnboarding && <ParentOnboarding onClose={completeOnboarding} />}
     </div>
   );

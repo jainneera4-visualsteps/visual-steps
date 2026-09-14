@@ -1,7 +1,7 @@
 import { apiFetch, safeJson } from '../utils/api';
 import { isGuestSession } from '../guest/guestSession';
 import { io } from 'socket.io-client';
-import { formatReward, rewardImages } from '../utils/rewardUtils';
+import { formatReward, getRewardIcon } from '../utils/rewardUtils';
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Calendar, Star, Lightbulb, CheckCircle, Circle, Clock, LayoutList, WifiOff, Sun, CloudSun, Moon, Sparkles, LogOut, Trophy, Eye, MessageSquare, ShieldCheck } from 'lucide-react';
@@ -13,10 +13,12 @@ import { countActivitiesCompletedOnDate } from '../utils/activityCompletion';
 import { getChildSubmissionStatus } from '../utils/activityVerification';
 
 interface ActivityStep {
-  id?: number;
+  id?: number | string;
   step_number: number;
   description: string;
   image_url?: string;
+  is_completed?: boolean;
+  completed_at?: string | null;
 }
 
 interface Activity {
@@ -66,11 +68,17 @@ interface Kid {
   start_time?: string;
   end_time?: string;
   reward_type?: string;
+  reward_icon?: string;
   bonus_history_limit?: number;
   reward_balance?: number;
   rules?: string;
   theme?: string;
   theme_companion_style?: 'character' | 'simple' | 'none';
+  help_communication_method?: 'spoken' | 'sign' | 'card';
+  help_prompt_text?: string;
+  help_prompt_audio_url?: string;
+  help_sign_image_url?: string;
+  help_card_image_url?: string;
   can_print?: boolean;
   timezone?: string;
   parent_message?: string;
@@ -112,6 +120,9 @@ export default function KidsDashboard() {
   const [completedTodayCount, setCompletedTodayCount] = useState(0);
   const [showAllActivityChoices, setShowAllActivityChoices] = useState(false);
   const [showLaterActivities, setShowLaterActivities] = useState(false);
+  const [helpRequestedActivityIds, setHelpRequestedActivityIds] = useState<string[]>([]);
+  const [parentComingActivityIds, setParentComingActivityIds] = useState<string[]>([]);
+  const [requestingHelpActivityId, setRequestingHelpActivityId] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -129,7 +140,7 @@ export default function KidsDashboard() {
   }, [kid]);
 
   const [today, setToday] = useState<string | null>(null);
-  const rewardIcon = kid?.reward_type ? (rewardImages[kid.reward_type] || rewardImages['Penny']) : rewardImages['Penny'];
+  const rewardIcon = getRewardIcon(kid?.reward_type, kid?.reward_icon);
   
   const themes: Record<string, any> = {
     sky: {
@@ -721,6 +732,16 @@ export default function KidsDashboard() {
           const normalizedActivities = Array.isArray(allActivities) ? allActivities : [];
           console.log('KidsDashboard: Loaded activities', normalizedActivities.length, normalizedActivities);
           setActivities(normalizedActivities);
+          setHelpRequestedActivityIds(
+            Array.isArray(actData.helpRequests)
+              ? actData.helpRequests.map((request: any) => String(request.activity_id))
+              : [],
+          );
+          setParentComingActivityIds(
+            Array.isArray(actData.helpRequests)
+              ? actData.helpRequests.filter((request: any) => request.status === 'acknowledged').map((request: any) => String(request.activity_id))
+              : [],
+          );
           if (typeof actData.completedTodayCount === 'number') {
             setCompletedTodayCount(actData.completedTodayCount);
           } else {
@@ -785,6 +806,11 @@ export default function KidsDashboard() {
       console.log('Received data_updated event:', data);
       if (data.kidId === kidId) {
         fetchData(true);
+      }
+    });
+    socket.on('help_response', (data) => {
+      if (data.kidId === kidId && data.activityId) {
+        setParentComingActivityIds(current => current.includes(String(data.activityId)) ? current : [...current, String(data.activityId)]);
       }
     });
 
@@ -888,6 +914,52 @@ export default function KidsDashboard() {
     }
   };
 
+  const handleRequestHelp = async (activity: Activity) => {
+    if (helpRequestedActivityIds.includes(activity.id) || requestingHelpActivityId) return;
+    if (!navigator.onLine) {
+      alert('Connect to the internet so your parent can receive your help request.');
+      return;
+    }
+
+    setRequestingHelpActivityId(activity.id);
+    try {
+      const response = await apiFetch(`/api/activities/${encodeURIComponent(activity.id)}/help-request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await safeJson(response);
+      if (!response.ok) throw new Error(data.error || 'Your help request could not be sent.');
+      setHelpRequestedActivityIds(current => current.includes(activity.id) ? current : [...current, activity.id]);
+    } catch (error: any) {
+      alert(error.message || 'Your help request could not be sent. Please ask your parent directly.');
+    } finally {
+      setRequestingHelpActivityId(null);
+    }
+  };
+
+  const handleToggleStep = async (activity: Activity, step: ActivityStep, isCompleted: boolean) => {
+    if (!step.id || activity.status !== 'pending') return;
+    const updateActivity = (item: Activity, completed: boolean) => item.id !== activity.id ? item : {
+      ...item,
+      steps: item.steps?.map(current => current.id === step.id ? { ...current, is_completed: completed, completed_at: completed ? new Date().toISOString() : null } : current),
+    };
+    setActivities(current => current.map(item => updateActivity(item, isCompleted)));
+    setSelectedActivity(current => current ? updateActivity(current, isCompleted) : current);
+    try {
+      const response = await apiFetch(`/api/activity-steps/${encodeURIComponent(String(step.id))}/completion`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isCompleted }),
+      });
+      const data = await safeJson(response);
+      if (!response.ok) throw new Error(data.error || 'Step progress could not be saved.');
+    } catch (error: any) {
+      setActivities(current => current.map(item => updateActivity(item, !isCompleted)));
+      setSelectedActivity(current => current ? updateActivity(current, !isCompleted) : current);
+      alert(error.message || 'Step progress could not be saved.');
+    }
+  };
+
   const handleSignOut = () => {
     localStorage.removeItem('kid_session');
     navigate('/?mode=kid');
@@ -906,7 +978,7 @@ export default function KidsDashboard() {
   }
 
   return (
-    <div className={`child-page min-h-screen w-full ${currentTheme.bg} ${isDarkTheme ? 'kid-theme-dark' : ''} font-display pb-12`}>
+    <div className={`child-page flex h-dvh w-full flex-col overflow-hidden ${currentTheme.bg} ${isDarkTheme ? 'kid-theme-dark' : ''} font-display`}>
       <div className="pointer-events-none fixed inset-0 z-0 hidden overflow-hidden sm:block" aria-hidden="true">
         {themeCompanion.decorations.slice(0, 3).map((decoration, index) => (
           <span
@@ -919,13 +991,13 @@ export default function KidsDashboard() {
         ))}
       </div>
       {/* Global Header */}
-      <header className={`sticky top-0 z-50 w-full border-b border-slate-200 ${currentTheme.header} shadow-sm`}>
-        <div className="w-full flex h-12 items-center px-4 relative">
+      <header className="parent-nav relative z-50 w-full shrink-0 border-b border-slate-200 shadow-sm">
+        <div className="relative flex h-16 w-full items-center px-4">
           <div className="flex items-center gap-2">
-            <div className={`flex h-7 w-7 items-center justify-center rounded ${isDarkTheme ? 'bg-blue-600' : 'bg-white/20'} text-white shadow-sm`}>
-              <Lightbulb className="h-4 w-4" />
+            <div className="parent-brand-mark flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-sm">
+              <Lightbulb className="h-6 w-6" />
             </div>
-            <span className={`text-lg font-bold tracking-tight text-white hidden sm:inline`}>Visual Steps</span>
+            <span className="hidden text-xl font-bold tracking-tight text-slate-900 sm:inline">Visual Steps</span>
           </div>
 
           {/* Centered Child Profile Card removed */}
@@ -942,7 +1014,7 @@ export default function KidsDashboard() {
 
               <button 
                 onClick={handleSignOut}
-                className="flex items-center gap-1 rounded bg-white/20 px-2 py-1 text-[10px] font-bold uppercase text-white hover:bg-white/30 transition-colors"
+                className="flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-[10px] font-bold uppercase text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900"
                 title="Sign Out"
               >
                 <LogOut className="h-3 w-3" />
@@ -953,17 +1025,71 @@ export default function KidsDashboard() {
         </div>
       </header>
 
-      <main className="relative z-10 w-full px-4 py-3">
+      <section className={`relative z-40 flex h-20 w-full shrink-0 items-center justify-between overflow-hidden border-b border-slate-200 px-4 shadow-sm ${currentTheme.banner}`} aria-label={`${kid?.name || 'Learner'} dashboard summary`}>
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+          {themeCompanion.decorations.slice(0, 3).map((decoration, index) => <span key={`fixed-banner-${decoration}-${index}`} className="absolute text-4xl opacity-[0.2]" style={{ top: index === 1 ? '46%' : '5%', right: `${5 + index * 10}%` }}>{decoration}</span>)}
+        </div>
+        <div className="relative z-10 flex min-w-0 items-center gap-3">
+          {kid?.avatar ? <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full border-4 border-white bg-white shadow-md"><img src={kid.avatar} alt={kid.name} className="h-full w-full object-cover" referrerPolicy="no-referrer" /></div> : <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-4 border-white bg-white text-2xl font-black shadow-md ${currentTheme.accent}`}>{kid?.name?.charAt(0) || '?'}</div>}
+          <div className="min-w-0">
+            <h1 className={`truncate text-2xl font-black ${currentTheme.bannerText}`}>{kid?.name || 'Learner'}</h1>
+            <p className={`truncate text-xs font-bold ${currentTheme.bannerSubtext}`}>{formatInTimezone(currentTime, kid?.timezone, { weekday: 'short', month: 'short', day: 'numeric' })}</p>
+          </div>
+          {isAccessAllowed && companionStyle !== 'none' && <span className="hidden text-3xl sm:inline" role="img" aria-label={`${themeCompanion.name} theme companion`}>{companionStyle === 'simple' ? themeCompanion.icon : themeCompanion.character}</span>}
+        </div>
+        <div className="relative z-10 flex items-center gap-5">
+          <div data-guest-tour="child-done-today" className="text-center"><span className={`block text-[9px] font-black uppercase tracking-wider ${currentTheme.bannerSubtext}`}>Done Today</span><span className={`flex items-center gap-1 text-xl font-black ${currentTheme.bannerText}`}><CheckCircle className="h-5 w-5 text-emerald-500" />{completedTodayCount}</span></div>
+          <div data-guest-tour="child-token-balance" className="text-center"><span className={`block text-[9px] font-black uppercase tracking-wider ${currentTheme.bannerSubtext}`}>Total {kid?.reward_type || 'Rewards'}</span><span className={`flex items-center gap-1 text-xl font-black ${currentTheme.bannerText}`}><img src={rewardIcon} alt={kid?.reward_type} className="h-6 w-6 object-contain" referrerPolicy="no-referrer" />{kid?.reward_balance || 0}</span></div>
+        </div>
+      </section>
+      {isAccessAllowed && (
+        <nav className={`relative z-40 flex h-12 w-full shrink-0 items-center overflow-hidden border-b px-3 shadow-sm ${currentTheme.banner}`} aria-label="Learner dashboard sections">
+          <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+            {themeCompanion.decorations.slice(0, 3).map((decoration, index) => <span key={`tab-decoration-${decoration}-${index}`} className="absolute text-2xl opacity-20" style={{ right: `${4 + index * 8}%`, top: index % 2 ? '45%' : '5%' }}>{decoration}</span>)}
+          </div>
+          <div className="relative z-10 flex items-center gap-1 overflow-x-auto">
+            {[
+              ['todo', 'Choose an Activity', navigationIcons[0], 'child-activities'],
+              ['verification', 'Waiting', navigationIcons[1], 'child-waiting'],
+              ['completed', 'Completed', navigationIcons[2], 'child-completed'],
+              ['rewards', 'Rewards', navigationIcons[3], 'child-rewards'],
+            ].map(([tab, label, icon, tour]) => (
+              <button key={tab} data-guest-tour={tour} type="button" onClick={() => setActiveTab(tab as typeof activeTab)} aria-current={activeTab === tab ? 'page' : undefined} className={`flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-xs font-black transition-all ${activeTab === tab ? `${currentTheme.button} text-white shadow-sm` : `${currentTheme.bannerText} bg-white/65 hover:bg-white/85`}`}>
+                <span className="text-base" aria-hidden="true">{icon}</span>{label}
+              </button>
+            ))}
+          </div>
+        </nav>
+      )}
+      <div className="h-3 w-full shrink-0 bg-white" aria-hidden="true" data-layout-row="content-spacing" />
+
+      {parentComingActivityIds.length > 0 && (
+        <div role="status" className="flex w-full shrink-0 items-center justify-center gap-2 border-y border-emerald-200 bg-emerald-50 px-4 py-2 text-center text-sm font-black text-emerald-900">
+          <span aria-hidden="true">💚</span>
+          Your parent is coming to help with {activities.find(activity => parentComingActivityIds.includes(activity.id))?.activity_type || 'your activity'}.
+        </div>
+      )}
+
+      <main className="app-page-scroll relative z-10 min-h-0 w-full flex-1 overflow-y-auto px-4 py-0">
         {selectedActivity && isAccessAllowed ? (
           <ActivityDetailModal 
             activity={selectedActivity}
             onClose={() => setSelectedActivity(null)}
             onToggleStatus={handleToggleStatus}
+            onToggleStep={handleToggleStep}
+            helpRequested={helpRequestedActivityIds.includes(selectedActivity.id)}
+            parentComing={parentComingActivityIds.includes(selectedActivity.id)}
+            isRequestingHelp={requestingHelpActivityId === selectedActivity.id}
             rewardType={kid?.reward_type}
             canPrint={kid?.can_print}
             showToggleOnly={true}
             timezone={kid?.timezone}
             includeAssignmentContext={true}
+            helpCommunicationMethod={kid?.help_communication_method || 'spoken'}
+            helpPromptText={kid?.help_prompt_text || 'Help please'}
+            helpPromptAudioUrl={kid?.help_prompt_audio_url}
+            helpSignImageUrl={kid?.help_sign_image_url}
+            helpCardImageUrl={kid?.help_card_image_url}
           />
         ) : viewingStoryId && isAccessAllowed ? (
           <SocialStoryModal 
@@ -1006,7 +1132,7 @@ export default function KidsDashboard() {
             )}
 
             {/* Dashboard Banner - Full Width */}
-            <div data-guest-tour="learner-dashboard" className={`relative flex flex-col items-center justify-between gap-4 overflow-hidden rounded-3xl p-4 shadow-lg shadow-indigo-200/20 ring-1 sm:flex-row ${currentTheme.banner}`}>
+            <div data-guest-tour="learner-dashboard" className="hidden">
               <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
                 {themeCompanion.decorations.map((decoration, index) => (
                   <span key={`${decoration}-${index}`} className="absolute text-4xl opacity-[0.28]" style={{ top: index === 1 ? '48%' : '7%', right: `${3 + index * 9}%`, transform: `rotate(${index * 18 - 12}deg)` }}>{decoration}</span>
@@ -1060,13 +1186,13 @@ export default function KidsDashboard() {
               </div>
             </div>
 
-            <div className={`relative flex flex-col gap-4 overflow-hidden rounded-3xl p-4 shadow-lg ring-1 sm:p-5 ${isDarkTheme ? 'bg-slate-950/95 ring-slate-700' : 'bg-white/75 ring-white/90'}`}>
+            <div className={`relative flex w-full flex-col gap-4 overflow-hidden rounded-none p-4 shadow-none ring-0 sm:p-5 ${isDarkTheme ? 'bg-slate-950/95' : 'bg-white/75'}`}>
               <div className="pointer-events-none absolute right-5 top-3 hidden items-center gap-3 text-4xl opacity-45 xl:flex" aria-hidden="true">
                 {themeCompanion.decorations.slice(0, 3).map((decoration, index) => <span key={`panel-${decoration}-${index}`}>{decoration}</span>)}
               </div>
               {/* Tabs and View Toggle Area */}
               {isAccessAllowed && (
-                <div className="relative z-10 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+                <div className="hidden">
                   <div className={`flex flex-wrap rounded-lg border p-0.5 ${isDarkTheme ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'}`}>
                     <button data-guest-tour="child-activities"
                       onClick={() => setActiveTab('todo')}
@@ -1369,6 +1495,9 @@ export default function KidsDashboard() {
                                         <span className="pointer-events-none absolute right-3 top-2 text-4xl opacity-30" aria-hidden="true">
                                           {themeCompanion.decorations[activityIndex % themeCompanion.decorations.length] || themeCompanion.icon}
                                         </span>
+                                        {parentComingActivityIds.includes(activity.id) && (
+                                          <span className="absolute right-3 bottom-2 z-20 rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-emerald-800 ring-1 ring-emerald-300">Parent is coming 💚</span>
+                                        )}
                                         <CardContent className="relative z-10 p-2.5 flex items-start gap-2.5">
                                           <div 
                                             className={`mt-0.5 flex-shrink-0 rounded-full transition-colors ${
@@ -1586,6 +1715,13 @@ export default function KidsDashboard() {
           </div>
         )}
       </main>
+
+      <footer
+        className="relative z-40 h-[67px] w-full shrink-0 border-t border-slate-200 bg-white no-print"
+        aria-label="Learner dashboard footer"
+      >
+        <div className="h-full w-full" aria-hidden="true" />
+      </footer>
 
       {/* Flying Tokens and Celebration Particles Layer */}
     </div>

@@ -41,6 +41,31 @@ const productFeatureRegistry = [
     "introducedOn": "2026-03-01",
     "updates": [
       {
+        "updatedOn": "2026-09-12",
+        "title": "A clearer parent workspace as Visual Steps grows",
+        "summary": "Stable parent navigation groups related tools without turning every new feature into another top-level menu.",
+        "details": "The parent header now uses six stable areas: Dashboard, Activities, Learning, Communication, Progress, and Support, while administrator tools remain separate. A slim second row shows only the choices related to the selected area, such as quizzes and games under Learning or reports under Progress. Learner cards use the same hierarchy through compact workspace choices and a shorter identity header, allowing useful content to begin higher on the screen. Existing pages, saved information, and workflows keep their established destinations and behavior.",
+        "familyImpact": "Parents can build a mental map of the application and find a growing set of tools without scanning one increasingly crowded menu. Related options remain close together, attention items stay noticeable, and Visual Steps retains its warm colors and friendly presentation.",
+        "guideParagraphs": [
+          "Begin with the broad area that matches what you want to do. Activities contains current work and items needing attention, Learning contains quizzes, worksheets, social stories, and games, Communication contains messages and family contact options, and Progress contains completed work and reports.",
+          "The second navigation row changes with the selected area, so it does not present every possible destination at once. Direct links and existing workflows remain available, while the compact learner identity and workspace controls leave more room for the task the parent selected."
+        ],
+        "help": "Use the main parent navigation to select an area, then use the smaller row beneath it to open the specific tool. On the dashboard, select a learner and use the workspace choices directly beneath that learner's profile header."
+      },
+      {
+        "updatedOn": "2026-09-12",
+        "title": "A calm way to ask for help",
+        "summary": "Learners see a familiar picture-led prompt for asking a nearby parent or caregiver for help.",
+        "details": "The learner may check each visual step as it is completed. Progress saves immediately and remains available after a break, reload, or return to the activity. Step checks are supportive rather than compulsory: Mark as Finished remains available without changing unchecked steps, so parents see the learner’s actual step progress during review. The profile records whether the learner asks for help with spoken words, a familiar sign or gesture, or a help picture card. For spoken communication, the parent saves the exact displayed words and records the same phrase for the learner to play. For sign or card communication, the parent uploads the familiar image used at home. Activity details display that method as a compact visual prompt instead of requiring a digital help-request workflow.",
+        "familyImpact": "The prompt reinforces the communication method the family already practices and assumes a parent or caregiver is nearby. It does not ask the learner to understand notifications, explain the problem in a form, or wait for a remote response. Asking for support never reduces the activity reward.",
+        "guideParagraphs": [
+          "Each completed visual step receives a clear checkmark. Taking a break does not erase those checks, while a new repeated or reassigned occurrence begins with fresh unchecked steps.",
+          "The help prompt is a communication cue, not a failure state. The activity stays visible and its full configured reward remains available through the ordinary completion or verification flow.",
+          "Choose Spoken words, Sign or gesture, or Help card in the learner profile. Record and enter the spoken phrase, upload the learner’s familiar sign image, or upload their PECS/help card. The activity screen then repeats that same familiar cue whenever help may be needed."
+        ],
+        "help": "Open the learner profile and choose how the learner asks for help. On activity details, the learner sees a picture and a short cue to say Help please, use their familiar help sign, or show their help card."
+      },
+      {
         "updatedOn": "2026-09-11",
         "title": "A compact activity form that keeps the essentials in view",
         "summary": "Activity meaning, rewards, verification, timing, and repetition remain visible in compact rows without large settings panels.",
@@ -73,7 +98,7 @@ const productFeatureRegistry = [
           "Section colors continue to communicate Coming Up, Do Today, Pick an Activity, and Later Today consistently. Theme details decorate these sections without changing their meaning or forcing an order.",
           "In Rewards, each goal shows how many rewards are still needed and a progress bar makes movement toward it visible. A slow glow adds encouragement without rapid blinking, and device reduced-motion preferences are respected."
         ],
-        "help": "Open the child / adult profile, find Dashboard Theme, select a theme and Theme companion preference, then save. The learner dashboard applies the choice automatically."
+        "help": "Open the child / adult profile and use the compact Personalize the learner's experience section. Choose any established Reward name from the list, or choose Custom name, enter the family's wording, and upload a custom icon. Then choose a Favorite world and Friendly helper style, review the live preview, and save. The learner dashboard applies the choices automatically."
       },
       {
         "updatedOn": "2026-09-11",
@@ -1002,6 +1027,15 @@ const upload = multer({
   },
 });
 
+const helpAudioUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+  fileFilter: (_req, file, callback) => {
+    const baseMimeType = file.mimetype.toLowerCase().split(';')[0].trim();
+    callback(null, ['audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg', 'audio/wav', 'audio/x-wav'].includes(baseMimeType));
+  },
+});
+
 app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
 app.use((req, _res, next) => {
@@ -1021,6 +1055,8 @@ export const isKidApiRequestAllowed = (method: string, pathName: string, kidId: 
   if (methodUpper === 'GET' && pathName === `${ownKidBase}/behavior-bonuses`) return true;
   if (methodUpper === 'GET' && pathName === `${ownKidBase}/optional-bonus-activities`) return true;
   if (methodUpper === 'POST' && /^\/api\/activities\/[^/]+\/select-optional$/.test(pathName)) return true;
+  if (methodUpper === 'POST' && /^\/api\/activities\/[^/]+\/help-request$/.test(pathName)) return true;
+  if (methodUpper === 'PUT' && /^\/api\/activity-steps\/[^/]+\/completion$/.test(pathName)) return true;
   if (methodUpper === 'PUT' && /^\/api\/activities\/[^/]+$/.test(pathName)) return true;
   if (methodUpper === 'GET' && /^\/api\/quizzes\/[^/]+$/.test(pathName)) return true;
   if (methodUpper === 'GET' && /^\/api\/quiz-attempts\/[^/]+$/.test(pathName)) return true;
@@ -3481,6 +3517,31 @@ app.post('/api/upload', authenticateToken, (req: any, res) => {
   });
 });
 
+app.post('/api/upload-help-audio', authenticateToken, (req: any, res) => {
+  helpAudioUpload.single('audio')(req, res, async (err: any) => {
+    try {
+      if (err) return res.status(err.code === 'LIMIT_FILE_SIZE' ? 413 : 400).json({ error: 'Recording must be a supported audio file no larger than 5 MB' });
+      if (!req.file) return res.status(400).json({ error: 'Record a short help phrase first' });
+      const normalizedMimeType = req.file.mimetype.toLowerCase().split(';')[0].trim();
+      const extensionByType: Record<string, string> = { 'audio/webm': 'webm', 'audio/ogg': 'ogg', 'audio/mp4': 'm4a', 'audio/mpeg': 'mp3', 'audio/wav': 'wav', 'audio/x-wav': 'wav' };
+      const extension = extensionByType[normalizedMimeType];
+      if (!extension) return res.status(400).json({ error: `This browser recording format is not supported (${normalizedMimeType || 'unknown'}).` });
+      const objectPath = `${req.user.id}/${uuidv4()}.${extension}`;
+      const storageClient = getSupabaseClient(req.token);
+      const { error: storageError } = await storageClient.storage.from(UPLOAD_BUCKET).upload(objectPath, req.file.buffer, { contentType: normalizedMimeType, cacheControl: '31536000', upsert: false });
+      if (storageError) {
+        console.error('Supabase help audio upload failed:', storageError.message);
+        return res.status(500).json({ error: storageError.message.includes('mime type') ? 'Audio uploads are not enabled yet. Run the latest help communication database update.' : 'The recording could not be stored. Please try again.' });
+      }
+      const { data } = storageClient.storage.from(UPLOAD_BUCKET).getPublicUrl(objectPath);
+      return res.status(201).json({ audioUrl: data.publicUrl });
+    } catch (uploadError: any) {
+      console.error('Help audio upload failed:', uploadError);
+      return res.status(500).json({ error: uploadError?.message || 'The recording could not be saved.' });
+    }
+  });
+});
+
 // Create Profile
 app.post('/api/auth/create-profile', async (req: any, res) => {
   const { id, email, name, privacyAccepted, termsAccepted } = req.body;
@@ -4183,11 +4244,17 @@ app.post('/api/kids', authenticateToken, async (req: any, res) => {
     end_time: endTime, 
     max_incomplete_limit: maxIncompleteLimit, 
     reward_type: rewardType, 
+    reward_icon: rewardIcon,
     bonus_history_limit: bonusHistoryLimit,
     optional_bonus_daily_reward_limit: optionalBonusDailyRewardLimit,
     rules, 
     theme, 
     theme_companion_style: themeCompanionStyle,
+    help_communication_method: helpCommunicationMethod,
+    help_prompt_text: helpPromptText,
+    help_prompt_audio_url: helpPromptAudioUrl,
+    help_sign_image_url: helpSignImageUrl,
+    help_card_image_url: helpCardImageUrl,
     can_print: canPrint, 
     timezone, 
     kid_code: kidCode,
@@ -4227,11 +4294,17 @@ app.post('/api/kids', authenticateToken, async (req: any, res) => {
       end_time: end_time,
       max_incomplete_limit: maxLimit,
       reward_type: rewardType || 'Penny',
+      reward_icon: String(rewardIcon || '').trim().slice(0, 500) || null,
       bonus_history_limit: bonusHistoryLimitValue,
       optional_bonus_daily_reward_limit: optionalRewardLimitValue,
       rules,
       theme: theme || 'sky',
       theme_companion_style: ['simple', 'none'].includes(themeCompanionStyle) ? themeCompanionStyle : 'character',
+      help_communication_method: ['sign', 'card'].includes(helpCommunicationMethod) ? helpCommunicationMethod : 'spoken',
+      help_prompt_text: String(helpPromptText || 'Help please').trim().slice(0, 120) || 'Help please',
+      help_prompt_audio_url: String(helpPromptAudioUrl || '').trim().slice(0, 500) || null,
+      help_sign_image_url: String(helpSignImageUrl || '').trim().slice(0, 500) || null,
+      help_card_image_url: String(helpCardImageUrl || '').trim().slice(0, 500) || null,
       kid_code: kidCode,
       reward_balance: 0,
       therapies,
@@ -4262,6 +4335,7 @@ app.post('/api/kids', authenticateToken, async (req: any, res) => {
           can_print: _cp,
           max_incomplete_limit: _mil,
           reward_type: _rt,
+          reward_icon: _ri,
           reward_quantity: _rq,
           sensory_issues: _si,
           behavioral_issues: _bi,
@@ -4825,12 +4899,18 @@ app.put('/api/kids/:id', authenticateToken, async (req: any, res) => {
     end_time: endTime, 
     max_incomplete_limit: maxIncompleteLimit, 
     reward_type: rewardType, 
+    reward_icon: rewardIcon,
     bonus_history_limit: bonusHistoryLimit,
     optional_bonus_daily_reward_limit: optionalBonusDailyRewardLimit,
     reward_balance: rewardBalance, 
     rules, 
     theme, 
     theme_companion_style: themeCompanionStyle,
+    help_communication_method: helpCommunicationMethod,
+    help_prompt_text: helpPromptText,
+    help_prompt_audio_url: helpPromptAudioUrl,
+    help_sign_image_url: helpSignImageUrl,
+    help_card_image_url: helpCardImageUrl,
     can_print: canPrint, 
     timezone, 
     kid_code: kidCode,
@@ -4880,6 +4960,7 @@ app.put('/api/kids/:id', authenticateToken, async (req: any, res) => {
     if (startTime !== undefined) updates.start_time = startTime !== '' ? startTime : null;
     if (endTime !== undefined) updates.end_time = endTime !== '' ? endTime : null;
     if (rewardType !== undefined) updates.reward_type = rewardType;
+    if (rewardIcon !== undefined) updates.reward_icon = String(rewardIcon || '').trim().slice(0, 500) || null;
     if (bonusHistoryLimit !== undefined) {
       const parsedLimit = Number.parseInt(String(bonusHistoryLimit), 10);
       updates.bonus_history_limit = Number.isFinite(parsedLimit) ? Math.min(10, Math.max(1, parsedLimit)) : 5;
@@ -4949,6 +5030,13 @@ app.put('/api/kids/:id', authenticateToken, async (req: any, res) => {
     if (themeCompanionStyle !== undefined) {
       updates.theme_companion_style = ['character', 'simple', 'none'].includes(themeCompanionStyle) ? themeCompanionStyle : 'character';
     }
+    if (helpCommunicationMethod !== undefined) {
+      updates.help_communication_method = ['sign', 'card'].includes(helpCommunicationMethod) ? helpCommunicationMethod : 'spoken';
+    }
+    if (helpPromptText !== undefined) updates.help_prompt_text = String(helpPromptText || '').trim().slice(0, 120) || 'Help please';
+    if (helpPromptAudioUrl !== undefined) updates.help_prompt_audio_url = String(helpPromptAudioUrl || '').trim().slice(0, 500) || null;
+    if (helpSignImageUrl !== undefined) updates.help_sign_image_url = String(helpSignImageUrl || '').trim().slice(0, 500) || null;
+    if (helpCardImageUrl !== undefined) updates.help_card_image_url = String(helpCardImageUrl || '').trim().slice(0, 500) || null;
     if (timezone !== undefined) updates.timezone = timezone;
     if (kidCode !== undefined) updates.kid_code = kidCode;
     if (parentMessage !== undefined && String(parentMessage).trim()) {
@@ -4986,6 +5074,7 @@ app.put('/api/kids/:id', authenticateToken, async (req: any, res) => {
           can_print: _cp,
           max_incomplete_limit: _mil,
           reward_type: _rt,
+          reward_icon: _ri,
           reward_quantity: _rq,
           sensory_issues: _si,
           behavioral_issues: _bi,
@@ -5410,7 +5499,10 @@ app.get('/api/kids/:kidId/activities', authenticateToken, async (req: any, res) 
     const currentTime = localTime ? parseInt(localTime as string, 10) : (hour * 60 + minute);
     
     console.log('API: Auto-assign logic, mode:', mode, 'today:', today, 'currentTime:', currentTime);
-    if (mode === 'kid' || mode === 'parent') {
+    // Parent views are read-only and should open immediately. Overdue handling
+    // already runs in the background, and the learner view performs a final
+    // just-in-time check before showing activities.
+    if (mode === 'kid') {
       console.log('API: Calling moveOverdueActivities for kid:', kidId);
       await moveOverdueActivities(supabase, kidId, kid, today, currentTime);
     }
@@ -5518,10 +5610,179 @@ app.get('/api/kids/:kidId/activities', authenticateToken, async (req: any, res) 
       kid.timezone || 'UTC',
     ) + historyOnlyCompletionCount;
 
-    res.json({ activities: activitiesWithSteps, completedTodayCount });
+    const activityIds = activitiesWithSteps
+      .filter((activity: any) => !activity.isHistory)
+      .map((activity: any) => activity.id);
+    let helpRequests: any[] = [];
+    if (activityIds.length > 0) {
+      const admin = getAdminSupabaseClient();
+      const { data, error: helpError } = await admin
+        .from('activity_help_requests')
+        .select('id, activity_id, kid_id, status, requested_at, current_step_number, responded_at')
+        .eq('kid_id', kidId)
+        .in('status', mode === 'kid' ? ['open', 'acknowledged'] : ['open'])
+        .in('activity_id', activityIds)
+        .order('requested_at', { ascending: false });
+      if (helpError) {
+        console.warn('Unable to include activity help requests:', helpError.message);
+      } else {
+        helpRequests = data || [];
+      }
+    }
+
+    res.json({ activities: activitiesWithSteps, completedTodayCount, helpRequests });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// A learner can ask for help without changing completion, rewards, or activity status.
+app.post('/api/activities/:id/help-request', authenticateToken, async (req: any, res) => {
+  if (req.user.role !== 'kid') return res.status(403).json({ error: 'Only a learner can request help.' });
+
+  const admin = getAdminSupabaseClient();
+  const { id } = req.params;
+  try {
+    const { data: activity, error: activityError } = await admin
+      .from('activities')
+      .select('id, kid_id, status')
+      .eq('id', id)
+      .single();
+    if (activityError || !activity) return res.status(404).json({ error: 'Activity not found.' });
+    if (activity.kid_id !== req.user.kidId) return res.status(403).json({ error: 'Forbidden' });
+    if (activity.status !== 'pending') {
+      return res.status(409).json({ error: 'Help can only be requested for an available activity.' });
+    }
+
+    const { data: existing } = await admin
+      .from('activity_help_requests')
+      .select('id, activity_id, kid_id, status, requested_at, current_step_number')
+      .eq('activity_id', id)
+      .eq('status', 'open')
+      .maybeSingle();
+    if (existing) return res.json({ helpRequest: existing, alreadyRequested: true });
+
+    const { data: firstUnfinishedStep } = await admin
+      .from('activity_steps')
+      .select('step_number')
+      .eq('activity_id', id)
+      .eq('is_completed', false)
+      .order('step_number', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    const { data: helpRequest, error: insertError } = await admin
+      .from('activity_help_requests')
+      .insert({ activity_id: id, kid_id: activity.kid_id, current_step_number: firstUnfinishedStep?.step_number || null })
+      .select('id, activity_id, kid_id, status, requested_at, current_step_number')
+      .single();
+    if (insertError) throw insertError;
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`kid_${activity.kid_id}`).emit('help_requested', {
+        kidId: activity.kid_id,
+        activityId: activity.id,
+        helpRequestId: helpRequest.id,
+      });
+      io.to(`kid_${activity.kid_id}`).emit('data_updated', { kidId: activity.kid_id });
+    }
+    res.status(201).json({ helpRequest });
+  } catch (error: any) {
+    console.error('Failed to create activity help request:', error);
+    res.status(500).json({ error: error.message || 'Unable to ask for help.' });
+  }
+});
+
+// Learners, and an owning parent viewing the learner dashboard with them, can
+// check or uncheck a visual step. This never changes completion or rewards.
+app.put('/api/activity-steps/:id/completion', authenticateToken, async (req: any, res) => {
+  const isCompleted = req.body?.isCompleted === true;
+  const admin = getAdminSupabaseClient();
+  try {
+    const { data: step, error: stepError } = await admin
+      .from('activity_steps')
+      .select('id, activity_id, activities!inner(kid_id, status, kids!inner(user_id))')
+      .eq('id', req.params.id)
+      .single();
+    if (stepError || !step) return res.status(404).json({ error: 'Activity step not found.' });
+    const activity = (step as any).activities;
+    const isLearner = req.user.role === 'kid' && activity?.kid_id === req.user.kidId;
+    const isOwningParent = req.user.role !== 'kid' && activity?.kids?.user_id === req.user.id;
+    if (!isLearner && !isOwningParent) return res.status(403).json({ error: 'You do not have access to this activity step.' });
+    if (activity?.status !== 'pending') return res.status(409).json({ error: 'Only steps in an available activity can be changed.' });
+
+    const completedAt = isCompleted ? new Date().toISOString() : null;
+    const { data: updated, error: updateError } = await admin
+      .from('activity_steps')
+      .update({ is_completed: isCompleted, completed_at: completedAt })
+      .eq('id', req.params.id)
+      .select('id, activity_id, step_number, is_completed, completed_at')
+      .single();
+    if (updateError) throw updateError;
+    const io = req.app.get('io');
+    if (io) io.to(`kid_${activity.kid_id}`).emit('data_updated', { kidId: activity.kid_id });
+    res.json({ step: updated });
+  } catch (error: any) {
+    console.error('Failed to update activity step progress:', error);
+    res.status(500).json({ error: error.message || 'Unable to save step progress.' });
+  }
+});
+
+// Parents resolve a help request while deciding whether the activity remains
+// available or should move to the existing On Hold area.
+app.put('/api/activity-help-requests/:id', authenticateToken, async (req: any, res) => {
+  if (req.user.role === 'kid') return res.status(403).json({ error: 'Parent access required.' });
+
+  const resolution = String(req.body?.resolution || '');
+  if (!['helped', 'ready_again', 'put_on_hold'].includes(resolution)) {
+    return res.status(400).json({ error: 'Choose a valid help-request action.' });
+  }
+
+  const admin = getAdminSupabaseClient();
+  const { id } = req.params;
+  try {
+    const { data: helpRequest, error: requestError } = await admin
+      .from('activity_help_requests')
+      .select('id, activity_id, kid_id, status, activities!inner(kids!inner(user_id))')
+      .eq('id', id)
+      .single();
+    if (requestError || !helpRequest) return res.status(404).json({ error: 'Help request not found.' });
+    const ownerId = (helpRequest as any).activities?.kids?.user_id;
+    if (ownerId !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
+
+    if (resolution === 'put_on_hold') {
+      const { error: activityError } = await admin
+        .from('activities')
+        .update({ status: 'on_hold' })
+        .eq('id', helpRequest.activity_id)
+        .eq('kid_id', helpRequest.kid_id);
+      if (activityError) throw activityError;
+    }
+
+    const now = new Date().toISOString();
+    const isAcknowledgement = resolution === 'helped';
+    const { data: resolved, error: updateError } = await admin
+      .from('activity_help_requests')
+      .update(isAcknowledgement
+        ? { status: 'acknowledged', resolution, responded_at: now, responded_by: req.user.id, updated_at: now }
+        : { status: 'resolved', resolution, resolved_at: now, resolved_by: req.user.id, updated_at: now })
+      .eq('id', id)
+      .eq('status', 'open')
+      .select('id, activity_id, kid_id, status, resolution, responded_at, resolved_at')
+      .single();
+    if (updateError) throw updateError;
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`kid_${helpRequest.kid_id}`).emit('help_response', { kidId: helpRequest.kid_id, activityId: helpRequest.activity_id, response: 'coming' });
+      io.to(`kid_${helpRequest.kid_id}`).emit('data_updated', { kidId: helpRequest.kid_id });
+    }
+    res.json({ helpRequest: resolved });
+  } catch (error: any) {
+    console.error('Failed to resolve activity help request:', error);
+    res.status(500).json({ error: error.message || 'Unable to update the help request.' });
   }
 });
 
@@ -6365,6 +6626,18 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
       throw updateError;
     }
 
+    if (isReassignment) {
+      await supabase.from('activity_steps').update({ is_completed: false, completed_at: null }).eq('activity_id', id);
+    }
+
+    if (isNewCompletion || isNewSubmission) {
+      await getAdminSupabaseClient()
+        .from('activity_help_requests')
+        .update({ status: 'resolved', resolution: 'helped', resolved_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq('activity_id', id)
+        .in('status', ['open', 'acknowledged']);
+    }
+
     // If status changed to completed, increment kid's reward balance
     if (isNewCompletion) {
       const rewardQty = Math.max(1, Math.min(50, Number(activity.reward_qty) || 1));
@@ -6521,7 +6794,7 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
       // Fetch steps to include in history
       const { data: stepsData } = await supabase
         .from('activity_steps')
-        .select('description, image_url')
+        .select('description, image_url, step_number, is_completed, completed_at')
         .eq('activity_id', id);
 
       // Fetch kid's timezone
@@ -6586,9 +6859,11 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
         if (historyRecord && stepsData && stepsData.length > 0) {
           const historyStepsToInsert = stepsData.map((step: any, index: number) => ({
             history_id: historyRecord.id,
-            step_number: index + 1,
+            step_number: step.step_number || index + 1,
             description: step.description,
             image_url: step.image_url,
+            is_completed: step.is_completed === true,
+            completed_at: step.completed_at || null,
             user_id: userId,
             kid_id: activity.kid_id
           }));

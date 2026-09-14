@@ -60,7 +60,16 @@ export default function QuizGenerator() {
   const [isReviewing, setIsReviewing] = useState(false);
   const [isLearnerPreviewOpen, setIsLearnerPreviewOpen] = useState(false);
   const [kids, setKids] = useState<{ id: string; name: string }[]>([]);
-  const [selectedKidId, setSelectedKidId] = useState<string>('');
+  const [selectedKidId, setSelectedKidId] = useState<string>(() => localStorage.getItem('dashboard_selected_kid_id') || '');
+
+  useEffect(() => {
+    const handleLearnerChange = (event: Event) => {
+      const nextKidId = (event as CustomEvent<string>).detail;
+      if (nextKidId) setSelectedKidId(nextKidId);
+    };
+    window.addEventListener('visual-steps:selected-kid', handleLearnerChange);
+    return () => window.removeEventListener('visual-steps:selected-kid', handleLearnerChange);
+  }, []);
   const [kidProfile, setKidProfile] = useState<QuizLearnerProfile | null>(null);
   const [isKidProfileLoading, setIsKidProfileLoading] = useState(false);
   const [kidProfileError, setKidProfileError] = useState('');

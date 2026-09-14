@@ -5,6 +5,7 @@ import { cn } from '../../lib/utils';
 const TooltipProvider = TooltipPrimitive.Provider;
 const TooltipRoot = TooltipPrimitive.Root;
 const TooltipTrigger = TooltipPrimitive.Trigger;
+const TooltipPortal = TooltipPrimitive.Portal;
 
 const TooltipContent = React.forwardRef<
   React.ElementRef<typeof TooltipPrimitive.Content>,
@@ -37,7 +38,9 @@ export const Tooltip = ({
     <TooltipProvider>
       <TooltipRoot>
         <TooltipTrigger asChild>{children}</TooltipTrigger>
-        <TooltipContent variant={variant}>{content}</TooltipContent>
+        <TooltipPortal>
+          <TooltipContent variant={variant}>{content}</TooltipContent>
+        </TooltipPortal>
       </TooltipRoot>
     </TooltipProvider>
   );

@@ -2,6 +2,8 @@
 
 This is the default standard for every new form and for each existing form when that form is next changed. Existing forms are migrated deliberately, one at a time; this rule does not authorize a bulk visual rewrite or changes to established behavior.
 
+Page and workspace navigation surrounding a form follows `NAVIGATION_DESIGN_STANDARD.md`.
+
 ## Required layout
 
 1. Put the form's title at the top left.

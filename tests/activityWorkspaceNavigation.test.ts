@@ -1,0 +1,92 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import test from 'node:test';
+
+const dashboard = readFileSync('src/pages/Dashboard.tsx', 'utf8');
+const activities = readFileSync('src/pages/AssignedActivities.tsx', 'utf8');
+const navigationStandard = readFileSync('NAVIGATION_DESIGN_STANDARD.md', 'utf8');
+const layout = readFileSync('src/components/Layout.tsx', 'utf8');
+const kidsDashboard = readFileSync('src/pages/KidsDashboard.tsx', 'utf8');
+
+test('dashboard gives communication the full content frame without local pill navigation', () => {
+  assert.doesNotMatch(dashboard, /aria-label=\{`\$\{kid\.name\}'s workspace`\}/);
+  assert.match(dashboard, /<section className="h-full w-full rounded-none border-0 bg-white/);
+  assert.match(dashboard, /<div className="min-h-0 flex-1">\{renderContent\(\)\}<\/div>/);
+  assert.match(dashboard, /Parent Message Input/);
+  assert.match(dashboard, /aria-label="Choose an emoji"/);
+  assert.match(dashboard, /aria-label="Message emojis"/);
+  assert.doesNotMatch(dashboard, />Activities Setup<\/Button>/);
+});
+
+test('activity workspace shows contextual secondary navigation', () => {
+  assert.doesNotMatch(activities, /> Back to Dashboard/);
+  assert.match(activities, /<div className="w-full space-y-2 px-0">/);
+  assert.match(activities, /<div className="hidden" aria-hidden="true">/);
+  assert.match(activities, /text-3xl font-black/);
+  assert.match(activities, /ACTIVITY_WORKSPACE_TABS\.includes\(nextTab as ActivityWorkspaceTab\)/);
+});
+
+test('growth follows a documented three-level navigation standard', () => {
+  assert.match(navigationStandard, /Product navigation/);
+  assert.match(navigationStandard, /Workspace navigation/);
+  assert.match(navigationStandard, /View controls/);
+  assert.match(navigationStandard, /Parent workspaces may be information-dense; learner screens must retain larger controls/);
+});
+
+test('parent shell uses stable primary workspaces and contextual navigation', () => {
+  assert.match(layout, /Main parent workspaces/);
+  for (const label of ['Dashboard', 'Activities', 'Learning', 'Progress', 'Support', 'Newsletter']) {
+    assert.match(layout, new RegExp(`label: '${label}'`));
+  }
+  assert.match(layout, /workspaceSecondaryLinks/);
+  assert.match(layout, /workspace navigation/);
+  assert.match(layout, /aria-current=\{currentWorkspace === item\.id/);
+  assert.match(layout, /visual-steps:selected-kid/);
+  assert.match(layout, /navigate\('\/dashboard\?tour=1'\)/);
+  assert.match(layout, /currentWorkspace === 'dashboard'/);
+  assert.match(layout, /Climb together\. Effortless tools for certain steps and positive growth\./);
+  assert.doesNotMatch(layout, /dashboard: \[[\s\S]*?label: 'Overview'[\s\S]*?\],\n    activities:/);
+  for (const label of ['Current', 'Needs Attention', 'Verification', 'Completed', 'On Hold', 'Ended', 'Rewards']) {
+    assert.match(layout, new RegExp(`label: '${label}'`));
+  }
+  assert.doesNotMatch(layout, /activities: \[[\s\S]*?label: 'Rewards'[\s\S]*?\],\n    learning:/);
+  assert.match(layout, /progress: \[[\s\S]*?label: 'Rewards'/);
+  assert.doesNotMatch(layout, /progress: \[[\s\S]*?label: 'Completed Work'[\s\S]*?\],\n    support:/);
+  assert.match(layout, /progress: \[[\s\S]*?label: 'Rewards'[\s\S]*?label: 'Progress Report'/);
+  assert.match(layout, /label: 'Quiz Results'/);
+  assert.match(layout, /label: 'Game Results'/);
+  assert.match(layout, /\?view=quiz-results/);
+  assert.match(layout, /\?view=game-results/);
+  assert.match(layout, /requestedActivityTab === 'rewards'/);
+  assert.match(layout, /support: \[[\s\S]*?label: 'Contact & Consultation'[\s\S]*?label: 'Share with the Community'/);
+  assert.doesNotMatch(layout, /support: \[[\s\S]*?label: 'Plans'[\s\S]*?\],\n    admin:/);
+  assert.match(layout, /to="\/pricing"[^>]*>Plans<\/Link>/);
+  assert.match(layout, /newsletter: \[[\s\S]*?label: 'Weekly Archive'[\s\S]*?label: 'Subscribe Newsletter'/);
+  assert.doesNotMatch(layout, /label: 'Learner Messages'/);
+  assert.match(layout, /isNewsletterAdmin \? \[\{ id: 'admin', label: 'Admin'/);
+  assert.match(layout, /workspace === 'admin'\) return '\/admin\/insights'/);
+  assert.match(layout, /<header className="[^"]*shrink-0/);
+  assert.match(layout, /<main className="[^"]*min-h-0[^"]*overflow-y-auto/);
+  assert.match(layout, /<main className="[^"]*bg-white px-4 py-0/);
+  assert.match(layout, /<div className="min-h-full w-full bg-white/);
+  assert.match(layout, /<footer className="[^"]*shrink-0/);
+  assert.match(layout, /aria-label=\{`Selected learner: \$\{selectedHeaderKid\.name\}`\}/);
+  assert.match(layout, /selectedHeaderKid\.reward_balance/);
+  assert.match(layout, /data-layout-row="content-spacing"/);
+  assert.match(layout, /assigned-activities\|progress-report\|summary-report\|edit-kid/);
+  assert.match(layout, /<Outlet \/>/);
+  assert.doesNotMatch(layout, /<Outlet key=/);
+  assert.doesNotMatch(layout, /activities: \[[\s\S]*?label: 'Activity Library'[\s\S]*?\],\n    learning:/);
+});
+
+test('learner dashboard uses a fixed simplified application frame', () => {
+  assert.match(kidsDashboard, /flex h-dvh w-full flex-col overflow-hidden/);
+  assert.match(kidsDashboard, /flex h-16 w-full items-center/);
+  assert.match(kidsDashboard, /flex h-20 w-full shrink-0/);
+  assert.match(kidsDashboard, /aria-label="Learner dashboard sections"/);
+  assert.match(kidsDashboard, /\['todo', 'Choose an Activity', navigationIcons\[0\]/);
+  assert.match(kidsDashboard, /parent-nav relative z-50/);
+  assert.match(kidsDashboard, /data-layout-row="content-spacing"/);
+  assert.match(kidsDashboard, /min-h-0 w-full flex-1 overflow-y-auto/);
+  assert.doesNotMatch(kidsDashboard, /<footer/);
+});

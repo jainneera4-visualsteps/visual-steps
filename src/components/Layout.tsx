@@ -1,29 +1,261 @@
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from './Button';
-import { LogOut, Menu, X, Lightbulb, ChevronDown, BookOpen, FileText, Gamepad2, Puzzle, Activity, TrendingUp, Facebook, Instagram, Mail, Newspaper, Users, Settings, Database, ShieldCheck, BarChart3 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { LogOut, Menu, X, Lightbulb, ChevronDown, BookOpen, FileText, Gamepad2, Puzzle, Activity, TrendingUp, Facebook, Instagram, Mail, Newspaper, Users, Database, ShieldCheck, HelpCircle, Plus, Edit2, ShoppingCart, BellRing } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { io } from 'socket.io-client';
 import { Tooltip } from './ui/Tooltip';
 import { ParentAssistant } from './ParentAssistant';
 import { isGuestSession } from '../guest/guestSession';
-import { apiFetch } from '../utils/api';
+import { apiFetch, safeJson } from '../utils/api';
+import { getRewardIcon } from '../utils/rewardUtils';
 
 export function Layout() {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isActivitiesOpen, setIsActivitiesOpen] = useState(false);
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
   const [isNewsletterOpen, setIsNewsletterOpen] = useState(false);
-  const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isArchiveMonthsOpen, setIsArchiveMonthsOpen] = useState(false);
   const [isMobileArchiveOpen, setIsMobileArchiveOpen] = useState(false);
   const [newsletterMonths, setNewsletterMonths] = useState<{ value: string; label: string }[]>([]);
   const [isNewsletterAdmin, setIsNewsletterAdmin] = useState(false);
   const [publicLinks, setPublicLinks] = useState<{ facebook?: string; instagram?: string }>({});
   const [selectedKidId, setSelectedKidId] = useState<string | null>(localStorage.getItem('dashboard_selected_kid_id') || localStorage.getItem('analysis_selected_kid_id'));
+  const [headerKids, setHeaderKids] = useState<{ id: string; name: string; avatar?: string; reward_balance?: number; reward_type?: string; reward_icon?: string }[]>([]);
+  const [activityWorkspaceCounts, setActivityWorkspaceCounts] = useState({ needsAttention: 0, verification: 0, completed: 0, onHold: 0, ended: 0 });
+  const [activityCountsRefreshKey, setActivityCountsRefreshKey] = useState(0);
+  const alertAudioContextRef = useRef<AudioContext | null>(null);
+
+  const getAlertAudioContext = () => {
+    const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextClass) return null;
+    if (!alertAudioContextRef.current || alertAudioContextRef.current.state === 'closed') {
+      alertAudioContextRef.current = new AudioContextClass();
+    }
+    return alertAudioContextRef.current;
+  };
+
+  const playHelpAlertTone = () => {
+    try {
+      const context = getAlertAudioContext();
+      if (!context) return;
+      if (context.state === 'suspended') {
+        void context.resume().then(() => {
+          if (context.state === 'running') playHelpAlertTone();
+        }).catch(() => undefined);
+        return;
+      }
+      const playTone = (frequency: number, startsAt: number) => {
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(frequency, startsAt);
+        gain.gain.setValueAtTime(0.0001, startsAt);
+        gain.gain.exponentialRampToValueAtTime(0.12, startsAt + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, startsAt + 0.18);
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+        oscillator.start(startsAt);
+        oscillator.stop(startsAt + 0.2);
+      };
+      const now = context.currentTime;
+      playTone(660, now);
+      playTone(880, now + 0.2);
+    } catch (error) {
+      console.warn('Help alert sound could not play:', error);
+    }
+  };
+
+  useEffect(() => {
+    // Browsers allow later notification sounds after one ordinary interaction.
+    const unlockAlertSound = () => {
+      const context = getAlertAudioContext();
+      if (context?.state === 'suspended') void context.resume();
+    };
+    window.addEventListener('pointerdown', unlockAlertSound, { once: true });
+    window.addEventListener('keydown', unlockAlertSound, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', unlockAlertSound);
+      window.removeEventListener('keydown', unlockAlertSound);
+    };
+  }, []);
 
   const isActive = (path: string) => location.pathname === path;
+  const requestedActivityTab = new URLSearchParams(location.search).get('tab');
+  const currentWorkspace = location.pathname === '/dashboard' || location.pathname === '/add-kid' || location.pathname.startsWith('/edit-kid/') || location.pathname === '/profile'
+      ? 'dashboard'
+    : location.pathname.startsWith('/assigned-activities/') && requestedActivityTab === 'rewards'
+      ? 'progress'
+    : location.pathname.startsWith('/assigned-activities/') || location.pathname === '/activity-library'
+      ? 'activities'
+      : ['/saved-quizzes', '/quiz-generator', '/social-stories', '/social-stories/create', '/saved-worksheets', '/worksheet-generator', '/games'].some(path => location.pathname === path || location.pathname.startsWith(`${path}/`))
+        ? 'learning'
+        : location.pathname.startsWith('/admin') || location.pathname === '/newsletter-admin'
+          ? 'admin'
+          : location.pathname.startsWith('/newsletter') && location.pathname !== '/newsletter/community'
+            ? 'newsletter'
+            : location.pathname.startsWith('/progress-report/') || location.pathname.startsWith('/summary-report/') || location.pathname === '/data-management'
+              ? 'progress'
+              : 'support';
+
+  const workspaceLink = (workspace: string) => {
+    if (workspace === 'activities') return selectedKidId ? `/assigned-activities/${selectedKidId}?tab=activities` : '/dashboard';
+    if (workspace === 'learning') return '/saved-quizzes';
+    if (workspace === 'newsletter') return '/newsletter';
+    if (workspace === 'progress') return selectedKidId ? `/progress-report/${selectedKidId}` : '/dashboard';
+    if (workspace === 'support') return '/contact';
+    if (workspace === 'admin') return '/admin/insights';
+    return '/dashboard';
+  };
+  const learnerActivitiesRoute = selectedKidId ? `/assigned-activities/${selectedKidId}` : '/dashboard';
+  const workspaceSecondaryLinks: Record<string, { label: string; to: string }[]> = {
+    dashboard: [
+    ],
+    activities: [
+      { label: 'Current', to: `${learnerActivitiesRoute}?tab=activities` },
+      ...(activityWorkspaceCounts.needsAttention > 0 ? [{ label: 'Needs Attention', to: `${learnerActivitiesRoute}?tab=help_requested` }] : []),
+      ...(activityWorkspaceCounts.verification > 0 ? [{ label: 'Verification', to: `${learnerActivitiesRoute}?tab=verification` }] : []),
+      ...(activityWorkspaceCounts.completed > 0 ? [{ label: 'Completed', to: `${learnerActivitiesRoute}?tab=completed` }] : []),
+      ...(activityWorkspaceCounts.onHold > 0 ? [{ label: 'On Hold', to: `${learnerActivitiesRoute}?tab=on_hold` }] : []),
+      ...(activityWorkspaceCounts.ended > 0 ? [{ label: 'Ended', to: `${learnerActivitiesRoute}?tab=ended` }] : []),
+    ],
+    learning: [
+      { label: 'Quizzes', to: '/saved-quizzes' },
+      { label: 'Worksheets', to: '/saved-worksheets' },
+      { label: 'Social Stories', to: '/social-stories' },
+      { label: 'Games', to: '/games' },
+    ],
+    newsletter: [
+      { label: 'Weekly Archive', to: '/newsletter' },
+      { label: 'Subscribe Newsletter', to: '/newsletter/subscribe' },
+    ],
+    progress: [
+      { label: 'Rewards', to: `${learnerActivitiesRoute}?tab=rewards` },
+      ...(selectedKidId ? [
+        { label: 'Progress Report', to: `/progress-report/${selectedKidId}` },
+        { label: 'Summary Report', to: `/summary-report/${selectedKidId}` },
+        { label: 'Quiz Results', to: `/progress-report/${selectedKidId}?view=quiz-results` },
+        { label: 'Game Results', to: `/progress-report/${selectedKidId}?view=game-results` },
+      ] : []),
+      { label: 'Family Data', to: '/data-management' },
+    ],
+    support: [
+      { label: 'Contact & Consultation', to: '/contact' },
+      { label: 'Share with the Community', to: '/newsletter/community' },
+    ],
+    admin: [
+      { label: 'Insights', to: '/admin/insights' },
+      { label: 'Support Inbox', to: '/admin/support' },
+      { label: 'Manage Newsletter', to: '/newsletter-admin' },
+    ],
+  };
+
+  useEffect(() => {
+    if (!user) {
+      setHeaderKids([]);
+      return;
+    }
+    apiFetch('/api/kids')
+      .then(response => response.ok ? response.json() : Promise.reject())
+      .then(data => {
+        const kids = Array.isArray(data.kids) ? data.kids : [];
+        setHeaderKids(kids.map((kid: { id: string; name: string; avatar?: string; reward_balance?: number; reward_type?: string; reward_icon?: string }) => ({ id: kid.id, name: kid.name, avatar: kid.avatar, reward_balance: kid.reward_balance, reward_type: kid.reward_type, reward_icon: kid.reward_icon })));
+        if (kids[0]?.id && (!selectedKidId || !kids.some((kid: { id: string }) => kid.id === selectedKidId))) {
+          setSelectedKidId(kids[0].id);
+          localStorage.setItem('dashboard_selected_kid_id', kids[0].id);
+        }
+      })
+      .catch(() => setHeaderKids([]));
+  }, [user, location.pathname]);
+
+  useEffect(() => {
+    if (!user || !selectedKidId) {
+      setActivityWorkspaceCounts({ needsAttention: 0, verification: 0, completed: 0, onHold: 0, ended: 0 });
+      return;
+    }
+    let cancelled = false;
+    const applyCounts = (activities: any[], helpRequests: any[]) => {
+      if (cancelled) return;
+      const nextCounts = {
+        needsAttention: helpRequests.length,
+        verification: activities.filter(activity => activity.status === 'awaiting_verification').length,
+        completed: activities.filter(activity => activity.status === 'completed').length,
+        onHold: activities.filter(activity => activity.status === 'on_hold').length,
+        ended: activities.filter(activity => activity.status === 'ended').length,
+      };
+      setActivityWorkspaceCounts(nextCounts);
+
+      const requestedTab = new URLSearchParams(location.search).get('tab');
+      const activeListIsEmpty = requestedTab === 'help_requested' ? nextCounts.needsAttention === 0
+        : requestedTab === 'verification' ? nextCounts.verification === 0
+          : requestedTab === 'completed' ? nextCounts.completed === 0
+            : requestedTab === 'on_hold' ? nextCounts.onHold === 0
+              : requestedTab === 'ended' ? nextCounts.ended === 0
+                : false;
+      if (location.pathname.startsWith('/assigned-activities/') && activeListIsEmpty) {
+        navigate(`/assigned-activities/${selectedKidId}?tab=activities`, { replace: true });
+      }
+    };
+    apiFetch(`/api/kids/${encodeURIComponent(selectedKidId)}/activities?mode=parent`)
+      .then(async response => response.ok ? safeJson(response) : Promise.reject(new Error('Unable to load activity menu counts')))
+      .then(data => applyCounts(Array.isArray(data?.activities) ? data.activities : [], Array.isArray(data?.helpRequests) ? data.helpRequests : []))
+      .catch(() => { if (!cancelled) setActivityWorkspaceCounts({ needsAttention: 0, verification: 0, completed: 0, onHold: 0, ended: 0 }); });
+
+    const handleCounts = (event: Event) => {
+      const detail = (event as CustomEvent<{ kidId: string; activities: any[]; helpRequests: any[] }>).detail;
+      if (detail?.kidId === selectedKidId) applyCounts(detail.activities || [], detail.helpRequests || []);
+    };
+    window.addEventListener('visual-steps:activity-workspace-counts', handleCounts);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('visual-steps:activity-workspace-counts', handleCounts);
+    };
+  }, [user, selectedKidId, location.pathname, location.search, navigate, activityCountsRefreshKey]);
+
+  useEffect(() => {
+    if (!user || !selectedKidId || isGuestSession()) return;
+    const socket = io(window.location.origin);
+    socket.emit('join_kid_room', selectedKidId);
+    socket.on('help_requested', (data) => {
+      if (data?.kidId === selectedKidId) {
+        playHelpAlertTone();
+      }
+    });
+    socket.on('data_updated', (data) => {
+      if (data?.kidId === selectedKidId) {
+        setActivityCountsRefreshKey(value => value + 1);
+      }
+    });
+    return () => {
+      socket.emit('leave_kid_room', selectedKidId);
+      socket.disconnect();
+    };
+  }, [user, selectedKidId]);
+
+  const selectHeaderKid = (kidId: string) => {
+    setSelectedKidId(kidId);
+    localStorage.setItem('dashboard_selected_kid_id', kidId);
+    localStorage.setItem('analysis_selected_kid_id', kidId);
+    const nextKid = headerKids.find(kid => kid.id === kidId);
+    if (nextKid) localStorage.setItem('dashboard_selected_kid_name', nextKid.name);
+    window.dispatchEvent(new CustomEvent('visual-steps:selected-kid', { detail: kidId }));
+
+    const kidScopedRoute = location.pathname.match(/^\/(assigned-activities|progress-report|summary-report|edit-kid)\/[^/]+(.*)$/);
+    if (kidScopedRoute) {
+      navigate(`/${kidScopedRoute[1]}/${kidId}${kidScopedRoute[2]}${location.search}${location.hash}`, { replace: true });
+      return;
+    }
+
+    const nextParams = new URLSearchParams(location.search);
+    if (nextParams.has('kidId')) {
+      nextParams.set('kidId', kidId);
+      navigate(`${location.pathname}?${nextParams.toString()}${location.hash}`, { replace: true });
+    }
+  };
+  const selectedHeaderKid = headerKids.find(kid => kid.id === selectedKidId) || headerKids[0];
 
   useEffect(() => {
     fetch('/api/public-links')
@@ -134,7 +366,7 @@ export function Layout() {
 
   return (
     <div className="parent-theme h-dvh w-full font-sans text-slate-900 flex flex-col overflow-hidden print:overflow-visible print:h-auto print:block">
-      <header className="parent-nav sticky top-0 z-50 w-full border-b no-print">
+      <header className="parent-nav sticky top-0 z-50 w-full shrink-0 no-print">
         <div className="parent-accent-line h-0.5 w-full" />
         <div className="w-full flex h-16 items-center justify-between px-4 lg:px-8">
           <div className="flex items-center gap-8">
@@ -146,7 +378,24 @@ export function Layout() {
             </Link>
             
             {user && (
-              <nav className="hidden md:flex items-center gap-1">
+              <nav className="hidden lg:flex items-center gap-1" aria-label="Main parent workspaces">
+                {[
+                  { id: 'dashboard', label: 'Dashboard', icon: Lightbulb },
+                  { id: 'activities', label: 'Activities', icon: Activity },
+                  { id: 'learning', label: 'Learning', icon: BookOpen },
+                  { id: 'progress', label: 'Progress', icon: TrendingUp },
+                  { id: 'support', label: 'Support', icon: Users },
+                  { id: 'newsletter', label: 'Newsletter', icon: Mail },
+                  ...(isNewsletterAdmin ? [{ id: 'admin', label: 'Admin', icon: ShieldCheck }] : []),
+                ].map(item => {
+                  const Icon = item.icon;
+                  return <Link key={item.id} to={workspaceLink(item.id)} aria-current={currentWorkspace === item.id ? 'page' : undefined} className={`inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-bold transition-all ${currentWorkspace === item.id ? 'bg-brand-50 text-brand-700 shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-brand-700'}`}><Icon className="h-4 w-4" />{item.label}</Link>;
+                })}
+              </nav>
+            )}
+
+            {user && (
+              <nav className="hidden">
                 <Tooltip content="Parent's Dashboard">
                   <Link
                     to="/dashboard"
@@ -294,23 +543,23 @@ export function Layout() {
             )}
           </div>
 
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden lg:flex items-center gap-4">
             <Tooltip content="What is included in Visual Steps">
-              <Link to="/pricing" className="text-sm font-semibold text-slate-600 hover:text-brand-600 transition-all">
+              <Link to="/pricing" className="hidden text-sm font-semibold text-slate-600 hover:text-brand-600 transition-all">
                 Plans
               </Link>
             </Tooltip>
             <Tooltip content="About Visual Steps">
-              <Link to="/about" className="text-sm font-semibold text-slate-600 hover:text-brand-600 transition-all">
+              <Link to="/about" className="hidden text-sm font-semibold text-slate-600 hover:text-brand-600 transition-all">
                 About
               </Link>
             </Tooltip>
             <Tooltip content="Contact Visual Steps">
-              <Link to="/contact" className="text-sm font-semibold text-slate-600 hover:text-brand-600 transition-all">
+              <Link to="/contact" className="hidden text-sm font-semibold text-slate-600 hover:text-brand-600 transition-all">
                 Contact
               </Link>
             </Tooltip>
-            <div className="relative">
+            <div className="relative hidden">
               <button
                 onMouseEnter={() => setIsNewsletterOpen(true)}
                 onMouseLeave={() => setIsNewsletterOpen(false)}
@@ -331,21 +580,12 @@ export function Layout() {
                 <Link to="/newsletter/subscribe" className="app-menu-item" onClick={() => setIsNewsletterOpen(false)}><Mail size={18} className="text-blue-600"/> Subscribe</Link>
               </div>}
             </div>
-            {isNewsletterAdmin && <div className="relative">
-              <button onMouseEnter={() => setIsAdminOpen(true)} onMouseLeave={() => setIsAdminOpen(false)} onClick={() => setIsAdminOpen(value => !value)} className={`flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-semibold transition-all hover:bg-slate-100 ${location.pathname.startsWith('/admin') || location.pathname === '/newsletter-admin' ? 'bg-violet-50 text-violet-700' : 'text-slate-600'}`} aria-expanded={isAdminOpen}><ShieldCheck size={16}/> Admin <ChevronDown size={14} className={isAdminOpen ? 'rotate-180' : ''}/></button>
-              {isAdminOpen && <div onMouseEnter={() => setIsAdminOpen(true)} onMouseLeave={() => setIsAdminOpen(false)} className="app-menu absolute right-0 z-[60] mt-0 w-56">
-                <Link to="/admin/insights" className="app-menu-item" onClick={() => setIsAdminOpen(false)}><BarChart3 size={18} className="text-blue-600"/> Insights</Link>
-                <Link to="/admin/support" className="app-menu-item" onClick={() => setIsAdminOpen(false)}><Mail size={18} className="text-emerald-600"/> Support Inbox</Link>
-                <Link to="/newsletter-admin" className="app-menu-item" onClick={() => setIsAdminOpen(false)}><Settings size={18} className="text-violet-600"/> Manage newsletter</Link>
-              </div>}
-            </div>}
             <div className="h-4 w-px bg-slate-200" />
             {user ? (
               <div className="flex items-center gap-4">
                 <span className="text-sm font-medium text-slate-500">
                   Hi, <Link to="/profile" className="text-slate-900 font-bold hover:text-brand-600 transition-colors">{user.name.split(' ')[0]}</Link>
                 </span>
-                <Tooltip content="Review and clean up saved family data"><Link to="/data-management" className="inline-flex items-center gap-1 text-sm font-bold text-slate-600 hover:text-brand-600"><Database className="h-4 w-4" /> Data</Link></Tooltip>
                 <Tooltip content="Sign Out">
                   <Button variant="outline" size="sm" onClick={logout} className="h-9">
                     <LogOut className="mr-2 h-4 w-4" />
@@ -366,7 +606,7 @@ export function Layout() {
           </div>
 
           <button
-            className="md:hidden p-1 text-slate-600"
+            className="lg:hidden p-1 text-slate-600"
             aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={isMenuOpen}
             onClick={() => {
@@ -380,9 +620,72 @@ export function Layout() {
           </button>
         </div>
 
+        {user && (
+          <div className="hidden h-12 items-center justify-between gap-4 border-t border-slate-100 bg-gradient-to-r from-blue-50/80 via-white to-emerald-50/70 px-4 lg:flex lg:px-8">
+            <div className="flex min-w-0 items-center gap-3">
+              {currentWorkspace === 'dashboard' ? (
+                <>
+                  <span className="shrink-0 text-[11px] font-black uppercase tracking-[0.16em] text-brand-700">Dashboard</span>
+                  <span className="h-4 w-px shrink-0 bg-slate-300" aria-hidden="true" />
+                  <p className="truncate text-sm font-semibold text-slate-600">Climb together. Effortless tools for certain steps and positive growth.</p>
+                </>
+              ) : (
+                <>
+                  <span className="shrink-0 text-[11px] font-black uppercase tracking-[0.16em] text-brand-700">{currentWorkspace}</span>
+                  <span className="h-4 w-px shrink-0 bg-slate-300" aria-hidden="true" />
+                  <nav className="flex flex-wrap items-center gap-1" aria-label={`${currentWorkspace} workspace navigation`}>
+                    {(workspaceSecondaryLinks[currentWorkspace] || []).map(item => {
+                      const currentUrl = `${location.pathname}${location.search}${location.hash}`;
+                      const active = currentUrl === item.to || (!item.to.includes('?') && !item.to.includes('#') && !location.search && !location.hash && location.pathname === item.to);
+                      return <Link key={`${item.label}-${item.to}`} to={item.to} aria-current={active ? 'page' : undefined} className={`rounded-md px-3 py-1.5 text-xs font-bold transition-all ${active ? 'bg-white text-brand-700 shadow-sm ring-1 ring-brand-100' : 'text-slate-600 hover:bg-white/80 hover:text-brand-700'}`}>{item.label}</Link>;
+                    })}
+                  </nav>
+                </>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <Button type="button" variant="outline" size="sm" className="h-8 border-blue-600 bg-blue-600 px-3 text-white hover:border-blue-700 hover:bg-blue-700 hover:text-white" onClick={() => navigate('/dashboard?tour=1')}>
+                <HelpCircle className="mr-1.5 h-3.5 w-3.5" />Start tour
+              </Button>
+              {headerKids.length > 0 && (
+                <select aria-label="Select Child" value={selectedKidId || headerKids[0].id} onChange={(event) => selectHeaderKid(event.target.value)} className="h-8 w-36 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100">
+                  {headerKids.map(kid => <option key={kid.id} value={kid.id}>{kid.name}</option>)}
+                </select>
+              )}
+              <Link to="/add-kid" data-guest-tour="add-child"><Button size="sm" className="h-8 px-3"><Plus className="mr-1.5 h-4 w-4" />Add Child / Adult</Button></Link>
+            </div>
+          </div>
+        )}
+
+        {user && selectedHeaderKid && (
+          <div className="flex h-16 w-full shrink-0 items-center justify-between bg-gradient-to-r from-blue-600 to-cyan-600 px-3 text-white sm:px-4 lg:h-20 lg:px-7" aria-label={`Selected learner: ${selectedHeaderKid.name}`}>
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-white text-2xl shadow-md lg:h-14 lg:w-14 lg:text-3xl">
+                {selectedHeaderKid.avatar && (selectedHeaderKid.avatar.startsWith('http') || selectedHeaderKid.avatar.startsWith('data:')) ? <img src={selectedHeaderKid.avatar} alt={selectedHeaderKid.name} className="h-full w-full object-cover" referrerPolicy="no-referrer" /> : selectedHeaderKid.avatar || '👤'}
+              </div>
+              <span className="truncate text-xl font-black lg:text-2xl">{selectedHeaderKid.name}</span>
+            </div>
+            <div className="flex items-center gap-1 sm:gap-2 lg:gap-3 lg:pr-1">
+              {activityWorkspaceCounts.needsAttention > 0 && (
+                <Tooltip content={`${selectedHeaderKid.name} needs help now`}>
+                  <Link to={`/assigned-activities/${selectedHeaderKid.id}?tab=help_requested`} className="flex h-9 items-center gap-1.5 rounded-lg bg-rose-500 px-2.5 text-xs font-black text-white shadow-md ring-2 ring-white/80 transition hover:bg-rose-600" aria-label={`${selectedHeaderKid.name} needs help with ${activityWorkspaceCounts.needsAttention} ${activityWorkspaceCounts.needsAttention === 1 ? 'activity' : 'activities'}`}>
+                    <BellRing className="h-4 w-4 animate-pulse" /> Needs Help <span className="rounded-full bg-white px-1.5 py-0.5 text-[10px] text-rose-600">{activityWorkspaceCounts.needsAttention}</span>
+                  </Link>
+                </Tooltip>
+              )}
+              <Tooltip content={`Buy rewards for ${selectedHeaderKid.name}`}><Link to="/dashboard?shop=1" className="rounded-lg p-2 transition-colors hover:bg-white/15" aria-label={`Buy rewards for ${selectedHeaderKid.name}`}><ShoppingCart className="h-7 w-7" /></Link></Tooltip>
+              <img src={getRewardIcon(selectedHeaderKid.reward_type, selectedHeaderKid.reward_icon)} alt={selectedHeaderKid.reward_type || 'Reward'} className="h-8 w-8" referrerPolicy="no-referrer" />
+              <span className="text-2xl font-black">{selectedHeaderKid.reward_balance || 0}</span>
+              <Tooltip content="Edit learner profile"><Link to={`/edit-kid/${selectedHeaderKid.id}`} className="rounded-lg p-2 transition-colors hover:bg-white/15" aria-label="Edit learner profile"><Edit2 className="h-6 w-6" /></Link></Tooltip>
+            </div>
+          </div>
+        )}
+
+        {user && <div className="h-3 w-full shrink-0 bg-white" aria-hidden="true" data-layout-row="content-spacing" />}
+
         {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="md:hidden border-t border-slate-200 bg-white p-2">
+          <div className="lg:hidden border-t border-slate-200 bg-white p-2">
             <nav className="flex flex-col gap-2">
               {user ? (
                 <>
@@ -466,17 +769,18 @@ export function Layout() {
         )}
       </header>
 
-      <main className="flex flex-grow overflow-y-auto p-2 md:p-3 print:overflow-visible print:h-auto print:p-0 print:block">
-        <div className="w-full h-full print:h-auto print:block">
+      <main className="app-page-scroll flex min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain bg-white px-4 py-0 print:overflow-visible print:h-auto print:p-0 print:block">
+        <div className="min-h-full w-full bg-white print:h-auto print:block">
           <Outlet />
         </div>
       </main>
       
-      <footer className="mt-auto border-t border-slate-200 bg-white py-3 no-print">
+      <footer className="mt-auto shrink-0 border-t border-slate-200 bg-white py-3 no-print">
         <div className="flex w-full flex-col items-center gap-2 px-4">
           <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm font-bold text-slate-600" aria-label="Public information">
             <Link to="/about" className="hover:text-brand-600">About</Link>
             <Link to="/testimonials" className="hover:text-brand-600">Testimonials</Link>
+            <Link to="/pricing" className="hover:text-brand-600">Plans</Link>
             <Link to="/contact" className="hover:text-brand-600">Contact</Link>
             <Link to="/privacy" className="hover:text-brand-600">Privacy</Link>
             <Link to="/terms" className="hover:text-brand-600">Terms</Link>

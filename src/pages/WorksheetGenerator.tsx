@@ -86,7 +86,16 @@ export default function WorksheetGenerator() {
   const [generatedWorksheets, setGeneratedWorksheets] = useState<WorksheetContent[]>([]);
   const [currentWorksheetIndex, setCurrentWorksheetIndex] = useState(0);
   const [showAnswers, setShowAnswers] = useState(false);
-  const [kidId, setKidId] = useState<string>('');
+  const [kidId, setKidId] = useState<string>(() => localStorage.getItem('dashboard_selected_kid_id') || '');
+
+  useEffect(() => {
+    const handleLearnerChange = (event: Event) => {
+      const nextKidId = (event as CustomEvent<string>).detail;
+      if (nextKidId) setKidId(nextKidId);
+    };
+    window.addEventListener('visual-steps:selected-kid', handleLearnerChange);
+    return () => window.removeEventListener('visual-steps:selected-kid', handleLearnerChange);
+  }, []);
   const [kidsList, setKidsList] = useState<any[]>([]);
   const [kidProfile, setKidProfile] = useState<any>(null);
   const [generatingImageUrl, setGeneratingImageUrl] = useState<string | null>(null);

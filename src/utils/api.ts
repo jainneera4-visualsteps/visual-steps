@@ -69,10 +69,21 @@ export const apiFetch = async (
 
   let token = null;
   let isKidSession = false;
+  const isKidDashboard = typeof window !== 'undefined' && window.location.pathname.startsWith('/kids-dashboard');
+  if (isKidDashboard) {
+    const kidSessionStr = localStorage.getItem('kid_session');
+    if (kidSessionStr) {
+      try {
+        const kidSession = JSON.parse(kidSessionStr);
+        token = kidSession.token;
+        isKidSession = Boolean(token);
+      } catch (e) {}
+    }
+  }
   try {
     // If Supabase is pointing to a placeholder, don't even try to get session as it will cause a DNS error/Failed to fetch
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    if (supabaseUrl && !supabaseUrl.includes('placeholder')) {
+    if (!token && supabaseUrl && !supabaseUrl.includes('placeholder')) {
       const { data: { session }, error } = await supabase.auth.getSession();
       if (error && isAuthError(error)) {
         await clearAuthSession();
