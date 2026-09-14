@@ -108,6 +108,7 @@ test('public documentation links to catalog-backed detailed feature guides', asy
   assert.match(about, /sortByTitle readMore/);
   assert.match(newsletter, /featureIdFor/);
   assert.match(newsletter, /Read more/);
+  assert.match(newsletter, /article=\$\{encodeURIComponent\(item\.title\|\|''\)\}/);
   assert.match(highlights, /Read more/);
   assert.match(highlights, /features\/\$\{feature\.id\}/);
   assert.doesNotMatch(
@@ -116,6 +117,8 @@ test('public documentation links to catalog-backed detailed feature guides', asy
   );
   assert.match(detail, /feature\.guideParagraphs/);
   assert.match(detail, /feature\.screenshot/);
+  assert.match(detail, /requestedArticleTitle/);
+  assert.match(detail, /item\.title === requestedArticleTitle/);
   const screenshotPaths = productFeatures.map(feature => feature.screenshot.src);
   assert.equal(new Set(screenshotPaths).size, screenshotPaths.length, 'feature guides must not reuse screenshots');
   assert.equal(screenshotPaths.length, productFeatures.length, 'every feature guide should use its own accurate real application capture');

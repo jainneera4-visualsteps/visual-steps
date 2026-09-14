@@ -21,7 +21,12 @@ export default function FeatureDetail() {
   if (!registeredFeature) return <Navigate to="/" replace />;
 
   const feature = currentFeatureContent(registeredFeature);
-  const update = registeredFeature.updates?.find(item => item.updatedOn === searchParams.get('update'));
+  const requestedUpdateDate = searchParams.get('update');
+  const requestedArticleTitle = searchParams.get('article');
+  const update = registeredFeature.updates?.find(item =>
+    item.updatedOn === requestedUpdateDate
+    && (!requestedArticleTitle || item.title === requestedArticleTitle)
+  );
   const article = update || feature;
   const paragraphs = [article.details, ...(update?.guideParagraphs || (update ? registeredFeature.guideParagraphs : feature.guideParagraphs)), article.familyImpact, update?.help || (update ? registeredFeature.help : feature.help)]
     .flatMap(splitIntoReadableParagraphs);

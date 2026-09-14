@@ -16,7 +16,7 @@ type CommunitySubmissionRecord = {
 };
 const displayDate=(value:string)=>new Intl.DateTimeFormat('en-GB',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(`${value}T12:00:00Z`)).replace(/^(\d{2}) ([A-Za-z]{3}) /,(_match,day,month)=>`${Number.parseInt(day,10)} ${month}, `);
 const featureIdFor=(item:any)=>item.id||productFeatures.find(feature=>feature.title===item.title)?.id;
-const featureGuideUrl=(item:any, featureId:string)=>`/features/${featureId}${item.changeType==='updated'&&item.changedOn?`?update=${encodeURIComponent(item.changedOn)}`:''}`;
+const featureGuideUrl=(item:any, featureId:string)=>`/features/${featureId}${item.changeType==='updated'&&item.changedOn?`?update=${encodeURIComponent(item.changedOn)}&article=${encodeURIComponent(item.title||'')}`:''}`;
 const communitySectionTypes=[
   {key:'story',title:'Parent Stories',tone:'amber' as const},
   {key:'news',title:'Community News',tone:'blue' as const},
@@ -146,9 +146,18 @@ export function IssueCard({issue}:{issue:Issue}){
     const compactDescription=x.description||[x.bullets?.find((bullet:any)=>bullet.label==='What changed')?.text,x.bullets?.find((bullet:any)=>bullet.label==='How it can help')?.text].filter(Boolean).join(' ');
     return <>{x.compact?<><b className="block text-slate-900">{x.title}</b><span className="mt-1 block">{compactDescription}</span></>:<><span className="mb-2 inline-flex rounded-full bg-blue-100 px-2.5 py-1 text-xs font-black uppercase tracking-wider text-blue-800">{x.changeType==='updated'?'Feature update':'New feature'}</span><b className="block text-slate-900">{x.title}</b><span className="mt-1 block">{x.summary}</span><span className="mt-2 block">{x.details}</span>{x.familyImpact&&<span className="mt-2 block"><b>How this supports growth:</b> {x.familyImpact}</span>}<small className="mt-2 block font-semibold text-brand-800">Where to find it: {x.help}</small></>}{featureId&&<Link to={featureGuideUrl(x,featureId)} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex font-bold text-brand-800 underline underline-offset-4">Read more</Link>}</>;
   })}/>:null;
+  const howToSection=visible('how_to_series')?<Section fullWidth tone="indigo" title={title('how_to_series','How To')} items={(issue.how_to_series||[]).map((x:any)=><article key={x.id}>
+    <b className="block text-xl text-slate-950">{x.title}</b>
+    <span className="mt-3 block"><b>Purpose:</b> {x.purpose}</span>
+    <span className="mt-3 block rounded-lg bg-white/70 px-3 py-2"><b>Go to:</b> {x.navigation}</span>
+    <span className="mt-4 block font-bold text-slate-900">Steps:</span>
+    <ol className="mt-2 list-decimal space-y-2 pl-6">{(x.steps||[]).map((step:string,index:number)=><li key={`${x.id}-${index}`}>{step}</li>)}</ol>
+    {x.id&&<Link to={`/features/${x.id}`} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex font-bold text-brand-800 underline underline-offset-4">See more details</Link>}
+  </article>)}/>:null;
   const testimonialsSection=visible('parent_testimonials')?<Section tone="rose" title={title('parent_testimonials','Parent Testimonials')} items={(issue.parent_testimonials||[]).map((x:any)=><><b>By {x.displayName}</b><FormattedNewsletterContent content={x.quote}/>{x.editorialContext&&<small className="mt-2 block italic">{x.editorialContext}</small>}</>)}/>:null;
   const contentsOrder=[
     title('new_features',conciseEditorial?"What's New in Visual Steps":'New and Updated Feature Details'),
+    title('how_to_series','How To'),
     title('feature_previews','Feature Previews'),
     title('feature_details','Using Visual Steps Meaningfully'),
     title('popular_features','Most Popular Features'),
@@ -162,6 +171,7 @@ export function IssueCard({issue}:{issue:Issue}){
   ];
   return <NewsletterFlipBook issueTitle={issue.title} contentsOrder={contentsOrder}><header className="newsletter-page"><p className="text-sm font-black uppercase tracking-wider text-brand-700">{displayDate(issue.issue_date)}</p><h3 className="mt-3 text-4xl font-black sm:text-5xl">{issue.title}</h3><p className="mt-5 text-base leading-8 text-slate-600">{issue.introduction}</p><NewsletterLinks links={issue.footer_links}/></header><div className="grid gap-7">
     {newFeaturesSection}
+    {howToSection}
     {visible('feature_previews')&&<Section oneItemPerPage fullWidth tone="violet" title={title('feature_previews','Feature Previews')} items={(issue.feature_previews||[]).map((x:any)=>{
       const featureId=featureIdFor(x);
       return <><img src={x.imageUrl} alt={`${x.title} feature preview`} className="mb-3 h-52 w-full rounded-xl object-contain object-top sm:h-64"/><b>{x.title}</b> — {x.caption}{x.familyImpact&&<span className="mt-2 block"><b>Why it matters:</b> {x.familyImpact}</span>}{featureId&&<Link to={`/features/${featureId}`} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex font-bold text-brand-800 underline underline-offset-4">Read more</Link>}</>;

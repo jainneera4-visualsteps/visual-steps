@@ -170,6 +170,7 @@ test('newsletter combines feature guidance, hides empty sections, and explains p
   assert.match(styles, /\.newsletter-flow-content ol\.grid \{[\s\S]*display: block/);
   assert.match(styles, /-webkit-column-break-after: avoid/);
   assert.match(page, />Read more<\/Link>/);
+  assert.match(server, /article=\$\{encodeURIComponent\(item\.title \|\| ''\)\}/);
   assert.match(server, /title === newsletterSectionTitles\.new_features/);
   assert.match(server, /meaningful engagement and healthy physical, emotional, social, practical, and intellectual growth for autistic people of all ages/);
   assert.match(server, /autistic people of all ages—from younger children through teenagers and adults/);
