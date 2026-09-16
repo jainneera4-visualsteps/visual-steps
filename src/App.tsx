@@ -34,6 +34,7 @@ import Pricing from './pages/Pricing';
 import GuestDemo from './pages/GuestDemo';
 import Testimonials from './pages/Testimonials';
 import Contact from './pages/Contact';
+import ParentSupport from './pages/ParentSupport';
 import Newsletter from './pages/Newsletter';
 import NewsletterAdmin from './pages/NewsletterAdmin';
 import AdminInsights from './pages/AdminInsights';
@@ -71,6 +72,7 @@ export default function App() {
             <Route path="cookies" element={<Legal kind="cookies" />} />
             <Route path="newsletter" element={<Newsletter />} />
             <Route path="newsletter/subscribe" element={<Newsletter />} />
+            <Route path="newsletter/unsubscribe" element={<Newsletter />} />
             <Route path="newsletter/community" element={<Newsletter />} />
             <Route path="newsletter/archive/:month" element={<Newsletter />} />
             <Route path="newsletter/issues/:issueDate" element={<Newsletter />} />
@@ -84,6 +86,7 @@ export default function App() {
               <Route path="edit-kid/:id" element={<AddEditKid />} />
               <Route path="assigned-activities/:kidId" element={<AssignedActivities />} />
               <Route path="profile" element={<Profile />} />
+              <Route path="support" element={<ParentSupport />} />
               <Route path="data-management" element={<DataManagement />} />
               <Route path="activity-history" element={<DataManagement mode="activity" />} />
               <Route path="social-stories" element={<SocialStories />} />

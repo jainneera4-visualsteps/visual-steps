@@ -24,6 +24,7 @@ export function Layout() {
   const [isArchiveMonthsOpen, setIsArchiveMonthsOpen] = useState(false);
   const [isMobileArchiveOpen, setIsMobileArchiveOpen] = useState(false);
   const [newsletterMonths, setNewsletterMonths] = useState<{ value: string; label: string }[]>([]);
+  const [isNewsletterSubscribed, setIsNewsletterSubscribed] = useState(false);
   const [isNewsletterAdmin, setIsNewsletterAdmin] = useState(false);
   const [publicLinks, setPublicLinks] = useState<{ facebook?: string; instagram?: string }>({});
   const [selectedKidId, setSelectedKidId] = useState<string | null>(localStorage.getItem('dashboard_selected_kid_id') || localStorage.getItem('analysis_selected_kid_id'));
@@ -110,7 +111,7 @@ export function Layout() {
     if (workspace === 'learning') return '/saved-quizzes';
     if (workspace === 'newsletter') return '/newsletter';
     if (workspace === 'progress') return selectedKidId ? `/progress-report/${selectedKidId}?view=quiz-results` : '/dashboard';
-    if (workspace === 'support') return '/contact';
+    if (workspace === 'support') return user ? '/support' : '/contact';
     if (workspace === 'admin') return '/admin/insights';
     return '/dashboard';
   };
@@ -163,7 +164,7 @@ export function Layout() {
     ],
     newsletter: [
       { label: 'Weekly Archive', to: '/newsletter' },
-      { label: 'Subscribe Newsletter', to: '/newsletter/subscribe' },
+      { label: isNewsletterSubscribed ? 'Unsubscribe Newsletter' : 'Subscribe Newsletter', to: isNewsletterSubscribed ? '/newsletter/unsubscribe' : '/newsletter/subscribe' },
     ],
     progress: [
       ...(selectedKidId ? [
@@ -176,7 +177,7 @@ export function Layout() {
       ...(selectedKidId && isNewsletterAdmin ? [{ label: 'Summary', to: `/summary-report/${selectedKidId}` }] : []),
     ],
     support: [
-      { label: 'Contact & Consultation', to: '/contact' },
+      { label: 'Contact', to: '/support' },
       { label: 'Share with the Community', to: '/newsletter/community' },
     ],
     admin: [
@@ -191,7 +192,7 @@ export function Layout() {
     { id: 'rewards', label: 'Rewards', icon: Gift },
     { id: 'learning', label: 'Learning', icon: BookOpen },
     { id: 'progress', label: 'Progress', icon: TrendingUp },
-    { id: 'support', label: 'Support', icon: Users },
+    { id: 'support', label: 'Connect', icon: Users },
     { id: 'newsletter', label: 'Newsletter', icon: Mail },
     ...(isNewsletterAdmin ? [{ id: 'admin', label: 'Admin', icon: ShieldCheck }] : []),
   ];
@@ -362,6 +363,26 @@ export function Layout() {
   }, [user]);
 
   useEffect(() => {
+    let cancelled = false;
+    const loadSubscription = () => {
+      if (!user || isGuestSession()) {
+        setIsNewsletterSubscribed(false);
+        return;
+      }
+      apiFetch('/api/newsletter/subscription', {}, 0)
+        .then(async response => response.ok ? safeJson(response) : Promise.reject())
+        .then(data => { if (!cancelled) setIsNewsletterSubscribed(data?.subscribed === true); })
+        .catch(() => { if (!cancelled) setIsNewsletterSubscribed(false); });
+    };
+    loadSubscription();
+    window.addEventListener('visual-steps:newsletter-subscription-changed', loadSubscription);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('visual-steps:newsletter-subscription-changed', loadSubscription);
+    };
+  }, [user]);
+
+  useEffect(() => {
     // Sync selected kid ID from localStorage
     const handleStorageChange = () => {
       setSelectedKidId(localStorage.getItem('dashboard_selected_kid_id') || localStorage.getItem('analysis_selected_kid_id'));
@@ -406,6 +427,7 @@ export function Layout() {
     else if (path === '/demo' || path === '/guest') title = 'Guest Login | Visual Steps';
     else if (path === '/testimonials') title = 'Testimonials | Visual Steps';
     else if (path === '/contact') title = 'Contact & Support | Visual Steps';
+    else if (path === '/support') title = 'Contact & Support | Visual Steps';
     else if (path === '/privacy') title = 'Privacy Policy | Visual Steps';
     else if (path === '/terms') title = 'Terms of Service | Visual Steps';
     else if (path === '/cookies') title = 'Cookies & Analytics | Visual Steps';

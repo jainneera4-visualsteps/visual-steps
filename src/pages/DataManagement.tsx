@@ -5,7 +5,7 @@ import { Card, CardContent } from '../components/Card';
 import { Pagination } from '../components/Pagination';
 import { GridColumnHeader } from '../components/GridColumnHeader';
 import { apiFetch, safeJson } from '../utils/api';
-import { formatAppDate } from '../utils/dateUtils';
+import { formatAppDate, formatAppDateTime } from '../utils/dateUtils';
 
 type ReviewItem = { id: string; type: 'activity_action_history' | 'rewards_history'; title: string; category?: string; description: string; action: string; date: string; details?: Record<string, unknown> };
 type Summary = {
@@ -14,10 +14,21 @@ type Summary = {
   reviewItems: ReviewItem[];
 };
 const actionLabels: Record<string, string> = {
-  created: 'Activity created', submitted: 'Submitted for verification',
-  verified: 'Activity verified', completed: 'Activity completed', reassigned: 'Activity reassigned',
-  on_hold: 'Activity put on hold', ended: 'Activity ended', deleted: 'Activity deleted',
+  created: 'Created', completed: 'Completed', verified_completed: 'Verified & Completed', reassigned: 'Reassigned',
+  on_hold: 'On-Hold', ended: 'Ended', deleted: 'Deleted',
+  submitted: 'Submitted for verification', verified: 'Verified & Completed',
   reward_purchased: 'Reward purchased', bonus_given: 'Bonus reward given',
+};
+const historyActionOrder: Record<string, number> = {
+  created: 0,
+  submitted: 1,
+  completed: 2,
+  verified: 3,
+  verified_completed: 3,
+  reassigned: 4,
+  on_hold: 5,
+  ended: 6,
+  deleted: 7,
 };
 type SortKey = 'title' | 'category' | 'description' | 'action' | 'date';
 
@@ -146,14 +157,22 @@ export default function DataManagement({ mode = 'activity' }: { mode?: 'activity
       const response = await apiFetch(`/api/data-management/${endpoint}/${item.id}`, {}, 0);
       const payload = await safeJson(response);
       if (!response.ok) throw new Error(payload?.error || 'Unable to load activity history');
-      setActivityHistory((payload.records || []).map((record: any) => item.type === 'activity_action_history' ? ({
+      const mappedRecords: ReviewItem[] = (payload.records || []).map((record: any) => item.type === 'activity_action_history' ? ({
         id: record.id, type: 'activity_action_history', title: record.activity_name || 'Activity', category: record.activity_category || 'Other',
         description: record.activity_description || '', action: record.action, date: record.action_date, details: record.details || {},
       }) : ({
         id: record.id, type: 'rewards_history', title: record.reward_name || 'Reward', description: record.description || '',
         action: record.source_type === 'bonus' ? 'bonus_given' : 'reward_purchased', date: record.action_date,
         details: { amount: record.reward_amount, location: record.location },
-      })));
+      }));
+      setActivityHistory(item.type === 'activity_action_history' ? mappedRecords.sort((left, right) => {
+        // Created is always the first lifecycle event. All other actions are
+        // chronological, with a stable action order when timestamps match.
+        if (left.action === 'created' && right.action !== 'created') return -1;
+        if (right.action === 'created' && left.action !== 'created') return 1;
+        const dateComparison = new Date(left.date || 0).getTime() - new Date(right.date || 0).getTime();
+        return dateComparison || (historyActionOrder[left.action] ?? 99) - (historyActionOrder[right.action] ?? 99);
+      }) : mappedRecords);
     } catch (viewError: any) {
       alert(viewError?.message || 'Unable to load activity history');
       setViewingItem(null);
@@ -187,7 +206,7 @@ export default function DataManagement({ mode = 'activity' }: { mode?: 'activity
         <CardContent className="max-h-[70vh] overflow-y-auto p-5">
           {historyLoading ? <div className="grid min-h-40 place-items-center"><Loader2 className="h-7 w-7 animate-spin text-blue-600"/></div> : viewingItem.type === 'activity_action_history' ? <div className="space-y-4">
             <div><p className="text-xs font-black uppercase tracking-wider text-slate-500">{activityHistory[0]?.category || viewingItem.category || 'Other'}</p><h3 className="mt-1 text-lg font-black text-slate-900">{activityHistory[0]?.title || viewingItem.title}</h3></div>
-            <div className="overflow-x-auto rounded-xl border border-slate-200"><table className="app-data-table min-w-[700px]"><thead className="app-data-table-head"><tr><th className="px-4 py-3">Description</th><th className="px-4 py-3">Action</th><th className="px-4 py-3">Previous Status</th><th className="px-4 py-3">New Status</th><th className="px-4 py-3">Action Date</th></tr></thead><tbody className="divide-y divide-slate-100">{activityHistory.map(record => <tr key={record.id} className="app-data-row"><td className="px-4 py-4 text-slate-600">{record.description || '—'}</td><td className="px-4 py-4 font-semibold text-slate-800">{actionLabels[record.action] || record.action}</td><td className="px-4 py-4 text-slate-600">{String(record.details?.previous_status || '—').replaceAll('_', ' ')}</td><td className="px-4 py-4 text-slate-600">{String(record.details?.new_status || '—').replaceAll('_', ' ')}</td><td className="whitespace-nowrap px-4 py-4 text-slate-600">{formatAppDate(record.date, summary?.settings.timezone)}</td></tr>)}</tbody></table></div>
+            <div className="overflow-x-auto rounded-xl border border-slate-200"><table className="app-data-table min-w-[700px]"><thead className="app-data-table-head"><tr><th className="px-4 py-3">Description</th><th className="px-4 py-3">Action</th><th className="px-4 py-3">Previous Status</th><th className="px-4 py-3">New Status</th><th className="px-4 py-3">Action Date & Time</th></tr></thead><tbody className="divide-y divide-slate-100">{activityHistory.map(record => <tr key={record.id} className="app-data-row"><td className="px-4 py-4 text-slate-600">{record.description || '—'}</td><td className="px-4 py-4 font-semibold text-slate-800">{actionLabels[record.action] || record.action}</td><td className="px-4 py-4 text-slate-600">{String(record.details?.previous_status || '—').replaceAll('_', ' ')}</td><td className="px-4 py-4 text-slate-600">{String(record.details?.new_status || '—').replaceAll('_', ' ')}</td><td className="whitespace-nowrap px-4 py-4 text-slate-600">{formatAppDateTime(record.date, summary?.settings.timezone)}</td></tr>)}</tbody></table></div>
           </div> : <div className="space-y-4"><h3 className="text-lg font-black text-slate-900">{activityHistory[0]?.title || viewingItem.title}</h3><div className="overflow-x-auto rounded-xl border border-slate-200"><table className="app-data-table min-w-[650px]"><thead className="app-data-table-head"><tr><th className="px-4 py-3">Description</th><th className="px-4 py-3">Action</th><th className="px-4 py-3">Amount</th><th className="px-4 py-3">Location</th><th className="px-4 py-3">Action Date</th></tr></thead><tbody className="divide-y divide-slate-100">{activityHistory.map(record => <tr key={record.id} className="app-data-row"><td className="px-4 py-4 text-slate-600">{record.description || '—'}</td><td className="px-4 py-4 font-semibold text-slate-800">{actionLabels[record.action] || record.action}</td><td className="px-4 py-4 text-slate-600">{String(record.details?.amount || '—')}</td><td className="px-4 py-4 text-slate-600">{String(record.details?.location || '—')}</td><td className="whitespace-nowrap px-4 py-4 text-slate-600">{formatAppDate(record.date, summary?.settings.timezone)}</td></tr>)}</tbody></table></div></div>}
         </CardContent>
         <div className="flex justify-end border-t border-slate-100 px-5 py-4"><Button onClick={() => setViewingItem(null)}>Close</Button></div>

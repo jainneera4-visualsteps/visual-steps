@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS public.activity_action_history (
   details JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   CONSTRAINT activity_action_history_action_check CHECK (
-    action IN ('created', 'submitted', 'verified', 'completed', 'reassigned', 'on_hold', 'ended', 'deleted')
+    action IN ('created', 'completed', 'verified_completed', 'reassigned', 'on_hold', 'ended', 'deleted')
   )
 );
 
@@ -23,8 +23,20 @@ ALTER TABLE public.activity_action_history
 
 ALTER TABLE public.activity_action_history DROP CONSTRAINT IF EXISTS activity_action_history_action_check;
 UPDATE public.activity_action_history SET action = 'created' WHERE action = 'assigned';
+
+-- Verification and completion happen in one parent decision. Collapse rows
+-- created by the earlier migration into one clear lifecycle event and remove
+-- submission-only noise from the parent-facing history.
+DELETE FROM public.activity_action_history
+WHERE action = 'completed'
+  AND COALESCE((details->>'completed_through_verification')::boolean, false);
+UPDATE public.activity_action_history
+SET action = 'verified_completed'
+WHERE action = 'verified';
+DELETE FROM public.activity_action_history WHERE action = 'submitted';
+
 ALTER TABLE public.activity_action_history ADD CONSTRAINT activity_action_history_action_check CHECK (
-  action IN ('created', 'submitted', 'verified', 'completed', 'reassigned', 'on_hold', 'ended', 'deleted')
+  action IN ('created', 'completed', 'verified_completed', 'reassigned', 'on_hold', 'ended', 'deleted')
 );
 
 CREATE INDEX IF NOT EXISTS activity_action_history_kid_date_idx
@@ -74,8 +86,8 @@ BEGIN
     RETURN NEW;
   ELSE
     action_name := CASE
-      WHEN NEW.status = 'awaiting_verification' THEN 'submitted'
-      WHEN NEW.status = 'completed' AND OLD.status = 'awaiting_verification' THEN 'verified'
+      WHEN NEW.status = 'awaiting_verification' THEN NULL
+      WHEN NEW.status = 'completed' AND OLD.status = 'awaiting_verification' THEN 'verified_completed'
       WHEN NEW.status = 'completed' THEN 'completed'
       WHEN NEW.status = 'pending' THEN 'reassigned'
       WHEN NEW.status = 'on_hold' THEN 'on_hold'
@@ -101,54 +113,10 @@ BEGIN
         'reassignment_level', CASE WHEN TG_OP = 'DELETE' THEN OLD.reassignment_level ELSE NEW.reassignment_level END
       )
     );
-
-    -- Verification is both a review decision and the moment the activity is
-    -- completed. Preserve both facts so every completion appears in history,
-    -- regardless of whether a learner completed it directly or a parent
-    -- completed it through verification.
-    IF action_name = 'verified' THEN
-      INSERT INTO public.activity_action_history (
-        user_id, kid_id, activity_id, activity_category, activity_name, activity_description,
-        action, action_date, details
-      ) VALUES (
-        owner_id, NEW.kid_id, NEW.id, NEW.category,
-        COALESCE(NULLIF(NEW.activity_type, ''), 'Activity'), NEW.description,
-        'completed', now(),
-        jsonb_build_object(
-          'previous_status', OLD.status,
-          'new_status', NEW.status,
-          'completed_through_verification', true
-        )
-      );
-    END IF;
   END IF;
   IF TG_OP = 'DELETE' THEN RETURN OLD; ELSE RETURN NEW; END IF;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
-
--- Add the corresponding completion event for verification records captured by
--- an earlier version of this migration. The NOT EXISTS condition keeps reruns
--- idempotent.
-INSERT INTO public.activity_action_history (
-  user_id, kid_id, activity_id, source_history_id, activity_category,
-  activity_name, activity_description, action, action_date, details
-)
-SELECT v.user_id, v.kid_id, v.activity_id, NULL, v.activity_category,
-       v.activity_name, v.activity_description, 'completed', v.action_date,
-       jsonb_build_object(
-         'previous_status', 'awaiting_verification',
-         'new_status', 'completed',
-         'completed_through_verification', true
-       )
-FROM public.activity_action_history v
-WHERE v.action = 'verified'
-  AND NOT EXISTS (
-    SELECT 1 FROM public.activity_action_history c
-    WHERE c.kid_id = v.kid_id
-      AND c.action = 'completed'
-      AND c.action_date = v.action_date
-      AND c.activity_name = v.activity_name
-  );
 
 DROP TRIGGER IF EXISTS record_activity_action_trigger ON public.activities;
 CREATE TRIGGER record_activity_action_trigger

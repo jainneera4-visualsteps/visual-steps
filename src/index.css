@@ -204,6 +204,66 @@
     @apply flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-white/75 px-4 py-10 text-center text-slate-500;
   }
 
+  /* The archive viewer uses the complete viewport so a full newsletter page
+     can remain visible at the largest practical size. */
+  .fixed.inset-0:has(> [aria-labelledby="newsletter-modal-title"]) {
+    padding: 0 !important;
+  }
+
+  [aria-labelledby="newsletter-modal-title"] {
+    width: 100vw !important;
+    max-width: none !important;
+    height: 100vh !important;
+    border-radius: 0 !important;
+  }
+
+  [aria-labelledby="newsletter-modal-title"] .newsletter-copy {
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  [aria-labelledby="newsletter-modal-title"] > header {
+    position: absolute !important;
+    top: 0.75rem;
+    right: 0.75rem;
+    z-index: 20;
+    border: 0 !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+
+  [aria-labelledby="newsletter-modal-title"] > header > div {
+    display: none !important;
+  }
+
+  [aria-labelledby="newsletter-modal-title"] > header > button {
+    margin: 0 !important;
+    border: 1px solid rgb(226 232 240);
+    background: rgb(255 255 255 / 0.94);
+    box-shadow: 0 2px 8px rgb(15 23 42 / 0.15);
+  }
+
+  [aria-labelledby="newsletter-modal-title"] > footer {
+    display: none !important;
+  }
+
+  [aria-labelledby="newsletter-modal-title"] > div {
+    padding: 0 !important;
+  }
+
+  /* Archive covers echo the warm bound-page edge used by the full
+     newsletter, so each preview reads as a miniature issue. */
+  button.min-h-\[22rem\] {
+    border: 0.45rem solid #d8c8a9 !important;
+    border-radius: 0.65rem 1.2rem 1.2rem 0.65rem !important;
+    box-shadow: 0 10px 24px rgb(15 23 42 / 0.14), inset 0 0 0 1px rgb(92 70 42 / 0.2) !important;
+  }
+
+  button.min-h-\[22rem\]:hover {
+    border-color: #c9b58f !important;
+    box-shadow: 0 14px 30px rgb(15 23 42 / 0.2), inset 0 0 0 1px rgb(92 70 42 / 0.24) !important;
+  }
+
   .app-callout {
     @apply rounded-2xl border border-brand-100 bg-brand-50/80 p-4 text-brand-950;
   }

@@ -22,6 +22,30 @@ for (const feature of registry) {
   }
 }
 
+// Guard the parent-facing consumers as well as the generated files. This makes
+// documentation drift a build-time error if a future refactor replaces shared
+// feature content with hard-coded copy.
+const synchronizedConsumers = [
+  { file: 'src/pages/About.tsx', snippets: ["featuresForSurface('about')"] },
+  { file: 'src/components/ParentOnboarding.tsx', snippets: ["featuresForSurface('onboarding')"] },
+  { file: 'src/components/SampleLearningContent.tsx', snippets: ['currentFeatureContent', "feature.id === 'curated-samples'"] },
+  { file: 'src/constants/appGuide.ts', snippets: ["featuresForSurface('help')"] },
+  { file: 'server.ts', snippets: [
+    'buildWelcomeFeatureContent',
+    "feature.surfaces.includes('home')",
+    'newlyIntroducedFeatures',
+    "feature.surfaces.includes('chatbot')",
+  ] },
+];
+
+for (const consumer of synchronizedConsumers) {
+  const content = await readFile(new URL(consumer.file, root), 'utf8');
+  const missingSnippets = consumer.snippets.filter(snippet => !content.includes(snippet));
+  if (missingSnippets.length) {
+    throw new Error(`${consumer.file} is no longer synchronized with feature-registry.json (${missingSnippets.join(', ')})`);
+  }
+}
+
 const start = '<!-- FEATURE_REGISTRY:START -->';
 const end = '<!-- FEATURE_REGISTRY:END -->';
 const rows = registry.map((feature) => {

@@ -451,6 +451,15 @@ const productFeatureRegistry = [
       "/newsletter/community",
       "/testimonials"
     ],
+    "updates": [
+      {
+        "updatedOn": "2026-09-15",
+        "title": "One Connect area for contact, community, and newsletters",
+        "summary": "Connect now keeps parent messages, community contributions, newsletter subscriptions, and a clearer weekly archive together.",
+        "details": "Parents can review earlier contact messages and send a new message from the Contact grid, while an administrator can mark a message as read and being worked on so that progress appears for the parent. Share with the Community lists existing contributions and opens a focused submission form; approved contributions remain read-only. The weekly newsletter archive uses compact four-column previews that emphasize each issue's contents, opens the complete issue in a full-screen border-framed viewer, and automatically offers Subscribe or Unsubscribe according to the parent's current status.",
+        "familyImpact": "Families can see whether their message has been acknowledged, manage community writing without accidentally changing approved material, and find or manage newsletters from one predictable area."
+      }
+    ],
     "surfaces": [
       "home",
       "about",
@@ -587,7 +596,7 @@ const productFeatureRegistry = [
     "id": "parent-data-management",
     "title": "Parent-controlled activity and rewards history",
     "summary": "Review a learner’s recent activity and reward history, open grouped details, and selectively remove history that is no longer useful.",
-    "details": "Parents and caregivers can choose a learner and review two focused timelines: Activity History and Rewards History. Activity History shows one summary row for each activity category and name; View opens every recorded action, including creation, submission, verification, completion, reassignment, on-hold, ending, and deletion. Rewards History combines purchases and positive recognition, identifies System as the location for bonuses, and supports search, date ranges, and sortable headings. Both pages use rolling one-, three-, six-, or twelve-month periods instead of loading an unbounded all-time list. Page-level selection affects only the visible page, and deletion reports how many records were removed.",
+    "details": "Parents and caregivers can choose a learner and review two focused timelines: Activity History and Rewards History. Activity History shows one summary row for each activity category and name; View opens the chronological sequence of Created, Completed, Verified & Completed, Reassigned, On-Hold, Ended, and Deleted actions with date and time. Rewards History combines purchases and positive recognition, identifies System as the location for bonuses, and supports search, date ranges, and sortable headings. Both pages use rolling one-, three-, six-, or twelve-month periods instead of loading an unbounded all-time list. Page-level selection affects only the visible page, and deletion reports how many records were removed.",
     "familyImpact": "Families can keep useful evidence of growth while removing detailed records they no longer need. Parent-controlled review supports thoughtful planning for a child / adult without turning retention into an automatic decision made by the app.",
     "guideParagraphs": [
       "Activity History is a compact index rather than a repeated event list. Each category-and-name combination appears once with its latest action and Last Updated date. Selecting View opens the complete saved audit trail for that activity group. Deleting the summary row removes all matching history entries but never deletes or changes the live assigned activity.",
@@ -2152,6 +2161,23 @@ app.post('/api/contact', async (req, res) => {
   }
 });
 
+app.get('/api/support/messages', authenticateToken, async (req: any, res) => {
+  if (!supabaseServiceKey) return res.status(503).json({ error: 'Support messages are temporarily unavailable' });
+  const email = String(req.user?.email || '').trim().toLowerCase();
+  if (!email) return res.status(400).json({ error: 'Your account does not have an email address' });
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const pageSize = Math.min(50, Math.max(10, Number(req.query.pageSize) || 10));
+  const admin = getAdminSupabaseClient();
+  const { data, error, count } = await admin
+    .from('support_messages')
+    .select('id,subject,message,status,admin_reply,replied_at,created_at,updated_at', { count: 'exact' })
+    .eq('sender_email', email)
+    .order('created_at', { ascending: false })
+    .range((page - 1) * pageSize, page * pageSize - 1);
+  if (error) return res.status(500).json({ error: 'Unable to load your support messages' });
+  return res.json({ items: data || [], total: count || 0, page, pageSize });
+});
+
 const consultationProviderLabel = (provider: string | null | undefined) => ({
   google_meet: 'Google Meet', microsoft_teams: 'Microsoft Teams', zoom: 'Zoom', phone: 'Phone call', other: 'Other',
 }[String(provider || '')] || 'Online meeting');
@@ -2579,11 +2605,34 @@ app.post('/api/newsletter/subscribe', async (req, res) => {
   }
 });
 
+app.get('/api/newsletter/subscription', authenticateToken, async (req: any, res) => {
+  if (req.user?.role === 'kid') return res.status(403).json({ error: 'Parent access required' });
+  const email = String(req.user?.email || '').trim().toLowerCase();
+  if (!email || !supabaseServiceKey) return res.json({ status: 'none', subscribed: false });
+  const { data, error } = await getAdminSupabaseClient().from('newsletter_subscribers')
+    .select('status,confirmed_at,unsubscribed_at').eq('email', email).maybeSingle();
+  if (error) return res.status(500).json({ error: 'Unable to load newsletter subscription status' });
+  return res.json({ status: data?.status || 'none', subscribed: data?.status === 'active', confirmedAt: data?.confirmed_at || null, unsubscribedAt: data?.unsubscribed_at || null });
+});
+
+app.delete('/api/newsletter/subscription', authenticateToken, async (req: any, res) => {
+  if (req.user?.role === 'kid') return res.status(403).json({ error: 'Parent access required' });
+  const email = String(req.user?.email || '').trim().toLowerCase();
+  if (!email || !supabaseServiceKey) return res.status(400).json({ error: 'No newsletter subscription is associated with this account' });
+  const now = new Date().toISOString();
+  const { data, error } = await getAdminSupabaseClient().from('newsletter_subscribers')
+    .update({ status: 'unsubscribed', unsubscribed_at: now, updated_at: now })
+    .eq('email', email).eq('status', 'active').select('id').maybeSingle();
+  if (error) return res.status(500).json({ error: 'Unable to unsubscribe from the newsletter' });
+  if (!data) return res.status(409).json({ error: 'This account does not have an active newsletter subscription' });
+  return res.json({ message: 'You have been unsubscribed from Visual Steps Weekly.' });
+});
+
 app.get('/api/newsletter/community-submissions/mine', authenticateToken, async (req: any, res) => {
   if (req.user?.role === 'kid') return res.status(403).json({ error: 'Parent access required' });
   const { data, error } = await getAdminSupabaseClient().from('newsletter_community_submissions')
     .select('id,contribution_type,title,content,display_name,source_url,status,submitted_at,reviewed_at')
-    .eq('user_id', req.user.id).order('submitted_at', { ascending: false }).limit(30);
+    .eq('user_id', req.user.id).order('submitted_at', { ascending: false });
   if (error) return res.status(500).json({ error: 'Unable to load your newsletter submissions.' });
   return res.json(data || []);
 });
@@ -2638,9 +2687,9 @@ app.post('/api/newsletter/community-submissions', authenticateToken, async (req:
       contribution_type: contributionType, title, content, display_name: displayName,
       source_url: sourceUrl, consent_to_publish: true, status: 'pending',
       submitted_at: new Date().toISOString(), reviewed_at: null,
-    }).eq('id', submissionId).eq('user_id', req.user.id).select('id').maybeSingle();
+    }).eq('id', submissionId).eq('user_id', req.user.id).neq('status', 'approved').select('id').maybeSingle();
     if (error) return res.status(500).json({ error: 'Unable to resubmit this contribution.' });
-    if (!data) return res.status(404).json({ error: 'This submission was not found.' });
+    if (!data) return res.status(409).json({ error: 'Approved community items cannot be edited or resubmitted.' });
     return res.json({ message: 'Updated and resubmitted for review. Previously published newsletters remain unchanged.' });
   }
   const supabase = getSupabaseForUser(req);
@@ -4288,7 +4337,7 @@ app.get('/api/data-management/activity-history/:recordId', authenticateToken, as
     query = selected.activity_category
       ? query.eq('activity_category', selected.activity_category)
       : query.is('activity_category', null);
-    const { data, error } = await query.order('action_date', { ascending: false });
+    const { data, error } = await query.order('action_date', { ascending: true });
     if (error) throw error;
     res.json({ records: data || [] });
   } catch (error) {
@@ -7976,7 +8025,7 @@ export const parentAssistantFeatureCatalog = [
   { area: 'Parent and caregiver testimonials', routes: ['/testimonials'], help: 'Open Testimonials from the footer or mobile menu to read reviewed experiences that families and caregivers explicitly permitted Visual Steps to publish. Signed-in parents can use Public display name, Experience title, and Your testimonial, confirm publication permission, then select Submit privately for review. The submission remains private until an administrator reviews and approves it in Newsletter Administration. Visual Steps never converts private profiles, child records, messages, or activities into public quotes.' },
   { area: 'Contact & Support', routes: ['/contact'], help: 'Open Contact from the navigation or footer. Use Send a Message for written support, Book a Private Call for account or family-specific help, or Join a Group Session for demonstrations and shared questions. Consultation requests are available without an account but require email verification. Never include passwords, child access codes, medical records, or sensitive family information.' },
   { area: 'Privacy, terms, cookies, and analytics', routes: ['/privacy', '/terms', '/cookies'], help: 'Open Privacy, Terms, or Cookies & Analytics from the footer on any page. Privacy explains what family information Visual Steps handles, why it is used, limited service-provider processing, AI requests, social-story sharing, uploaded-image links, retention choices, account deletion, and security responsibilities. Terms explains responsible use, caregiver review, community content, availability, and why Visual Steps is not medical or clinical advice. Cookies & Analytics explains essential sign-in and preference storage, the installed-app cache, browser controls, and the current absence of advertising cookies and product analytics. On Create an account, review the Terms and Privacy links and select the agreement checkbox before selecting Sign Up.' },
-  { area: 'Visual Steps weekly newsletter', routes: ['/newsletter', '/newsletter/subscribe', '/newsletter/community', '/newsletter/archive/:month', '/newsletter/issues/:issueDate', '/newsletter-admin'], help: 'Open the Newsletter menu in the main navigation. Choose Subscribe to open the dedicated signup page, enter Email address, and select Subscribe; confirm the subscription from the email you receive. Choose Weekly archive, then select a month; months and issues are ordered latest first. A month opens its issue list in the current tab, and selecting an issue opens the complete newsletter in a new tab. Choose Share with the community to open its dedicated submission page. Approved administrators open Admin and choose Manage newsletter for publication controls. Each upcoming weekly issue uses a calm, scannable format with a contents page, new and updated feature details, approved parent stories/news/information/tips, testimonials, popular features, activities and games, books and resources, ideas for using Visual Steps meaningfully, current membership details, practical caregiver tips, and clearly labeled mission-aligned advertisements when approved. Published archive issues retain the content and layout saved when they were released. General non-clinical topics may include communication and speech support, occupational support, positive behavior support, daily living, learning, work, leisure, and community participation for autistic people of all ages. Submissions remain private until reviewed and approved. The protected Newsletter Administration page lets administrators manage submissions, change the weekly delivery day and time in their timezone, edit and save the next issue template, preview it without publishing, and send a prepared issue. Every issue includes Visual Steps Home, Pricing, Subscribe Newsletter, optional configured Facebook and Instagram links, and one-click unsubscribe.' },
+  { area: 'Visual Steps weekly newsletter', routes: ['/newsletter', '/newsletter/subscribe', '/newsletter/unsubscribe', '/newsletter/community', '/newsletter/archive/:month', '/newsletter/issues/:issueDate', '/newsletter-admin'], help: 'Open the Newsletter menu in the main navigation. Choose Subscribe to open the dedicated signup page, enter Email address, and select Subscribe; confirm the subscription from the email you receive. Active subscribers see Unsubscribe Newsletter instead. Choose Weekly archive, then select a month; months and issues are ordered latest first. Selecting an issue opens the complete newsletter in a large modal window, and Close returns to the archive. Choose Share with the community to open its dedicated submission page. Approved administrators open Admin and choose Manage newsletter for publication controls. Each upcoming weekly issue uses a calm, scannable format with a contents page, new and updated feature details, approved parent stories/news/information/tips, testimonials, popular features, activities and games, books and resources, ideas for using Visual Steps meaningfully, current membership details, practical caregiver tips, and clearly labeled mission-aligned advertisements when approved. Published archive issues retain the content and layout saved when they were released. General non-clinical topics may include communication and speech support, occupational support, positive behavior support, daily living, learning, work, leisure, and community participation for autistic people of all ages. Submissions remain private until reviewed and approved. The protected Newsletter Administration page lets administrators manage submissions, change the weekly delivery day and time in their timezone, edit and save the next issue template, preview it without publishing, and send a prepared issue. Every issue includes Visual Steps Home, Pricing, Subscribe Newsletter, optional configured Facebook and Instagram links, and one-click unsubscribe.' },
   { area: 'Protected administration', routes: ['/admin/insights', '/newsletter-admin'], help: 'The Admin menu appears only for approved administrators. Choose Insights to review account growth, registration status, parent journey signals, interpreted feature health, the last 24 hours or longer reporting periods, operations, retention, privacy-conscious traffic, and AI Use. AI Use shows where AI is requested, model and token totals, individual request estimates, and aggregate estimated standard paid-tier cost without retaining prompts, responses, or family content. Cost tracking begins after its database update and deployment; estimates are not invoices and free-tier billing may be lower or zero. Child / adult profiles and family content are intentionally excluded. Choose Manage newsletter for publication and subscriber controls. Administrator and membership changes require confirmation and are recorded for accountability.' },
   { area: 'Child dashboard', routes: ['/kids-dashboard/:kidId'], help: 'Children sign in with their Kid Code. Choose an Activity separates visible work into Pick an Activity and Do Today; activities in either section may be opened in the order that works for the learner. Waiting lists work submitted for parent verification, Completed shows completed activities, and Rewards shows items they may purchase with earned tokens. Meaningful completions show celebrations. A verification-required submission tells the child to wait and does not award tokens until parent approval.' },
   { area: 'Offline and installation', routes: ['/'], help: 'Visual Steps can be installed from a supported browser. On an iPhone or iPad, use Safari Share > Add to Home Screen. When internet access is lost, the app displays an offline notice. Sign-in, saved family information, and AI features become available again after reconnection.' },

@@ -300,6 +300,15 @@
     "plan": "starter",
     "icon": "book",
     "routes": ["/newsletter/community", "/testimonials"],
+    "updates": [
+      {
+        "updatedOn": "2026-09-15",
+        "title": "One Connect area for contact, community, and newsletters",
+        "summary": "Connect now keeps parent messages, community contributions, newsletter subscriptions, and a clearer weekly archive together.",
+        "details": "Parents can review earlier contact messages and send a new message from the Contact grid, while an administrator can mark a message as read and being worked on so that progress appears for the parent. Share with the Community lists existing contributions and opens a focused submission form; approved contributions remain read-only. The weekly newsletter archive uses compact four-column previews that emphasize each issue's contents, opens the complete issue in a full-screen border-framed viewer, and automatically offers Subscribe or Unsubscribe according to the parent's current status.",
+        "familyImpact": "Families can see whether their message has been acknowledged, manage community writing without accidentally changing approved material, and find or manage newsletters from one predictable area."
+      }
+    ],
     "surfaces": ["home", "about", "onboarding", "chatbot", "pricing", "guest", "help"]
   },
   {
@@ -371,7 +380,7 @@
     "id": "parent-data-management",
     "title": "Parent-controlled activity and rewards history",
     "summary": "Review a learner’s recent activity and reward history, open grouped details, and selectively remove history that is no longer useful.",
-    "details": "Parents and caregivers can choose a learner and review two focused timelines: Activity History and Rewards History. Activity History shows one summary row for each activity category and name; View opens every recorded action, including creation, submission, verification, completion, reassignment, on-hold, ending, and deletion. Rewards History combines purchases and positive recognition, identifies System as the location for bonuses, and supports search, date ranges, and sortable headings. Both pages use rolling one-, three-, six-, or twelve-month periods instead of loading an unbounded all-time list. Page-level selection affects only the visible page, and deletion reports how many records were removed.",
+    "details": "Parents and caregivers can choose a learner and review two focused timelines: Activity History and Rewards History. Activity History shows one summary row for each activity category and name; View opens the chronological sequence of Created, Completed, Verified & Completed, Reassigned, On-Hold, Ended, and Deleted actions with date and time. Rewards History combines purchases and positive recognition, identifies System as the location for bonuses, and supports search, date ranges, and sortable headings. Both pages use rolling one-, three-, six-, or twelve-month periods instead of loading an unbounded all-time list. Page-level selection affects only the visible page, and deletion reports how many records were removed.",
     "familyImpact": "Families can keep useful evidence of growth while removing detailed records they no longer need. Parent-controlled review supports thoughtful planning for a child / adult without turning retention into an automatic decision made by the app.",
     "guideParagraphs": [
       "Activity History is a compact index rather than a repeated event list. Each category-and-name combination appears once with its latest action and Last Updated date. Selecting View opens the complete saved audit trail for that activity group. Deleting the summary row removes all matching history entries but never deletes or changes the live assigned activity.",
