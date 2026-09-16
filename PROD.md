@@ -23,7 +23,7 @@ This section is generated from `feature-registry.json`. Update the registry when
 | Narrated tour and temporary Guest Login | starter | 2026-08-21 | 2026-08-27 | Visitors can now watch a friendly, chapter-based Visual Steps presentation directly on the Home page before entering Guest Login. |
 | Adaptive place-value learning games | starter | 2026-09-03 | — | Practice place value through four focused games with five levels, automatic progression, optional assignment, personalized companions, and parent-visible scores. |
 | Learning, progress, and meaningful rewards | starter | 2026-03-15 | — | Create personalized resources, understand progress, and connect earned rewards to meaningful goals. |
-| Parent-controlled data management | starter | 2026-08-24 | — | Review saved family records, set a reminder period, and selectively remove history that is no longer useful. |
+| Parent-controlled activity and rewards history | starter | 2026-08-24 | — | Review a learner’s recent activity and reward history, open grouped details, and selectively remove history that is no longer useful. |
 
 ### Feature update history
 
@@ -59,4 +59,8 @@ Apply `database_updates/2026-09-03_consultation_scheduler.sql`. In **Admin → S
 
 ### Learning games deployment
 
-Apply `database_updates/2026-09-02_game_companions.sql` followed by `database_updates/2026-09-03_game_results.sql`. From **Games**, save a different companion for a test learner, reload, and confirm the selection persists. Assign each game once through **Activities Setup → Add Activity → Pre-defined Activity Type → Games** and confirm the assigned link opens in the child session. Answer one question correctly and one incorrectly, then open Progress Report and confirm **Game Scores** shows the game, level, combined score, accuracy, and latest play date. Verify that `game_results` contains no question text or selected-answer content.
+Apply `database_updates/2026-09-02_game_companions.sql`, `database_updates/2026-09-03_game_results.sql`, and `database_updates/2026-09-15_game_session_insights.sql`. From **Games**, save a different companion for a test learner, reload, and confirm the selection persists. Assign each game once through **Activities Setup → Add Activity → Pre-defined Activity Type → Games** and confirm the assigned link opens in the child session. Answer one question correctly and one incorrectly, leave before completing every level, then open **Progress → Game Scores**. Confirm the partial session appears and View shows its attempts, score, accuracy, duration, strengths, mistakes, and suggested next support.
+
+### Progress history deployment
+
+Apply `database_updates/2026-09-15_activity_action_history.sql` and `database_updates/2026-09-15_unlimited_behavior_bonus.sql`. `database_updates/2026-09-15_rewards_history.sql` removes the obsolete copied rewards-history table because Rewards History reads purchases and positive recognition directly from their source tables. Verify **Progress → Activity History** shows one row per learner, category, and activity name; View must show every action in that group. Deleting a summary must remove only matching `activity_action_history` rows and must not remove the live activity. Verify **Rewards History** supports rolling periods or custom dates, search, heading-based sorting, page-only Select all, purchase locations, and `System` for positive recognition.

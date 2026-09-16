@@ -71,7 +71,7 @@ function PracticeGame({ mode }: { mode: Mode }) {
   };
   const check = () => {
     if (!selected) { setFeedback('Choose one answer first.'); return; }
-    void recordGameResult(isDigit ? 'digit_value' : 'place_value_clues', level, selected === round.answer, kidId);
+    void recordGameResult(isDigit ? 'digit_value' : 'place_value_clues', level, selected === round.answer, kidId, { prompt: round.prompt, learnerAnswer: selected, correctAnswer: round.answer, skill: isDigit ? 'Digit value' : 'Place-value clues', explanation: round.explanation });
     if (selected !== round.answer) { setRevealed(true); setFeedback(`The correct answer is ${round.answer}. ${round.explanation}`); return; }
     const mastered = correctAtLevel + 1 >= masteryTarget;
     if (mastered && level < 5) { setCorrectAtLevel(0); begin(level + 1, `Level ${level} mastered! Level ${level + 1} has more digits.`); }

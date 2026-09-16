@@ -8,6 +8,16 @@ import {
 } from './apiRetry';
 import { guestApiFetch, isGuestSession } from '../guest/guestSession';
 
+const GET_CACHE_MS = 5_000;
+const getResponseCache = new Map<string, { response: Response; savedAt: number }>();
+const inFlightGets = new Map<string, Promise<Response>>();
+const cacheableMenuData = (url: string) => url.startsWith('/api/') && !url.startsWith('/api/admin/');
+
+export const clearApiReadCache = () => {
+  getResponseCache.clear();
+  inFlightGets.clear();
+};
+
 export const safeJson = async (response: Response) => {
   const text = await response.text();
   const contentType = response.headers.get('content-type');
@@ -62,6 +72,8 @@ export const apiFetch = async (
   retryAttempt = 0,
 ): Promise<Response> => {
   const requestedUrl = input instanceof Request ? input.url : input.toString();
+  const requestedMethod = (init?.method || (input instanceof Request ? input.method : 'GET')).toUpperCase();
+  if (requestedMethod !== 'GET') clearApiReadCache();
   if (isGuestSession()) return guestApiFetch(input, init);
   if (isBrowserOffline()) {
     throw new Error(`You are offline. Reconnect to the internet and try again. (URL: ${requestedUrl})`);
@@ -119,8 +131,14 @@ export const apiFetch = async (
   }
 
   const url = requestedUrl;
-  const method = (init?.method || (input instanceof Request ? input.method : 'GET')).toUpperCase();
+  const method = requestedMethod;
   const canRetryRequest = isRetryableApiMethod(method);
+  const responseCacheKey = `${token || 'anonymous'}:${url}`;
+  if (method === 'GET' && cacheableMenuData(url)) {
+    const cached = getResponseCache.get(responseCacheKey);
+    if (cached && Date.now() - cached.savedAt < GET_CACHE_MS) return cached.response.clone();
+    if (cached) getResponseCache.delete(responseCacheKey);
+  }
 
   if (token && typeof token === 'string' && token !== 'undefined' && token !== 'null' && (url.includes('/api/') || url.startsWith('/api/'))) {
     try {
@@ -134,13 +152,19 @@ export const apiFetch = async (
 
   try {
     let response: Response;
-    if (input instanceof Request) {
-      // Clone the request so it can be used again in case of retry
-      const requestToFetch = input.clone();
-      const newInit: RequestInit = { ...init, headers };
-      response = await fetch(requestToFetch, newInit);
+    const existingRequest = method === 'GET' && cacheableMenuData(url) ? inFlightGets.get(responseCacheKey) : undefined;
+    if (existingRequest) {
+      response = (await existingRequest).clone();
     } else {
-      response = await fetch(input, { ...init, headers });
+      const request = input instanceof Request
+        ? fetch(input.clone(), { ...init, headers })
+        : fetch(input, { ...init, headers });
+      if (method === 'GET' && cacheableMenuData(url)) inFlightGets.set(responseCacheKey, request.then(result => result.clone()));
+      try {
+        response = await request;
+      } finally {
+        inFlightGets.delete(responseCacheKey);
+      }
     }
 
     const contentType = response.headers.get('content-type');
@@ -202,6 +226,9 @@ export const apiFetch = async (
           // Not JSON or other error
         }
       }
+    }
+    if (method === 'GET' && response.ok && cacheableMenuData(url)) {
+      getResponseCache.set(responseCacheKey, { response: response.clone(), savedAt: Date.now() });
     }
     return response;
   } catch (error) {

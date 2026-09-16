@@ -74,8 +74,8 @@ const guidedSteps = [
     icon: Database,
     eyebrow: 'Parent-controlled privacy',
     title: 'Review and remove data you no longer need',
-    description: 'Data Management helps parents understand saved family records and make deliberate cleanup decisions.',
-    bullets: ['Choose a review age from 3 to 36 months.', 'Sort and paginate older records, then select individual rows or a current page.', 'Nothing is removed automatically from this review list; deletion requires confirmation.'],
+    description: 'Activity History and Rewards History help parents review a selected learner’s saved records and make deliberate cleanup decisions.',
+    bullets: ['Choose a rolling period from one to twelve months, or enter custom dates.', 'Open an activity summary to see its complete action history.', 'Select all affects only the current page, and nothing is removed automatically.'],
     tip: 'Review records before deleting them and keep independent copies of anything important to your family.',
   },
   {

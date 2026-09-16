@@ -1,18 +1,21 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from './Button';
-import { LogOut, Menu, X, Lightbulb, ChevronDown, BookOpen, FileText, Gamepad2, Puzzle, Activity, TrendingUp, Facebook, Instagram, Mail, Newspaper, Users, Database, ShieldCheck, HelpCircle, Plus, Edit2, ShoppingCart, BellRing } from 'lucide-react';
+import { LogOut, Menu, X, Lightbulb, ChevronDown, BookOpen, FileText, Gamepad2, Puzzle, Activity, TrendingUp, Facebook, Instagram, Mail, Newspaper, Users, Database, ShieldCheck, HelpCircle, Plus, Edit2, ShoppingCart, BellRing, Gift, Award } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { Tooltip } from './ui/Tooltip';
 import { ParentAssistant } from './ParentAssistant';
 import { isGuestSession } from '../guest/guestSession';
-import { apiFetch, safeJson } from '../utils/api';
+import { apiFetch, clearApiReadCache, safeJson } from '../utils/api';
 import { getRewardIcon } from '../utils/rewardUtils';
+import { prefetchProgressReport } from '../utils/progressReportData';
 
 export function Layout() {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const locationRef = useRef(location);
+  locationRef.current = location;
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isActivitiesOpen, setIsActivitiesOpen] = useState(false);
@@ -87,8 +90,8 @@ export function Layout() {
   const requestedActivityTab = new URLSearchParams(location.search).get('tab');
   const currentWorkspace = location.pathname === '/dashboard' || location.pathname === '/add-kid' || location.pathname.startsWith('/edit-kid/') || location.pathname === '/profile'
       ? 'dashboard'
-    : location.pathname.startsWith('/assigned-activities/') && requestedActivityTab === 'rewards'
-      ? 'progress'
+    : location.pathname.startsWith('/assigned-activities/') && ['rewards', 'bonus_rewards'].includes(requestedActivityTab || '')
+      ? 'rewards'
     : location.pathname.startsWith('/assigned-activities/') || location.pathname === '/activity-library'
       ? 'activities'
       : ['/saved-quizzes', '/quiz-generator', '/social-stories', '/social-stories/create', '/saved-worksheets', '/worksheet-generator', '/games'].some(path => location.pathname === path || location.pathname.startsWith(`${path}/`))
@@ -97,18 +100,44 @@ export function Layout() {
           ? 'admin'
           : location.pathname.startsWith('/newsletter') && location.pathname !== '/newsletter/community'
             ? 'newsletter'
-            : location.pathname.startsWith('/progress-report/') || location.pathname.startsWith('/summary-report/') || location.pathname === '/data-management'
+            : location.pathname.startsWith('/progress-report/') || location.pathname.startsWith('/summary-report/') || ['/data-management', '/activity-history'].includes(location.pathname)
               ? 'progress'
               : 'support';
 
   const workspaceLink = (workspace: string) => {
     if (workspace === 'activities') return selectedKidId ? `/assigned-activities/${selectedKidId}?tab=activities` : '/dashboard';
+    if (workspace === 'rewards') return selectedKidId ? `/assigned-activities/${selectedKidId}?tab=rewards` : '/dashboard';
     if (workspace === 'learning') return '/saved-quizzes';
     if (workspace === 'newsletter') return '/newsletter';
-    if (workspace === 'progress') return selectedKidId ? `/progress-report/${selectedKidId}` : '/dashboard';
+    if (workspace === 'progress') return selectedKidId ? `/progress-report/${selectedKidId}?view=quiz-results` : '/dashboard';
     if (workspace === 'support') return '/contact';
     if (workspace === 'admin') return '/admin/insights';
     return '/dashboard';
+  };
+  const prefetchWorkspace = (workspace: string) => {
+    if (workspace === 'progress' && selectedKidId) {
+      prefetchProgressReport(selectedKidId);
+      return;
+    }
+    if (workspace === 'dashboard') void apiFetch('/api/kids').catch(() => undefined);
+    if (workspace === 'activities' && selectedKidId) void apiFetch(`/api/kids/${encodeURIComponent(selectedKidId)}/activities?mode=parent`).catch(() => undefined);
+    if (workspace === 'rewards' && selectedKidId) {
+      void apiFetch(`/api/kids/${encodeURIComponent(selectedKidId)}/reward-items`).catch(() => undefined);
+      void apiFetch(`/api/kids/${encodeURIComponent(selectedKidId)}/behavior-bonuses`).catch(() => undefined);
+    }
+    if (workspace === 'learning') {
+      void apiFetch('/api/quizzes').catch(() => undefined);
+      void apiFetch('/api/kids').catch(() => undefined);
+    }
+    if (workspace === 'newsletter') void fetch('/api/newsletters').catch(() => undefined);
+  };
+  const prefetchDestination = (destination: string) => {
+    if ((destination.startsWith('/progress-report/') || destination.startsWith('/summary-report/')) && selectedKidId) prefetchProgressReport(selectedKidId);
+    if (destination === '/saved-quizzes') void apiFetch('/api/quizzes').catch(() => undefined);
+    if (destination === '/saved-worksheets') void apiFetch('/api/worksheets').catch(() => undefined);
+    if (destination === '/social-stories') void apiFetch('/api/social-stories').catch(() => undefined);
+    if (destination === '/activity-history') void apiFetch('/api/data-management?historyType=activity', {}, 0).catch(() => undefined);
+    if (['/saved-quizzes', '/saved-worksheets', '/social-stories', '/games'].includes(destination)) void apiFetch('/api/kids').catch(() => undefined);
   };
   const learnerActivitiesRoute = selectedKidId ? `/assigned-activities/${selectedKidId}` : '/dashboard';
   const workspaceSecondaryLinks: Record<string, { label: string; to: string }[]> = {
@@ -122,6 +151,10 @@ export function Layout() {
       ...(activityWorkspaceCounts.onHold > 0 ? [{ label: 'On Hold', to: `${learnerActivitiesRoute}?tab=on_hold` }] : []),
       ...(activityWorkspaceCounts.ended > 0 ? [{ label: 'Ended', to: `${learnerActivitiesRoute}?tab=ended` }] : []),
     ],
+    rewards: [
+      { label: 'Rewards Catalog', to: `${learnerActivitiesRoute}?tab=rewards` },
+      { label: 'Positive Recognition', to: `${learnerActivitiesRoute}?tab=bonus_rewards` },
+    ],
     learning: [
       { label: 'Quizzes', to: '/saved-quizzes' },
       { label: 'Worksheets', to: '/saved-worksheets' },
@@ -133,14 +166,14 @@ export function Layout() {
       { label: 'Subscribe Newsletter', to: '/newsletter/subscribe' },
     ],
     progress: [
-      { label: 'Rewards', to: `${learnerActivitiesRoute}?tab=rewards` },
       ...(selectedKidId ? [
-        { label: 'Progress Report', to: `/progress-report/${selectedKidId}` },
-        { label: 'Summary Report', to: `/summary-report/${selectedKidId}` },
-        { label: 'Quiz Results', to: `/progress-report/${selectedKidId}?view=quiz-results` },
-        { label: 'Game Results', to: `/progress-report/${selectedKidId}?view=game-results` },
+        { label: 'Quizzes', to: `/progress-report/${selectedKidId}?view=quiz-results` },
+        { label: 'Games', to: `/progress-report/${selectedKidId}?view=game-results` },
+        { label: 'Retries', to: `/progress-report/${selectedKidId}?view=activity-retries` },
+        { label: 'Rewards History', to: `/progress-report/${selectedKidId}?view=reward-purchases` },
       ] : []),
-      { label: 'Family Data', to: '/data-management' },
+      { label: 'Activity History', to: '/activity-history' },
+      ...(selectedKidId && isNewsletterAdmin ? [{ label: 'Summary', to: `/summary-report/${selectedKidId}` }] : []),
     ],
     support: [
       { label: 'Contact & Consultation', to: '/contact' },
@@ -152,6 +185,16 @@ export function Layout() {
       { label: 'Manage Newsletter', to: '/newsletter-admin' },
     ],
   };
+  const parentWorkspaces = [
+    { id: 'dashboard', label: 'Dashboard', icon: Lightbulb },
+    { id: 'activities', label: 'Activities', icon: Activity },
+    { id: 'rewards', label: 'Rewards', icon: Gift },
+    { id: 'learning', label: 'Learning', icon: BookOpen },
+    { id: 'progress', label: 'Progress', icon: TrendingUp },
+    { id: 'support', label: 'Support', icon: Users },
+    { id: 'newsletter', label: 'Newsletter', icon: Mail },
+    ...(isNewsletterAdmin ? [{ id: 'admin', label: 'Admin', icon: ShieldCheck }] : []),
+  ];
 
   useEffect(() => {
     if (!user) {
@@ -169,7 +212,19 @@ export function Layout() {
         }
       })
       .catch(() => setHeaderKids([]));
-  }, [user, location.pathname]);
+  }, [user]);
+
+  useEffect(() => {
+    const handleRewardBalance = (event: Event) => {
+      const detail = (event as CustomEvent<{ kidId: string; rewardBalance: number }>).detail;
+      if (!detail?.kidId || !Number.isFinite(detail.rewardBalance)) return;
+      setHeaderKids(current => current.map(kid => kid.id === detail.kidId
+        ? { ...kid, reward_balance: detail.rewardBalance }
+        : kid));
+    };
+    window.addEventListener('visual-steps:reward-balance-updated', handleRewardBalance);
+    return () => window.removeEventListener('visual-steps:reward-balance-updated', handleRewardBalance);
+  }, []);
 
   useEffect(() => {
     if (!user || !selectedKidId) {
@@ -188,14 +243,15 @@ export function Layout() {
       };
       setActivityWorkspaceCounts(nextCounts);
 
-      const requestedTab = new URLSearchParams(location.search).get('tab');
+      const currentLocation = locationRef.current;
+      const requestedTab = new URLSearchParams(currentLocation.search).get('tab');
       const activeListIsEmpty = requestedTab === 'help_requested' ? nextCounts.needsAttention === 0
         : requestedTab === 'verification' ? nextCounts.verification === 0
           : requestedTab === 'completed' ? nextCounts.completed === 0
             : requestedTab === 'on_hold' ? nextCounts.onHold === 0
               : requestedTab === 'ended' ? nextCounts.ended === 0
                 : false;
-      if (location.pathname.startsWith('/assigned-activities/') && activeListIsEmpty) {
+      if (currentLocation.pathname.startsWith('/assigned-activities/') && activeListIsEmpty) {
         navigate(`/assigned-activities/${selectedKidId}?tab=activities`, { replace: true });
       }
     };
@@ -213,7 +269,7 @@ export function Layout() {
       cancelled = true;
       window.removeEventListener('visual-steps:activity-workspace-counts', handleCounts);
     };
-  }, [user, selectedKidId, location.pathname, location.search, navigate, activityCountsRefreshKey]);
+  }, [user, selectedKidId, activityCountsRefreshKey]);
 
   useEffect(() => {
     if (!user || !selectedKidId || isGuestSession()) return;
@@ -226,6 +282,7 @@ export function Layout() {
     });
     socket.on('data_updated', (data) => {
       if (data?.kidId === selectedKidId) {
+        clearApiReadCache();
         setActivityCountsRefreshKey(value => value + 1);
       }
     });
@@ -323,7 +380,7 @@ export function Layout() {
     
     if (path === '/dashboard') title = 'Dashboard | Visual Steps';
     else if (path === '/profile') title = 'Profile | Visual Steps';
-    else if (path === '/data-management') title = 'Data Management | Visual Steps';
+    else if (path === '/data-management' || path === '/activity-history') title = 'Activity History | Visual Steps';
     else if (path === '/activity-library') title = 'Activities Library | Visual Steps';
     else if (path === '/saved-quizzes') title = 'Saved Quizzes | Visual Steps';
     else if (path === '/social-stories') title = 'Social Stories | Visual Steps';
@@ -379,17 +436,10 @@ export function Layout() {
             
             {user && (
               <nav className="hidden lg:flex items-center gap-1" aria-label="Main parent workspaces">
-                {[
-                  { id: 'dashboard', label: 'Dashboard', icon: Lightbulb },
-                  { id: 'activities', label: 'Activities', icon: Activity },
-                  { id: 'learning', label: 'Learning', icon: BookOpen },
-                  { id: 'progress', label: 'Progress', icon: TrendingUp },
-                  { id: 'support', label: 'Support', icon: Users },
-                  { id: 'newsletter', label: 'Newsletter', icon: Mail },
-                  ...(isNewsletterAdmin ? [{ id: 'admin', label: 'Admin', icon: ShieldCheck }] : []),
-                ].map(item => {
+                {parentWorkspaces.map(item => {
                   const Icon = item.icon;
-                  return <Link key={item.id} to={workspaceLink(item.id)} aria-current={currentWorkspace === item.id ? 'page' : undefined} className={`inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-bold transition-all ${currentWorkspace === item.id ? 'bg-brand-50 text-brand-700 shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-brand-700'}`}><Icon className="h-4 w-4" />{item.label}</Link>;
+                  const warmWorkspace = () => prefetchWorkspace(item.id);
+                  return <Link key={item.id} to={workspaceLink(item.id)} onMouseEnter={warmWorkspace} onFocus={warmWorkspace} onPointerDown={warmWorkspace} aria-current={currentWorkspace === item.id ? 'page' : undefined} className={`inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-bold transition-all ${currentWorkspace === item.id ? 'bg-brand-50 text-brand-700 shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-brand-700'}`}><Icon className="h-4 w-4" />{item.label}</Link>;
                 })}
               </nav>
             )}
@@ -510,7 +560,7 @@ export function Layout() {
                         {selectedKidId && (
                           <>
                             <Link
-                              to={`/progress-report/${selectedKidId}`}
+                              to={`/progress-report/${selectedKidId}?view=quiz-results`}
                               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all leading-tight ${
                                 location.pathname.includes('progress-report') ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-50 hover:text-brand-600'
                               }`}
@@ -521,7 +571,7 @@ export function Layout() {
                               </div>
                               Progress Report
                             </Link>
-                            <Link
+                            {isNewsletterAdmin && <Link
                               to={`/summary-report/${selectedKidId}`}
                               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all leading-tight ${
                                 location.pathname.includes('summary-report') ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-50 hover:text-brand-600'
@@ -532,7 +582,7 @@ export function Layout() {
                                 <TrendingUp size={18} />
                               </div>
                               Summary Report
-                            </Link>
+                            </Link>}
                           </>
                         )}
                       </div>
@@ -637,7 +687,8 @@ export function Layout() {
                     {(workspaceSecondaryLinks[currentWorkspace] || []).map(item => {
                       const currentUrl = `${location.pathname}${location.search}${location.hash}`;
                       const active = currentUrl === item.to || (!item.to.includes('?') && !item.to.includes('#') && !location.search && !location.hash && location.pathname === item.to);
-                      return <Link key={`${item.label}-${item.to}`} to={item.to} aria-current={active ? 'page' : undefined} className={`rounded-md px-3 py-1.5 text-xs font-bold transition-all ${active ? 'bg-white text-brand-700 shadow-sm ring-1 ring-brand-100' : 'text-slate-600 hover:bg-white/80 hover:text-brand-700'}`}>{item.label}</Link>;
+                      const warmDestination = () => prefetchDestination(item.to);
+                      return <Link key={`${item.label}-${item.to}`} to={item.to} onMouseEnter={warmDestination} onFocus={warmDestination} onPointerDown={warmDestination} aria-current={active ? 'page' : undefined} className={`rounded-md px-3 py-1.5 text-xs font-bold transition-all ${active ? 'bg-white text-brand-700 shadow-sm ring-1 ring-brand-100' : 'text-slate-600 hover:bg-white/80 hover:text-brand-700'}`}>{item.label}</Link>;
                     })}
                   </nav>
                 </>
@@ -685,59 +736,33 @@ export function Layout() {
 
         {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="lg:hidden border-t border-slate-200 bg-white p-2">
+          <div className="max-h-[calc(100dvh-4rem)] overflow-y-auto border-t border-slate-200 bg-white p-3 lg:hidden">
             <nav className="flex flex-col gap-2">
               {user ? (
                 <>
-                  <Link to="/dashboard" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>
-                    Dashboard
-                  </Link>
-                  <Link to="/data-management" className="text-[12px] font-bold text-slate-600 uppercase flex items-center gap-2" onClick={() => setIsMenuOpen(false)}><Database size={14} className="text-blue-600" /> Data Management</Link>
-                  <div className="flex flex-col gap-1.5 pl-2 border-l-2 border-blue-100">
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Activities Library</span>
-                    <Link to="/saved-quizzes" className="text-[12px] font-bold text-slate-600 uppercase flex items-center gap-2" onClick={() => setIsMenuOpen(false)}>
-                      <Gamepad2 size={14} className="text-indigo-500" /> Quizzes
-                    </Link>
-                    <Link to="/social-stories" className="text-[12px] font-bold text-slate-600 uppercase flex items-center gap-2" onClick={() => setIsMenuOpen(false)}>
-                      <BookOpen size={14} className="text-pink-500" /> Social Stories
-                    </Link>
-                    <Link to="/saved-worksheets" className="text-[12px] font-bold text-slate-600 uppercase flex items-center gap-2" onClick={() => setIsMenuOpen(false)}>
-                      <FileText size={14} className="text-amber-500" /> Worksheets
-                    </Link>
-                    <Link to="/games" className="text-[12px] font-bold text-slate-600 uppercase flex items-center gap-2" onClick={() => setIsMenuOpen(false)}>
-                      <Puzzle size={14} className="text-emerald-600" /> Games
-                    </Link>
-                  </div>
-                  <div className="flex flex-col gap-1.5 pl-2 border-l-2 border-blue-100">
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Analytics</span>
-                    {selectedKidId && (
-                      <>
-                        <Link to={`/progress-report/${selectedKidId}`} className="text-[12px] font-bold text-slate-600 uppercase flex items-center gap-2" onClick={() => setIsMenuOpen(false)}>
-                          <Activity size={14} className="text-indigo-500" /> Progress Report
+                  {parentWorkspaces.map(workspace => {
+                    const Icon = workspace.icon;
+                    const submenus = workspaceSecondaryLinks[workspace.id] || [];
+                    return (
+                      <section key={workspace.id} className="rounded-lg border border-slate-100 bg-slate-50/60 p-2">
+                        <Link to={workspaceLink(workspace.id)} onClick={() => setIsMenuOpen(false)} className={`flex items-center gap-2 rounded-md px-2 py-2 text-sm font-black ${currentWorkspace === workspace.id ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-800'}`}>
+                          <Icon className="h-4 w-4" /> {workspace.label}
                         </Link>
-                        <Link to={`/summary-report/${selectedKidId}`} className="text-[12px] font-bold text-slate-600 uppercase flex items-center gap-2" onClick={() => setIsMenuOpen(false)}>
-                          <TrendingUp size={14} className="text-emerald-500" /> Summary Report
-                        </Link>
-                      </>
-                    )}
-                  </div>
-
-                  <button onClick={() => { logout(); setIsMenuOpen(false); }} className="text-left text-[12px] font-bold text-slate-600 uppercase">
-                    Sign out
-                  </button>
-                  <Link to="/pricing" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>
-                    Plans
-                  </Link>
-                  <Link to="/testimonials" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Testimonials</Link>
-                  <span className="text-[12px] font-bold text-slate-600 uppercase">Newsletter</span>
-                  <div className="flex flex-col gap-1 pl-3 border-l-2 border-emerald-100">
-                    <button type="button" className="flex items-center gap-1 text-left text-[11px] font-bold text-slate-600 uppercase" onClick={() => setIsMobileArchiveOpen(value => !value)}>Weekly archive <ChevronDown size={12} className={isMobileArchiveOpen ? 'rotate-180' : ''}/></button>
-                    {isMobileArchiveOpen && newsletterMonths.map(month => <Link key={month.value} to={`/newsletter/archive/${month.value}`} className="pl-3 text-[11px] font-semibold text-slate-500" onClick={() => setIsMenuOpen(false)}>{month.label}</Link>)}
-                    <Link to="/newsletter/community" className="text-[11px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Share with community</Link>
-                    <Link to="/newsletter/subscribe" className="text-[11px] font-bold text-blue-700 uppercase" onClick={() => setIsMenuOpen(false)}>Subscribe</Link>
-                  </div>
-                  {isNewsletterAdmin && <div className="flex flex-col gap-1.5 border-l-2 border-violet-100 pl-2"><span className="text-[11px] font-bold uppercase tracking-wider text-violet-700">Admin</span><Link to="/admin/insights" className="text-[11px] font-bold uppercase text-slate-600" onClick={() => setIsMenuOpen(false)}>Insights</Link><Link to="/admin/support" className="text-[11px] font-bold uppercase text-slate-600" onClick={() => setIsMenuOpen(false)}>Support Inbox</Link><Link to="/newsletter-admin" className="text-[11px] font-bold uppercase text-slate-600" onClick={() => setIsMenuOpen(false)}>Manage newsletter</Link></div>}
-                  <Link to="/contact" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Contact</Link>
+                        {submenus.length > 0 && (
+                          <div className="ml-4 mt-1 flex flex-col gap-0.5 border-l-2 border-brand-100 pl-2">
+                            {submenus.map(item => <Link key={`${workspace.id}-${item.label}`} to={item.to} onClick={() => setIsMenuOpen(false)} onPointerDown={() => prefetchDestination(item.to)} className="rounded px-2 py-1.5 text-xs font-bold text-slate-600 hover:bg-white hover:text-brand-700">{item.label}</Link>)}
+                          </div>
+                        )}
+                      </section>
+                    );
+                  })}
+                  <section className="flex flex-col gap-1 border-t border-slate-200 pt-2">
+                    <Link to="/profile" className="px-2 py-1.5 text-xs font-bold text-slate-600" onClick={() => setIsMenuOpen(false)}>Parent Profile</Link>
+                    <Link to="/add-kid" className="px-2 py-1.5 text-xs font-bold text-slate-600" onClick={() => setIsMenuOpen(false)}>Add Child / Adult</Link>
+                    <Link to="/pricing" className="px-2 py-1.5 text-xs font-bold text-slate-600" onClick={() => setIsMenuOpen(false)}>Plans</Link>
+                    <Link to="/testimonials" className="px-2 py-1.5 text-xs font-bold text-slate-600" onClick={() => setIsMenuOpen(false)}>Testimonials</Link>
+                    <button onClick={() => { logout(); setIsMenuOpen(false); }} className="px-2 py-1.5 text-left text-xs font-bold text-slate-600">Sign out</button>
+                  </section>
                 </>
               ) : (
                 <>

@@ -1,19 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Activity, ArrowLeft, Award, CheckCircle2, Gamepad2, Loader2, RotateCcw, ShoppingBag, Star, TrendingUp } from 'lucide-react';
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from 'recharts';
-import { apiFetch, safeJson } from '../utils/api';
+import { ArrowLeft, Brain, Layers3, Loader2, Sparkles, TrendingUp } from 'lucide-react';
+import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import { Pagination } from '../components/Pagination';
-import { formatInTimezone } from '../utils/dateUtils';
-import { formatReward } from '../utils/rewardUtils';
+import { getCachedProgressReport, loadProgressReport } from '../utils/progressReportData';
 
 interface Kid { name: string; timezone?: string; reward_type?: string; reward_icon?: string; reward_balance?: number }
-interface Assigned { id: string; activity_type: string; category?: string; description?: string; status: string; completion_date?: string; created_at?: string; reward_qty?: number; attempt_generation?: number; repeat_count?: number }
+interface Assigned { id: string; activity_type: string; category?: string; description?: string; status: string; due_date?: string; completion_date?: string; created_at?: string; reward_qty?: number; attempt_generation?: number; repeat_count?: number }
 interface Quiz { id: string; score: number; total_questions: number; completed_at: string; quizzes?: { title?: string } }
 interface Purchase { id: string; item_name: string; cost: number; purchased_at: string; location?: string }
-interface TimelineItem { id: string; type: 'Activity' | 'Quiz' | 'Purchase'; title: string; details: string; date: string; reward?: number }
-
 const within30Days = (value?: string) => Boolean(value) && Date.now() - new Date(value as string).getTime() <= 30 * 86_400_000;
 
 export default function SummaryReport() {
@@ -24,28 +19,27 @@ export default function SummaryReport() {
   const [history, setHistory] = useState<Assigned[]>([]);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [isLoading, setIsLoading] = useState(() => !kidId || !getCachedProgressReport(kidId));
 
   useEffect(() => {
     if (!kidId) return;
     const load = async () => {
-      setIsLoading(true);
+      const cached = getCachedProgressReport(kidId);
+      if (cached) {
+        setKid(cached.kid || null);
+        setAssigned(cached.activities || []);
+        setHistory(cached.history || []);
+        setQuizzes(cached.quizResults || []);
+        setPurchases(cached.purchases || []);
+      }
+      setIsLoading(!cached);
       try {
-        const responses = await Promise.all([
-          apiFetch(`/api/kids/${encodeURIComponent(kidId)}`),
-          apiFetch(`/api/kids/${encodeURIComponent(kidId)}/activities?mode=parent`),
-          apiFetch(`/api/kids/${encodeURIComponent(kidId)}/activity-history`),
-          apiFetch(`/api/kids/${encodeURIComponent(kidId)}/quiz-results`),
-          apiFetch(`/api/kids/${encodeURIComponent(kidId)}/purchases`),
-        ]);
-        const [kidData, activityData, historyData, quizData, purchaseData] = await Promise.all(responses.map(response => response.ok ? safeJson(response) : Promise.resolve({})));
-        setKid(kidData.kid || null);
-        setAssigned(activityData.activities || []);
-        setHistory(historyData.history || []);
-        setQuizzes(quizData.results || []);
-        setPurchases(purchaseData.purchases || []);
+        const data = await loadProgressReport(kidId);
+        setKid(data.kid || null);
+        setAssigned(data.activities || []);
+        setHistory(data.history || []);
+        setQuizzes(data.quizResults || []);
+        setPurchases(data.purchases || []);
       } finally { setIsLoading(false); }
     };
     void load();
@@ -60,41 +54,49 @@ export default function SummaryReport() {
     const recentQuizzes = quizzes.filter(item => within30Days(item.completed_at));
     const recentPurchases = purchases.filter(item => within30Days(item.purchased_at));
     const repeats = assigned.filter(item => Number(item.repeat_count || 0) > 0);
-    const quizAverage = recentQuizzes.length ? Math.round(recentQuizzes.reduce((sum, item) => sum + (item.total_questions ? item.score / item.total_questions * 100 : 0), 0) / recentQuizzes.length) : null;
     const categories = Array.from(new Set(completed.map(item => item.category || 'Uncategorized')))
       .map(name => ({ name, completed: completed.filter(item => (item.category || 'Uncategorized') === name).length }))
       .sort((a, b) => b.completed - a.completed);
-    const timeline: TimelineItem[] = [
-      ...completed.map(item => ({ id: `activity-${item.id}`, type: 'Activity' as const, title: item.activity_type || 'Activity', details: item.description || item.category || '', date: item.completion_date || item.created_at || '', reward: item.reward_qty })),
-      ...recentQuizzes.map(item => ({ id: `quiz-${item.id}`, type: 'Quiz' as const, title: item.quizzes?.title || 'Quiz', details: `Score ${item.score}/${item.total_questions} (${item.total_questions ? Math.round(item.score / item.total_questions * 100) : 0}%)`, date: item.completed_at })),
-      ...recentPurchases.map(item => ({ id: `purchase-${item.id}`, type: 'Purchase' as const, title: item.item_name, details: item.location || 'General', date: item.purchased_at, reward: -item.cost })),
-    ].filter(item => item.date).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    return { completed, recentQuizzes, recentPurchases, repeats, quizAverage, categories, timeline };
+    const now = new Date();
+    const weekly = Array.from({ length: 4 }, (_, index) => {
+      const end = new Date(now.getTime() - (3 - index) * 7 * 86_400_000);
+      const start = new Date(end.getTime() - 7 * 86_400_000);
+      const inWeek = (value?: string) => Boolean(value) && new Date(value as string) > start && new Date(value as string) <= end;
+      const weekQuizzes = recentQuizzes.filter(item => inWeek(item.completed_at));
+      return {
+        week: end.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+        activities: completed.filter(item => inWeek(item.completion_date || item.created_at)).length,
+        retries: repeats.filter(item => inWeek(item.due_date || item.completion_date || item.created_at)).length,
+        quizAccuracy: weekQuizzes.length ? Math.round(weekQuizzes.reduce((sum, item) => sum + (item.total_questions ? item.score / item.total_questions * 100 : 0), 0) / weekQuizzes.length) : null,
+      };
+    });
+    const firstHalfActivities = weekly.slice(0, 2).reduce((sum, week) => sum + week.activities, 0);
+    const recentHalfActivities = weekly.slice(2).reduce((sum, week) => sum + week.activities, 0);
+    const quizWeeks = weekly.filter(week => week.quizAccuracy !== null);
+    const quizDirection = quizWeeks.length < 2 ? 'not-enough-data' : Number(quizWeeks.at(-1)?.quizAccuracy) > Number(quizWeeks[0].quizAccuracy) ? 'improving' : Number(quizWeeks.at(-1)?.quizAccuracy) < Number(quizWeeks[0].quizAccuracy) ? 'declining' : 'steady';
+    const completionDirection = recentHalfActivities > firstHalfActivities ? 'building' : recentHalfActivities < firstHalfActivities ? 'slowing' : 'steady';
+    return { completed, recentQuizzes, recentPurchases, repeats, categories, weekly, quizDirection, completionDirection };
   }, [assigned, history, purchases, quizzes]);
 
-  const totalPages = Math.max(1, Math.ceil(report.timeline.length / pageSize));
-  const rows = report.timeline.slice((page - 1) * pageSize, page * pageSize);
-  const formatDate = (date: string) => formatInTimezone(date, kid?.timezone, { month: 'short', day: 'numeric', year: 'numeric' });
-
-  if (isLoading) return <div className="flex min-h-[400px] flex-col items-center justify-center"><Loader2 className="mb-4 h-10 w-10 animate-spin text-brand-600" /><p className="font-medium text-slate-500">Preparing the 30-day summary...</p></div>;
-
   return <div className="page-shell"><div className="page-container space-y-6">
+    {isLoading && <div className="flex h-9 items-center gap-2 rounded-lg bg-blue-50 px-3 text-xs font-bold text-blue-700" role="status"><Loader2 className="h-4 w-4 animate-spin" /> Updating summary data…</div>}
     <button onClick={() => navigate('/dashboard')} className="flex items-center gap-1 text-sm font-medium text-brand-600"><ArrowLeft className="h-4 w-4" /> Back to Dashboard</button>
     <div><p className="text-xs font-black uppercase tracking-[0.2em] text-brand-700">Last 30 days</p><h1 className="mt-2 text-4xl font-black text-slate-950">{kid?.name}'s Planning Summary</h1><p className="mt-2 text-slate-500">Use recent completion, learning, retry, and reward patterns to plan what comes next.</p></div>
 
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      {[[CheckCircle2, 'Completed', report.completed.length, 'Finished activities'], [TrendingUp, 'Quiz average', report.quizAverage === null ? '—' : `${report.quizAverage}%`, `${report.recentQuizzes.length} quiz results`], [RotateCcw, 'Needed another try', report.repeats.length, 'Review opportunities'], [Award, 'Available balance', kid?.reward_balance || 0, formatReward(kid?.reward_type, kid?.reward_balance || 0)]].map(([Icon, label, value, note]: any) => <Card key={label}><CardContent className="p-5"><Icon className="h-5 w-5 text-brand-600" /><p className="mt-3 text-[10px] font-black uppercase tracking-wider text-slate-500">{label}</p><p className="mt-1 text-3xl font-black text-slate-950">{value}</p><p className="mt-1 text-xs text-slate-500">{note}</p></CardContent></Card>)}
+    <Card className="border-blue-100 bg-gradient-to-r from-blue-50 to-emerald-50"><CardContent className="grid gap-5 p-6 md:grid-cols-3">
+      <div><TrendingUp className="h-5 w-5 text-blue-600"/><p className="mt-2 text-xs font-black uppercase tracking-wider text-blue-700">Participation trend</p><p className="mt-2 text-sm leading-6 text-slate-700">{report.completionDirection === 'building' ? `${kid?.name || 'The learner'} is completing activities more consistently in the most recent weeks.` : report.completionDirection === 'slowing' ? 'Recent activity completion has slowed. A lighter plan or clearer steps may help rebuild momentum.' : 'Activity completion is staying fairly steady across the month.'}</p></div>
+      <div><Brain className="h-5 w-5 text-emerald-600"/><p className="mt-2 text-xs font-black uppercase tracking-wider text-emerald-700">Learning trend</p><p className="mt-2 text-sm leading-6 text-slate-700">{report.quizDirection === 'improving' ? 'Quiz performance is moving upward, suggesting growing understanding.' : report.quizDirection === 'declining' ? 'Recent quiz performance is moving downward. Review missed concepts before increasing difficulty.' : report.quizDirection === 'steady' ? 'Quiz performance is stable. Look at missed concepts to decide whether to practise or advance.' : 'More quiz results are needed before a learning direction can be identified.'}</p></div>
+      <div><Sparkles className="h-5 w-5 text-amber-600"/><p className="mt-2 text-xs font-black uppercase tracking-wider text-amber-700">Planning signal</p><p className="mt-2 text-sm leading-6 text-slate-700">{report.repeats.length ? 'Some activities needed another try. Shorter steps, visual prompts, or guided practice may make the next attempt easier.' : 'Retries are not forming a pattern. Continue with manageable challenges and watch for changes over time.'}</p></div>
+    </CardContent></Card>
+
+    <div className="grid gap-6 lg:grid-cols-2">
+      <Card><CardHeader><CardTitle>Participation and support trend</CardTitle><p className="text-sm text-slate-500">See whether engagement is building and when more support was needed.</p></CardHeader><CardContent className="h-80"><ResponsiveContainer width="100%" height="100%"><BarChart data={report.weekly}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="week" tick={{ fontSize: 11 }}/><YAxis allowDecimals={false} tick={{ fontSize: 11 }}/><ChartTooltip/><Legend/><Bar dataKey="activities" name="Activities completed" fill="#2563eb" radius={[6,6,0,0]}/><Bar dataKey="retries" name="Needed another try" fill="#f59e0b" radius={[6,6,0,0]}/></BarChart></ResponsiveContainer></CardContent></Card>
+      <Card><CardHeader><CardTitle>Learning direction</CardTitle><p className="text-sm text-slate-500">Follow quiz performance across weeks instead of focusing on one result.</p></CardHeader><CardContent className="h-80">{report.weekly.some(week => week.quizAccuracy !== null) ? <ResponsiveContainer width="100%" height="100%"><LineChart data={report.weekly}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="week" tick={{ fontSize: 11 }}/><YAxis domain={[0,100]} tick={{ fontSize: 11 }}/><ChartTooltip/><Line type="monotone" dataKey="quizAccuracy" name="Quiz accuracy trend" stroke="#059669" strokeWidth={3} connectNulls dot={{ r: 5 }}/></LineChart></ResponsiveContainer> : <div className="flex h-full items-center justify-center text-center text-sm text-slate-400">Complete quizzes across multiple weeks to reveal a learning trend.</div>}</CardContent></Card>
     </div>
 
     <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-      <Card><CardHeader><CardTitle>Completed activity mix</CardTitle></CardHeader><CardContent className="h-80">{report.categories.length ? <ResponsiveContainer width="100%" height="100%"><BarChart data={report.categories} layout="vertical" margin={{ left: 10, right: 20 }}><CartesianGrid strokeDasharray="3 3" horizontal={false} /><XAxis type="number" allowDecimals={false} /><YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 11 }} /><ChartTooltip /><Bar dataKey="completed" fill="#2563eb" radius={[0, 8, 8, 0]} /></BarChart></ResponsiveContainer> : <div className="flex h-full items-center justify-center text-sm text-slate-400">No completed activity data yet.</div>}</CardContent></Card>
-      <Card className="bg-gradient-to-br from-blue-50 to-emerald-50"><CardHeader><CardTitle>Ideas for the next plan</CardTitle></CardHeader><CardContent className="space-y-4 text-sm leading-6 text-slate-700">
-        <p><strong>Activities:</strong> {report.repeats.length ? `${report.repeats.length} activities needed another try. Consider fewer steps, clearer images, or a short practice activity before repeating them.` : 'No retries are currently recorded. Continue introducing new work in manageable steps.'}</p>
-        <p><strong>Learning:</strong> {report.quizAverage === null ? 'Assign a quiz when you want a measurable learning signal.' : report.quizAverage < 70 ? `With a ${report.quizAverage}% quiz average, revisit missed concepts through a focused worksheet or visual activity.` : `A ${report.quizAverage}% quiz average suggests readiness to build on successful topics with a slightly greater challenge.`}</p>
-        <p><strong>Motivation:</strong> {report.recentPurchases.length ? `${report.recentPurchases.length} reward purchases show which goals were selected. Use those preferences when creating the next attainable reward.` : 'No reward purchases were recorded. Review whether current reward choices are appealing and realistically attainable.'}</p>
-      </CardContent></Card>
+      <Card><CardHeader><CardTitle>Activity balance</CardTitle><p className="text-sm text-slate-500">Shows which areas receive the most practice and which may need more attention.</p></CardHeader><CardContent className="h-80">{report.categories.length ? <ResponsiveContainer width="100%" height="100%"><BarChart data={report.categories} layout="vertical" margin={{ left: 10, right: 20 }}><CartesianGrid strokeDasharray="3 3" horizontal={false}/><XAxis type="number" allowDecimals={false}/><YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 11 }}/><ChartTooltip/><Bar dataKey="completed" name="Completed activities" fill="#7c3aed" radius={[0,8,8,0]}/></BarChart></ResponsiveContainer> : <div className="flex h-full items-center justify-center text-sm text-slate-400">Complete activities in different areas to reveal the activity balance.</div>}</CardContent></Card>
+      <Card><CardHeader><CardTitle className="flex items-center gap-2"><Layers3 className="h-5 w-5 text-brand-600"/>How to use these trends</CardTitle></CardHeader><CardContent className="space-y-4 text-sm leading-6 text-slate-700"><p>Look for direction over several weeks rather than judging one difficult day.</p><p>When participation and learning rise together, gradually introduce a little more challenge.</p><p>When retries rise or quiz direction falls, reduce the task size and revisit the underlying skill with visual support.</p><p>{report.recentPurchases.length ? 'Recent reward choices can help identify what is motivating. Use those preferences to support the next achievable goal.' : 'If motivation appears low, review whether the available rewards feel meaningful and attainable.'}</p></CardContent></Card>
     </div>
-
-    <Card className="overflow-hidden"><CardHeader><CardTitle className="flex items-center gap-2"><Star className="h-5 w-5 text-amber-500" /> Activity, quiz, and purchase timeline ({report.timeline.length})</CardTitle></CardHeader><CardContent className="p-0"><div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead className="border-y border-slate-200 bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-500"><tr><th className="px-6 py-4">Type</th><th className="px-6 py-4">Item</th><th className="px-6 py-4">Details</th><th className="px-6 py-4 text-center">Reward change</th><th className="px-6 py-4 text-right">Date</th></tr></thead><tbody className="divide-y divide-slate-100">{rows.length ? rows.map(item => { const Icon = item.type === 'Quiz' ? Gamepad2 : item.type === 'Purchase' ? ShoppingBag : Activity; return <tr key={item.id} className="hover:bg-slate-50"><td className="px-6 py-4"><span className="flex items-center gap-2 font-bold text-slate-700"><Icon className="h-4 w-4 text-brand-600" />{item.type}</span></td><td className="px-6 py-4 font-bold text-slate-900">{item.title}</td><td className="px-6 py-4 text-slate-500">{item.details || '—'}</td><td className={`px-6 py-4 text-center font-black ${Number(item.reward) < 0 ? 'text-rose-600' : 'text-amber-600'}`}>{item.reward ? `${item.reward > 0 ? '+' : ''}${item.reward}` : '—'}</td><td className="px-6 py-4 text-right text-slate-500">{formatDate(item.date)}</td></tr>; }) : <tr><td colSpan={5} className="px-6 py-12 text-center text-slate-400">No report events in the last 30 days.</td></tr>}</tbody></table></div>{report.timeline.length > 0 && <Pagination currentPage={page} totalPages={totalPages} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />}</CardContent></Card>
   </div></div>;
 }

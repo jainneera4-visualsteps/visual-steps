@@ -85,6 +85,7 @@ export default function App() {
               <Route path="assigned-activities/:kidId" element={<AssignedActivities />} />
               <Route path="profile" element={<Profile />} />
               <Route path="data-management" element={<DataManagement />} />
+              <Route path="activity-history" element={<DataManagement mode="activity" />} />
               <Route path="social-stories" element={<SocialStories />} />
               <Route path="social-stories/create" element={<CreateSocialStory />} />
               <Route path="social-stories/edit/:id" element={<CreateSocialStory />} />

@@ -1,6 +1,6 @@
 import { Tooltip as CustomTooltip } from '../components/ui/Tooltip';
 import { io } from 'socket.io-client';
-import { apiFetch, safeJson } from '../utils/api';
+import { apiFetch, clearApiReadCache, safeJson } from '../utils/api';
 import { formatReward, getRewardIcon } from '../utils/rewardUtils';
 import { Fragment, useState, useEffect, useRef, type ReactNode } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
@@ -23,9 +23,9 @@ type ActivityStatus = 'pending' | 'awaiting_verification' | 'completed' | 'on_ho
 type ActivityOutcome = '' | 'reassign' | 'on_hold' | 'ended';
 type ReassignmentLevel = 'same' | 'up' | 'down';
 type ActivityMeaning = 'available_choice' | 'important_today';
-type ActivityWorkspaceTab = 'activities' | 'help_requested' | 'verification' | 'completed' | 'on_hold' | 'ended' | 'history' | 'quiz_results' | 'rewards';
+type ActivityWorkspaceTab = 'activities' | 'help_requested' | 'verification' | 'completed' | 'on_hold' | 'ended' | 'history' | 'quiz_results' | 'rewards' | 'bonus_rewards';
 
-const ACTIVITY_WORKSPACE_TABS: ActivityWorkspaceTab[] = ['activities', 'help_requested', 'verification', 'completed', 'on_hold', 'ended', 'history', 'quiz_results', 'rewards'];
+const ACTIVITY_WORKSPACE_TABS: ActivityWorkspaceTab[] = ['activities', 'help_requested', 'verification', 'completed', 'on_hold', 'ended', 'history', 'quiz_results', 'rewards', 'bonus_rewards'];
 
 interface Activity {
   id: string;
@@ -88,8 +88,6 @@ interface Kid {
   rules?: string;
   reward_balance?: number;
   timezone?: string;
-  optional_bonus_daily_reward_limit?: number;
-  optional_bonus_remaining_rewards?: number;
 }
 
 interface RewardItem {
@@ -182,14 +180,14 @@ export default function AssignedActivities() {
   const [behaviorBonuses, setBehaviorBonuses] = useState<BehaviorBonusAward[]>([]);
   const [isAwardingBonus, setIsAwardingBonus] = useState(false);
   const [isBonusFormOpen, setIsBonusFormOpen] = useState(false);
+  const [showAllBehaviorBonuses, setShowAllBehaviorBonuses] = useState(false);
   const [bonusReason, setBonusReason] = useState('Focused effort');
-  const [bonusAmount, setBonusAmount] = useState(1);
+  const [bonusAmount, setBonusAmount] = useState('1');
   const [isRewardModalOpen, setIsRewardModalOpen] = useState(false);
   const [isHistoryDeleteConfirmOpen, setIsHistoryDeleteConfirmOpen] = useState(false);
   const [activityToDelete, setActivityToDelete] = useState<string | null>(null);
   const [locationFilter, setLocationFilter] = useState('');
   const [rewardToDelete, setRewardToDelete] = useState<string | null>(null);
-  const [selectedRewardIds, setSelectedRewardIds] = useState<string[]>([]);
   const [newReward, setNewReward] = useState({ name: '', cost: 1, imageUrl: '', location: '', is_active: true });
   const [editingReward, setEditingReward] = useState<RewardItem | null>(null);
   const [isSavingReward, setIsSavingReward] = useState(false);
@@ -342,6 +340,17 @@ export default function AssignedActivities() {
   const visibleRewardItems = rewardItems
     .filter(item => !locationFilter || item.location === locationFilter)
     .sort((a, b) => Number(b.is_active !== false) - Number(a.is_active !== false) || a.cost - b.cost);
+  const rewardSections = [
+    { label: 'Active Rewards', items: visibleRewardItems.filter(item => item.is_active !== false), tone: 'text-emerald-700' },
+    { label: 'Inactive Rewards', items: visibleRewardItems.filter(item => item.is_active === false), tone: 'text-slate-500' },
+  ];
+  const todayInKidTimezone = getZonedTime(kid?.timezone).isoDate;
+  const todaysBehaviorBonuses = behaviorBonuses.filter(award => getZonedTime(kid?.timezone, new Date(award.awarded_at)).isoDate === todayInKidTimezone);
+  const todaysBehaviorRewardTotal = todaysBehaviorBonuses.reduce((total, award) => total + Number(award.reward_amount || 0), 0);
+  const behaviorReasonChoices = [
+    ['⏳', 'Waited calmly'], ['🙋', 'Asked for help'], ['🔄', 'Tried again'],
+    ['💬', 'Used kind words'], ['👂', 'Followed a direction'], ['🌈', 'Managed a change'],
+  ];
 
   const fixedBuiltInActivities = [
     {
@@ -867,6 +876,7 @@ export default function AssignedActivities() {
     socket.on('data_updated', (data) => {
       console.log('Received data_updated event:', data);
       if (data.kidId === kidId) {
+        clearApiReadCache();
         fetchData({ silent: true, skipSamples: true });
         fetchRewardItems();
       }
@@ -922,7 +932,7 @@ export default function AssignedActivities() {
       const res = await apiFetch(`/api/kids/${kidId}/reward-items`);
       if (res.ok) {
         const data = await safeJson(res);
-        setRewardItems(data.items);
+        setRewardItems(data.items || []);
       }
     } catch (error) {
       console.error('Failed to fetch reward items', error);
@@ -1095,17 +1105,28 @@ export default function AssignedActivities() {
   };
 
   const awardBehaviorBonus = async () => {
+    const rewardAmount = Number(bonusAmount);
+    if (!Number.isInteger(rewardAmount) || rewardAmount < 1) {
+      alert('Enter a positive whole-number reward amount.');
+      return;
+    }
     setIsAwardingBonus(true);
     try {
       const response = await apiFetch(`/api/kids/${encodeURIComponent(kidId)}/behavior-bonuses`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ behaviorReason: bonusReason, rewardAmount: bonusAmount }),
+        body: JSON.stringify({ behaviorReason: bonusReason, rewardAmount }),
       });
       const payload = await safeJson(response);
       if (!response.ok) throw new Error(payload?.error || 'Unable to award the behavior bonus.');
       setBehaviorBonuses(current => [payload.award, ...current]);
-      setKid(current => current ? { ...current, reward_balance: (current.reward_balance || 0) + bonusAmount } : current);
+      const updatedBalance = Number.isFinite(Number(payload.rewardBalance))
+        ? Number(payload.rewardBalance)
+        : Number(kid?.reward_balance || 0) + rewardAmount;
+      setKid(current => current ? { ...current, reward_balance: updatedBalance } : current);
+      window.dispatchEvent(new CustomEvent('visual-steps:reward-balance-updated', {
+        detail: { kidId, rewardBalance: updatedBalance },
+      }));
       setIsBonusFormOpen(false);
     } catch (error: any) {
       alert(error?.message || 'Unable to award the behavior bonus.');
@@ -1453,23 +1474,6 @@ export default function AssignedActivities() {
     }
   };
 
-  const deleteSelectedRewards = async () => {
-    if (selectedRewardIds.length === 0 || !window.confirm(`Delete ${selectedRewardIds.length} selected reward ${selectedRewardIds.length === 1 ? 'item' : 'items'}?`)) return;
-    const results = await Promise.all(selectedRewardIds.map(async id => {
-      try {
-        const response = await apiFetch(`/api/reward-items/${encodeURIComponent(id)}`, { method: 'DELETE' });
-        return { id, ok: response.ok };
-      } catch {
-        return { id, ok: false };
-      }
-    }));
-    const deletedIds = new Set(results.filter(result => result.ok).map(result => result.id));
-    setRewardItems(current => current.filter(item => !deletedIds.has(item.id)));
-    setSelectedRewardIds(current => current.filter(id => !deletedIds.has(id)));
-    const failed = results.length - deletedIds.size;
-    if (failed > 0) alert(`${failed} selected reward ${failed === 1 ? 'item could' : 'items could'} not be deleted.`);
-  };
-
   const toggleStatus = async (activity: Activity) => {
     try {
       const newStatus = activity.status === 'completed' ? 'pending' : 'completed';
@@ -1541,7 +1545,7 @@ export default function AssignedActivities() {
               <tr>
                 <th className="w-20 px-3 py-2">
                   <div className="flex items-center gap-2">
-                    <input type="checkbox" aria-label="Select all activities on this page" checked={rows.length > 0 && rows.every(activity => selectedActivityIds.includes(activity.id))} ref={element => { if (element) { const count = rows.filter(activity => selectedActivityIds.includes(activity.id)).length; element.indeterminate = count > 0 && count < rows.length; } }} onChange={event => { const ids = rows.map(activity => activity.id); setSelectedActivityIds(current => event.target.checked ? Array.from(new Set([...current, ...ids])) : current.filter(id => !ids.includes(id))); }} className="h-4 w-4 rounded border-slate-300 text-blue-600" />
+                    <input type="checkbox" aria-label="Select all activities on this page" checked={rows.length > 0 && rows.every(activity => selectedActivityIds.includes(activity.id))} ref={element => { if (element) { const count = rows.filter(activity => selectedActivityIds.includes(activity.id)).length; element.indeterminate = count > 0 && count < rows.length; } }} onChange={event => { const ids = rows.map(activity => activity.id); setSelectedActivityIds(event.target.checked ? ids : []); }} className="h-4 w-4 rounded border-slate-300 text-blue-600" />
                     <CustomTooltip content={selectedActivityIds.length ? `Delete ${selectedActivityIds.length} selected` : 'Select activities to delete'}><button type="button" aria-label="Delete selected activities" disabled={selectedActivityIds.length === 0} onClick={deleteSelectedActivities} className="grid h-7 w-7 place-items-center rounded text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-35"><Trash2 className="h-4 w-4" /></button></CustomTooltip>
                   </div>
                 </th>
@@ -1886,9 +1890,7 @@ export default function AssignedActivities() {
                         }}
                         onChange={event => {
                           const pageIds = paginatedCompleted.map(activity => activity.id);
-                          setSelectedActivityIds(current => event.target.checked
-                            ? Array.from(new Set([...current, ...pageIds]))
-                            : current.filter(id => !pageIds.includes(id)));
+                          setSelectedActivityIds(event.target.checked ? pageIds : []);
                         }}
                       /><CustomTooltip content={selectedActivityIds.length ? `Delete ${selectedActivityIds.length} selected` : 'Select activities to delete'}><button type="button" aria-label="Delete selected activities" disabled={selectedActivityIds.length === 0} onClick={deleteSelectedActivities} className="grid h-7 w-7 place-items-center rounded text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-35"><Trash2 className="h-4 w-4" /></button></CustomTooltip></div>
                     </th>
@@ -2205,9 +2207,7 @@ export default function AssignedActivities() {
                           }}
                           onChange={event => {
                             const pageIds = paginatedResults.map(result => result.id);
-                            setSelectedQuizResultIds(current => event.target.checked
-                              ? Array.from(new Set([...current, ...pageIds]))
-                              : current.filter(id => !pageIds.includes(id)));
+                            setSelectedQuizResultIds(event.target.checked ? pageIds : []);
                           }}
                         />
                       </th>
@@ -2290,10 +2290,10 @@ export default function AssignedActivities() {
     <div className="w-full space-y-2 px-0">
       {!isModalOpen && !previewActivity && !viewingQuizResult && !isRewardModalOpen ? (
         <>
-          <div className="mb-1">
+          <div className="app-page-header">
             <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start no-print">
               <div>
-                <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-tight">
+                <h1 className="app-page-title">
                   {activeTab === 'activities' 
                     ? <div className="flex items-center gap-3"><LayoutList className="h-8 w-8 text-blue-600" /> {kid?.name ? `${kid.name}'s ` : ''}Assigned Activities</div>
                     : activeTab === 'help_requested'
@@ -2323,9 +2323,11 @@ export default function AssignedActivities() {
                                   </div>
                                 )}
                               </div>
-                                : <div className="flex items-center gap-3"><Award className="h-8 w-8 text-amber-500" /> {kid?.name ? `${kid.name}'s ` : ''}Reward Items</div>}
+                                : activeTab === 'bonus_rewards'
+                                  ? <div className="flex items-center gap-3"><Award className="h-8 w-8 text-indigo-600" /> {kid?.name ? `${kid.name}'s ` : ''}Positive Recognition</div>
+                                  : <div className="flex items-center gap-3"><Award className="h-8 w-8 text-amber-500" /> {kid?.name ? `${kid.name}'s ` : ''}Rewards Catalog</div>}
                 </h1>
-                <p className="mt-1 text-sm font-normal text-slate-500">
+                <p className="app-page-subtitle">
                   {activeTab === 'activities' 
                     ? 'Organize daily tasks and track learning progress' 
                     : activeTab === 'help_requested'
@@ -2342,7 +2344,9 @@ export default function AssignedActivities() {
                             ? 'Review completed quiz attempts, answers, and practical learning insights.'
                         : activeTab === 'history'
                             ? 'View past activity and reward history.'
-                            : 'Add or edit reward items'}
+                            : activeTab === 'bonus_rewards'
+                              ? 'Recognize positive behavior with a small, clearly explained bonus.'
+                              : 'Add or edit reward items'}
                 </p>
               </div>
               
@@ -2399,6 +2403,29 @@ export default function AssignedActivities() {
                       </Button>
                     </CustomTooltip>
                   )}
+                  {activeTab === 'rewards' && (
+                    <CustomTooltip content="Add New Reward Item">
+                      <Button size="xs" onClick={() => setIsRewardModalOpen(true)} className="ml-1 h-7 shrink-0 text-[12px]" data-guest-tour="add-reward">
+                        <Plus className="mr-1 h-3 w-3" /> Add Reward Item
+                      </Button>
+                    </CustomTooltip>
+                  )}
+                  {activeTab === 'bonus_rewards' && (
+                    <>
+                      <div className="mr-1 inline-flex h-7 items-center rounded-md border border-emerald-200 bg-emerald-50 px-2.5 text-[11px] font-bold text-emerald-800">
+                        {todaysBehaviorBonuses.length} {todaysBehaviorBonuses.length === 1 ? 'recognition' : 'recognitions'} today
+                        <span className="mx-1.5 text-emerald-400">·</span>
+                        {todaysBehaviorRewardTotal} {formatReward(kid?.reward_type, todaysBehaviorRewardTotal)} given
+                      </div>
+                      {!isBonusFormOpen && (
+                        <CustomTooltip content="Give Positive Recognition">
+                          <Button size="xs" onClick={() => setIsBonusFormOpen(true)} className="ml-1 h-7 shrink-0 text-[12px]" data-guest-tour="bonus-reward">
+                            <Award className="mr-1 h-3 w-3" /> Give Bonus
+                          </Button>
+                        </CustomTooltip>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -2406,10 +2433,10 @@ export default function AssignedActivities() {
 
           {(activeTab === 'activities' || activeTab === 'completed' || activeTab === 'on_hold' || activeTab === 'ended' || activeTab === 'history') && (
               <div className="flex items-center justify-between gap-4 no-print">
-                <div className="flex border-b border-slate-200">
+                <div className="app-view-tabs">
                   <button
                     onClick={() => setViewMode('list')}
-                    className={`px-3 py-1.5 text-sm font-medium transition-all ${
+                    className={`app-view-tab ${
                       viewMode === 'list' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:text-slate-700'
                     }`}
                   >
@@ -2420,7 +2447,7 @@ export default function AssignedActivities() {
                     data-guest-tour="calendar-view"
                     aria-pressed={viewMode === 'calendar'}
                     onClick={() => setViewMode('calendar')}
-                    className={`px-3 py-1.5 text-sm font-medium transition-all ${
+                    className={`app-view-tab ${
                       viewMode === 'calendar' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:text-slate-700'
                     }`}
                   >
@@ -2438,7 +2465,7 @@ export default function AssignedActivities() {
               ))}
             </div>
           ) : viewMode === 'calendar' && ['activities', 'completed', 'on_hold', 'ended', 'history'].includes(activeTab) ? (
-            <Card className="border-none ring-1 ring-slate-200 shadow-sm">
+            <Card className="app-table-shell">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
                   {activeTab === 'activities' && <LayoutList className="h-5 w-5 text-blue-600" />}
@@ -2488,7 +2515,7 @@ export default function AssignedActivities() {
                 </Button>
               </div>
             ) : (
-            <Card className="border-none ring-1 ring-slate-200 shadow-sm">
+            <Card className="app-table-shell">
               <CardContent className="p-0">
                 {selectedDate && (
                   <div className="flex items-center justify-between border-b border-blue-100 bg-blue-50/50 px-4 py-2">
@@ -2557,9 +2584,9 @@ export default function AssignedActivities() {
                   );
                 })()}
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[1100px] table-fixed text-sm text-left [&_td]:break-words [&_td]:whitespace-normal [&_th]:whitespace-normal">
+                  <table className="app-data-table min-w-[1100px] [&_td]:break-words [&_td]:whitespace-normal [&_th]:whitespace-normal">
                     <colgroup><col className="w-20" /><col className="w-[18%]" /><col className="w-[24%]" /><col className="w-[12%]" /><col className="w-[10%]" /><col className="w-[12%]" /><col className="w-[10%]" /><col className="w-52" /></colgroup>
-                    <thead className="text-xs text-slate-500 bg-slate-50 uppercase border-y border-slate-200">
+                    <thead className="app-data-table-head">
                     <tr>
                       <th className="w-20 px-3 py-2">
                         <div className="flex items-center gap-2">
@@ -2575,9 +2602,7 @@ export default function AssignedActivities() {
                             }}
                             onChange={event => {
                               const pageIds = visibleActivityRows.map(activity => activity.id);
-                              setSelectedActivityIds(current => event.target.checked
-                                ? Array.from(new Set([...current, ...pageIds]))
-                                : current.filter(id => !pageIds.includes(id)));
+                              setSelectedActivityIds(event.target.checked ? pageIds : []);
                             }}
                             className="h-4 w-4 rounded border-slate-300 text-blue-600"
                           />
@@ -2729,7 +2754,7 @@ export default function AssignedActivities() {
                           </td>
                         </tr>
                       )}
-                      <tr key={activity.id} className={`hover:bg-slate-50 transition-colors ${activity.status === 'completed' ? 'bg-slate-50 opacity-75' : 'bg-white'}`}>
+                      <tr key={activity.id} className={`app-data-row ${activity.status === 'completed' ? 'bg-slate-50 opacity-75' : ''}`}>
                         <td className="px-4 py-3">
                           <input
                             type="checkbox"
@@ -3027,12 +3052,7 @@ export default function AssignedActivities() {
                                   }
                                 }}
                                 onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setSelectedHistoryIds(current => Array.from(new Set([...current, ...paginatedHistory.map(activity => activity.id)])));
-                                  } else {
-                                    const pageIds = new Set(paginatedHistory.map(activity => activity.id));
-                                    setSelectedHistoryIds(current => current.filter(id => !pageIds.has(id)));
-                                  }
+                                  setSelectedHistoryIds(e.target.checked ? paginatedHistory.map(activity => activity.id) : []);
                                 }}
                                 aria-label="Select all activity history rows on this page"
                               />
@@ -3237,100 +3257,79 @@ export default function AssignedActivities() {
             
 
 
-      ) : activeTab === 'rewards' ? (
-        <div className="grid gap-5 lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start">
-          <aside className="space-y-3 lg:sticky lg:top-20">
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center shadow-sm">
-            <div className="text-3xl font-black text-emerald-700">
-              {kid?.optional_bonus_remaining_rewards ?? kid?.optional_bonus_daily_reward_limit ?? 0}
-            </div>
-            <div className="mt-0.5 text-xs font-bold text-emerald-800">Extra rewards available today</div>
-          </div>
-          <Card data-guest-tour="bonus-reward" className="border-indigo-200 bg-gradient-to-br from-indigo-50 to-emerald-50 shadow-sm">
-            <CardContent className="p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <h2 className="flex items-center gap-2 text-base font-black text-slate-900"><Award className="h-5 w-5 text-indigo-600" /> Recognize Positive Behavior</h2>
-                  <p className="mt-1 text-xs font-medium text-slate-600">Give a small bonus only when you observe {kid?.name || 'your child'} making a positive choice. The reason is recorded and shown to your child, so the tokens are never presented as free.</p>
-                </div>
-                {!isBonusFormOpen && <Button size="xs" onClick={() => setIsBonusFormOpen(true)}><Award className="mr-1 h-3.5 w-3.5" /> Give Bonus</Button>}
-              </div>
+      ) : ['rewards', 'bonus_rewards'].includes(activeTab) ? (
+        <div className="w-full">
+          {activeTab === 'bonus_rewards' && (
+          <div className="space-y-3">
               {isBonusFormOpen && (
-                <div className="mt-3 space-y-3 rounded-xl border border-indigo-100 bg-white/90 p-3">
-                  <label className="text-xs font-bold text-slate-700">What positive behavior did you observe?
-                    <Input list="behavior-bonus-suggestions" maxLength={160} value={bonusReason} onChange={event => setBonusReason(event.target.value)} placeholder="e.g., Put toys away without being asked" className="mt-1 h-9" />
-                    <datalist id="behavior-bonus-suggestions">
-                      {Array.from(new Set([
-                        'Focused effort', 'Following family rules', 'Calm communication', 'Helpful behavior',
-                        'Trying again', 'Positive self-control', 'Completed the routine independently', 'Handled a change calmly',
-                        ...behaviorBonuses.map(award => award.behavior_reason).filter(Boolean),
-                      ])).map(reason => <option key={reason} value={reason} />)}
-                    </datalist>
-                  </label>
-                  <label className="text-xs font-bold text-slate-700">Tokens (1–10)
-                    <Input type="number" min={1} max={10} value={bonusAmount} onChange={event => setBonusAmount(Math.max(1, Math.min(10, Number(event.target.value) || 1)))} className="mt-1 h-9" />
-                  </label>
-                  <div className="flex flex-wrap gap-2"><Button size="xs" disabled={isAwardingBonus} onClick={() => void awardBehaviorBonus()}>{isAwardingBonus ? 'Giving…' : 'Confirm bonus'}</Button><Button variant="ghost" size="xs" disabled={isAwardingBonus} onClick={() => setIsBonusFormOpen(false)}>Cancel</Button></div>
-                </div>
+                <Card data-guest-tour="bonus-reward" className="border-indigo-200 shadow-sm">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 px-4 py-2">
+                    <CardTitle className="text-base font-bold">Give Positive Recognition</CardTitle>
+                    <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="xs" className="h-8 px-3 text-[12px] font-bold" disabled={isAwardingBonus} onClick={() => setIsBonusFormOpen(false)}>Cancel</Button>
+                      <Button size="xs" className="h-8 px-3 text-[12px] font-bold" disabled={isAwardingBonus || !bonusReason.trim() || !Number.isInteger(Number(bonusAmount)) || Number(bonusAmount) < 1} onClick={() => void awardBehaviorBonus()}>{isAwardingBonus ? 'Giving…' : 'Give Recognition'}</Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="grid gap-2 px-4 pb-3 lg:grid-cols-2">
+                    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                      <p className="mb-1.5 text-xs font-bold text-slate-700">What did {kid?.name || 'your child'} do?</p>
+                      <div className="flex flex-wrap gap-1">{behaviorReasonChoices.map(([icon, reason]) => <button key={reason} type="button" onClick={() => setBonusReason(reason)} className={`rounded-md border px-2 py-1 text-[11px] font-bold ${bonusReason === reason ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}><span aria-hidden="true">{icon}</span> {reason}</button>)}</div>
+                    </div>
+                    <div className="flex flex-col rounded-lg border border-slate-200 bg-white px-3 py-2">
+                      <label htmlFor="recognition-reason" className="mb-1 block text-xs font-bold text-slate-700">Recognition message</label>
+                      <Input id="recognition-reason" maxLength={160} value={bonusReason} onChange={event => setBonusReason(event.target.value)} placeholder="Describe another positive choice" className="h-8 w-full" />
+                      <p className="mb-1 mt-2 text-xs font-bold text-slate-700">Reward amount</p>
+                      <div className="flex flex-wrap items-center gap-1">
+                        {[1, 2, 3, 5].map(amount => <button key={amount} type="button" onClick={() => setBonusAmount(String(amount))} className={`h-7 min-w-9 rounded-md border px-2 text-[11px] font-black ${bonusAmount === String(amount) ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-700'}`}>+{amount}</button>)}
+                        <div className="w-24 flex-none"><Input aria-label="Custom reward amount" type="text" inputMode="numeric" pattern="[0-9]*" value={bonusAmount} onChange={event => setBonusAmount(event.target.value.replace(/\D/g, ''))} placeholder="Amount" className="h-7 text-xs" /></div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               )}
-              {behaviorBonuses.length > 0 && (
-                <div className="mt-4 border-t border-indigo-100 pt-3">
-                  <p className="mb-2 text-xs font-black uppercase tracking-wide text-slate-500">Recent behavior bonuses</p>
-                  <div className="space-y-2">{behaviorBonuses.slice(0, 5).map(award => <div key={award.id} className="flex items-center justify-between gap-3 rounded-lg bg-white/80 px-3 py-2 text-xs"><span className="font-semibold text-slate-700">{award.behavior_reason}</span><span className="whitespace-nowrap font-black text-emerald-700">+{award.reward_amount} · {formatKidDate(award.awarded_at, { month: 'short', day: 'numeric' })}</span></div>)}</div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          </aside>
+              <Card className="overflow-hidden border-slate-200 shadow-sm">
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full table-fixed border-collapse text-left">
+                      <colgroup><col className="w-[62%]" /><col className="w-[18%]" /><col className="w-[20%]" /></colgroup>
+                      <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-black uppercase tracking-wide text-slate-600">
+                        <tr><th className="px-4 py-2">Positive behavior</th><th className="px-4 py-2">Reward amount</th><th className="px-4 py-2">Date</th></tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {behaviorBonuses.slice(0, showAllBehaviorBonuses ? 20 : 5).map(award => (
+                          <tr key={award.id} className="text-sm text-slate-700">
+                            <td className="whitespace-normal break-words px-4 py-2 font-semibold">{award.behavior_reason}</td>
+                            <td className="whitespace-normal px-4 py-2 font-black text-emerald-700">+{award.reward_amount} {formatReward(kid?.reward_type, award.reward_amount)}</td>
+                            <td className="whitespace-normal px-4 py-2">{formatKidDate(award.awarded_at, { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                          </tr>
+                        ))}
+                        {behaviorBonuses.length === 0 && <tr><td colSpan={3} className="px-4 py-8 text-center text-sm font-medium text-slate-500">No positive recognition recorded yet.</td></tr>}
+                      </tbody>
+                    </table>
+                  </div>
+                  {behaviorBonuses.length > 5 && <button type="button" className="border-t border-slate-100 px-4 py-2 text-xs font-bold text-blue-600 hover:text-blue-800" onClick={() => setShowAllBehaviorBonuses(current => !current)}>{showAllBehaviorBonuses ? 'Show latest five' : 'View all'}</button>}
+                </CardContent>
+              </Card>
+          </div>
+          )}
+          {activeTab === 'rewards' && (
           <Card className="border-slate-200 shadow-sm">
             <CardContent className="p-4">
-              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div><h2 className="text-base font-black text-slate-900">Reward Catalog</h2><p className="text-xs font-medium text-slate-500">Manage the items {kid?.name || 'your child'} can purchase with earned rewards.</p></div>
+              <div className="mb-3 flex justify-end">
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <select className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} aria-label="Filter rewards by location">
                     <option value="">All Locations</option>
                     {[...new Set(rewardItems.map(item => item.location || ''))].filter(Boolean).map(loc => <option key={loc} value={loc}>{loc}</option>)}
                   </select>
-                  <Button data-guest-tour="add-reward" size="xs" className="h-9" onClick={() => setIsRewardModalOpen(true)}><Plus className="mr-1 h-3.5 w-3.5" /> Add Reward Item</Button>
                 </div>
               </div>
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
-                  <input
-                    type="checkbox"
-                    aria-label="Select all visible reward items"
-                    checked={visibleRewardItems.length > 0 && visibleRewardItems.every(item => selectedRewardIds.includes(item.id))}
-                    ref={element => {
-                      if (element) {
-                        const count = visibleRewardItems.filter(item => selectedRewardIds.includes(item.id)).length;
-                        element.indeterminate = count > 0 && count < visibleRewardItems.length;
-                      }
-                    }}
-                    onChange={event => {
-                      const visibleIds = visibleRewardItems.map(item => item.id);
-                      setSelectedRewardIds(current => event.target.checked
-                        ? Array.from(new Set([...current, ...visibleIds]))
-                        : current.filter(id => !visibleIds.includes(id)));
-                    }}
-                  />
-                  Select all visible ({selectedRewardIds.length} selected)
-                </label>
-                <Button variant="danger" size="xs" disabled={selectedRewardIds.length === 0} onClick={deleteSelectedRewards}>
-                  <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete selected
-                </Button>
-              </div>
-              <div className="grid gap-3 md:grid-cols-2">
-            {visibleRewardItems.map((item) => (
+              <div className="space-y-5">
+            {rewardSections.map(section => section.items.length > 0 && (
+              <section key={section.label}>
+                <h2 className={`mb-2 text-sm font-black uppercase tracking-wide ${section.tone}`}>{section.label} ({section.items.length})</h2>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {section.items.map((item) => (
               <Card key={item.id} className="relative overflow-hidden border-slate-200 shadow-sm hover:shadow-md transition-shadow bg-green-50">
-                <input
-                  type="checkbox"
-                  aria-label={`Select ${item.name}`}
-                  checked={selectedRewardIds.includes(item.id)}
-                  onChange={event => setSelectedRewardIds(current => event.target.checked
-                    ? Array.from(new Set([...current, item.id]))
-                    : current.filter(id => id !== item.id))}
-                  className="absolute left-2 top-2 z-10 h-4 w-4 rounded border-slate-300 bg-white text-blue-600 shadow"
-                />
                 <CardContent className="p-0">
                   <div className="flex h-28">
                     <div className="h-28 w-28 flex-shrink-0 bg-slate-100 border-r border-slate-100">
@@ -3344,12 +3343,7 @@ export default function AssignedActivities() {
                     </div>
                     <div className="flex flex-1 flex-col justify-between p-3 min-w-0">
                       <div>
-                        <div className="flex items-center justify-between">
-                          <h3 className="font-bold text-sm text-slate-900 truncate">{item.name}</h3>
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${item.is_active !== false ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                            {item.is_active !== false ? 'Active' : 'Inactive'}
-                          </span>
-                        </div>
+                        <h3 className="truncate text-sm font-bold text-slate-900">{item.name}</h3>
                         <div className="mt-1 flex items-center gap-1 text-xs font-black text-blue-600 uppercase tracking-wider">
                           <img src={rewardIcon} alt={kid?.reward_type} className="h-3 w-3 object-contain" referrerPolicy="no-referrer" />
                           {item.cost} {formatReward(kid?.reward_type, item.cost)}
@@ -3384,6 +3378,9 @@ export default function AssignedActivities() {
                 </CardContent>
               </Card>
             ))}
+                </div>
+              </section>
+            ))}
             {visibleRewardItems.length === 0 && (
               <div className="col-span-full py-12 text-center rounded-lg border-2 border-dashed border-slate-200 bg-slate-50">
                 <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
@@ -3399,6 +3396,7 @@ export default function AssignedActivities() {
               </div>
             </CardContent>
           </Card>
+          )}
         </div>
       ) : null}
     </>

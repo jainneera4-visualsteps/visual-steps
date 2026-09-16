@@ -1,47 +1,54 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Archive, ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown, CheckCircle2, Database, FileQuestion, History, Loader2, ShieldCheck, Trash2 } from 'lucide-react';
+import { useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from 'react';
+import { CheckCircle2, Database, Eye, Loader2, Search, Trash2, X } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Card, CardContent } from '../components/Card';
 import { Pagination } from '../components/Pagination';
+import { GridColumnHeader } from '../components/GridColumnHeader';
 import { apiFetch, safeJson } from '../utils/api';
 import { formatAppDate } from '../utils/dateUtils';
 
-type ReviewItem = { id: string; type: 'quiz_result' | 'activity_history' | 'reward_purchase'; title: string; date: string; learner: string };
+type ReviewItem = { id: string; type: 'activity_action_history' | 'rewards_history'; title: string; category?: string; description: string; action: string; date: string; details?: Record<string, unknown> };
 type Summary = {
-  settings: { reviewMonths: number; lastReviewedAt: string | null; cutoff: string };
+  settings: { reviewMonths: number; lastReviewedAt: string | null; cutoff: string; timezone?: string; learnerName?: string };
   counts: Record<string, number>;
   reviewItems: ReviewItem[];
 };
-type SortKey = 'title' | 'type' | 'learner' | 'date';
-type SortDirection = 'asc' | 'desc';
-
-const labels: Record<string, string> = {
-  children: 'Profiles', activities: 'Assigned activities', activityHistory: 'Activity history', quizResults: 'Quiz results',
-  savedQuizzes: 'Saved quizzes', worksheets: 'Worksheets', socialStories: 'Social stories', rewardPurchases: 'Reward purchases',
-  parentMessages: 'Parent messages', behaviorBonuses: 'Behavior bonuses',
+const actionLabels: Record<string, string> = {
+  created: 'Activity created', submitted: 'Submitted for verification',
+  verified: 'Activity verified', completed: 'Activity completed', reassigned: 'Activity reassigned',
+  on_hold: 'Activity put on hold', ended: 'Activity ended', deleted: 'Activity deleted',
+  reward_purchased: 'Reward purchased', bonus_given: 'Bonus reward given',
 };
+type SortKey = 'title' | 'category' | 'description' | 'action' | 'date';
 
-const typeLabels: Record<ReviewItem['type'], string> = {
-  quiz_result: 'Quiz result', activity_history: 'Activity history', reward_purchase: 'Reward purchase',
-};
-
-export default function DataManagement() {
+export default function DataManagement({ mode = 'activity' }: { mode?: 'activity' | 'rewards' }) {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [reviewMonths, setReviewMonths] = useState(12);
+  const [selectedKidId, setSelectedKidId] = useState(() => localStorage.getItem('dashboard_selected_kid_id') || localStorage.getItem('analysis_selected_kid_id') || '');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [error, setError] = useState('');
-  const [sortKey, setSortKey] = useState<SortKey>('date');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [viewingItem, setViewingItem] = useState<ReviewItem | null>(null);
+  const [activityHistory, setActivityHistory] = useState<ReviewItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortKey, setSortKey] = useState<SortKey>('date');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
-  const loadSummary = async () => {
+  const loadSummary = async (months = reviewMonths, learnerId = selectedKidId, from = fromDate, to = toDate) => {
     setLoading(true);
     setError('');
     try {
-      const response = await apiFetch('/api/data-management', {}, 0);
+      const query = new URLSearchParams({ reviewMonths: String(months), historyType: mode });
+      if (learnerId) query.set('kidId', learnerId);
+      if (from) query.set('fromDate', from);
+      if (to) query.set('toDate', to);
+      const response = await apiFetch(`/api/data-management?${query.toString()}`, {}, 0);
       const payload = await safeJson(response);
       if (!response.ok) throw new Error(payload?.error || 'Unable to load data summary');
       setSummary(payload);
@@ -54,48 +61,57 @@ export default function DataManagement() {
     }
   };
 
-  useEffect(() => { void loadSummary(); }, []);
+  useEffect(() => { void loadSummary(); }, [mode]);
+  useEffect(() => {
+    const handleSelectedKid = (event: Event) => {
+      const learnerId = String((event as CustomEvent<string>).detail || '');
+      setSelectedKidId(learnerId);
+      void loadSummary(reviewMonths, learnerId, fromDate, toDate);
+    };
+    window.addEventListener('visual-steps:selected-kid', handleSelectedKid);
+    return () => window.removeEventListener('visual-steps:selected-kid', handleSelectedKid);
+  }, [reviewMonths, fromDate, toDate]);
   const selectedRecords = useMemo(() => summary?.reviewItems.filter(item => selected.includes(`${item.type}:${item.id}`)) || [], [summary, selected]);
   const sortedItems = useMemo(() => {
-    const items = [...(summary?.reviewItems || [])];
-    return items.sort((left, right) => {
-      const leftValue = sortKey === 'type' ? typeLabels[left.type] : sortKey === 'date' ? new Date(left.date || 0).getTime() : left[sortKey];
-      const rightValue = sortKey === 'type' ? typeLabels[right.type] : sortKey === 'date' ? new Date(right.date || 0).getTime() : right[sortKey];
-      const comparison = typeof leftValue === 'number' && typeof rightValue === 'number'
-        ? leftValue - rightValue
-        : String(leftValue || '').localeCompare(String(rightValue || ''), undefined, { sensitivity: 'base' });
-      return sortDirection === 'asc' ? comparison : -comparison;
-    });
-  }, [summary, sortDirection, sortKey]);
+    const search = searchQuery.trim().toLowerCase();
+    return [...(summary?.reviewItems || [])]
+      .filter(item => !search || [item.title, item.category, item.description, actionLabels[item.action] || item.action].some(value => String(value || '').toLowerCase().includes(search)))
+      .sort((left, right) => {
+        const leftValue = sortKey === 'date' ? new Date(left.date || 0).getTime() : sortKey === 'action' ? actionLabels[left.action] || left.action : left[sortKey] || '';
+        const rightValue = sortKey === 'date' ? new Date(right.date || 0).getTime() : sortKey === 'action' ? actionLabels[right.action] || right.action : right[sortKey] || '';
+        const comparison = typeof leftValue === 'number' && typeof rightValue === 'number' ? leftValue - rightValue : String(leftValue).localeCompare(String(rightValue), undefined, { sensitivity: 'base' });
+        return sortDirection === 'asc' ? comparison : -comparison;
+      });
+  }, [summary, searchQuery, sortDirection, sortKey]);
   const totalPages = Math.max(1, Math.ceil(sortedItems.length / pageSize));
   const activePage = Math.min(currentPage, totalPages);
   const pageItems = sortedItems.slice((activePage - 1) * pageSize, activePage * pageSize);
   const pageKeys = pageItems.map(item => `${item.type}:${item.id}`);
   const allPageSelected = pageKeys.length > 0 && pageKeys.every(key => selected.includes(key));
-
-  const changeSort = (nextKey: SortKey) => {
+  const handleGridHeaderClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    if (target.closest('button, input, [role="dialog"]')) return;
+    const header = target.closest('th');
+    if (!header) return;
+    const label = (header.textContent || '').replaceAll('?', '').trim().toLowerCase();
+    const nextKey: SortKey | null = ['record', 'activity name', 'reward item'].includes(label) ? 'title'
+      : label === 'description' ? 'description'
+        : label === 'action' ? 'action'
+          : ['action date', 'last updated'].includes(label) ? 'date'
+            : null;
+    if (!nextKey) return;
     if (sortKey === nextKey) setSortDirection(current => current === 'asc' ? 'desc' : 'asc');
-    else {
-      setSortKey(nextKey);
-      setSortDirection(nextKey === 'date' ? 'desc' : 'asc');
-    }
+    else { setSortKey(nextKey); setSortDirection(nextKey === 'date' ? 'desc' : 'asc'); }
     setCurrentPage(1);
-  };
-
-  const SortHeading = ({ column, children }: { column: SortKey; children: string }) => {
-    const Icon = sortKey !== column ? ArrowUpDown : sortDirection === 'asc' ? ArrowUp : ArrowDown;
-    return <button type="button" onClick={() => changeSort(column)} className="inline-flex items-center gap-1 font-bold hover:text-blue-700" aria-label={`Sort by ${children}`}>
-      {children}<Icon className="h-3.5 w-3.5" />
-    </button>;
   };
 
   const updateReviewPeriod = async (reviewMonths: number) => {
     setSaving(true);
+    setReviewMonths(reviewMonths);
+    setFromDate('');
+    setToDate('');
     try {
-      const response = await apiFetch('/api/data-management/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reviewMonths }) });
-      const payload = await safeJson(response);
-      if (!response.ok) throw new Error(payload?.error || 'Unable to save review period');
-      await loadSummary();
+      await loadSummary(reviewMonths, selectedKidId, '', '');
     } catch (saveError: any) {
       alert(saveError?.message || 'Unable to save review period');
     } finally { setSaving(false); }
@@ -103,36 +119,79 @@ export default function DataManagement() {
 
   const deleteSelected = async () => {
     if (!selectedRecords.length) return;
-    if (!window.confirm(`Permanently delete ${selectedRecords.length} selected ${selectedRecords.length === 1 ? 'record' : 'records'}? This cannot be undone.`)) return;
+    const confirmation = mode === 'activity'
+      ? `Permanently delete all history records for ${selectedRecords.length} selected ${selectedRecords.length === 1 ? 'activity' : 'activities'}? This does not delete the assigned activities, but the history cannot be recovered.`
+      : `Permanently delete ${selectedRecords.length} selected ${selectedRecords.length === 1 ? 'record' : 'records'}? This cannot be undone.`;
+    if (!window.confirm(confirmation)) return;
     setSaving(true);
     try {
       const response = await apiFetch('/api/data-management/records', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ records: selectedRecords.map(({ id, type }) => ({ id, type })) }) });
       const payload = await safeJson(response);
       if (!response.ok) throw new Error(payload?.error || 'Unable to delete selected records');
+      const deletedCount = Number(payload?.deleted || 0);
+      setSelected([]);
       await loadSummary();
+      alert(`${deletedCount} ${deletedCount === 1 ? 'record was' : 'records were'} deleted.`);
     } catch (deleteError: any) {
       alert(deleteError?.message || 'Unable to delete selected records');
     } finally { setSaving(false); }
   };
 
-  return <div className="mx-auto w-full max-w-7xl space-y-4 pb-8">
-    <div>
-      <Link to="/dashboard" className="mb-2 inline-flex items-center gap-1 text-sm font-bold text-blue-700"><ArrowLeft className="h-4 w-4" /> Back to Dashboard</Link>
-      <div className="flex items-start gap-3"><div className="rounded-2xl bg-blue-100 p-3"><Database className="h-7 w-7 text-blue-700" /></div><div><h1 className="text-3xl font-black text-slate-900">Data Management</h1><p className="text-sm text-slate-600">Understand what your family has saved and choose what is still useful. Visual Steps never removes these records automatically.</p></div></div>
+  const viewHistory = async (item: ReviewItem) => {
+    setViewingItem(item);
+    setActivityHistory([]);
+    const endpoint = item.type === 'activity_action_history' ? 'activity-history' : 'rewards-history';
+    setHistoryLoading(true);
+    try {
+      const response = await apiFetch(`/api/data-management/${endpoint}/${item.id}`, {}, 0);
+      const payload = await safeJson(response);
+      if (!response.ok) throw new Error(payload?.error || 'Unable to load activity history');
+      setActivityHistory((payload.records || []).map((record: any) => item.type === 'activity_action_history' ? ({
+        id: record.id, type: 'activity_action_history', title: record.activity_name || 'Activity', category: record.activity_category || 'Other',
+        description: record.activity_description || '', action: record.action, date: record.action_date, details: record.details || {},
+      }) : ({
+        id: record.id, type: 'rewards_history', title: record.reward_name || 'Reward', description: record.description || '',
+        action: record.source_type === 'bonus' ? 'bonus_given' : 'reward_purchased', date: record.action_date,
+        details: { amount: record.reward_amount, location: record.location },
+      })));
+    } catch (viewError: any) {
+      alert(viewError?.message || 'Unable to load activity history');
+      setViewingItem(null);
+    } finally { setHistoryLoading(false); }
+  };
+
+  return <div className="w-full space-y-3 px-0 [&_.app-data-table-head_th]:cursor-pointer" onClick={handleGridHeaderClick}>
+    <div className="app-page-header">
+      <h1 className="app-page-title"><span className="flex items-center gap-3"><Database className="h-8 w-8 text-blue-600" />{mode === 'activity' ? `${summary?.settings.learnerName || 'Learner'}'s Activity History` : 'Rewards History'}</span></h1>
+      <p className="app-page-subtitle">{mode === 'activity' ? "Review one summary row per activity category and name. Open View to see every recorded action." : "Review purchases and bonus rewards for the selected learner, grouped by reward name."}</p>
     </div>
 
     {loading ? <div className="flex min-h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-blue-600" /></div> : error ? <Card><CardContent className="p-6 text-center"><p className="text-red-700">{error}</p><Button className="mt-3" onClick={() => void loadSummary()}>Try again</Button></CardContent></Card> : summary && <>
-      <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
-        <Card><CardContent className="p-5"><h2 className="mb-3 flex items-center gap-2 text-lg font-black"><Archive className="h-5 w-5 text-blue-600" /> Saved record overview</h2><div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">{Object.entries(summary.counts).map(([key, value]) => <div key={key} className="rounded-xl border border-slate-200 bg-slate-50 p-3"><div className="text-2xl font-black text-slate-900">{value}</div><div className="text-xs font-semibold text-slate-500">{labels[key] || key}</div></div>)}</div><p className="mt-3 text-xs text-slate-500">Uploaded illustrations and photos use considerably more storage than these text records. File-level cleanup and downloadable exports will be added in the next data-management phase.</p></CardContent></Card>
-        <Card className="border-emerald-200 bg-emerald-50" data-guest-tour="review-reminder"><CardContent className="p-5"><h2 className="flex items-center gap-2 text-lg font-black"><ShieldCheck className="h-5 w-5 text-emerald-700" /> Review reminder</h2><p className="mt-2 text-sm text-slate-700">Show records older than:</p><select value={summary.settings.reviewMonths} disabled={saving} onChange={event => void updateReviewPeriod(Number(event.target.value))} className="mt-2 h-10 w-full rounded-lg border border-emerald-200 bg-white px-3 text-sm font-bold"><option value={3}>3 months</option><option value={6}>6 months</option><option value={12}>12 months</option><option value={18}>18 months</option><option value={24}>24 months</option><option value={36}>36 months</option></select><p className="mt-3 text-xs text-slate-600">This changes the review list only. It is not an automatic deletion rule.</p>{summary.settings.lastReviewedAt && <p className="mt-2 flex items-center gap-1 text-xs font-bold text-emerald-800"><CheckCircle2 className="h-3.5 w-3.5" /> Last reviewed {formatAppDate(summary.settings.lastReviewedAt)}</p>}</CardContent></Card>
-      </div>
-
-      <Card><CardContent className="p-0"><div className="flex flex-col gap-3 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="flex items-center gap-2 text-lg font-black"><History className="h-5 w-5 text-amber-600" /> Older records to review</h2><p className="text-xs text-slate-500">Only quiz results, activity history, and reward purchases are offered for cleanup here.</p></div><Button variant="danger" disabled={!selectedRecords.length || saving} onClick={() => void deleteSelected()}><Trash2 className="mr-2 h-4 w-4" /> Delete selected ({selectedRecords.length})</Button></div>
-        {!summary.reviewItems.length ? <div className="p-10 text-center"><CheckCircle2 className="mx-auto h-9 w-9 text-emerald-500" /><p className="mt-2 font-black text-slate-800">Nothing needs review</p><p className="text-sm text-slate-500">There are no records older than the selected period.</p></div> : <>
-          <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="px-4 py-3"><input type="checkbox" aria-label="Select all records on this page" checked={allPageSelected} onChange={event => setSelected(current => event.target.checked ? Array.from(new Set([...current, ...pageKeys])) : current.filter(value => !pageKeys.includes(value)))} /></th><th className="px-4 py-3"><SortHeading column="title">Record</SortHeading></th><th className="px-4 py-3"><SortHeading column="type">Type</SortHeading></th><th className="px-4 py-3"><SortHeading column="learner">Learner</SortHeading></th><th className="px-4 py-3"><SortHeading column="date">Date</SortHeading></th></tr></thead><tbody className="divide-y divide-slate-100">{pageItems.map(item => { const key = `${item.type}:${item.id}`; return <tr key={key} className="hover:bg-slate-50"><td className="px-4 py-3"><input aria-label={`Select ${item.title}`} type="checkbox" checked={selected.includes(key)} onChange={event => setSelected(current => event.target.checked ? Array.from(new Set([...current, key])) : current.filter(value => value !== key))} /></td><td className="px-4 py-3 font-bold text-slate-900"><span className="inline-flex items-center gap-2"><FileQuestion className="h-4 w-4 text-blue-500" />{item.title}</span></td><td className="px-4 py-3 text-slate-600">{typeLabels[item.type]}</td><td className="px-4 py-3 text-slate-600">{item.learner}</td><td className="whitespace-nowrap px-4 py-3 text-slate-600">{formatAppDate(item.date)}</td></tr>; })}</tbody></table></div>
-          <Pagination currentPage={activePage} totalPages={totalPages} pageSize={pageSize} onPageChange={setCurrentPage} onPageSizeChange={nextSize => { setPageSize(nextSize); setCurrentPage(1); }} className="border-t border-slate-100 px-4 py-3" />
+      <Card className="app-table-shell" data-guest-tour="review-reminder"><CardContent className="p-0">
+        <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-3"><label htmlFor="data-review-period" className="text-xs font-black uppercase tracking-wider text-slate-500">Show records</label><select id="data-review-period" value={reviewMonths} disabled={saving} onChange={event => void updateReviewPeriod(Number(event.target.value))} className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700">{reviewMonths === 0 && <option value={0}>Custom dates</option>}<option value={1}>Last month</option><option value={3}>Last 3 months</option><option value={6}>Last 6 months</option><option value={12}>Last 12 months</option></select><span className="h-6 w-px bg-slate-200" aria-hidden="true"/><label htmlFor="data-from-date" className="text-xs font-black uppercase tracking-wider text-slate-500">From</label><input id="data-from-date" type="date" value={fromDate} max={toDate || undefined} onChange={event => { const value = event.target.value; setFromDate(value); setReviewMonths(0); void loadSummary(0, selectedKidId, value, toDate); }} className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700"/><label htmlFor="data-to-date" className="text-xs font-black uppercase tracking-wider text-slate-500">To</label><input id="data-to-date" type="date" value={toDate} min={fromDate || undefined} onChange={event => { const value = event.target.value; setToDate(value); setReviewMonths(0); void loadSummary(0, selectedKidId, fromDate, value); }} className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700"/></div>
+          <p className="text-xs text-slate-500">Records are never removed automatically.{summary.settings.lastReviewedAt ? ` Last reviewed ${formatAppDate(summary.settings.lastReviewedAt)}.` : ''}</p>
+        </div>
+        <div className="flex flex-col gap-2 border-b border-slate-100 px-3 py-2 sm:flex-row sm:items-center">
+          <label className="relative flex-1"><span className="sr-only">Search history</span><Search className="pointer-events-none absolute left-2.5 top-2 h-4 w-4 text-slate-400"/><input type="search" value={searchQuery} onChange={event => { setSearchQuery(event.target.value); setCurrentPage(1); }} placeholder={mode === 'activity' ? 'Search by category, activity, description, or action...' : 'Search by reward, description, or action...'} className="h-8 w-full rounded border border-slate-300 bg-white py-1 pl-8 pr-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"/></label>
+        </div>
+        {totalPages > 1 && <Pagination currentPage={activePage} totalPages={totalPages} pageSize={pageSize} onPageChange={setCurrentPage} onPageSizeChange={nextSize => { setPageSize(nextSize); setCurrentPage(1); }} />}
+        {!sortedItems.length ? <div className="p-10 text-center"><CheckCircle2 className="mx-auto h-9 w-9 text-emerald-500" /><p className="mt-2 font-black text-slate-800">{searchQuery ? 'No matching history' : 'Nothing needs review'}</p><p className="text-sm text-slate-500">{searchQuery ? 'Try a different name, description, category, or action.' : 'There are no records in the selected period.'}</p></div> : <>
+          <div className="overflow-x-auto"><table className="app-data-table table-fixed min-w-[900px]"><colgroup><col className="w-[9%]"/><col className="w-[21%]"/><col className="w-[28%]"/><col className="w-[15%]"/><col className="w-[17%]"/>{mode === 'activity' && <col className="w-[10%]"/>}</colgroup><thead className="app-data-table-head"><tr><th className="px-4 py-3"><span className="flex items-center gap-2"><input type="checkbox" aria-label="Select all records on this page" checked={allPageSelected} onChange={event => setSelected(event.target.checked ? pageKeys : [])} className="h-4 w-4 rounded border-slate-300 text-blue-600"/><button type="button" aria-label="Delete selected history records" title="Delete selected history records" disabled={!selectedRecords.length || saving} onClick={() => void deleteSelected()} className="grid h-7 w-7 place-items-center rounded text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-30"><Trash2 className="h-4 w-4"/></button></span></th><th className="px-4 py-3"><GridColumnHeader label={mode === 'activity' ? 'Activity Name' : 'Reward Item'} help={mode === 'activity' ? 'The activity associated with this history record.' : 'The reward item or positive recognition associated with this history record.'}/></th><th className="px-4 py-3"><GridColumnHeader label="Description" help="The description saved with this history event."/></th><th className="px-4 py-3"><GridColumnHeader label="Action" help="What happened to this activity or reward."/></th><th className="px-4 py-3"><GridColumnHeader label={mode === 'activity' ? 'Last Updated' : 'Action Date'} help={mode === 'activity' ? "When this action last changed the activity, shown in the selected learner's timezone." : "When the displayed action occurred, shown in the selected learner's timezone."}/></th>{mode === 'activity' && <th className="px-4 py-3 text-center"><GridColumnHeader label="Actions" help="Open the saved history details."/></th>}</tr></thead><tbody className="divide-y divide-slate-100">{pageItems.map(item => { const key = `${item.type}:${item.id}`; return <tr key={key} className="app-data-row"><td className="px-4 py-4"><input aria-label={`Select ${item.title}`} type="checkbox" checked={selected.includes(key)} onChange={event => setSelected(current => event.target.checked ? Array.from(new Set([...current, key])) : current.filter(value => value !== key))} className="h-4 w-4 rounded border-slate-300 text-blue-600"/></td><td className="px-4 py-4 font-bold text-slate-900">{item.title}</td><td className="px-4 py-4 text-slate-600">{item.description || '—'}</td><td className="px-4 py-4 text-slate-600">{actionLabels[item.action] || item.action}</td><td className="whitespace-nowrap px-4 py-4 text-slate-600">{formatAppDate(item.date, summary.settings.timezone)}</td>{mode === 'activity' && <td className="px-4 py-4 text-center"><button type="button" onClick={() => void viewHistory(item)} aria-label={`View history for ${item.title}`} title="View history details" className="inline-grid h-7 w-7 place-items-center rounded-md text-slate-400 hover:bg-blue-50 hover:text-blue-600"><Eye className="h-4 w-4"/></button></td>}</tr>; })}</tbody></table></div>
         </>}
       </CardContent></Card>
     </>}
+    {viewingItem && <div className="fixed inset-0 z-[110] grid place-items-center overflow-y-auto bg-slate-950/40 p-4" role="dialog" aria-modal="true" aria-labelledby="history-detail-title" onMouseDown={event => { if (event.target === event.currentTarget) setViewingItem(null); }}>
+      <Card className="my-6 w-full max-w-5xl border-none bg-white shadow-2xl">
+        <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4"><div><h2 id="history-detail-title" className="text-xl font-black text-slate-900">{viewingItem.type === 'activity_action_history' ? 'Activity History' : 'Rewards History'}</h2><p className="mt-1 text-sm text-slate-500">{viewingItem.type === 'activity_action_history' ? 'All saved actions grouped by activity category and activity name.' : 'All saved purchases and bonuses grouped by reward name.'}</p></div><button type="button" onClick={() => setViewingItem(null)} aria-label="Close history details" className="grid h-9 w-9 place-items-center rounded-lg text-slate-500 hover:bg-slate-100"><X className="h-5 w-5"/></button></div>
+        <CardContent className="max-h-[70vh] overflow-y-auto p-5">
+          {historyLoading ? <div className="grid min-h-40 place-items-center"><Loader2 className="h-7 w-7 animate-spin text-blue-600"/></div> : viewingItem.type === 'activity_action_history' ? <div className="space-y-4">
+            <div><p className="text-xs font-black uppercase tracking-wider text-slate-500">{activityHistory[0]?.category || viewingItem.category || 'Other'}</p><h3 className="mt-1 text-lg font-black text-slate-900">{activityHistory[0]?.title || viewingItem.title}</h3></div>
+            <div className="overflow-x-auto rounded-xl border border-slate-200"><table className="app-data-table min-w-[700px]"><thead className="app-data-table-head"><tr><th className="px-4 py-3">Description</th><th className="px-4 py-3">Action</th><th className="px-4 py-3">Previous Status</th><th className="px-4 py-3">New Status</th><th className="px-4 py-3">Action Date</th></tr></thead><tbody className="divide-y divide-slate-100">{activityHistory.map(record => <tr key={record.id} className="app-data-row"><td className="px-4 py-4 text-slate-600">{record.description || '—'}</td><td className="px-4 py-4 font-semibold text-slate-800">{actionLabels[record.action] || record.action}</td><td className="px-4 py-4 text-slate-600">{String(record.details?.previous_status || '—').replaceAll('_', ' ')}</td><td className="px-4 py-4 text-slate-600">{String(record.details?.new_status || '—').replaceAll('_', ' ')}</td><td className="whitespace-nowrap px-4 py-4 text-slate-600">{formatAppDate(record.date, summary?.settings.timezone)}</td></tr>)}</tbody></table></div>
+          </div> : <div className="space-y-4"><h3 className="text-lg font-black text-slate-900">{activityHistory[0]?.title || viewingItem.title}</h3><div className="overflow-x-auto rounded-xl border border-slate-200"><table className="app-data-table min-w-[650px]"><thead className="app-data-table-head"><tr><th className="px-4 py-3">Description</th><th className="px-4 py-3">Action</th><th className="px-4 py-3">Amount</th><th className="px-4 py-3">Location</th><th className="px-4 py-3">Action Date</th></tr></thead><tbody className="divide-y divide-slate-100">{activityHistory.map(record => <tr key={record.id} className="app-data-row"><td className="px-4 py-4 text-slate-600">{record.description || '—'}</td><td className="px-4 py-4 font-semibold text-slate-800">{actionLabels[record.action] || record.action}</td><td className="px-4 py-4 text-slate-600">{String(record.details?.amount || '—')}</td><td className="px-4 py-4 text-slate-600">{String(record.details?.location || '—')}</td><td className="whitespace-nowrap px-4 py-4 text-slate-600">{formatAppDate(record.date, summary?.settings.timezone)}</td></tr>)}</tbody></table></div></div>}
+        </CardContent>
+        <div className="flex justify-end border-t border-slate-100 px-5 py-4"><Button onClick={() => setViewingItem(null)}>Close</Button></div>
+      </Card>
+    </div>}
   </div>;
 }

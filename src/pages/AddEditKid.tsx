@@ -113,7 +113,7 @@ const prepareAvatarForUpload = (file: File): Promise<File> => new Promise((resol
 });
 
 const emptyProfileForm = () => ({
-  name: '', dob: '', gradeLevel: '', behavioralIssues: '', therapies: '', hobbies: '', interests: '', strengths: '', weaknesses: '', sensoryIssues: '', avatar: '', startTime: '', endTime: '', maxIncompleteLimit: '', rewardType: 'Token', rewardIcon: '', bonusHistoryLimit: '5', optionalBonusDailyRewardLimit: '10', theme: 'sky', themeCompanionStyle: 'character', helpCommunicationMethod: 'spoken', helpPromptText: 'Help please', helpPromptAudioUrl: '', helpSignImageUrl: '', helpCardImageUrl: '', canPrint: false, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, kidCode: '',
+  name: '', dob: '', gradeLevel: '', behavioralIssues: '', therapies: '', hobbies: '', interests: '', strengths: '', weaknesses: '', sensoryIssues: '', avatar: '', startTime: '', endTime: '', maxIncompleteLimit: '', rewardType: 'Token', rewardIcon: '', bonusHistoryLimit: '5', theme: 'sky', themeCompanionStyle: 'character', helpCommunicationMethod: 'spoken', helpPromptText: 'Help please', helpPromptAudioUrl: '', helpSignImageUrl: '', helpCardImageUrl: '', canPrint: false, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, kidCode: '',
 });
 
 export default function AddEditKid() {
@@ -179,7 +179,6 @@ export default function AddEditKid() {
             rewardType: kid.reward_type || 'Penny',
             rewardIcon: kid.reward_icon || '',
             bonusHistoryLimit: kid.bonus_history_limit?.toString() || '5',
-            optionalBonusDailyRewardLimit: kid.optional_bonus_daily_reward_limit?.toString() || '10',
             theme: kid.theme || 'sky',
             themeCompanionStyle: kid.theme_companion_style || 'character',
             helpCommunicationMethod: kid.help_communication_method || 'spoken',
@@ -369,7 +368,6 @@ export default function AddEditKid() {
         reward_type: formData.rewardType,
         reward_icon: formData.rewardIcon,
         bonus_history_limit: parseInt(formData.bonusHistoryLimit),
-        optional_bonus_daily_reward_limit: parseInt(formData.optionalBonusDailyRewardLimit),
         theme: formData.theme,
         theme_companion_style: formData.themeCompanionStyle,
         help_communication_method: formData.helpCommunicationMethod,
@@ -740,27 +738,6 @@ export default function AddEditKid() {
                   min="1"
                   max="10"
                   value={formData.bonusHistoryLimit}
-                  onChange={handleChange}
-                  required
-                  className="h-8 text-sm"
-                />
-              </div>
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-1.5">
-                  <label className="text-[12px] font-bold text-slate-500 uppercase">Daily Extra Rewards</label>
-                  <div className="group relative">
-                    <HelpCircle className="h-3.5 w-3.5 cursor-help text-brand-500" />
-                    <div className="pointer-events-none absolute right-0 top-full z-[100] mt-2 w-80 rounded-2xl border-2 border-yellow-200 bg-[#fffdea] p-4 font-[Arial] text-slate-800 opacity-0 shadow-2xl transition-all group-hover:opacity-100">
-                      <span className="font-bold text-[15px] leading-tight">Set the most additional rewards this learner can earn from extra activities in one day. Each completed extra activity reduces the amount still available.</span>
-                    </div>
-                  </div>
-                </div>
-                <Input
-                  name="optionalBonusDailyRewardLimit"
-                  type="number"
-                  min="1"
-                  max="100"
-                  value={formData.optionalBonusDailyRewardLimit}
                   onChange={handleChange}
                   required
                   className="h-8 text-sm"

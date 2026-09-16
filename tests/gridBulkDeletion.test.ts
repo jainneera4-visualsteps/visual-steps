@@ -32,7 +32,7 @@ test('family management grids support scoped multi-row deletion', async () => {
   assert.match(activities, /Select all activities on this page/);
   assert.match(activities, /Select all activity history rows on this page/);
   assert.match(activities, /Select all quiz results on this page/);
-  assert.match(activities, /Select all visible reward items/);
+  assert.doesNotMatch(activities, /Select all visible reward items/);
   assert.match(dashboard, /Select all messages/);
   assert.match(dashboard, /handleDeleteSelectedMessages/);
   assert.match(library, /Select all visible library items/);

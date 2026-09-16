@@ -101,7 +101,7 @@ export async function guestApiFetch(input: RequestInfo | URL, init?: RequestInit
   if (/generate|gemini|ai-assistant|generate-image/.test(path)) return json({ error: 'AI generation is unavailable in guest mode.' }, 403);
   if (path === '/api/user/profile') return json(method === 'GET' ? { user: guestProfile } : { user: { ...guestProfile, ...body } });
   if (path === '/api/data-management' && method === 'GET') return json({
-    settings: { reviewMonths: dataReviewMonths, lastReviewedAt: null, cutoff: '2025-08-24T00:00:00.000Z' },
+    settings: { reviewMonths: Number(url.searchParams.get('reviewMonths')) || 12, lastReviewedAt: null, cutoff: '2025-08-24T00:00:00.000Z', fromDate: url.searchParams.get('fromDate') || '', toDate: url.searchParams.get('toDate') || '' },
     counts: { children: 1, activities: 14, activityHistory: 38, quizResults: 9, savedQuizzes: 4, worksheets: 6, socialStories: 5, rewardPurchases: 7, parentMessages: 3, behaviorBonuses: 8 },
     reviewItems,
   });
@@ -157,7 +157,7 @@ export async function guestApiFetch(input: RequestInfo | URL, init?: RequestInit
   if (path.includes('/quiz-results')) return json({ results: [] });
   if (path.includes('/purchases')) return json({ purchases: [] });
   if (path.includes('/reward-purchases')) return json({ purchases: [] });
-  if (path.includes('/progress') || path.includes('/summary')) return json({ activities, history: [], quizResults: [], purchases: [] });
+  if (path.includes('/progress') || path.includes('/summary')) return json({ kid, activities, history: [], quizResults: [], gameResults: [], purchases: [] });
   if (path === '/api/upload') return json({ error: 'Uploads are unavailable in guest mode.' }, 403);
   return json({ error: 'This action is not available in the temporary guest session.' }, method === 'GET' ? 200 : 403);
 }

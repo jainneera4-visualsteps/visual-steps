@@ -158,11 +158,46 @@
   }
 
   .app-table-shell {
-    @apply overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm shadow-slate-300/25;
+    @apply overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm;
+    border: 1px solid rgb(226 232 240) !important;
+    background: #fff !important;
+    box-shadow: 0 1px 3px rgb(15 23 42 / 0.08) !important;
+  }
+
+  .app-page-header {
+    @apply mb-1;
+  }
+
+  .app-page-title {
+    @apply text-3xl font-black leading-tight tracking-tight text-slate-900;
+  }
+
+  .app-page-subtitle {
+    @apply mt-1 text-sm font-normal text-slate-500;
+  }
+
+  .app-view-tabs {
+    @apply flex w-fit border-b border-slate-200;
+  }
+
+  .app-view-tab {
+    @apply px-3 py-1.5 text-sm font-medium text-slate-500 transition-all hover:text-slate-700;
+  }
+
+  .app-data-table {
+    @apply w-full table-fixed text-left text-sm;
+  }
+
+  .app-data-table-head {
+    @apply border-y border-slate-200 bg-slate-50 text-xs font-bold uppercase text-slate-500;
+  }
+
+  .app-data-row {
+    @apply bg-white transition-colors hover:bg-slate-50;
   }
 
   .app-pagination {
-    @apply flex flex-col gap-3 border-b border-slate-100 bg-white/90 px-4 py-3 sm:flex-row sm:items-center sm:justify-between;
+    @apply flex flex-col gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between;
   }
 
   .app-empty-state {
@@ -1153,8 +1188,10 @@ p.text-right {
 
 /* Focused progress views reuse the established result tables without showing
    the charts and unrelated report sections around them. */
-.report-quiz-results-only > :not(#quiz-results),
-.report-game-results-only > :not(#game-results) {
+.report-quiz-results-only > :not(#quiz-results):not(#progress-view-header):not(#progress-results-calendar):not([role="dialog"]),
+.report-game-results-only > :not(#game-results):not(#progress-view-header):not(#progress-results-calendar):not([role="dialog"]),
+.report-reward-purchases-only > :not(#reward-purchases):not(#progress-view-header):not(#progress-results-calendar):not([role="dialog"]),
+.report-activity-retries-only > :not(#activity-retries):not(#progress-view-header):not(#progress-results-calendar):not([role="dialog"]) {
   display: none;
 }
 

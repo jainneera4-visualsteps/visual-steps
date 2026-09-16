@@ -137,7 +137,7 @@ The public **Contact & Support** page combines direct messages, private-call req
 
 ### Learning games
 
-The **Games** library includes Place Value Builder, Expanded Form Explorer, Digit Value Detective, and Place Value Clues. Each game has five levels and advances automatically after eight correct responses at the current level. Parents can save a companion avatar for each learner, play from the library, or select **Games** as the predefined type while adding an activity. Child-session game links return to the learner dashboard. Progress Report groups scores by game and level; only the game key, difficulty level, correct/incorrect result, and completion time are stored—not the generated question or selected answer.
+The **Games** library includes Place Value Builder, Expanded Form Explorer, Digit Value Detective, and Place Value Clues. Each game has five levels and advances automatically after eight correct responses at the current level. Parents can save a companion avatar for each learner, play from the library, or select **Games** as the predefined type while adding an activity. Child-session game links return to the learner dashboard. Progress saves each play session, including attempts completed before the learner leaves the game, so Game Scores can show the level, score, accuracy, duration, strengths, mistakes, and useful next steps.
 
 Existing Supabase projects must run `database_updates/2026-09-02_game_companions.sql` and then `database_updates/2026-09-03_game_results.sql` before testing saved companions or game scores.
 
@@ -263,7 +263,7 @@ This section is generated from `feature-registry.json`. Update the registry when
 | Narrated tour and temporary Guest Login | starter | 2026-08-21 | 2026-08-27 | Visitors can now watch a friendly, chapter-based Visual Steps presentation directly on the Home page before entering Guest Login. |
 | Adaptive place-value learning games | starter | 2026-09-03 | — | Practice place value through four focused games with five levels, automatic progression, optional assignment, personalized companions, and parent-visible scores. |
 | Learning, progress, and meaningful rewards | starter | 2026-03-15 | — | Create personalized resources, understand progress, and connect earned rewards to meaningful goals. |
-| Parent-controlled data management | starter | 2026-08-24 | — | Review saved family records, set a reminder period, and selectively remove history that is no longer useful. |
+| Parent-controlled activity and rewards history | starter | 2026-08-24 | — | Review a learner’s recent activity and reward history, open grouped details, and selectively remove history that is no longer useful. |
 
 ### Feature update history
 

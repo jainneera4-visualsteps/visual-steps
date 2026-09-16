@@ -76,7 +76,7 @@ export default function PlaceValueGame() {
     if (Object.keys(placed).length < activePlaces.length) { setMessage(`Place all ${activePlaces.length} digits before checking.`); return; }
     const answer = activePlaces.map(place => tileById.get(placed[place.id] || '')?.digit || '').join('');
     setAttempts(value => value + 1);
-    void recordGameResult('place_value_builder', level, Number(answer) === round.number, kidId);
+    void recordGameResult('place_value_builder', level, Number(answer) === round.number, kidId, { prompt: `Build ${round.number} by placing each digit in its correct place.`, learnerAnswer: answer, correctAnswer: String(round.number), skill: 'Digit placement', explanation: `Read each digit from left to right and match it to its place-value column.` });
     if (Number(answer) === round.number) {
       setScore(value => value + 1);
       const mastered = levelCorrect + 1 >= roundsToMaster;

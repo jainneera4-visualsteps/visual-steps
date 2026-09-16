@@ -508,14 +508,14 @@ const productFeatureRegistry = [
     "id": "learning-games",
     "title": "Adaptive place-value learning games",
     "summary": "Practice place value through four focused games with five levels, automatic progression, optional assignment, personalized companions, and parent-visible scores.",
-    "details": "Parents select a compact game companion for each child / adult and can offer games for free practice or assign one through the existing Add Activity form. Place Value Builder teaches digit placement; Expanded Form Explorer connects standard, expanded, and missing-number forms; Digit Value Detective asks what a highlighted digit is worth; and Place Value Clues asks the learner to identify a number from a positional clue. Each game uses five increasingly demanding levels. Learners advance automatically after demonstrating mastery, while an incorrect response reveals the answer and a focused explanation before the next question. Progress Report groups recorded scores by game and level without storing question or answer content.",
+    "details": "Parents select a compact game companion for each child / adult and can offer games for free practice or assign one through the existing Add Activity form. Place Value Builder teaches digit placement; Expanded Form Explorer connects standard, expanded, and missing-number forms; Digit Value Detective asks what a highlighted digit is worth; and Place Value Clues asks the learner to identify a number from a positional clue. Each game uses five increasingly demanding levels. Learners advance automatically after demonstrating mastery, while an incorrect response reveals the answer and a focused explanation before the next question. Game Scores records each play session, including a partially completed session, and lets a parent review attempts, strengths, mistakes, duration, and suggested next support.",
     "familyImpact": "Short, focused games give learners repeated opportunities to observe number structure, think, and respond without turning place-value learning into long calculation practice. Automatic progression increases challenge after demonstrated success, while corrective explanations and familiar companions keep mistakes informative and emotionally manageable. Parents can include a game in the daily plan and see accuracy patterns without collecting unnecessary learning content.",
     "guideParagraphs": [
       "The Games library contains four complementary ways to learn place value. Place Value Builder uses draggable or tappable digits. Expanded Form Explorer practices standard form, expanded form, and a missing place-value part. Digit Value Detective highlights one digit and asks what it is worth, while Place Value Clues reverses the task by asking which number matches a positional clue.",
       "Each game has five levels and a visible mastery count. A learner moves to the next level automatically after eight correct responses at the current level. Correct responses continue directly to a new challenge. After an incorrect response, the correct answer and a concise place-value explanation remain visible until the learner chooses Next Question.",
-      "Parents can select a learner and save one of four compact companion avatars from Games. To include a game in the learner's plan, open Activities Setup, add an activity, choose Games as the predefined type, and select the game. Each answered game question records only the game, level, correct-or-incorrect score, and date. Progress Report groups those attempts by game and level and shows accuracy and the latest play date."
+      "Parents can select a learner and save one of four compact companion avatars from Games. To include a game in the learner's plan, open Activities Setup, add an activity, choose Games as the predefined type, and select the game. Game Scores saves a play session even when the learner does not finish every level. Select View to review the questions attempted, correct and incorrect responses, duration, strengths, and suggested next support."
     ],
-    "help": "Open Games below Worksheets to choose a learner, save a companion, and play. To assign a game, open Activities Setup, choose Add Activity, select Games under the predefined activity type, and select a game. Open Progress Report to review Game Scores by game and level.",
+    "help": "Open Games below Worksheets to choose a learner, save a companion, and play. To assign a game, open Activities Setup, choose Add Activity, select Games under the predefined activity type, and select a game. Open Progress > Game Scores and select View to review the saved play session and learning evidence.",
     "screenshot": {
       "src": "/onboarding/games.svg",
       "alt": "Visual Steps Games page with four adaptive place-value games and compact companion avatars",
@@ -585,25 +585,26 @@ const productFeatureRegistry = [
   },
   {
     "id": "parent-data-management",
-    "title": "Parent-controlled data management",
-    "summary": "Review saved family records, set a reminder period, and selectively remove history that is no longer useful.",
-    "details": "Parents and caregivers can open Data Management to understand how many profiles, activities, learning resources, results, messages, rewards, and history records their family has saved. A review period from three to thirty-six months identifies older quiz results, activity history, and reward purchases without removing anything automatically. Sortable columns, standard pagination, individual checkboxes, and page-level selection help families work through the list at a comfortable pace. A clear confirmation appears before selected records are permanently removed. Deleting an old detailed quiz result does not reopen its submitted assignment, so the child / adult cannot repeat a locked attempt simply because the family cleaned up earlier answers.",
+    "title": "Parent-controlled activity and rewards history",
+    "summary": "Review a learner’s recent activity and reward history, open grouped details, and selectively remove history that is no longer useful.",
+    "details": "Parents and caregivers can choose a learner and review two focused timelines: Activity History and Rewards History. Activity History shows one summary row for each activity category and name; View opens every recorded action, including creation, submission, verification, completion, reassignment, on-hold, ending, and deletion. Rewards History combines purchases and positive recognition, identifies System as the location for bonuses, and supports search, date ranges, and sortable headings. Both pages use rolling one-, three-, six-, or twelve-month periods instead of loading an unbounded all-time list. Page-level selection affects only the visible page, and deletion reports how many records were removed.",
     "familyImpact": "Families can keep useful evidence of growth while removing detailed records they no longer need. Parent-controlled review supports thoughtful planning for a child / adult without turning retention into an automatic decision made by the app.",
     "guideParagraphs": [
-      "Over time, everyday planning can create many activity records, quiz results, reward purchases, messages, worksheets, stories, and other learning materials. Data Management brings the main record totals into one parent-only view so a family can understand what has accumulated before deciding whether anything should be removed. The review period is a reminder filter rather than an expiration rule, allowing one family to review after a few months and another to preserve information for much longer.",
-      "The older-record list can be sorted by record, type, learner, or date and divided into standard pages of ten, twenty, or fifty rows. Parents can select one row, select every row visible on the current page, continue selecting on other pages, and then permanently delete the chosen group after reading a confirmation. Visual Steps does not automatically remove these records, because an older quiz result or activity history entry may still help caregivers understand the child / adult’s strengths, support needs, repeated practice, and longer-term progress."
+      "Activity History is a compact index rather than a repeated event list. Each category-and-name combination appears once with its latest action and Last Updated date. Selecting View opens the complete saved audit trail for that activity group. Deleting the summary row removes all matching history entries but never deletes or changes the live assigned activity.",
+      "Rewards History combines reward purchases and positive-recognition bonuses for the selected learner. Parents can search, sort by a grid heading, choose a rolling period, or enter custom From and To dates. The header checkbox selects only the records shown on the current page. Records are never removed automatically, and every permanent deletion requires confirmation and reports the number removed."
     ],
-    "help": "Select Data beside the parent name, or open the mobile menu and select Data Management. Choose a Review reminder period, sort the Older records to review grid from its column headings, choose Per page, select individual rows or all rows on the current page, then select Delete selected and confirm.",
+    "help": "Open Progress and choose Rewards History or Activity History. Select the learner, then choose Last month, Last 3 months, Last 6 months, Last 12 months, or custom From and To dates. Search or select a heading to sort. In Activity History, select View to read every action saved for that activity category and name. The header checkbox selects only the current page. Deleting an Activity History summary removes that group’s history records only and never removes the assigned activity.",
     "screenshot": {
       "src": "/onboarding/data-management.png",
-      "alt": "Visual Steps parent-controlled data-management page",
-      "caption": "Parents can review record totals, choose an age threshold, sort older records, select rows by page, and remove only the information they deliberately choose."
+      "alt": "Visual Steps parent-controlled activity-history page",
+      "caption": "Parents can review one summary per activity group, open its complete action history, select current-page rows, and remove only the history they deliberately choose."
     },
     "introducedOn": "2026-08-24",
     "plan": "starter",
     "icon": "shield",
     "routes": [
-      "/data-management"
+      "/activity-history",
+      "/progress-report/:kidId"
     ],
     "surfaces": [
       "home",
@@ -1054,6 +1055,7 @@ export const isKidApiRequestAllowed = (method: string, pathName: string, kidId: 
   if (methodUpper === 'GET' && pathName === `${ownKidBase}/reward-items`) return true;
   if (methodUpper === 'GET' && pathName === `${ownKidBase}/behavior-bonuses`) return true;
   if (methodUpper === 'GET' && pathName === `${ownKidBase}/optional-bonus-activities`) return true;
+  if (methodUpper === 'POST' && pathName === `${ownKidBase}/game-results`) return true;
   if (methodUpper === 'POST' && /^\/api\/activities\/[^/]+\/select-optional$/.test(pathName)) return true;
   if (methodUpper === 'POST' && /^\/api\/activities\/[^/]+\/help-request$/.test(pathName)) return true;
   if (methodUpper === 'PUT' && /^\/api\/activity-steps\/[^/]+\/completion$/.test(pathName)) return true;
@@ -1682,9 +1684,9 @@ const newsletterHowToDirections: Record<string, { title: string; navigation: str
   'controlled-sharing': { title: 'How to share a social story safely', navigation: 'Learning → Social Stories', steps: ['Open the social story you want to share.', 'Select Share securely.', 'Choose whether the link should work for 1, 7, or 30 days.', 'Create and send the link to the trusted person.', 'Revoke the link when access is no longer needed.'] },
   'community-publishing': { title: 'How to share an idea with the parent community', navigation: 'Support → Share with the Community', steps: ['Choose the contribution type.', 'Add a title, public display name, and your content.', 'Save a draft if you are not ready to submit.', 'Preview the contribution and remove private identifying information.', 'Confirm permission and submit it for review.'] },
   'guest-demo': { title: 'How to explore Visual Steps before signing up', navigation: 'Home → Continue as Guest', steps: ['Play the narrated tour if you want an introduction.', 'Pause, replay, or move between chapters as needed.', 'Select Continue as Guest to open the sample workspace.', 'Explore the parent and learner views; guest changes reset when the page reloads.'] },
-  'learning-games': { title: 'How to assign and review a learning game', navigation: 'Learning → Games', steps: ['Choose the learner and a game.', 'Save the learner’s companion and try the game.', 'To assign it, open Activities → Current and select Add Activity.', 'Choose Games as the predefined activity type, select the game, and save.', 'Open Progress → Game Results to review scores and levels.'] },
+  'learning-games': { title: 'How to assign and review a learning game', navigation: 'Learning → Games', steps: ['Choose the learner and a game.', 'Save the learner’s companion and try the game.', 'To assign it, open Activities → Current and select Add Activity.', 'Choose Games as the predefined activity type, select the game, and save.', 'Open Progress → Game Scores and select View to review the saved session, attempts, strengths, mistakes, and next support.'] },
   'learning-progress-rewards': { title: 'How to choose a learning tool and review progress', navigation: 'Learning', steps: ['Choose Quizzes, Worksheets, or Social Stories based on the learner’s goal.', 'Create and review the material before assigning it.', 'Assign it to the selected learner.', 'Open Progress → Progress Report to review the result.', 'Use the result to decide whether to add support, repeat, or increase the challenge.'] },
-  'parent-data-management': { title: 'How to review and remove older family records', navigation: 'Admin → Data Management', steps: ['Choose the period for older records you want to review.', 'Sort or filter the list to find the relevant learner and record type.', 'Select only the records you no longer need.', 'Select the trash action and carefully review the confirmation.', 'Confirm only when you are ready to delete the records permanently.'] },
+  'parent-data-management': { title: 'How to review and remove learner history', navigation: 'Progress → Activity History or Rewards History', steps: ['Choose the learner and a rolling period, or enter custom dates.', 'Search the history or select a grid heading to sort.', 'In Activity History, select View to read every action in that activity group.', 'Select individual rows or use the header checkbox for the current page only.', 'Review the confirmation before deleting; activity-history cleanup never deletes the assigned activity.'] },
 };
 const newsletterSectionTitles = {
   new_features: "What's New in Visual Steps", feature_previews: 'Feature Previews',
@@ -4175,19 +4177,35 @@ app.get('/api/data-management', authenticateToken, async (req: any, res) => {
   try {
     const { data: profile, error: profileError } = await supabase
       .from('users')
-      .select('data_review_months, last_data_review_at')
+      .select('last_data_review_at')
       .eq('id', req.user.id)
       .single();
     if (profileError) return res.status(500).json({ error: 'Unable to load data-management settings' });
 
-    const reviewMonths = Math.max(3, Math.min(36, Number(profile?.data_review_months) || 12));
+    const requestedReviewMonths = Number(req.query?.reviewMonths);
+    let reviewMonths = Number.isInteger(requestedReviewMonths) && requestedReviewMonths >= 0 && requestedReviewMonths <= 36
+      ? requestedReviewMonths
+      : 12;
+    const requestedFromDate = String(req.query?.fromDate || '');
+    const requestedToDate = String(req.query?.toDate || '');
+    const validDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
+    const fromIso = validDate(requestedFromDate) ? `${requestedFromDate}T00:00:00.000Z` : '';
+    const toIso = validDate(requestedToDate) ? `${requestedToDate}T23:59:59.999Z` : '';
+    // Zero is reserved for a custom date range. An unbounded request falls
+    // back to 12 months so this endpoint never loads all history by default.
+    if (!fromIso && !toIso && reviewMonths === 0) reviewMonths = 12;
     const cutoff = new Date();
     cutoff.setUTCMonth(cutoff.getUTCMonth() - reviewMonths);
     const cutoffIso = cutoff.toISOString();
 
-    const { data: kids, error: kidsError } = await supabase.from('kids').select('id, name').eq('user_id', req.user.id);
+    const requestedKidId = String(req.query?.kidId || '').trim();
+    let kidsQuery = supabase.from('kids').select('id, name, timezone').eq('user_id', req.user.id);
+    if (requestedKidId) kidsQuery = kidsQuery.eq('id', requestedKidId);
+    const { data: kids, error: kidsError } = await kidsQuery;
     if (kidsError) return res.status(500).json({ error: 'Unable to load family data' });
+    if (requestedKidId && !(kids || []).length) return res.status(404).json({ error: 'Selected learner not found' });
     const kidIds = (kids || []).map(kid => kid.id);
+    const selectedTimezone = (kids || [])[0]?.timezone || 'UTC';
     const empty = Promise.resolve({ count: 0, data: [], error: null } as any);
     const count = (table: string, byKid = false) => {
       if (byKid && kidIds.length === 0) return empty;
@@ -4201,14 +4219,42 @@ app.get('/api/data-management', authenticateToken, async (req: any, res) => {
       count('worksheets'), count('social_stories'), count('reward_purchases', true), count('parent_messages'), count('behavior_bonus_awards', true),
     ]);
 
-    const oldQuizPromise = kidIds.length ? supabase.from('quiz_results').select('id, kid_id, completed_at, quizzes(title)').in('kid_id', kidIds).lt('completed_at', cutoffIso).order('completed_at', { ascending: true }).limit(100) : empty;
-    const oldHistoryPromise = kidIds.length ? supabase.from('activity_history').select('id, kid_id, activity_type, description, completion_date, created_at').in('kid_id', kidIds).lt('created_at', cutoffIso).order('created_at', { ascending: true }).limit(100) : empty;
-    const oldPurchasePromise = kidIds.length ? supabase.from('reward_purchases').select('id, kid_id, item_name, purchased_at').in('kid_id', kidIds).lt('purchased_at', cutoffIso).order('purchased_at', { ascending: true }).limit(100) : empty;
-    const [oldQuiz, oldHistory, oldPurchases] = await Promise.all([oldQuizPromise, oldHistoryPromise, oldPurchasePromise]);
-    const kidNames = new Map((kids || []).map(kid => [kid.id, kid.name]));
-
+    const localDateBoundary = (date: string, endOfDay: boolean) => {
+      const [year, month, day] = date.split('-').map(Number);
+      const desired = Date.UTC(year, month - 1, day, endOfDay ? 23 : 0, endOfDay ? 59 : 0, endOfDay ? 59 : 0, endOfDay ? 999 : 0);
+      let instant = desired;
+      for (let pass = 0; pass < 2; pass += 1) {
+        const parts = new Intl.DateTimeFormat('en-US', { timeZone: selectedTimezone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(instant));
+        const part = (type: string) => Number(parts.find(item => item.type === type)?.value || 0);
+        const represented = Date.UTC(part('year'), part('month') - 1, part('day'), part('hour'), part('minute'), part('second'), endOfDay ? 999 : 0);
+        instant += desired - represented;
+      }
+      return new Date(instant).toISOString();
+    };
+    const rangeFromIso = fromIso ? localDateBoundary(requestedFromDate, false) : '';
+    const rangeToIso = toIso ? localDateBoundary(requestedToDate, true) : '';
+    const applyReviewRange = (query: any, column: string) => {
+      if (!fromIso && !toIso) return reviewMonths > 0 ? query.gte(column, cutoffIso) : query;
+      if (rangeFromIso) query = query.gte(column, rangeFromIso);
+      if (rangeToIso) query = query.lte(column, rangeToIso);
+      return query;
+    };
+    // Show the learner's latest activity changes first. Ordering ascending here
+    // caused the 100-row limit to return only the oldest imported records and
+    // made Action Date appear to be the activity's original creation date.
+    const oldHistoryPromise = kidIds.length ? applyReviewRange(supabase.from('activity_action_history').select('id, kid_id, activity_name, activity_category, activity_description, action, action_date, details').in('kid_id', kidIds), 'action_date').order('action_date', { ascending: false }).limit(1000) : empty;
+    const [oldHistory] = await Promise.all([oldHistoryPromise]);
+    // The main grid is an index of activities, not a row-by-row audit log.
+    // Because the query is newest-first, the first record retained for each
+    // learner/category/name group is also its latest action. The View endpoint
+    // continues to return every record belonging to the selected group.
+    const groupedActivityHistory = new Map<string, any>();
+    for (const item of oldHistory.data || []) {
+      const groupKey = `${item.kid_id}\u0000${item.activity_category || ''}\u0000${item.activity_name || 'Activity'}`;
+      if (!groupedActivityHistory.has(groupKey)) groupedActivityHistory.set(groupKey, item);
+    }
     res.json({
-      settings: { reviewMonths, lastReviewedAt: profile?.last_data_review_at || null, cutoff: cutoffIso },
+      settings: { reviewMonths, lastReviewedAt: profile?.last_data_review_at || null, cutoff: cutoffIso, fromDate: requestedFromDate, toDate: requestedToDate, timezone: selectedTimezone, learnerName: (kids || [])[0]?.name || 'Learner' },
       counts: {
         children: kidIds.length, activities: activities.count || 0, activityHistory: history.count || 0,
         quizResults: quizResults.count || 0, savedQuizzes: quizzes.count || 0, worksheets: worksheets.count || 0,
@@ -4216,14 +4262,38 @@ app.get('/api/data-management', authenticateToken, async (req: any, res) => {
         behaviorBonuses: bonuses.count || 0,
       },
       reviewItems: [
-        ...(oldQuiz.data || []).map((item: any) => ({ id: item.id, type: 'quiz_result', title: item.quizzes?.title || 'Quiz result', date: item.completed_at, learner: kidNames.get(item.kid_id) || 'Learner' })),
-        ...(oldHistory.data || []).map((item: any) => ({ id: item.id, type: 'activity_history', title: item.activity_type || item.description || 'Activity history', date: item.completion_date || item.created_at, learner: kidNames.get(item.kid_id) || 'Learner' })),
-        ...(oldPurchases.data || []).map((item: any) => ({ id: item.id, type: 'reward_purchase', title: item.item_name || 'Reward purchase', date: item.purchased_at, learner: kidNames.get(item.kid_id) || 'Learner' })),
+        ...Array.from(groupedActivityHistory.values()).map((item: any) => ({ id: item.id, type: 'activity_action_history', title: item.activity_name || 'Activity', category: item.activity_category || 'Other', description: item.activity_description || '', action: item.action, date: item.action_date, details: item.details || {} })),
       ].sort((a, b) => new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime()),
     });
   } catch (error) {
     console.error('Data management summary failed:', error);
     res.status(500).json({ error: 'Unable to load data-management summary' });
+  }
+});
+
+app.get('/api/data-management/activity-history/:recordId', authenticateToken, async (req: any, res) => {
+  if (req.user.role === 'kid') return res.status(403).json({ error: 'Parent access required' });
+  const admin = getAdminSupabaseClient();
+  try {
+    const { data: selected, error: selectedError } = await admin.from('activity_action_history')
+      .select('id, user_id, kid_id, activity_id, activity_category, activity_name')
+      .eq('id', req.params.recordId).eq('user_id', req.user.id).maybeSingle();
+    if (selectedError) throw selectedError;
+    if (!selected) return res.status(404).json({ error: 'History record not found' });
+
+    let query = admin.from('activity_action_history')
+      .select('id, activity_category, activity_name, activity_description, action, action_date, details')
+      .eq('user_id', req.user.id).eq('kid_id', selected.kid_id);
+    query = query.eq('activity_name', selected.activity_name);
+    query = selected.activity_category
+      ? query.eq('activity_category', selected.activity_category)
+      : query.is('activity_category', null);
+    const { data, error } = await query.order('action_date', { ascending: false });
+    if (error) throw error;
+    res.json({ records: data || [] });
+  } catch (error) {
+    console.error('Unable to load activity action history:', error);
+    res.status(500).json({ error: 'Unable to load activity history' });
   }
 });
 
@@ -4242,7 +4312,9 @@ app.delete('/api/data-management/records', authenticateToken, async (req: any, r
   const records = Array.isArray(req.body?.records) ? req.body.records : [];
   if (!records.length) return res.status(400).json({ error: 'Select at least one record' });
   if (records.length > 300) return res.status(400).json({ error: 'Select no more than 300 records at a time' });
-  const allowedTables: Record<string, string> = { quiz_result: 'quiz_results', activity_history: 'activity_history', reward_purchase: 'reward_purchases' };
+  // This endpoint intentionally has no mapping to `activities`: cleanup can
+  // remove historical evidence, but can never alter a live assignment.
+  const allowedTables: Record<string, string> = { activity_action_history: 'activity_action_history' };
   if (records.some((record: any) => !allowedTables[record.type] || typeof record.id !== 'string')) return res.status(400).json({ error: 'Invalid cleanup selection' });
 
   const supabase = getSupabaseForUser(req);
@@ -4251,12 +4323,33 @@ app.delete('/api/data-management/records', authenticateToken, async (req: any, r
   if (!kidIds.length) return res.status(403).json({ error: 'Forbidden' });
 
   let deleted = 0;
-  for (const [type, table] of Object.entries(allowedTables)) {
-    const ids = records.filter((record: any) => record.type === type).map((record: any) => record.id);
-    if (!ids.length) continue;
-    const { data, error } = await supabase.from(table).delete().in('id', ids).in('kid_id', kidIds).select('id');
-    if (error) return res.status(500).json({ error: 'Unable to delete selected records' });
-    deleted += data?.length || 0;
+  const historyIds = records.filter((record: any) => record.type === 'activity_action_history').map((record: any) => record.id);
+  if (historyIds.length) {
+    // Resolve each selected summary row to its complete history group. This
+    // deletes historical evidence only; the live activities table is never
+    // part of this endpoint.
+    const { data: selectedGroups, error: selectedGroupsError } = await supabase
+      .from('activity_action_history')
+      .select('kid_id, activity_category, activity_name')
+      .in('id', historyIds)
+      .in('kid_id', kidIds);
+    if (selectedGroupsError) return res.status(500).json({ error: 'Unable to identify selected activity history' });
+
+    const uniqueGroups = new Map<string, any>();
+    for (const group of selectedGroups || []) {
+      uniqueGroups.set(`${group.kid_id}\u0000${group.activity_category || ''}\u0000${group.activity_name}`, group);
+    }
+    for (const group of uniqueGroups.values()) {
+      let deleteQuery = supabase.from('activity_action_history').delete()
+        .eq('kid_id', group.kid_id)
+        .eq('activity_name', group.activity_name);
+      deleteQuery = group.activity_category
+        ? deleteQuery.eq('activity_category', group.activity_category)
+        : deleteQuery.is('activity_category', null);
+      const { data, error } = await deleteQuery.select('id');
+      if (error) return res.status(500).json({ error: 'Unable to delete selected activity history' });
+      deleted += data?.length || 0;
+    }
   }
   await supabase.from('users').update({ last_data_review_at: new Date().toISOString() }).eq('id', req.user.id);
   res.json({ success: true, deleted });
@@ -4795,42 +4888,13 @@ app.get('/api/kids', authenticateToken, async (req: any, res) => {
     await pruneExpiredParentMessages(supabase, userId);
     const latestMessages = await getLatestParentMessagesMap(supabase, userId, messageKidIds);
 
-    const processedKids = await Promise.all((kids || []).map(async k => {
+    const processedKids = (kids || []).map(k => {
       const kid = { ...k };
       if (latestMessages[kid.id]) {
         kid.parent_message = latestMessages[kid.id];
       }
-
-      // Show parents how much of today's optional-activity reward allowance
-      // remains. A selected activity reserves its reward amount, and completed
-      // activities remain counted through activity history.
-      try {
-        const localDate = getZonedScheduleParts(kid.timezone).date;
-        const [{ data: selectedExtras, error: selectedError }, { data: completedExtras, error: completedError }] = await Promise.all([
-          supabase.from('activities')
-            .select('optional_reward_qty')
-            .eq('kid_id', kid.id)
-            .eq('due_date', localDate)
-            .eq('is_optional_bonus', true)
-            .neq('status', 'completed')
-            .not('optional_selected_at', 'is', null),
-          supabase.from('activity_history')
-            .select('optional_reward_qty, reward_qty')
-            .eq('kid_id', kid.id)
-            .eq('due_date', localDate)
-            .eq('is_optional_bonus', true),
-        ]);
-        if (selectedError) throw selectedError;
-        if (completedError) throw completedError;
-        const used = (selectedExtras || []).reduce((sum: number, item: any) => sum + Number(item.optional_reward_qty || 0), 0)
-          + (completedExtras || []).reduce((sum: number, item: any) => sum + Number(item.optional_reward_qty || item.reward_qty || 0), 0);
-        kid.optional_bonus_remaining_rewards = Math.max(0, Number(kid.optional_bonus_daily_reward_limit || 10) - used);
-      } catch (optionalRewardError) {
-        console.warn(`Unable to calculate remaining extra rewards for ${kid.id}:`, optionalRewardError);
-        kid.optional_bonus_remaining_rewards = Number(kid.optional_bonus_daily_reward_limit || 10);
-      }
       return kid;
-    }));
+    });
     res.json({ kids: processedKids });
   } catch (error) {
     console.error('Unexpected error fetching kids:', error);
@@ -4870,34 +4934,6 @@ app.get('/api/kids/:id', authenticateToken, async (req: any, res) => {
     }
 
     const processedKid = { ...kid };
-    try {
-      const localDate = getZonedScheduleParts(kid.timezone).date;
-      const [{ data: selectedExtras, error: selectedError }, { data: completedExtras, error: completedError }] = await Promise.all([
-        supabase.from('activities')
-          .select('optional_reward_qty')
-          .eq('kid_id', id)
-          .eq('due_date', localDate)
-          .eq('is_optional_bonus', true)
-          .neq('status', 'completed')
-          .not('optional_selected_at', 'is', null),
-        supabase.from('activity_history')
-          .select('optional_reward_qty, reward_qty')
-          .eq('kid_id', id)
-          .eq('due_date', localDate)
-          .eq('is_optional_bonus', true),
-      ]);
-      if (selectedError) throw selectedError;
-      if (completedError) throw completedError;
-      const usedExtraRewards = (selectedExtras || []).reduce((sum: number, item: any) => sum + Number(item.optional_reward_qty || 0), 0)
-        + (completedExtras || []).reduce((sum: number, item: any) => sum + Number(item.optional_reward_qty || item.reward_qty || 0), 0);
-      processedKid.optional_bonus_remaining_rewards = Math.max(
-        0,
-        Number(kid.optional_bonus_daily_reward_limit || 10) - usedExtraRewards,
-      );
-    } catch (optionalRewardError) {
-      console.warn(`Unable to calculate remaining extra rewards for ${id}:`, optionalRewardError);
-      processedKid.optional_bonus_remaining_rewards = Number(kid.optional_bonus_daily_reward_limit || 10);
-    }
     try {
       const messageOwnerId = req.user.userId || req.user.id;
       await pruneExpiredParentMessages(supabase, messageOwnerId, id);
@@ -5822,6 +5858,111 @@ app.put('/api/activity-help-requests/:id', authenticateToken, async (req: any, r
   }
 });
 
+// Load the complete parent progress report with one ownership check and one
+// HTTP round trip. Independent report collections are queried concurrently.
+app.get('/api/kids/:kidId/progress-report', authenticateToken, async (req: any, res) => {
+  const supabase = getSupabaseForUser(req);
+  const { kidId } = req.params;
+
+  try {
+    const { data: kid, error: kidError } = await supabase
+      .from('kids')
+      .select('*')
+      .eq('id', kidId)
+      .maybeSingle();
+    if (kidError) throw kidError;
+    if (!kid) return res.status(404).json({ error: 'Kid not found' });
+    if (kid.user_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
+
+    // Ownership has been established above. Load report collections through
+    // the trusted server connection because game_results intentionally blocks
+    // direct authenticated-role access.
+    const reportDb = getAdminSupabaseClient();
+    const [activitiesResult, historyResult, purchasesResult, bonusesResult, quizResult, gameResult] = await Promise.all([
+      reportDb.from('activities').select('*').eq('kid_id', kidId),
+      reportDb.from('activity_history').select('*').eq('kid_id', kidId).order('created_at', { ascending: false }),
+      reportDb.from('reward_purchases').select('*').eq('kid_id', kidId).order('purchased_at', { ascending: false }),
+      reportDb.from('behavior_bonus_awards').select('id, behavior_reason, reward_amount, awarded_at').eq('kid_id', kidId).order('awarded_at', { ascending: false }),
+      reportDb.from('quiz_results').select('*, quizzes(title)').eq('kid_id', kidId).order('completed_at', { ascending: false }),
+      reportDb.from('game_results').select('*').eq('kid_id', kidId).order('completed_at', { ascending: false }).limit(500),
+    ]);
+
+    const requiredError = activitiesResult.error || historyResult.error || quizResult.error;
+    if (requiredError) throw requiredError;
+    const optionalRows = (result: any) => result.error?.code === '42P01' ? [] : result.error ? null : result.data || [];
+    const purchases = optionalRows(purchasesResult);
+    const bonuses = optionalRows(bonusesResult);
+    const gameResults = optionalRows(gameResult);
+    if (purchases === null) throw purchasesResult.error;
+    if (bonuses === null) throw bonusesResult.error;
+    if (gameResults === null) throw gameResult.error;
+
+    res.json({
+      kid,
+      activities: activitiesResult.data || [],
+      history: historyResult.data || [],
+      purchases: [
+        ...purchases.map((item: any) => ({ ...item, history_type: 'purchase' })),
+        ...bonuses.map((item: any) => ({
+          id: item.id,
+          item_name: 'Positive Recognition',
+          description: item.behavior_reason,
+          cost: item.reward_amount,
+          location: null,
+          purchased_at: item.awarded_at,
+          history_type: 'bonus',
+        })),
+      ],
+      quizResults: quizResult.data || [],
+      gameResults,
+    });
+  } catch (error) {
+    console.error('Failed to load progress report:', error);
+    res.status(500).json({ error: 'Unable to load progress report' });
+  }
+});
+
+app.delete('/api/kids/:kidId/progress-records/:recordType', authenticateToken, async (req: any, res) => {
+  if (req.user.role === 'kid') return res.status(403).json({ error: 'Parent access required' });
+  const { kidId, recordType } = req.params;
+  const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter((id: unknown) => typeof id === 'string') : [];
+  const deleteAll = req.body?.all === true;
+  if (!deleteAll && ids.length === 0) return res.status(400).json({ error: 'Select at least one record' });
+  if (!['quiz', 'game', 'purchase', 'retry'].includes(recordType)) return res.status(400).json({ error: 'Unsupported progress record type' });
+
+  try {
+    const admin = getAdminSupabaseClient();
+    const { data: kid, error: kidError } = await admin.from('kids').select('id').eq('id', kidId).eq('user_id', req.user.id).maybeSingle();
+    if (kidError || !kid) return res.status(403).json({ error: 'Forbidden' });
+
+    if (recordType === 'purchase' && Array.isArray(req.body?.records)) {
+      const records = req.body.records.filter((item: any) => typeof item?.id === 'string' && ['purchase', 'bonus'].includes(item?.type));
+      const affectedIds: string[] = [];
+      for (const type of ['purchase', 'bonus']) {
+        const recordIds = records.filter((item: any) => item.type === type).map((item: any) => item.id);
+        if (!recordIds.length) continue;
+        const table = type === 'bonus' ? 'behavior_bonus_awards' : 'reward_purchases';
+        const { data, error } = await admin.from(table).delete().eq('kid_id', kidId).in('id', recordIds).select('id');
+        if (error) throw error;
+        affectedIds.push(...(data || []).map((row: any) => row.id));
+      }
+      return res.json({ success: true, affectedIds });
+    }
+
+    const table = recordType === 'quiz' ? 'quiz_results' : recordType === 'game' ? 'game_results' : recordType === 'purchase' ? 'reward_purchases' : 'activities';
+    let query: any = recordType === 'retry'
+      ? admin.from(table).update({ repeat_count: 0 }).eq('kid_id', kidId).gt('repeat_count', 0)
+      : admin.from(table).delete().eq('kid_id', kidId);
+    if (!deleteAll) query = query.in('id', ids);
+    const { data, error } = await query.select('id');
+    if (error) throw error;
+    res.json({ success: true, affectedIds: (data || []).map((row: any) => row.id) });
+  } catch (error: any) {
+    console.error('Progress record deletion failed:', error);
+    res.status(500).json({ error: error.message || 'Unable to delete progress records' });
+  }
+});
+
 // Get activity history for a specific kid
 app.get('/api/kids/:kidId/activity-history', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
@@ -5993,13 +6134,30 @@ app.post('/api/kids/:kidId/game-results', authenticateToken, async (req: any, re
   const gameKey = String(req.body?.gameKey || '');
   const level = Number(req.body?.level);
   const correct = req.body?.correct === true;
+  const sessionId = String(req.body?.sessionId || '');
+  const startedAt = String(req.body?.startedAt || '');
+  const durationSeconds = Number(req.body?.durationSeconds || 0);
+  const rawAttempt = req.body?.attempt;
   const allowedGames = ['place_value_builder', 'expanded_form', 'digit_value', 'place_value_clues'];
-  if (!allowedGames.includes(gameKey) || !Number.isInteger(level) || level < 1 || level > 5) return res.status(400).json({ error: 'Invalid game result' });
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!allowedGames.includes(gameKey) || !Number.isInteger(level) || level < 1 || level > 5 || !uuidPattern.test(sessionId)) return res.status(400).json({ error: 'Invalid game result' });
+  const clean = (value: unknown, maximum: number) => String(value ?? '').trim().slice(0, maximum);
+  const attempt = rawAttempt && typeof rawAttempt === 'object' ? {
+    prompt: clean(rawAttempt.prompt, 500), learnerAnswer: clean(rawAttempt.learnerAnswer, 250),
+    correctAnswer: clean(rawAttempt.correctAnswer, 250), skill: clean(rawAttempt.skill, 100),
+    explanation: clean(rawAttempt.explanation, 700), correct,
+  } : null;
   const admin = getAdminSupabaseClient();
   const { data: kid } = await admin.from('kids').select('id,user_id').eq('id', kidId).maybeSingle();
   if (!kid) return res.status(404).json({ error: 'Child / adult profile not found' });
   if (req.user.role === 'kid' ? req.user.kidId !== kidId : req.user.id !== kid.user_id) return res.status(403).json({ error: 'Forbidden' });
-  const { error } = await admin.from('game_results').insert({ user_id: kid.user_id, kid_id: kidId, game_key: gameKey, level, score: correct ? 1 : 0, total_questions: 1 });
+  const { data: existing } = await admin.from('game_results').select('id,score,total_questions,attempts').eq('kid_id', kidId).eq('session_id', sessionId).maybeSingle();
+  const attempts = [...(Array.isArray(existing?.attempts) ? existing.attempts : []), ...(attempt ? [attempt] : [])].slice(-100);
+  const payload = { level, score: (existing?.score || 0) + (correct ? 1 : 0), total_questions: (existing?.total_questions || 0) + 1, attempts, duration_seconds: Number.isFinite(durationSeconds) ? Math.max(0, Math.round(durationSeconds)) : 0, completed_at: new Date().toISOString() };
+  const operation = existing
+    ? admin.from('game_results').update(payload).eq('id', existing.id)
+    : admin.from('game_results').insert({ user_id: kid.user_id, kid_id: kidId, game_key: gameKey, session_id: sessionId, started_at: Number.isNaN(Date.parse(startedAt)) ? new Date().toISOString() : startedAt, ...payload });
+  const { error } = await operation;
   if (error) return res.status(500).json({ error: 'Unable to save game progress' });
   res.status(201).json({ saved: true });
 });
@@ -6095,8 +6253,8 @@ app.post('/api/kids/:kidId/behavior-bonuses', authenticateToken, async (req: any
   if (req.user.role !== 'parent') return res.status(403).json({ error: 'Parent access required' });
   const behaviorReason = typeof req.body?.behaviorReason === 'string' ? req.body.behaviorReason.trim().slice(0, 160) : '';
   const rewardAmount = Number(req.body?.rewardAmount);
-  if (!behaviorReason || !Number.isInteger(rewardAmount) || rewardAmount < 1 || rewardAmount > 10) {
-    return res.status(400).json({ error: 'Choose a positive behavior reason and a reward amount from 1 to 10.' });
+  if (!behaviorReason || !Number.isInteger(rewardAmount) || rewardAmount < 1) {
+    return res.status(400).json({ error: 'Choose a positive behavior reason and enter a positive whole-number reward amount.' });
   }
   try {
     const supabase = getSupabaseForUser(req);
@@ -6108,9 +6266,16 @@ app.post('/api/kids/:kidId/behavior-bonuses', authenticateToken, async (req: any
     if (error) throw error;
     const award = Array.isArray(data) ? data[0] : data;
     if (!award) return res.status(404).json({ error: 'Child not found' });
+    const { data: updatedKid, error: balanceError } = await supabase
+      .from('kids')
+      .select('reward_balance')
+      .eq('id', kidId)
+      .eq('user_id', req.user.id)
+      .single();
+    if (balanceError) throw balanceError;
     const io = req.app.get('io');
     if (io) io.to(`kid_${kidId}`).emit('data_updated', { kidId });
-    res.status(201).json({ award, message: 'Behavior bonus granted.' });
+    res.status(201).json({ award, rewardBalance: Number(updatedKid.reward_balance || 0), message: 'Behavior bonus granted.' });
   } catch (error) {
     console.error('Failed to award behavior bonus:', error);
     res.status(500).json({ error: 'Unable to award the behavior bonus' });
@@ -7796,7 +7961,7 @@ export const parentAssistantFeatureCatalog = [
   { area: 'Activities', routes: ['/assigned-activities/:kidId'], help: 'From Dashboard select a child and Activities. Add Activity opens the form. Enter activity type/name and description, optional link/image and steps, Due Date, Time, Repeat and Repeats till. Choose the reward for this specific activity according to effort and challenge. For custom repeats set Every and Unit. Enable Parent verification required when approval is needed. Finish with Add Activity or Save Changes. List and Calendar views are available.' },
   { area: 'Activity verification and reassignment', routes: ['/assigned-activities/:kidId'], help: 'The child submits a verification-required activity into Waiting for parent verification. On the parent Activities page open the To Be Verified tab/grid. Select Verify & complete to approve it and award the configured tokens, or Reassign to return the same activity record to pending without awarding tokens. Reassignment intentionally removes it from completed counts until it is completed again.' },
   { area: 'Completed activity history', routes: ['/assigned-activities/:kidId'], help: 'Use Completed for currently completed assignments and History for completion records. Done Today is based on activities.completion_date, so reassigning an activity reduces the current completed count as intended.' },
-  { area: 'Rewards and behavior bonuses', routes: ['/dashboard', '/assigned-activities/:kidId', '/kids-dashboard/:kidId'], help: 'Open a child’s Activities page and select Rewards. Add Item creates a reward with its name, token cost, image, and location. Children can purchase an active item only when their earned balance is sufficient. Only a parent can initiate a behavior bonus: select Recognize positive behavior, type the specific observed behavior (suggestions such as Focused effort, Following family rules, Calm communication, Helpful behavior, Trying again, and Positive self-control are available), choose 1 to 10 rewards, and confirm. The child dashboard shows recent bonuses as reason and amount in its sidebar. Edit the child profile and set Bonus History from 1 to 10 to control how many appear. The child has no control for requesting tokens or bonuses.' },
+  { area: 'Rewards and positive recognition', routes: ['/dashboard', '/assigned-activities/:kidId', '/kids-dashboard/:kidId'], help: 'Open Rewards → Positive Recognition for the selected learner. Choose or type the specific behavior you observed, enter any positive whole-number reward amount, review the preview, and confirm. The child dashboard shows recent recognition as a reason and amount. Edit the child profile and set Bonus History from 1 to 10 to control how many recent entries appear. The child has no control for requesting or awarding rewards.' },
   { area: 'Activity library', routes: ['/activity-library'], help: 'Open the top Activities menu and Activity Library. Create reusable activities with Activity Category, Activity Name, Description, optional External Link, Display Artwork, milestones/steps, and an optional linked asset type: Interactive Quizzes, Social Narratives, or Practice Sheets. Saved templates can be assigned to a selected child.' },
   { area: 'Quiz generation and saved quizzes', routes: ['/quiz-generator', '/saved-quizzes', '/edit-quiz/:id'], help: 'Open Activities > Quizzes. Saved Quizzes includes a curated Space Explorer Quiz sample that can be opened and scored without using AI or saving data. In Quiz Generator, select a Child / adult profile, Subject, Learning goal or topic, Learning purpose, Question Type, Challenge level, 3–20 questions, and Score / Question. Optional learning and accessibility settings control clue support, a reading-level override, explicit Common Core alignment, special instructions, and illustrations. Select Generate Quiz, then select Review & Edit to change the title, questions, answer choices, correct answers, or explanations. Resolve any quality-check items and select Preview as Learner to privately try the child-friendly quiz without saving a score, using an assigned attempt, or changing rewards. Close the preview, select Finish Review, and select Save Quiz. Saved Quizzes provides View, Edit, Delete, and assignment actions. Each assigned quiz occurrence accepts one submitted attempt; parent reassignment creates one fresh attempt.' },
   { area: 'Playing quizzes', routes: ['/play-quiz/:id', '/play-quiz/:id/:kidId'], help: 'Open an assigned quiz from the child dashboard, answer each question, then submit. Listen controls can read questions or feedback. After an assignment attempt is submitted it is locked; Back to activities returns to the dashboard. A parent must reassign the activity to allow a new attempt.' },
@@ -7804,10 +7969,10 @@ export const parentAssistantFeatureCatalog = [
   { area: 'Saved worksheets and printing', routes: ['/saved-worksheets', '/worksheet-generator'], help: 'Open Activities > Worksheets to reach Saved Worksheets. The curated Calm-Down Strategy Map sample can be opened and printed without using AI or saving data. In the worksheet grid find the row and Actions column. Select the eye icon with tooltip View. On View Worksheet select Print Worksheet above the preview. In the browser dialog choose the printer or Save as PDF and select Print or Save. If no dialog opens, allow popups and retry. The other row actions edit or delete; saved content can be assigned to a child.' },
   { area: 'Social stories', routes: ['/social-stories', '/social-stories/create', '/social-stories/edit/:id', '/social-stories/view/:id'], help: 'Open Activities > Social Stories. The curated four-page When My Plan Changes sample can be opened without using AI or saving data. Create a story using Select Kid, Language, Tone, Number of Pages, Sentences per Page, What is the story about?, Narrator Selection, Speech Speed, Visual Sync, Story Title, Page Text, and optional page images. Generate/edit and save. The saved-story Actions icons securely Share, View, Print, Edit, or Delete.' },
   { area: 'Controlled story sharing', routes: ['/social-stories', '/social-stories/shared/:shareToken'], help: 'In Social Stories select the Share securely action. Choose the link lifetime (1, 7, or 30 days), create and copy the link, and send only the URL. Links expire and can be revoked. A recipient can open the shared story without signing in while the link remains valid.' },
-  { area: 'Progress and summary reports', routes: ['/progress-report/:kidId', '/summary-report/:kidId'], help: 'Select a child, open the top Analytics menu, and choose Progress Report or Summary Report. Progress Report supports Last 24 Hours, Last 7 Days, Last 30 Days, or All Time and includes completion and category charts, planning signals, completed activity history, quiz results, activities that needed another try, and reward purchase history. Every report table uses the standard Per page and Page controls. Summary Report combines the last 30 days into completion, quiz, retry, category, purchase, and reward patterns with practical ideas for planning the next activities, worksheets, difficulty level, and rewards.' },
+  { area: 'Progress results and history', routes: ['/progress-report/:kidId', '/activity-history'], help: 'Select a learner and open Progress. Quiz Results, Game Scores, Retries, Rewards History, and Activity History open directly to their first view. Result pages provide standard List and Calendar views; a calendar date shows its item count and opens that day’s list. Rewards History combines purchases and positive recognition and supports rolling one-, three-, six-, or twelve-month periods plus custom dates. Activity History shows one row per activity category and name; View opens the complete action history. Select all applies only to the current page.' },
   { area: 'Summary report', routes: ['/summary-report/:kidId'], help: 'Select a child, open Analytics, and select Summary Report. It combines activity and quiz entries with type, title, details, reward, and date for a concise overview.' },
   { area: 'Parent account settings', routes: ['/profile'], help: 'Select the parent name in the top navigation to open Account Settings. In Profile Information update Full Name or Email. In Change Password enter a new password or leave it blank to keep the current password. In Parent Messaging set Days to Keep Messages. Select Save Changes. Profile also provides welcome-email resend and email-delivery checks when configured.' },
-  { area: 'Parent-controlled data management', routes: ['/data-management'], help: 'Select Data beside the parent name in the desktop navigation, or open the mobile menu and select Data Management. Saved record overview shows totals for profiles, activities, activity history, quiz results, saved learning resources, reward purchases, parent messages, and behavior bonuses. Under Review reminder choose a period from 3 to 36 months; this changes the review list and never deletes records automatically. In Older records to review, select a Record, Type, Learner, or Date heading to sort. Use Per page and the previous or next controls to move through the list. Select individual checkboxes or the header checkbox to select all rows on the current page; selections remain selected across pages. Select Delete selected and confirm permanent deletion only for records the family no longer needs.' },
+  { area: 'Parent-controlled history management', routes: ['/activity-history', '/progress-report/:kidId'], help: 'Open Progress and choose Activity History or Rewards History. Choose a rolling period or custom dates, search the selected learner’s records, and select a heading to sort. Activity History summarizes each category-and-name group once; View opens all actions in that group. The header checkbox selects only the current page. Deleting an Activity History summary removes the matching history records but never deletes the assigned activity. Rewards History deletion removes the selected purchase or positive-recognition records after confirmation.' },
   { area: 'Parent and caregiver testimonials', routes: ['/testimonials'], help: 'Open Testimonials from the footer or mobile menu to read reviewed experiences that families and caregivers explicitly permitted Visual Steps to publish. Signed-in parents can use Public display name, Experience title, and Your testimonial, confirm publication permission, then select Submit privately for review. The submission remains private until an administrator reviews and approves it in Newsletter Administration. Visual Steps never converts private profiles, child records, messages, or activities into public quotes.' },
   { area: 'Contact & Support', routes: ['/contact'], help: 'Open Contact from the navigation or footer. Use Send a Message for written support, Book a Private Call for account or family-specific help, or Join a Group Session for demonstrations and shared questions. Consultation requests are available without an account but require email verification. Never include passwords, child access codes, medical records, or sensitive family information.' },
   { area: 'Privacy, terms, cookies, and analytics', routes: ['/privacy', '/terms', '/cookies'], help: 'Open Privacy, Terms, or Cookies & Analytics from the footer on any page. Privacy explains what family information Visual Steps handles, why it is used, limited service-provider processing, AI requests, social-story sharing, uploaded-image links, retention choices, account deletion, and security responsibilities. Terms explains responsible use, caregiver review, community content, availability, and why Visual Steps is not medical or clinical advice. Cookies & Analytics explains essential sign-in and preference storage, the installed-app cache, browser controls, and the current absence of advertising cookies and product analytics. On Create an account, review the Terms and Privacy links and select the agreement checkbox before selecting Sign Up.' },

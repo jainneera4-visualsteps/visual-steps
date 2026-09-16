@@ -3,7 +3,10 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const server = readFileSync('server.ts', 'utf8');
+const activities = readFileSync('src/pages/AssignedActivities.tsx', 'utf8');
+const layout = readFileSync('src/components/Layout.tsx', 'utf8');
 const migration = readFileSync('database_updates/2026-08-20_behavior_bonus_awards.sql', 'utf8');
+const unlimitedMigration = readFileSync('database_updates/2026-09-15_unlimited_behavior_bonus.sql', 'utf8');
 
 test('children can view behavior bonus reasons but cannot request or award bonuses', () => {
   assert.match(server, /GET[\s\S]*behavior-bonuses/);
@@ -15,14 +18,18 @@ test('children can view behavior bonus reasons but cannot request or award bonus
   assert.doesNotMatch(allowlist, /POST[\s\S]*behavior-bonuses/);
 });
 
-test('behavior bonus creation is parent-only and requires a reason and bounded amount', () => {
+test('behavior bonus creation is parent-only and requires a reason and positive whole-number amount', () => {
   const start = server.indexOf("app.post('/api/kids/:kidId/behavior-bonuses'");
   const end = server.indexOf('// Create Activity', start);
   const route = server.slice(start, end);
   assert.match(route, /req\.user\.role !== 'parent'/);
-  assert.match(route, /rewardAmount < 1 \|\| rewardAmount > 10/);
+  assert.match(route, /rewardAmount < 1/);
+  assert.doesNotMatch(route, /rewardAmount > 10/);
   assert.match(route, /behaviorReason/);
   assert.match(route, /award_behavior_bonus/);
+  assert.match(route, /rewardBalance: Number\(updatedKid\.reward_balance/);
+  assert.match(activities, /visual-steps:reward-balance-updated/);
+  assert.match(layout, /visual-steps:reward-balance-updated/);
 });
 
 test('database awards and balance updates are atomic and unavailable anonymously', () => {
@@ -33,4 +40,6 @@ test('database awards and balance updates are atomic and unavailable anonymously
   assert.match(migration, /UPDATE public\.kids SET reward_balance = COALESCE\(reward_balance, 0\) \+ reward_amount_param/);
   assert.match(migration, /INSERT INTO public\.behavior_bonus_awards/);
   assert.match(migration, /REVOKE ALL ON FUNCTION public\.award_behavior_bonus[\s\S]*FROM anon/);
+  assert.match(unlimitedMigration, /reward_amount_param IS NULL OR reward_amount_param < 1/);
+  assert.doesNotMatch(unlimitedMigration, /reward_amount_param > 10/);
 });

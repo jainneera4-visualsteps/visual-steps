@@ -65,7 +65,7 @@ export default function ExpandedFormGame() {
   };
   const check = () => {
     if (!selected) { setFeedback('Choose one answer first.'); return; }
-    void recordGameResult('expanded_form', level, selected === question.answer, kidId);
+    void recordGameResult('expanded_form', level, selected === question.answer, kidId, { prompt: question.prompt, learnerAnswer: selected, correctAnswer: question.answer, skill: question.kind === 'expanded' ? 'Expanded form' : question.kind === 'standard' ? 'Standard form' : 'Missing place value', explanation: `Use each digit's position to identify its value in ${format(question.number)}.` });
     if (selected === question.answer) {
       const mastered = correct + 1 >= masteryTarget;
       if (mastered && level < 5) { setCorrect(0); begin(level + 1, `Level ${level} mastered! You moved to Level ${level + 1}.`); }

@@ -13,9 +13,10 @@ export function usePageSelection(pageIds: string[]) {
   };
 
   const togglePage = (checked: boolean) => {
-    setSelectedIds(current => checked
-      ? Array.from(new Set([...current, ...pageIds]))
-      : current.filter(value => !pageIds.includes(value)));
+    // A header checkbox always represents the currently displayed page.
+    // Replacing the selection prevents a later delete from including rows
+    // that were selected on a different, hidden page.
+    setSelectedIds(checked ? [...pageIds] : []);
   };
 
   const removeSelected = (ids: string[]) => {

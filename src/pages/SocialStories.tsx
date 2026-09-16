@@ -384,16 +384,9 @@ export default function SocialStories() {
     if (failed > 0) setError(`${failed} selected ${failed === 1 ? 'story could' : 'stories could'} not be deleted.`);
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6 w-full pb-10">
+      {isLoading && <div className="rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700" role="status">Updating social stories…</div>}
       <div className="mb-6">
         <button onClick={() => navigate('/dashboard')} className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1 mb-2 transition-colors">
           <ArrowLeft className="h-4 w-4" /> Back to Dashboard
@@ -414,7 +407,7 @@ export default function SocialStories() {
 
       <SampleLearningContent show="story" compact />
 
-      {error ? (
+      {!isLoading && error ? (
         <Card className="border-none ring-1 ring-red-200 bg-red-50">
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <div className="rounded-full bg-red-100 p-4 mb-4">
@@ -429,7 +422,7 @@ export default function SocialStories() {
             </Button>
           </CardContent>
         </Card>
-      ) : stories.length === 0 ? (
+      ) : !isLoading && stories.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center text-slate-400 bg-white rounded-xl border-2 border-dashed border-slate-200">
           <div className="bg-slate-50 p-6 rounded-full mb-4">
             <BookOpen className="h-12 w-12" />

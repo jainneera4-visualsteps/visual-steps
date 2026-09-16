@@ -345,35 +345,6 @@ export function WalkthroughProvider({ children }: { children: React.ReactNode })
       ],
     },
     {
-      title: "Check history",
-      description: "Open the history view to track long-term progress and behavior patterns.",
-      actionLabel: "View History",
-      link: "/summary-report/:kidId",
-      pageRoute: "/summary-report",
-      fieldGuides: [
-        {
-          fieldName: "Time Period Filter",
-          description: "Select date ranges to view specific months or years.",
-          selector: 'input[type="date"], select',
-        },
-        {
-          fieldName: "Activity History",
-          description: "See all activities your child has completed in chronological order.",
-          selector: 'table, ul, ol, [role="list"]',
-        },
-        {
-          fieldName: "Behavior Trends",
-          description: "View how behavior scores have changed over time.",
-          selector: 'canvas, svg',
-        },
-        {
-          fieldName: "Export Data",
-          description: "Download records for reports or therapist sharing.",
-          selector: 'button, a[download]',
-        },
-      ],
-    },
-    {
       title: "Open progress report",
       description: "See quiz results, behavior progress, and key insights in one place.",
       actionLabel: "View Progress Report",
@@ -382,27 +353,27 @@ export function WalkthroughProvider({ children }: { children: React.ReactNode })
       fieldGuides: [
         {
           fieldName: "Quiz Results",
-          description: "View all quiz attempts with scores and dates completed.",
+          description: "View quiz attempts in the standard List or Calendar view, with scores and completion dates.",
           selector: 'section, div, table',
         },
         {
           fieldName: "Quiz History Table",
-          description: "See each quiz with ability to delete old attempts or retake.",
+          description: "Open a quiz result to review answers and its learning summary, or delete selected results from the current page.",
           selector: 'table, [role="table"]',
         },
         {
-          fieldName: "Behavior Summary",
-          description: "Charts showing behavior tracking and daily progress.",
-          selector: 'canvas, svg',
+          fieldName: "Game Scores and Retries",
+          description: "Review saved game sessions and activities that needed another attempt.",
+          selector: 'section, div, table',
         },
         {
-          fieldName: "Overall Stats",
-          description: "Summary of rewards earned, activities completed, and goals met.",
+          fieldName: "Rewards and Activity History",
+          description: "Search recent rewards or open a grouped activity to read its complete action history.",
           selector: 'div, section',
         },
         {
-          fieldName: "Delete Button",
-          description: "Remove old quiz attempts to keep records clean.",
+          fieldName: "Page-level selection",
+          description: "Select individual records or only the records visible on the current page before confirming deletion.",
           selector: 'button, a',
         },
       ],

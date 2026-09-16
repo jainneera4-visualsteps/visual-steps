@@ -79,9 +79,9 @@ const demoScenes = [
   },
   {
     id: 'data-management',
-    title: 'Keep saved information under parent control', focus: 'Data Management', image: '/onboarding/data-management.png', cursor: { left: '68%', top: '29%' },
-    description: 'Understand saved record totals and deliberately review older records before removing anything.',
-    narration: 'Families should stay in control of what they save. Data Management counts profiles, activities, learning materials, results, messages, rewards, and history. Choose when to review older records. Sort the list, move through pages, and select only the items you no longer need. Visual Steps never removes family records from this review list automatically. A clear confirmation comes before permanent deletion.',
+    title: 'Keep saved information under parent control', focus: 'Activity and Rewards History', image: '/onboarding/data-management.png', cursor: { left: '68%', top: '29%' },
+    description: 'Review a learner’s activity actions, purchases, and positive recognition before removing history you no longer need.',
+    narration: 'Families should stay in control of what they save. Activity History shows one row for each activity category and name, while View opens every saved action. Rewards History combines purchases and positive recognition. Choose a rolling period or custom dates, search, sort, and move through standard pages. Select all affects only the current page. Visual Steps never removes these records automatically, and deleting activity history never deletes the assigned activity.',
   },
   {
     id: 'learner-dashboard',

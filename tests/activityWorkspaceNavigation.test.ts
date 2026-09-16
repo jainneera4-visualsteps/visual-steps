@@ -24,6 +24,13 @@ test('activity workspace shows contextual secondary navigation', () => {
   assert.match(activities, /<div className="hidden" aria-hidden="true">/);
   assert.match(activities, /text-3xl font-black/);
   assert.match(activities, /ACTIVITY_WORKSPACE_TABS\.includes\(nextTab as ActivityWorkspaceTab\)/);
+  assert.match(activities, /activeTab === 'rewards'[\s\S]*?Add New Reward Item[\s\S]*?Add Reward Item/);
+  assert.doesNotMatch(activities, /Filter rewards by location[\s\S]{0,800}data-guest-tour="add-reward"/);
+  assert.match(activities, /Filter rewards by location/);
+  assert.match(activities, /\+ Add new location/);
+  assert.match(activities, /Active Rewards/);
+  assert.match(activities, /Inactive Rewards/);
+  assert.match(activities, /xl:grid-cols-4/);
 });
 
 test('growth follows a documented three-level navigation standard', () => {
@@ -35,10 +42,13 @@ test('growth follows a documented three-level navigation standard', () => {
 
 test('parent shell uses stable primary workspaces and contextual navigation', () => {
   assert.match(layout, /Main parent workspaces/);
-  for (const label of ['Dashboard', 'Activities', 'Learning', 'Progress', 'Support', 'Newsletter']) {
+  for (const label of ['Dashboard', 'Activities', 'Rewards', 'Learning', 'Progress', 'Support', 'Newsletter']) {
     assert.match(layout, new RegExp(`label: '${label}'`));
   }
   assert.match(layout, /workspaceSecondaryLinks/);
+  assert.match(layout, /parentWorkspaces\.map\(workspace =>/);
+  assert.match(layout, /workspaceSecondaryLinks\[workspace\.id\]/);
+  assert.match(layout, /max-h-\[calc\(100dvh-4rem\)\] overflow-y-auto/);
   assert.match(layout, /workspace navigation/);
   assert.match(layout, /aria-current=\{currentWorkspace === item\.id/);
   assert.match(layout, /visual-steps:selected-kid/);
@@ -46,18 +56,17 @@ test('parent shell uses stable primary workspaces and contextual navigation', ()
   assert.match(layout, /currentWorkspace === 'dashboard'/);
   assert.match(layout, /Climb together\. Effortless tools for certain steps and positive growth\./);
   assert.doesNotMatch(layout, /dashboard: \[[\s\S]*?label: 'Overview'[\s\S]*?\],\n    activities:/);
-  for (const label of ['Current', 'Needs Attention', 'Verification', 'Completed', 'On Hold', 'Ended', 'Rewards']) {
+  for (const label of ['Current', 'Needs Attention', 'Verification', 'Completed', 'On Hold', 'Ended', 'Rewards Catalog', 'Positive Recognition']) {
     assert.match(layout, new RegExp(`label: '${label}'`));
   }
   assert.doesNotMatch(layout, /activities: \[[\s\S]*?label: 'Rewards'[\s\S]*?\],\n    learning:/);
-  assert.match(layout, /progress: \[[\s\S]*?label: 'Rewards'/);
+  assert.match(layout, /rewards: \[[\s\S]*?label: 'Rewards Catalog'[\s\S]*?label: 'Positive Recognition'/);
+  assert.doesNotMatch(layout, /progress: \[[\s\S]*?label: 'Rewards'[\s\S]*?\],\n    support:/);
   assert.doesNotMatch(layout, /progress: \[[\s\S]*?label: 'Completed Work'[\s\S]*?\],\n    support:/);
-  assert.match(layout, /progress: \[[\s\S]*?label: 'Rewards'[\s\S]*?label: 'Progress Report'/);
-  assert.match(layout, /label: 'Quiz Results'/);
-  assert.match(layout, /label: 'Game Results'/);
+  assert.match(layout, /progress: \[[\s\S]*?label: 'Quizzes'[\s\S]*?label: 'Games'[\s\S]*?label: 'Purchases'[\s\S]*?label: 'Retries'[\s\S]*?label: 'Summary'[\s\S]*?label: 'Data'/);
   assert.match(layout, /\?view=quiz-results/);
   assert.match(layout, /\?view=game-results/);
-  assert.match(layout, /requestedActivityTab === 'rewards'/);
+  assert.match(layout, /\['rewards', 'bonus_rewards'\]\.includes\(requestedActivityTab/);
   assert.match(layout, /support: \[[\s\S]*?label: 'Contact & Consultation'[\s\S]*?label: 'Share with the Community'/);
   assert.doesNotMatch(layout, /support: \[[\s\S]*?label: 'Plans'[\s\S]*?\],\n    admin:/);
   assert.match(layout, /to="\/pricing"[^>]*>Plans<\/Link>/);
