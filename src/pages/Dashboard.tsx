@@ -10,6 +10,7 @@ import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Plus, User, Loader2, ArrowLeft, ArrowRight, CheckCircle2, Edit2, Eye, Send, HelpCircle, Trash2, Smile } from 'lucide-react';
 import { ParentOnboarding } from '../components/ParentOnboarding';
+import { GuestQuickStart } from '../components/GuestQuickStart';
 import { useAuth } from '../context/AuthContext';
 import { isGuestSession } from '../guest/guestSession';
 import EmojiPicker, { type EmojiClickData } from 'emoji-picker-react';
@@ -289,6 +290,16 @@ export default function Dashboard() {
     }
   };
 
+  const quickStartKidId = dashboardSelectedKidId || kids[0]?.id;
+  const quickStartHasProfile = kids.length > 0;
+  const quickStartHasActivity = Boolean(activityCount && activityCount > 0);
+  const quickStartStep = !quickStartHasProfile ? 1 : !quickStartHasActivity ? 2 : 3;
+  const quickStartAction = !quickStartHasProfile
+    ? { href: '/add-kid', label: 'Add the person you support', help: 'This opens the regular profile form. Add only what is useful now; you can update it later.' }
+    : !quickStartHasActivity
+      ? { href: `/assigned-activities/${quickStartKidId}?quickStart=activity`, label: 'Create the first activity', help: 'This opens the regular activity form. Start with one real situation and a few clear visual steps.' }
+      : { href: `/kids-dashboard/${quickStartKidId}`, label: 'Preview the learner experience', help: 'This opens the real learner view, so you can check exactly what the person you support will see.' };
+
   // Join rooms when kids are loaded
   useEffect(() => {
     if (kids.length === 0) return;
@@ -376,13 +387,18 @@ export default function Dashboard() {
       });
 
       if (res.ok) {
-        // Update local state
-        const newBalance = selectedKid.reward_balance - item.cost;
+        const data = await safeJson(res);
+        const newBalance = Number.isFinite(Number(data.rewardBalance))
+          ? Number(data.rewardBalance)
+          : selectedKid.reward_balance - item.cost;
         setKids(prev => prev.map(k => k.id === selectedKid.id ? { ...k, reward_balance: newBalance } : k));
         setSelectedKid(prev => prev ? { ...prev, reward_balance: newBalance } : null);
+        window.dispatchEvent(new CustomEvent('visual-steps:reward-balance-updated', {
+          detail: { kidId: selectedKid.id, rewardBalance: newBalance },
+        }));
         alert(`Successfully bought: ${item.name}`);
       } else {
-        const data = await res.json();
+        const data = await safeJson(res);
         alert(data.error || 'Failed to buy reward');
       }
     } catch (err) {
@@ -754,53 +770,60 @@ export default function Dashboard() {
           <span className="h-4 w-px shrink-0 bg-slate-300" aria-hidden="true" />
           <p className="truncate text-sm font-semibold text-slate-600">Climb together. Effortless tools for certain steps and positive growth.</p>
         </div>
-        <Button type="button" size="sm" className="h-9" onClick={() => setShowOnboarding(true)}>
+        {!isGuestSession() && <Button type="button" size="sm" className="h-9" onClick={() => setShowOnboarding(true)}>
           <HelpCircle className="mr-1.5 h-4 w-4" />Start tour
-        </Button>
+        </Button>}
         {kids.length > 0 && !showBuyGrid && (
           <select aria-label="Select Child" value={dashboardSelectedKidId} onChange={(event) => setDashboardSelectedKidId(event.target.value)} className="h-9 min-w-32 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold">
             {kids.map(kid => <option key={kid.id} value={kid.id}>{kid.name}</option>)}
           </select>
         )}
-        <Link to="/add-kid" data-guest-tour="add-child"><Button size="sm" className="h-9"><Plus className="mr-1.5 h-4 w-4" />Add Child / Adult</Button></Link>
+        {!isGuestSession() && <Link to="/add-kid"><Button size="sm" className="h-9"><Plus className="mr-1.5 h-4 w-4" />Add Child / Adult</Button></Link>}
       </div>
+
+      {searchParams.get('shop') !== '1' && !showBuyGrid && isGuestSession() && quickStartKidId && (
+        <GuestQuickStart kidId={quickStartKidId} />
+      )}
 
       {searchParams.get('shop') !== '1' && !showBuyGrid && !isGuestSession() && !quickStartDismissed && (
         <section className="m-4 shrink-0 rounded-2xl border border-brand-200 bg-gradient-to-br from-brand-50 via-white to-emerald-50 p-5 shadow-sm" aria-labelledby="quick-start-title">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.18em] text-brand-700">Quick Start</p>
-              <h2 id="quick-start-title" className="mt-1 text-2xl font-black text-slate-950">Create one useful visual activity</h2>
-              <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">Start with one real activity. Add small steps, then preview the simple experience your child or adult will see. You can explore rewards, schedules, learning tools and other settings later.</p>
+              <h2 id="quick-start-title" className="mt-1 text-2xl font-black text-slate-950">Let’s prepare one useful activity</h2>
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">Start with one situation where visual steps may help. You can explore rewards, schedules, learning tools, and other features later.</p>
             </div>
-            <button type="button" onClick={dismissQuickStart} className="shrink-0 text-xs font-bold text-slate-500 underline underline-offset-4 hover:text-slate-800">Hide Quick Start</button>
+            {quickStartHasActivity && <button type="button" onClick={dismissQuickStart} className="shrink-0 text-xs font-bold text-slate-500 underline underline-offset-4 hover:text-slate-800">Hide Quick Start</button>}
           </div>
 
-          <div className="mt-5 grid gap-3 md:grid-cols-3">
-            <Link to={kids.length ? `/edit-kid/${dashboardSelectedKidId || kids[0]?.id}` : '/add-kid'} className="group rounded-xl border border-white bg-white/90 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-200">
-              <div className="flex items-center justify-between gap-3"><span className="grid h-8 w-8 place-items-center rounded-full bg-brand-100 text-sm font-black text-brand-800">1</span>{kids.length > 0 && <CheckCircle2 className="h-5 w-5 text-emerald-600" />}</div>
-              <h3 className="mt-3 font-black text-slate-950">{kids.length ? 'Profile ready' : 'Add the person you support'}</h3>
-              <p className="mt-1 text-sm leading-5 text-slate-600">{kids.length ? 'You can review or update the selected profile.' : 'Create a child or adult profile using the information that helps you provide support.'}</p>
-            </Link>
+          <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.75fr)]">
+            <ol className="rounded-xl border border-white bg-white/90 p-4 shadow-sm" aria-label="Quick Start progress">
+              {[
+                { number: 1, title: 'Add the person you support', complete: quickStartHasProfile },
+                { number: 2, title: 'Create one visual activity', complete: quickStartHasActivity },
+                { number: 3, title: 'Preview the learner experience', complete: false },
+              ].map(step => {
+                const active = step.number === quickStartStep;
+                return <li key={step.number} className={`flex items-center gap-3 py-2.5 ${step.number > 1 ? 'border-t border-slate-100' : ''}`} aria-current={active ? 'step' : undefined}>
+                  <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-sm font-black ${step.complete ? 'bg-emerald-100 text-emerald-700' : active ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-500'}`}>{step.complete ? <CheckCircle2 className="h-5 w-5" /> : step.number}</span>
+                  <span className={`font-bold ${active ? 'text-slate-950' : step.complete ? 'text-emerald-800' : 'text-slate-500'}`}>{step.title}</span>
+                  {active && <span className="ml-auto text-[10px] font-black uppercase tracking-wider text-brand-700">Next</span>}
+                </li>;
+              })}
+            </ol>
 
-            {kids.length > 0 ? <Link to={`/assigned-activities/${dashboardSelectedKidId || kids[0]?.id}`} className="group rounded-xl border border-white bg-white/90 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-200">
-              <div className="flex items-center justify-between gap-3"><span className="grid h-8 w-8 place-items-center rounded-full bg-brand-100 text-sm font-black text-brand-800">2</span>{activityCount !== null && activityCount > 0 ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <ArrowRight className="h-5 w-5 text-brand-600 transition group-hover:translate-x-1" />}</div>
-              <h3 className="mt-3 font-black text-slate-950">{activityCount !== null && activityCount > 0 ? 'Visual activity ready' : 'Create the first activity'}</h3>
-              <p className="mt-1 text-sm leading-5 text-slate-600">Open Activities, add one meaningful activity, and break it into small concrete steps.</p>
-            </Link> : <div className="rounded-xl border border-dashed border-slate-200 bg-white/60 p-4 opacity-70">
-              <span className="grid h-8 w-8 place-items-center rounded-full bg-slate-100 text-sm font-black text-slate-500">2</span><h3 className="mt-3 font-black text-slate-700">Create the first activity</h3><p className="mt-1 text-sm leading-5 text-slate-500">This becomes available after you add a profile.</p>
-            </div>}
-
-            {kids.length > 0 ? <Link to={`/kids-dashboard/${dashboardSelectedKidId || kids[0]?.id}`} className="group rounded-xl border border-white bg-white/90 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-200">
-              <div className="flex items-center justify-between gap-3"><span className="grid h-8 w-8 place-items-center rounded-full bg-brand-100 text-sm font-black text-brand-800">3</span><Eye className="h-5 w-5 text-brand-600" /></div>
-              <h3 className="mt-3 font-black text-slate-950">Preview the learner experience</h3>
-              <p className="mt-1 text-sm leading-5 text-slate-600">See exactly how the selected profile and activities appear before handing over the device.</p>
-            </Link> : <div className="rounded-xl border border-dashed border-slate-200 bg-white/60 p-4 opacity-70">
-              <span className="grid h-8 w-8 place-items-center rounded-full bg-slate-100 text-sm font-black text-slate-500">3</span><h3 className="mt-3 font-black text-slate-700">Preview the learner experience</h3><p className="mt-1 text-sm leading-5 text-slate-500">Preview becomes available after a profile is created.</p>
-            </div>}
+            <div className="relative rounded-xl border border-brand-200 bg-white p-5 shadow-sm">
+              <span className="text-[11px] font-black uppercase tracking-[0.16em] text-brand-700">Step {quickStartStep} of 3</span>
+              <h3 className="mt-2 text-lg font-black text-slate-950">{quickStartAction.label}</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600">{quickStartAction.help}</p>
+              <Link to={quickStartAction.href} className="mt-4 inline-flex">
+                <Button>{quickStartAction.label}{quickStartStep === 3 ? <Eye className="ml-2 h-4 w-4" /> : <ArrowRight className="ml-2 h-4 w-4" />}</Button>
+              </Link>
+              <p className="mt-3 text-xs leading-5 text-slate-500">You will use the same screen and form available elsewhere in Visual Steps—this guide only takes you to the next action.</p>
+            </div>
           </div>
 
-          {activityCount !== null && activityCount > 0 && <div className="mt-4 flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-black text-emerald-900">Your first visual activity is ready.</p><p className="mt-0.5 text-sm text-emerald-800">Preview what the child or adult will see, or continue creating activities when they are useful.</p></div><button type="button" onClick={dismissQuickStart} className="shrink-0 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-800">Finish Quick Start</button></div>}
+          {quickStartHasActivity && <div className="mt-4 flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-black text-emerald-900">Your first visual activity is ready.</p><p className="mt-0.5 text-sm text-emerald-800">Preview the real learner experience, then finish Quick Start when the wording, pictures, and steps feel clear.</p></div><button type="button" onClick={dismissQuickStart} className="shrink-0 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-800">Finish Quick Start</button></div>}
         </section>
       )}
 

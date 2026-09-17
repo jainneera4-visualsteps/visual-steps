@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { clearAuthSession, isAuthError } from '../utils/auth';
-import { endGuestSession, guestProfile, isGuestSession, onGuestSessionChange } from '../guest/guestSession';
+import { endGuestSession, GUEST_PARENT_ID, guestProfile, isGuestSession, onGuestSessionChange } from '../guest/guestSession';
 
 interface User {
   id: string;
@@ -58,6 +58,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const syncGuest = () => {
       if (isGuestSession()) {
         setUser(guestProfile);
+        setIsLoading(false);
+      } else if (userRef.current?.id === GUEST_PARENT_ID) {
+        setUser(null);
         setIsLoading(false);
       }
     };

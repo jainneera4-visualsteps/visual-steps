@@ -75,15 +75,13 @@ test('demo narration is generated only by an explicit maintenance command', asyn
   assert.doesNotMatch(await read('../src/components/ProductDemoVideo.tsx'), /GoogleGenAI|generativelanguage\.googleapis\.com/);
 });
 
-test('the demo uses current onboarding captures and the capture workflow includes learner view', async () => {
-  const [demo, capture] = await Promise.all([
-    read('../src/components/ProductDemoVideo.tsx'),
-    read('../scripts/capture-onboarding-screenshots.mjs'),
-  ]);
-
-  for (const image of ['dashboard.png', 'child-profile.png', 'activities.png', 'activity-verification.png', 'behavior-bonuses.png', 'quiz-attempt.png', 'worksheets.png', 'social-stories.png', 'progress.png', 'newsletter.png', 'community-publishing.png', 'data-management.png', 'child-dashboard.png']) {
+test('the demo uses only real screens from the focused Guest Login journey', async () => {
+  const demo = await read('../src/components/ProductDemoVideo.tsx');
+  for (const image of ['01-start.jpg', '02-edit.jpg', '03-learner.jpg', '04-add-reward.jpg', '05-recognition.jpg', '06-sign-up.jpg']) {
     assert.match(demo, new RegExp(image.replace('.', '\\.')));
   }
-  for (const captureName of ['worksheets', 'social-stories', 'child-dashboard', 'newsletter']) assert.match(capture, new RegExp(captureName));
-  assert.match(capture, /newsletter\/issues\/2026-08-24/);
+  for (const oldImage of ['dashboard.png', 'child-profile.png', 'activities.png', 'activity-verification.png', 'behavior-bonuses.png', 'quiz-attempt.png', 'worksheets.png', 'social-stories.png', 'progress.png', 'newsletter.png', 'community-publishing.png', 'data-management.png', 'child-dashboard.png']) {
+    assert.doesNotMatch(demo, new RegExp(oldImage.replace('.', '\\.')));
+  }
+  assert.equal((demo.match(/id: 'guest-/g) || []).length, 6);
 });

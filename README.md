@@ -38,11 +38,10 @@ Real-time Socket.IO events keep the parent and child experiences synchronized wh
 ## Technology
 
 - React 19, TypeScript, React Router, and Vite
-- Tailwind CSS 4, Lucide icons, Framer Motion, and Recharts
+- Tailwind CSS 4, Lucide icons, Motion, and Recharts
 - Express and Socket.IO
 - Supabase Auth and PostgreSQL with row-level security
 - Google Gemini through `@google/genai`
-- jsPDF and html2canvas for printable/exportable resources
 - Vercel-compatible build and routing configuration
 
 ## Project structure
@@ -131,9 +130,9 @@ Supabase sends the reset-link email, so configure Supabase Auth SMTP for reliabl
 
 Contact-page submissions are stored in `support_messages` before the application attempts its administrator notification email. Approved administrators can open **Admin → Support Inbox** to review unread, open, and resolved conversations, reply by email, and retain the latest reply with the support record. The **Compose message** section displays database-backed parent names, emails, account statuses, and signup dates and can send Visual Steps updates, general announcements, or account information to all signed-up parents or selected accounts. Recipient addresses remain private through BCC batches, and delivery totals are retained for administrator review. Run `database_updates/2026-09-02_support_inbox.sql` and `database_updates/2026-09-02_support_inbox_outbound.sql` before deploying this feature. The inbox uses the server-side Supabase service role and is never available to browser clients directly.
 
-### Consultation scheduling
+### Parent contact and community sharing
 
-The public **Contact & Support** page combines direct messages, private-call requests, and group-session registration. Signed-in parents also have a standard **Connect** workspace with two focused choices. **Contact** lists every message sent from their account, shows whether it was sent, read and being worked on, or resolved, and displays any Visual Steps reply. The top-right **Send Message** button opens the contact form. An administrator explicitly selects **Mark Read & Working On It** before that status appears to the parent. **Share with the Community** lists the parent's saved and submitted items in a paginated grid; **Share Item** opens the contribution form, while row actions continue drafts or revise pending and rejected items. Approved items are locked and cannot be edited or resubmitted. Administrators publish recurring private-call availability by selecting multiple weekdays, a start/end time window, a configurable call length, and a timezone. A parent selects a matching date and then chooses one of the automatically generated times for administrator confirmation. The administration calendar shows consultation bookings and lets the administrator block or reopen individual dates without removing the weekly schedule. Group sessions use a fixed date and configurable capacity. Administrators add Google Meet, Microsoft Teams, Zoom, phone, or other meeting details before confirming a booking. Signed-in and guest parents can request a place; all consultation requests require email verification within 24 hours. Group registration includes a privacy acknowledgement and never exposes participant addresses. Run `database_updates/2026-09-03_consultation_scheduler.sql` before deploying the scheduler.
+The public footer **Contact** page uses the same focused message form as the signed-in parent workspace. A guest visitor enters a name, email address, subject, and message; signed-in parents continue to have their account details filled automatically. In **Connect**, **Contact** lists every message sent from the parent's account, shows whether it was sent, read and being worked on, or resolved, and displays any Visual Steps reply. The top-right **Send Message** button opens the matching form. An administrator explicitly selects **Mark Read & Working On It** before that status appears to the parent. **Share with the Community** lists the parent's saved and submitted items in a paginated grid; **Share Item** opens the contribution form, while row actions continue drafts or revise pending and rejected items. Approved items are locked and cannot be edited or resubmitted.
 
 The **Weekly Archive** follows the Rewards Catalog presentation: a compact page heading, month selector, and four-column catalog of vertical issue cards. Each card highlights actual contents from that issue. Selecting a card opens the complete newsletter in a large modal window, so closing it returns directly to the archive. **Subscribe Newsletter** follows the Add/Edit Activity form pattern with Back to List, a compact Subscription Details header, top-right Cancel and Subscribe actions, and standard form spacing. For a signed-in parent with an active subscription, the Newsletter submenu automatically changes from **Subscribe Newsletter** to **Unsubscribe Newsletter**. Unsubscribing is scoped to the signed-in account, stops future weekly email delivery, and leaves the published archive available.
 
@@ -178,7 +177,6 @@ For the Vercel Production environment, set `APP_URL` to `https://visual-steps-si
 | `npm run test:gemini:smoke` | Run the optional, explicitly enabled one-request Gemini text smoke test |
 | `npm run audio:demo:check` | List missing or changed demo narration clips without calling Gemini or spending money |
 | `npm run audio:demo -- --confirm-generation` | Generate only missing or changed Leda demo clips after explicit confirmation |
-| `npm run audio:intro -- --confirm-generation` | Generate only missing or changed Orus introductory-video clips after explicit confirmation |
 | `npm run test:browser` | Run headless Phase 1 Playwright browser tests with mocked API responses |
 | `npm run test:browser:mobile` | Run PWA and responsive-layout tests using iPhone and iPad WebKit emulation |
 | `npm run test:browser:ui` | Open Playwright's interactive browser-test runner |
@@ -218,8 +216,6 @@ Without `RUN_GEMINI_SMOKE_TEST=true`, the test is safely skipped.
 
 The public demo video plays approved audio files from `public/demo-audio`. Normal visitors never call the Gemini API. When the narration script changes, first run `npm run audio:demo:check`; it reports only the clips that need refreshing and does not generate audio. After adding `GEMINI_API_KEY` to the local `.env` file and reviewing that list, run `npm run audio:demo -- --confirm-generation`. Gemini 3.1 Flash TTS generates the narration with the Leda voice. Unchanged clips are reused, the new WAV files and manifest are saved with the application, and the browser falls back to a selected device voice until recorded clips are installed.
 
-The shorter introductory video follows the same one-time workflow but keeps its audio separate in `public/intro-audio`. Run `npm run audio:intro:check` before `npm run audio:intro -- --confirm-generation`. Its saved clips use the Orus voice and are replayed locally; opening or replaying the video does not call Gemini.
-
 ## Install on iPhone or iPad
 
 Visual Steps is configured as a Progressive Web App (PWA). After deploying over HTTPS, open the site in Safari, tap **Share**, choose **Add to Home Screen**, and confirm **Add**. The installed icon launches Visual Steps in a standalone app-style window. API and Supabase operations still require a network connection; the service worker only provides the application shell and static assets during a temporary outage.
@@ -258,11 +254,11 @@ This section is generated from `feature-registry.json`. Update the registry when
 | Positive behavior bonuses | starter | 2026-08-20 | — | Parents can recognize a specific calm, focused, helpful, or persistent behavior. |
 | Personalized, fair quizzes | starter | 2026-08-20 | 2026-08-24 | Quiz creation now connects every quiz to a measurable learning objective, lets parents privately try it as the learner, controls illustration use, and turns completed answers into practical planning guidance. |
 | Curated learning samples | starter | 2026-08-21 | 2026-09-02 | Parents can see one shared daily allowance for AI-created quizzes, worksheets, and social stories, with the exact local time when creation becomes available again. |
-| Parent Quick Start and replayable tour | starter | 2026-08-20 | 2026-09-10 | A three-step Quick Start helps parents prepare and preview their first visual activity without forcing the detailed product tour. |
+| Parent Quick Start and replayable tour | starter | 2026-08-20 | 2026-09-16 | A focused three-step Quick Start guides parents through one real profile, activity, and learner preview without introducing a separate setup interface. |
 | Visual Steps Parent Assistant | family | 2026-08-20 | 2026-09-01 | The assistant keeps the current day’s conversation until 7:00 AM, offers Copy and Listen controls, and can search current venue information when a parent plans an outing for their child or adult learner. |
 | Controlled social-story sharing | family | 2026-08-19 | — | Share one social story using a private link that can expire or be revoked. |
 | Parent stories and community publishing | starter | 2026-08-25 | 2026-09-15 | Connect now keeps parent messages, community contributions, newsletter subscriptions, and a clearer weekly archive together. |
-| Narrated tour and temporary Guest Login | starter | 2026-08-21 | 2026-08-27 | Visitors can now watch a friendly, chapter-based Visual Steps presentation directly on the Home page before entering Guest Login. |
+| Narrated tour and temporary Guest Login | starter | 2026-08-21 | 2026-09-16 | Guest Login now guides visitors through one suggested activity instead of a long sequence of screen callouts. |
 | Adaptive place-value learning games | starter | 2026-09-03 | — | Practice place value through four focused games with five levels, automatic progression, optional assignment, personalized companions, and parent-visible scores. |
 | Learning, progress, and meaningful rewards | starter | 2026-03-15 | — | Create personalized resources, understand progress, and connect earned rewards to meaningful goals. |
 | Parent-controlled activity and rewards history | starter | 2026-08-24 | — | Review a learner’s recent activity and reward history, open grouped details, and selectively remove history that is no longer useful. |
@@ -271,6 +267,8 @@ This section is generated from `feature-registry.json`. Update the registry when
 
 | Updated | Feature | Improvement | Family-facing summary |
 | --- | --- | --- | --- |
+| 2026-09-16 | Parent Quick Start and replayable tour | A simpler first experience for parents | A focused three-step Quick Start guides parents through one real profile, activity, and learner preview without introducing a separate setup interface. |
+| 2026-09-16 | Narrated tour and temporary Guest Login | A focused guest activity trial without signup | Guest Login now guides visitors through one suggested activity instead of a long sequence of screen callouts. |
 | 2026-09-15 | Parent stories and community publishing | One Connect area for contact, community, and newsletters | Connect now keeps parent messages, community contributions, newsletter subscriptions, and a clearer weekly archive together. |
 | 2026-09-12 | Clear visual activities | A clearer parent workspace as Visual Steps grows | Stable parent navigation groups related tools without turning every new feature into another top-level menu. |
 | 2026-09-12 | Clear visual activities | A calm way to ask for help | Learners see a familiar picture-led prompt for asking a nearby parent or caregiver for help. |
@@ -279,7 +277,6 @@ This section is generated from `feature-registry.json`. Update the registry when
 | 2026-09-11 | Clear visual activities | Flexible activity meanings and learner choice | Parents use Learner Can Choose or Do Today, while learners choose from one clear activity view. |
 | 2026-09-11 | Clear visual activities | Calm time guidance without a rigid schedule | Parents can add suggested periods or exact times, while learners see what is relevant now without facing one long schedule. |
 | 2026-09-11 | Clear visual activities | A compact activity form that keeps the essentials in view | Activity meaning, rewards, verification, timing, and repetition remain visible in compact rows without large settings panels. |
-| 2026-09-10 | Parent Quick Start and replayable tour | A simpler first experience for parents | A three-step Quick Start helps parents prepare and preview their first visual activity without forcing the detailed product tour. |
 | 2026-09-02 | Curated learning samples | Predictable allowance for AI learning materials | Parents can see one shared daily allowance for AI-created quizzes, worksheets, and social stories, with the exact local time when creation becomes available again. |
 | 2026-09-01 | Visual Steps Parent Assistant | Daily Parent Assistant history and outing planning | The assistant keeps the current day’s conversation until 7:00 AM, offers Copy and Listen controls, and can search current venue information when a parent plans an outing for their child or adult learner. |
 | 2026-08-27 | Parent Quick Start and replayable tour | Guidance that stays current across the app | Parent and guest tours now include current feature guidance from the shared Visual Steps catalog. |

@@ -8,7 +8,6 @@ import { Input } from '../components/Input';
 import { Select } from '../components/Select';
 import { Card, CardContent } from '../components/Card';
 import { ProductDemoVideo } from '../components/ProductDemoVideo';
-import { IntroVideo } from '../components/IntroVideo';
 import { HomeIllustrationSlideshow } from '../components/HomeIllustrationSlideshow';
 import { AlertCircle, ArrowUpRight, Facebook, Instagram, ListTodo, Mail, Search, ShieldCheck, TrendingUp, UserRound, Eye, EyeOff } from 'lucide-react';
 import { startGuestSession } from '../guest/guestSession';
@@ -399,7 +398,7 @@ export default function Home() {
                 </CardContent>
               </Card>
               <div className="min-w-0">
-                <IntroVideo />
+                <ProductDemoVideo />
               </div>
             </div>
           </div>
@@ -443,18 +442,7 @@ export default function Home() {
             </div>
           </section>
 
-          <div className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
-            <section className="min-w-0">
-              <div className="max-w-3xl">
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-brand-700">See how Visual Steps works</p>
-                <h2 className="mt-2 text-3xl font-black text-slate-950">Explore at your own pace</h2>
-                <p className="mt-2 text-sm leading-7 text-slate-600">Open the narrated tour for a closer look at the parent and learner experience.</p>
-              </div>
-              <div className="mt-5 space-y-5">
-                <div className="min-w-0"><ProductDemoVideo /></div>
-              </div>
-            </section>
-
+          <div className="mt-8">
           <section className="rounded-3xl border border-brand-100 bg-white/75 p-5 shadow-sm sm:p-7">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.2em] text-brand-700">Explore, learn, and stay connected</p>

@@ -16,7 +16,7 @@ export const guestProfile = {
   onboarding_completed: true,
 };
 
-const kid = {
+const seedKid = {
   id: GUEST_KID_ID,
   user_id: GUEST_PARENT_ID,
   name: 'Alex',
@@ -41,6 +41,7 @@ const kid = {
   theme: 'sky',
   can_print: true,
 };
+let kid = structuredClone(seedKid);
 
 let activities: Array<Record<string, any>> = [
   { id: '31111111-1111-4111-8111-111111111111', kid_id: GUEST_KID_ID, activity_type: 'Morning routine', category: 'Daily Living', repeat_frequency: 'Daily', time_of_day: 'Morning', description: 'Brush teeth, get dressed, and pack the backpack.', link: '', image_url: '/illustrations/activities/morning-routine.webp', status: 'pending', requires_verification: true, due_date: today(), reward_qty: 2, steps: [{ id: 1, step_number: 1, description: 'Brush teeth', image_url: '/illustrations/activities/morning-routine.webp' }, { id: 2, step_number: 2, description: 'Get dressed', image_url: '/illustrations/activities/morning-routine.webp' }, { id: 3, step_number: 3, description: 'Pack backpack', image_url: '/illustrations/activities/morning-routine.webp' }] },
@@ -49,6 +50,7 @@ let activities: Array<Record<string, any>> = [
   { id: '34444444-4444-4444-8444-444444444444', kid_id: GUEST_KID_ID, activity_type: 'Math practice', category: 'Learning', repeat_frequency: 'None', time_of_day: 'Evening', description: 'Complete five fraction questions.', link: '', image_url: '/illustrations/activities/math-practice.webp', status: 'completed', requires_verification: false, completion_date: now(), due_date: today(), reward_qty: 2, steps: [{ id: 10, step_number: 1, description: 'Read each fraction question slowly', image_url: '/illustrations/activities/math-practice.webp' }, { id: 11, step_number: 2, description: 'Use a drawing if it helps', image_url: '/illustrations/activities/math-practice.webp' }, { id: 12, step_number: 3, description: 'Check each answer once', image_url: '/illustrations/activities/math-practice.webp' }] },
 ];
 const seedActivities = structuredClone(activities);
+let nextGuestStepId = 1000;
 
 const seedMessages = [{ id: '91111111-1111-4111-8111-111111111111', kid_id: GUEST_KID_ID, user_id: GUEST_PARENT_ID, message: kid.parent_message, created_at: now() }];
 let messages = structuredClone(seedMessages);
@@ -60,17 +62,23 @@ const seedReviewItems = [
 let reviewItems = structuredClone(seedReviewItems);
 let dataReviewMonths = 12;
 
-const rewardItems = [{ id: '41111111-1111-4111-8111-111111111111', kid_id: GUEST_KID_ID, name: 'Choose family game', cost: 6, location: 'Home', is_active: true, image_url: '' }];
-const bonuses = [{ id: '51111111-1111-4111-8111-111111111111', kid_id: GUEST_KID_ID, behavior_reason: 'Trying again calmly', reward_amount: 2, awarded_at: now() }];
+const seedRewardItems = [{ id: '41111111-1111-4111-8111-111111111111', kid_id: GUEST_KID_ID, name: 'Choose family game', cost: 6, location: 'Home', is_active: true, image_url: '' }];
+let rewardItems = structuredClone(seedRewardItems);
+const seedBonuses = [{ id: '51111111-1111-4111-8111-111111111111', kid_id: GUEST_KID_ID, behavior_reason: 'Trying again calmly', reward_amount: 2, awarded_at: now() }];
+let bonuses = structuredClone(seedBonuses);
 const sampleQuiz = { id: '61111111-1111-4111-8111-111111111111', user_id: GUEST_PARENT_ID, kid_id: GUEST_KID_ID, title: 'Space Explorer Sample Quiz', topic: 'The solar system', difficulty: 'Easy', grade_level: '5th', content: JSON.stringify({ questions: [{ question: 'Which planet is known as the Red Planet?', options: ['Earth', 'Mars', 'Venus', 'Jupiter'], answer: 'Mars' }] }), created_at: now(), is_sample: true };
 const sampleWorksheet = { id: '71111111-1111-4111-8111-111111111111', user_id: GUEST_PARENT_ID, kid_id: GUEST_KID_ID, title: 'Calm Morning Sequence', topic: 'Daily routines', subject: 'Life Skills', grade_level: 'All levels', worksheet_type: 'Sequencing', content: 'Number the morning steps in the order that works best for you.', created_at: now(), is_sample: true };
 const sampleStory = { id: '81111111-1111-4111-8111-111111111111', user_id: GUEST_PARENT_ID, kid_id: GUEST_KID_ID, title: 'Trying Something New', content: 'Sometimes a new activity feels uncertain. I can look at the first step, ask for help, and try at my own pace.', created_at: now(), updated_at: now(), is_sample: true };
 
 export function startGuestSession() {
+  kid = structuredClone(seedKid);
   activities = structuredClone(seedActivities);
+  rewardItems = structuredClone(seedRewardItems);
+  bonuses = structuredClone(seedBonuses);
   messages = structuredClone(seedMessages);
   reviewItems = structuredClone(seedReviewItems);
   dataReviewMonths = 12;
+  nextGuestStepId = 1000;
   active = true;
   window.dispatchEvent(new Event(CHANGE_EVENT));
 }
@@ -90,6 +98,35 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 const bodyOf = (init?: RequestInit) => {
   try { return init?.body ? JSON.parse(String(init.body)) : {}; } catch { return {}; }
 };
+
+const normalizeGuestActivity = (body: Record<string, any>, current: Record<string, any> = {}) => ({
+  ...current,
+  ...body,
+  activity_type: body.activityType ?? body.activity_type ?? current.activity_type ?? '',
+  category: body.category ?? current.category ?? '',
+  description: body.description ?? current.description ?? '',
+  repeat_frequency: body.repeatFrequency ?? body.repeat_frequency ?? current.repeat_frequency ?? 'Never',
+  repeat_interval: body.repeat_interval ?? body.repeatInterval ?? current.repeat_interval ?? null,
+  repeat_unit: body.repeat_unit ?? body.repeatUnit ?? current.repeat_unit ?? null,
+  repeats_till: body.repeatsTill ?? body.repeats_till ?? current.repeats_till ?? null,
+  time_of_day: body.timeOfDay ?? body.time_of_day ?? current.time_of_day ?? 'Any time',
+  time_guidance: body.timeGuidance ?? body.time_guidance ?? current.time_guidance ?? 'suggested',
+  exact_time: body.exactTime ?? body.exact_time ?? current.exact_time ?? '',
+  preparation_minutes: body.preparationMinutes ?? body.preparation_minutes ?? current.preparation_minutes ?? 0,
+  after_time_passes: body.afterTimePasses ?? body.after_time_passes ?? current.after_time_passes ?? 'keep_available',
+  image_url: body.imageUrl ?? body.image_url ?? current.image_url ?? '',
+  due_date: body.dueDate ?? body.due_date ?? current.due_date ?? today(),
+  requires_verification: body.requiresVerification ?? body.requires_verification ?? current.requires_verification ?? false,
+  activity_meaning: body.activityMeaning ?? body.activity_meaning ?? current.activity_meaning ?? 'available_choice',
+  reward_qty: Math.max(1, Number(body.rewardQty ?? body.reward_qty ?? current.reward_qty) || 1),
+  steps: (body.steps ?? current.steps ?? []).map((step: Record<string, any>, index: number) => ({
+    ...step,
+    id: step.id ?? nextGuestStepId++,
+    step_number: step.step_number ?? index + 1,
+    is_completed: step.is_completed === true,
+    completed_at: step.completed_at ?? null,
+  })),
+});
 
 export async function guestApiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const raw = input instanceof Request ? input.url : input.toString();
@@ -115,39 +152,125 @@ export async function guestApiFetch(input: RequestInfo | URL, init?: RequestInit
     return json({ success: true, deleted: keys.size });
   }
   if (path === '/api/kids' && method === 'GET') return json({ kids: [kid] });
-  if (path === '/api/kids' && method === 'POST') return json({ kid: { ...kid, ...body } }, 201);
-  if (path === `/api/kids/${GUEST_KID_ID}`) return json(method === 'DELETE' ? { success: true } : { kid: { ...kid, ...body } });
-  if (path.endsWith('/messages')) {
+  if (path === '/api/kids' && method === 'POST') {
+    kid = { ...kid, ...body, id: GUEST_KID_ID, user_id: GUEST_PARENT_ID };
+    return json({ kid }, 201);
+  }
+  if (path === `/api/kids/${GUEST_KID_ID}`) {
+    if (method === 'DELETE') return json({ success: true });
+    if (method === 'PUT' || method === 'PATCH') kid = { ...kid, ...body };
+    return json({ kid });
+  }
+  const kidMessagesMatch = path.match(/^\/api\/kids\/([^/]+)\/messages(?:\/([^/]+))?$/);
+  if (kidMessagesMatch && decodeURIComponent(kidMessagesMatch[1]) === GUEST_KID_ID) {
     if (method === 'GET') return json({ messages });
-    if (method === 'POST') {
+    if (method === 'POST' && !kidMessagesMatch[2]) {
       const message = { id: crypto.randomUUID(), kid_id: GUEST_KID_ID, user_id: GUEST_PARENT_ID, message: body.message, created_at: now() };
       messages = [message, ...messages];
       return json({ message }, 201);
     }
-    if (method === 'DELETE') {
-      const messageId = path.split('/').pop();
+    if (method === 'DELETE' && kidMessagesMatch[2]) {
+      const messageId = decodeURIComponent(kidMessagesMatch[2]);
       messages = messages.filter((message) => message.id !== messageId);
       return json({ success: true });
     }
   }
+  if (/^\/api\/activity-steps\/[^/]+\/completion$/.test(path) && method === 'PUT') {
+    const stepId = decodeURIComponent(path.split('/')[3]);
+    let updatedStep: Record<string, any> | null = null;
+    let activityFound = false;
+    activities = activities.map(activity => {
+      const hasStep = (activity.steps || []).some((step: Record<string, any>) => String(step.id) === stepId);
+      if (!hasStep) return activity;
+      activityFound = true;
+      if (activity.status !== 'pending') return activity;
+      const completedAt = body.isCompleted === true ? now() : null;
+      const steps = (activity.steps || []).map((step: Record<string, any>) => {
+        if (String(step.id) !== stepId) return step;
+        updatedStep = { ...step, is_completed: body.isCompleted === true, completed_at: completedAt };
+        return updatedStep;
+      });
+      return { ...activity, steps };
+    });
+    if (!activityFound) return json({ error: 'Activity step not found.' }, 404);
+    if (!updatedStep) return json({ error: 'Only steps in an available activity can be changed.' }, 409);
+    return json({ step: updatedStep });
+  }
   if (path.startsWith('/api/activities/') && method === 'PUT') {
     const id = path.split('/').pop();
-    activities = activities.map((item) => item.id === id ? { ...item, ...body, reward_qty: Math.max(1, Number(body.rewardQty ?? body.reward_qty ?? item.reward_qty) || 1), status: body.status || item.status, completion_date: body.status === 'completed' ? now() : body.status === 'pending' ? null : item.completion_date } : item);
+    activities = activities.map((item) => item.id === id ? { ...normalizeGuestActivity(body, item), status: body.status || item.status, completion_date: body.status === 'completed' ? now() : body.status === 'pending' ? null : item.completion_date } : item);
     return json({ activity: activities.find((item) => item.id === id) });
   }
   if (path.startsWith('/api/activities/') && method === 'DELETE') { activities = activities.filter((item) => item.id !== path.split('/').pop()); return json({ success: true }); }
   if (path.includes('/activities')) {
     if (method === 'POST') {
-      const activity = { ...body, id: crypto.randomUUID(), kid_id: GUEST_KID_ID, reward_qty: Math.max(1, Number(body.rewardQty ?? body.reward_qty) || 1), status: body.status || 'pending', due_date: body.dueDate || body.due_date || today(), steps: body.steps || [] };
+      const activity = { ...normalizeGuestActivity(body), id: crypto.randomUUID(), kid_id: GUEST_KID_ID, status: body.status || 'pending' };
       activities = [...activities, activity];
       return json({ activity }, 201);
     }
     return json({ activities, completedTodayCount: activities.filter((item) => item.status === 'completed' && item.completion_date?.startsWith(today())).length });
   }
   if (path.includes('/activity-history')) return json({ history: activities.filter((item) => item.status === 'completed').map((item) => ({ ...item, activity_history_steps: item.steps || [] })) });
-  if (path.includes('/behavior-bonuses')) return json({ awards: bonuses });
-  if (path.includes('/reward-items')) return json({ items: rewardItems });
-  if (path.endsWith('/buy')) return json({ success: true, balance: kid.reward_balance - Number(body.quantity || 0) });
+  if (path === `/api/kids/${GUEST_KID_ID}/behavior-bonuses`) {
+    if (method === 'POST') {
+      const rewardAmount = Math.max(1, Math.floor(Number(body.rewardAmount) || 1));
+      const award = {
+        id: crypto.randomUUID(),
+        kid_id: GUEST_KID_ID,
+        behavior_reason: String(body.behaviorReason || 'Positive recognition').trim(),
+        reward_amount: rewardAmount,
+        awarded_at: now(),
+      };
+      bonuses = [award, ...bonuses];
+      kid = { ...kid, reward_balance: Number(kid.reward_balance || 0) + rewardAmount };
+      return json({ award, rewardBalance: kid.reward_balance }, 201);
+    }
+    return json({ awards: bonuses });
+  }
+  if (path === `/api/kids/${GUEST_KID_ID}/reward-items`) {
+    if (method === 'POST') {
+      const item = {
+        id: crypto.randomUUID(),
+        kid_id: GUEST_KID_ID,
+        name: String(body.name || '').trim(),
+        cost: Math.max(1, Number(body.cost) || 1),
+        location: body.location || '',
+        is_active: body.is_active !== false,
+        image_url: body.imageUrl ?? body.image_url ?? '',
+      };
+      rewardItems = [...rewardItems, item];
+      return json({ item }, 201);
+    }
+    const onlyActive = url.searchParams.get('onlyActive') === 'true';
+    return json({ items: onlyActive ? rewardItems.filter(item => item.is_active !== false) : rewardItems });
+  }
+  if (path.startsWith('/api/reward-items/')) {
+    const itemId = decodeURIComponent(path.split('/').pop() || '');
+    if (method === 'PUT') {
+      let updatedItem: typeof rewardItems[number] | undefined;
+      rewardItems = rewardItems.map(item => {
+        if (item.id !== itemId) return item;
+        updatedItem = {
+          ...item,
+          ...body,
+          cost: Math.max(1, Number(body.cost ?? item.cost) || 1),
+          image_url: body.imageUrl ?? body.image_url ?? item.image_url ?? '',
+          is_active: body.is_active !== false,
+        };
+        return updatedItem;
+      });
+      return updatedItem ? json({ item: updatedItem }) : json({ error: 'Reward item not found.' }, 404);
+    }
+    if (method === 'DELETE') {
+      const existed = rewardItems.some(item => item.id === itemId);
+      rewardItems = rewardItems.filter(item => item.id !== itemId);
+      return existed ? json({ success: true }) : json({ error: 'Reward item not found.' }, 404);
+    }
+  }
+  if (path.endsWith('/buy')) {
+    kid = { ...kid, reward_balance: Math.max(0, Number(kid.reward_balance || 0) - Number(body.quantity || 0)) };
+    return json({ success: true, balance: kid.reward_balance, rewardBalance: kid.reward_balance });
+  }
   if (path === '/api/activity-types') return json({ types: ['Daily Routine', 'Learning', 'Exercise', 'Life Skills'] });
   if (path === '/api/activity-categories') return json({ categories: ['Daily Living', 'Learning', 'Wellbeing', 'Responsibility'] });
   if (path === '/api/activity-templates') return json({ templates: [] });

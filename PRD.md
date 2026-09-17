@@ -164,7 +164,7 @@ Visual Steps provides a shared system in which a parent or caregiver can prepare
 
 - Support keyboard navigation, visible focus states, sufficient contrast, and descriptive labels.
 - Preserve valid Contact-page requests in a protected administrator Support Inbox before attempting notification email delivery. Administrators must be able to distinguish unread, open, and resolved conversations, reply to the sender, and reopen a conversation without accessing family-profile content. Administrators may also send Visual Steps updates, general announcements, or account information to all signed-up parents or selected parent accounts from a database-backed account list; recipient addresses must remain private and delivery totals must be auditable.
-- Give signed-in parents a standard Connect workspace. Contact uses a paginated grid of every message sent from their account, its status, and any Visual Steps reply; the top-right Send Message action opens the contact form using the same focused in-page pattern as Add/Edit Activity. In the administrator Support Inbox, selecting Mark Read & Working On It changes the parent-visible status from Sent to Read — working on it; replying or resolving completes the lifecycle. Share with the Community uses the same list-first pattern for saved and submitted contributions, with a top-right Share Item action and row controls for continuing drafts or revising pending and rejected submissions. Approved community items must be immutable for the parent and cannot be edited or resubmitted through either the interface or API. Private and group consultation functionality remains available from the public Contact & Support page without occupying a parent Support submenu. Administrators can publish multiple recurring weekdays with a start/end window and configurable call length; parents choose a matching date and an automatically generated slot. An administration calendar shows bookings and supports date-specific unavailability. Guest and signed-in parents must verify their email before a request becomes actionable. Administrators control availability, meeting details, status, and private notes; group participants must receive an explicit privacy reminder and must never see one another's contact information.
+- Give signed-in parents a standard Connect workspace. Contact uses a paginated grid of every message sent from their account, its status, and any Visual Steps reply; the top-right Send Message action opens the contact form using the same focused in-page pattern as Add/Edit Activity. The public footer Contact page must use the same focused form and request the guest visitor's name, email address, subject, and message. In the administrator Support Inbox, selecting Mark Read & Working On It changes the parent-visible status from Sent to Read — working on it; replying or resolving completes the lifecycle. Share with the Community uses the same list-first pattern for saved and submitted contributions, with a top-right Share Item action and row controls for continuing drafts or revising pending and rejected submissions. Approved community items must be immutable for the parent and cannot be edited or resubmitted through either the interface or API.
 - Present the Weekly Archive as a responsive catalog matching the Rewards Catalog hierarchy, with a compact icon heading, month selector, grouped count, and issue cards. Present Subscribe Newsletter as a focused Add/Edit Activity-style form with Back to List, a compact details header, standard padding, and visible top-right Cancel and Subscribe actions.
 - Resolve the signed-in parent's newsletter subscription status without exposing subscriber records. Show Subscribe Newsletter when the account is not actively subscribed and Unsubscribe Newsletter when it is active. Authenticated unsubscribe must affect only the signed-in email address and must not remove published archive content.
 - Keep child-facing controls large, consistent, and understandable.
@@ -192,13 +192,13 @@ Visual Steps provides a shared system in which a parent or caregiver can prepare
 | Layer | Current implementation |
 | --- | --- |
 | Web client | React 19, TypeScript, React Router, Vite |
-| Styling and UI | Tailwind CSS, Lucide, Radix Tooltip, Framer Motion |
+| Styling and UI | Tailwind CSS, Lucide, Radix Tooltip, Motion |
 | API server | Express in `server.ts` |
 | Authentication | Supabase Auth for parents; JWT child sessions |
 | Database | Supabase PostgreSQL with row-level security |
 | AI | Google Gemini via `@google/genai` |
 | Real-time updates | Socket.IO on persistent Node deployments |
-| Reporting/export | Recharts, jsPDF, html2canvas |
+| Reporting and visualization | Recharts and application-native printable views |
 | Uploads | Multer and local filesystem in the current implementation |
 | Deployment | Bundled Node server and Vercel configuration |
 
@@ -272,11 +272,11 @@ This section is generated from `feature-registry.json`. Update the registry when
 | Positive behavior bonuses | starter | 2026-08-20 | — | Parents can recognize a specific calm, focused, helpful, or persistent behavior. |
 | Personalized, fair quizzes | starter | 2026-08-20 | 2026-08-24 | Quiz creation now connects every quiz to a measurable learning objective, lets parents privately try it as the learner, controls illustration use, and turns completed answers into practical planning guidance. |
 | Curated learning samples | starter | 2026-08-21 | 2026-09-02 | Parents can see one shared daily allowance for AI-created quizzes, worksheets, and social stories, with the exact local time when creation becomes available again. |
-| Parent Quick Start and replayable tour | starter | 2026-08-20 | 2026-09-10 | A three-step Quick Start helps parents prepare and preview their first visual activity without forcing the detailed product tour. |
+| Parent Quick Start and replayable tour | starter | 2026-08-20 | 2026-09-16 | A focused three-step Quick Start guides parents through one real profile, activity, and learner preview without introducing a separate setup interface. |
 | Visual Steps Parent Assistant | family | 2026-08-20 | 2026-09-01 | The assistant keeps the current day’s conversation until 7:00 AM, offers Copy and Listen controls, and can search current venue information when a parent plans an outing for their child or adult learner. |
 | Controlled social-story sharing | family | 2026-08-19 | — | Share one social story using a private link that can expire or be revoked. |
 | Parent stories and community publishing | starter | 2026-08-25 | 2026-09-15 | Connect now keeps parent messages, community contributions, newsletter subscriptions, and a clearer weekly archive together. |
-| Narrated tour and temporary Guest Login | starter | 2026-08-21 | 2026-08-27 | Visitors can now watch a friendly, chapter-based Visual Steps presentation directly on the Home page before entering Guest Login. |
+| Narrated tour and temporary Guest Login | starter | 2026-08-21 | 2026-09-16 | Guest Login now guides visitors through one suggested activity instead of a long sequence of screen callouts. |
 | Adaptive place-value learning games | starter | 2026-09-03 | — | Practice place value through four focused games with five levels, automatic progression, optional assignment, personalized companions, and parent-visible scores. |
 | Learning, progress, and meaningful rewards | starter | 2026-03-15 | — | Create personalized resources, understand progress, and connect earned rewards to meaningful goals. |
 | Parent-controlled activity and rewards history | starter | 2026-08-24 | — | Review a learner’s recent activity and reward history, open grouped details, and selectively remove history that is no longer useful. |
@@ -285,6 +285,8 @@ This section is generated from `feature-registry.json`. Update the registry when
 
 | Updated | Feature | Improvement | Family-facing summary |
 | --- | --- | --- | --- |
+| 2026-09-16 | Parent Quick Start and replayable tour | A simpler first experience for parents | A focused three-step Quick Start guides parents through one real profile, activity, and learner preview without introducing a separate setup interface. |
+| 2026-09-16 | Narrated tour and temporary Guest Login | A focused guest activity trial without signup | Guest Login now guides visitors through one suggested activity instead of a long sequence of screen callouts. |
 | 2026-09-15 | Parent stories and community publishing | One Connect area for contact, community, and newsletters | Connect now keeps parent messages, community contributions, newsletter subscriptions, and a clearer weekly archive together. |
 | 2026-09-12 | Clear visual activities | A clearer parent workspace as Visual Steps grows | Stable parent navigation groups related tools without turning every new feature into another top-level menu. |
 | 2026-09-12 | Clear visual activities | A calm way to ask for help | Learners see a familiar picture-led prompt for asking a nearby parent or caregiver for help. |
@@ -293,7 +295,6 @@ This section is generated from `feature-registry.json`. Update the registry when
 | 2026-09-11 | Clear visual activities | Flexible activity meanings and learner choice | Parents use Learner Can Choose or Do Today, while learners choose from one clear activity view. |
 | 2026-09-11 | Clear visual activities | Calm time guidance without a rigid schedule | Parents can add suggested periods or exact times, while learners see what is relevant now without facing one long schedule. |
 | 2026-09-11 | Clear visual activities | A compact activity form that keeps the essentials in view | Activity meaning, rewards, verification, timing, and repetition remain visible in compact rows without large settings panels. |
-| 2026-09-10 | Parent Quick Start and replayable tour | A simpler first experience for parents | A three-step Quick Start helps parents prepare and preview their first visual activity without forcing the detailed product tour. |
 | 2026-09-02 | Curated learning samples | Predictable allowance for AI learning materials | Parents can see one shared daily allowance for AI-created quizzes, worksheets, and social stories, with the exact local time when creation becomes available again. |
 | 2026-09-01 | Visual Steps Parent Assistant | Daily Parent Assistant history and outing planning | The assistant keeps the current day’s conversation until 7:00 AM, offers Copy and Listen controls, and can search current venue information when a parent plans an outing for their child or adult learner. |
 | 2026-08-27 | Parent Quick Start and replayable tour | Guidance that stays current across the app | Parent and guest tours now include current feature guidance from the shared Visual Steps catalog. |

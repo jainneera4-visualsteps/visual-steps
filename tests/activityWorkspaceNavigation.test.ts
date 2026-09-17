@@ -67,7 +67,7 @@ test('parent shell uses stable primary workspaces and contextual navigation', ()
   assert.match(layout, /\?view=quiz-results/);
   assert.match(layout, /\?view=game-results/);
   assert.match(layout, /\['rewards', 'bonus_rewards'\]\.includes\(requestedActivityTab/);
-  assert.match(layout, /support: \[[\s\S]*?label: 'Contact & Consultation'[\s\S]*?label: 'Share with the Community'/);
+  assert.match(layout, /support: \[[\s\S]*?label: 'Contact'[\s\S]*?label: 'Share with the Community'/);
   assert.doesNotMatch(layout, /support: \[[\s\S]*?label: 'Plans'[\s\S]*?\],\n    admin:/);
   assert.match(layout, /to="\/pricing"[^>]*>Plans<\/Link>/);
   assert.match(layout, /newsletter: \[[\s\S]*?label: 'Weekly Archive'[\s\S]*?label: 'Subscribe Newsletter'/);

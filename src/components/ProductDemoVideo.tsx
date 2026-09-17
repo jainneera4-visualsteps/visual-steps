@@ -12,82 +12,40 @@ const DEMO_PLAYBACK_RATES = [0.75, 1, 1.08, 1.25, 1.5] as const;
 
 const demoScenes = [
   {
-    id: 'parent-workspace',
-    title: 'Welcome to the parent workspace', focus: 'Parent Dashboard', image: '/onboarding/dashboard.png', cursor: { left: '31%', top: '15%' },
-    description: 'Choose a profile and open the tools the family needs from one calm dashboard.',
-    narration: 'Families have a lot to keep track of. Activities. Learning. Messages. Rewards. Visual Steps brings these pieces into one calm place. This is the parent workspace. Choose a profile, then open the tool you need. Each child or adult has their own plan and progress. From here, a caregiver can plan the day, check completed work, and decide what comes next. On the learner dashboard, those plans become clear, manageable steps.',
+    id: 'guest-start',
+    title: 'Begin with what matters today', focus: 'Guest Login', image: '/demo-guest/01-start.jpg', cursor: { left: '31%', top: '15%' },
+    description: 'Choose one everyday situation and begin with a practical activity you can shape for your learner.',
+    narration: 'Welcome to Visual Steps. Begin with one everyday situation that you would like to make easier. It might be getting ready, handling a transition, practicing communication, or working on a learning goal. Choose the situation here, and Visual Steps offers a simple starting activity. This gives you a calm place to begin with what matters to your family today.',
   },
   {
-    id: 'profile',
-    title: 'Create an individualized profile', focus: 'Child / Adult Profile', image: '/onboarding/child-profile.png', cursor: { left: '49%', top: '37%' },
-    description: 'Record the information that makes routines, learning, rewards, and the learner view more personal.',
-    narration: 'A useful plan starts with knowing the person. This profile records a preferred name, learning level, interests, strengths, support needs, schedule, rewards, and theme. Families only add information that helps. A nickname is fine, and every choice can change later. Visual Steps uses these details to make activities feel personal and age-respectful. The result is a learner dashboard that feels familiar, instead of one plan made for everyone.',
+    id: 'guest-edit',
+    title: 'Shape the activity around your learner', focus: 'Activity', image: '/demo-guest/02-edit.jpg', cursor: { left: '49%', top: '37%' },
+    description: 'Use familiar words and divide the activity into small, clear visual steps.',
+    narration: 'Now make the activity feel familiar. Give it a clear name, describe what will happen, and divide it into small steps the learner can understand. You can adjust the timing, repetition, picture, and reward to match the person, the moment, and the support they need. The aim is a meaningful activity with a clear path from beginning to finished.',
   },
   {
-    id: 'activities',
-    title: 'Plan clear visual activities', focus: 'Activities Management', image: '/onboarding/activities.png', cursor: { left: '73%', top: '18%' },
-    description: 'Combine instructions, visual steps, timing, links, repetition, and optional verification.',
-    narration: 'Now let’s make a plan. An activity can be a routine, lesson, life skill, exercise, hobby, chore, or website. Give it a title and time. Add a description, reward, link, schedule, pictures, or smaller steps when they help. Turn on parent verification only when the work needs review. On the learner screen, the activity appears at the right part of the day, ready to follow one step at a time.',
+    id: 'guest-learner',
+    title: 'Make the next step easy to see', focus: 'Learner View', image: '/demo-guest/03-learner.jpg', cursor: { left: '73%', top: '18%' },
+    description: 'The learner sees a focused activity and can complete each step at a manageable pace.',
+    narration: 'This is the learner view. The activity is presented without unnecessary distractions, and each visual step shows what comes next. The learner can complete one step at a time, see their progress, and ask for help when they need it. Clear information supports participation, confidence, and greater independence at a pace that works for them.',
   },
   {
-    id: 'verification',
-    title: 'Review work before completion', focus: 'Verification', image: '/onboarding/activity-verification.png', cursor: { left: '69%', top: '45%' },
-    description: 'Verify completed work, reassign another attempt, or preserve an activity for later.',
-    narration: 'Some work needs a second look. When verification is on, submitted work waits here and no reward is given yet. A parent can complete it, reassign it at the same, higher, or lower level, place it on hold, or end it. Repeating the same level can show where another explanation or teaching format may help. The learner sees that review is pending. The reward arrives only when completion is confirmed.',
+    id: 'guest-add-reward',
+    title: 'Add a reward that feels meaningful', focus: 'Rewards', image: '/demo-guest/04-add-reward.jpg', cursor: { left: '63%', top: '38%' },
+    description: 'Create a reward the learner values, then choose its cost and where it is available.',
+    narration: 'Rewards are most helpful when they are personal and meaningful. Add something the learner genuinely enjoys, choose a simple token amount, and show where the reward is available. The reward catalog makes the connection between effort and a positive outcome concrete, predictable, and easy to understand.',
   },
   {
-    id: 'rewards',
-    title: 'Manage meaningful rewards', focus: 'Rewards Management', image: '/onboarding/behavior-bonuses.png', cursor: { left: '30%', top: '39%' },
-    description: 'Connect earned tokens and small behavior bonuses to specific effort and family-selected rewards.',
-    narration: 'Effort can lead to something meaningful. Parents create reward items, choose the token cost, and add a description or picture. Tokens usually come from completed activities, so the connection stays clear. A caregiver can also recognize behavior they personally observed, like trying again, staying focused, communicating calmly, or following an agreed rule. The learner sees both the bonus and its reason. That way, every reward tells a positive story.',
+    id: 'guest-recognition',
+    title: 'Notice effort as it happens', focus: 'Positive Recognition', image: '/demo-guest/05-recognition.jpg', cursor: { left: '69%', top: '45%' },
+    description: 'Recognize a specific positive action with a clear message and a small bonus.',
+    narration: 'Visual Steps also helps you notice the effort behind progress. Choose the positive action you observed, add a few encouraging words, and give a small bonus. Recognition can celebrate asking for help, trying again, waiting calmly, or managing a change. The learner receives a clear message that their effort was seen and valued.',
   },
   {
-    id: 'quiz',
-    title: 'Create and review a quiz', focus: 'Quiz Learning', image: '/onboarding/quiz-attempt.png', cursor: { left: '52%', top: '57%' },
-    description: 'Set a clear learning goal, review every question, and preview the real learner experience.',
-    narration: 'A quiz should answer one important question: what is the learner ready for next? Choose a topic, goal, purpose, question style, level, and length. Add accessibility support or illustrations only when they are useful. Then review every question, answer, and explanation. Preview the real learner experience without recording a score. After assignment, one submitted attempt creates a result the caregiver can use to plan practice, support, or the next challenge.',
-  },
-  {
-    id: 'worksheets',
-    title: 'Prepare printable practice', focus: 'Worksheets', image: '/onboarding/worksheets.png', cursor: { left: '55%', top: '31%' },
-    description: 'Review sample and personalized worksheets before saving, printing, or assigning them.',
-    narration: 'Sometimes paper is the better tool. A worksheet offers structured practice on screen or in print. Choose the learner, topic, purpose, level, instructions, and format. Review it before saving. Later, open it from the library, print it from the grid, or add it to the daily plan. Worksheets are useful when learning needs a slower pace, visual organization, handwriting, or simply some time away from a screen.',
-  },
-  {
-    id: 'social-stories',
-    title: 'Support preparation with social stories', focus: 'Social Stories', image: '/onboarding/social-stories.png', cursor: { left: '44%', top: '35%' },
-    description: 'Create respectful stories for routines, situations, expectations, changes, and self-advocacy.',
-    narration: 'New situations can feel easier when we know what to expect. A social story can explain a routine, change, expectation, or communication need. Choose the person, describe the situation and goal, then review every word and picture. The story stays in the family’s private library. If help from someone trusted is needed, a parent can create a temporary sharing link. Each page supports preparation while respecting questions, choices, communication, and autonomy.',
-  },
-  {
-    id: 'reports',
-    title: 'Understand progress and plan next steps', focus: 'Reports', image: '/onboarding/progress.png', cursor: { left: '42%', top: '34%' },
-    description: 'Review patterns across activities, repeats, quizzes, rewards, and purchases.',
-    narration: 'Over time, small actions become useful patterns. Reports bring completed activities, repeats, quiz results, and reward purchases together with simple charts. A repeated activity may point to more practice, another level, or a different way of teaching. Consistent success may suggest a careful next challenge. These reports do not make clinical judgments. They help families plan while keeping the autistic person’s experience, preferences, and goals at the center.',
-  },
-  {
-    id: 'newsletter',
-    title: 'Stay connected through the newsletter', focus: 'Visual Steps Weekly', image: '/onboarding/newsletter.png', cursor: { left: '37%', top: '22%' },
-    description: 'Read current features, family contributions, practical ideas, resources, and membership information.',
-    narration: 'Visual Steps also has a place for shared ideas. The weekly newsletter brings together feature guidance, family stories, testimonials, tips, activities, books, resources, and membership information. Read it online like a small book, or subscribe by email. Want to contribute? A parent can write, format, preview, and save a story before submitting it. An administrator reviews every contribution before anything becomes public.',
-  },
-  {
-    id: 'parent-stories',
-    title: 'Learn from parent stories', focus: 'Parent Stories', image: '/onboarding/community-publishing.png', cursor: { left: '50%', top: '40%' },
-    description: 'Read approved family stories or share a carefully previewed contribution.',
-    narration: 'Family experience can help another family feel less alone. Parent Stories are approved community contributions. They are separate from the private social stories made for a learner. Readers see the title and author, then open the story. Writers can use headings, emphasis, lists, quotations, and links, and preview everything before submitting. Drafts stay private. Nothing from a child or adult profile is published automatically.',
-  },
-  {
-    id: 'data-management',
-    title: 'Keep saved information under parent control', focus: 'Activity and Rewards History', image: '/onboarding/data-management.png', cursor: { left: '68%', top: '29%' },
-    description: 'Review a learner’s activity actions, purchases, and positive recognition before removing history you no longer need.',
-    narration: 'Families should stay in control of what they save. Activity History shows one row for each activity category and name, while View opens every saved action. Rewards History combines purchases and positive recognition. Choose a rolling period or custom dates, search, sort, and move through standard pages. Select all affects only the current page. Visual Steps never removes these records automatically, and deleting activity history never deletes the assigned activity.',
-  },
-  {
-    id: 'learner-dashboard',
-    title: 'See the learner dashboard', focus: 'Learner Experience', image: '/onboarding/child-dashboard.png', cursor: { left: '47%', top: '43%' },
-    description: 'The learner sees a friendly schedule, clear states, meaningful rewards, and only the tools intended for them.',
-    narration: 'Here is where the plan becomes a day the learner can follow. Activities appear by time and move from To Be Done, to Waiting for Verification, to Completed. Messages, quizzes, earned tokens, rewards, and recent behavior bonuses are easy to find. The learner sees what matters to them, in a friendlier and more focused view. Caregiver settings and private family records stay outside this screen. That is Visual Steps: clearer planning for caregivers, and clearer next steps for learners.',
+    id: 'guest-next-step',
+    title: 'Grow from one small success', focus: 'Your Next Step', image: '/demo-guest/06-sign-up.jpg', cursor: { left: '30%', top: '39%' },
+    description: 'Create your family workspace and continue building from the activity that helped you begin.',
+    narration: 'You have now seen the heart of Visual Steps: begin with a meaningful activity, make each step clear, support the learner as they participate, and celebrate their effort. When you are ready, create your family workspace and continue building from one manageable success. Small, understandable steps can grow into confidence, connection, and greater independence.',
   },
 ] as const;
 
@@ -314,9 +272,8 @@ export function ProductDemoVideo({ autoOpen = false, standalone = false }: { aut
           <div className="product-demo__browser-bar" aria-hidden="true"><span className="bg-rose-400" /><span className="bg-amber-400" /><span className="bg-emerald-400" /><div>Visual Steps for Kids with Autism</div></div>
           <div className="product-demo__screen">
             <img key={scene.image + sceneIndex} src={scene.image} alt={`Visual Steps screen for ${scene.focus}`} className="product-demo__image" />
-            <div className="product-demo__shade" />
-            <div key={`caption-${sceneIndex}`} className="product-demo__caption" aria-live="polite"><span>{scene.focus}</span><h3>{scene.title}</h3><p>{scene.description}</p></div>
           </div>
+          <div key={`caption-${sceneIndex}`} className="product-demo__caption" aria-live="polite"><span>{scene.focus}</span><div><h3>{scene.title}</h3><p>{scene.description}</p></div></div>
           <div className="product-demo__controls">
             <div className="flex items-center gap-1">
               <button type="button" onClick={() => setPlaying(value => !value)} aria-label={playing ? 'Pause demonstration' : 'Play demonstration'}>{playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 fill-current" />}</button>
@@ -339,7 +296,7 @@ export function ProductDemoVideo({ autoOpen = false, standalone = false }: { aut
   return <>
     <figure className={`product-demo__poster ${standalone ? 'product-demo__poster--standalone' : ''}`}>
       <button type="button" onClick={() => setOpen(true)} aria-label="Open Visual Steps video">
-        <img src="/onboarding/dashboard.png" alt="Visual Steps parent dashboard video preview" />
+        <img src="/demo-guest/01-start.jpg" alt="Visual Steps Guest Login video preview" />
         <span className="product-demo__poster-shade" />
         <span className="product-demo__poster-copy"><b>Visual Steps</b><small>Guided app tour with friendly narration</small></span>
         <span className="product-demo__poster-play"><Play className="h-6 w-6 fill-current" /></span>

@@ -11,6 +11,7 @@ import { ArrowLeft, Plus, Trash2, Edit2, CheckCircle, Circle, Calendar, Clock, I
 import { ActivityDetailModal } from '../components/ActivityDetailModal';
 import { QuizLearningInsights } from '../components/QuizLearningInsights';
 import { formatAppDateTime, formatInTimezone, getZonedTime, convertDateToTimeZone } from '../utils/dateUtils';
+import { quickStartActivities, type QuickStartNeed } from '../content/quickStartActivities';
 
 interface ActivityStep {
   id?: number;
@@ -140,6 +141,7 @@ export default function AssignedActivities() {
   const [activityTypes, setActivityTypes] = useState<string[]>([]);
   const [activityCategories, setActivityCategories] = useState<string[]>([]);
   const [previewActivity, setPreviewActivity] = useState<Activity | null>(null);
+  const quickStartFormOpened = useRef(false);
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const fetchGenerationRef = useRef(0);
 
@@ -316,6 +318,12 @@ export default function AssignedActivities() {
           ? activities.filter(a => a.status === 'ended')
       : historyActivities;
 
+  // Older activities may not have an explicit meaning stored. They use the
+  // established Learner Can Choose default and must be grouped with newer rows
+  // that save that value explicitly.
+  const activityMeaningOf = (activity: Activity): ActivityMeaning =>
+    activity.activity_meaning === 'important_today' ? 'important_today' : 'available_choice';
+
   const visibleActivityRows = (() => {
     const filtered = activitiesToRender.filter(activity => !selectedDate || activity.due_date === selectedDate);
     const sorted = [...filtered].sort((a, b) => {
@@ -331,8 +339,8 @@ export default function AssignedActivities() {
     });
     const groupedSorted = activeTab === 'activities'
       ? [
-          ...sorted.filter(activity => activity.activity_meaning === 'important_today'),
-          ...sorted.filter(activity => activity.activity_meaning !== 'important_today'),
+          ...sorted.filter(activity => activityMeaningOf(activity) === 'important_today'),
+          ...sorted.filter(activity => activityMeaningOf(activity) === 'available_choice'),
         ]
       : sorted;
     return groupedSorted.slice((activitiesPage - 1) * activitiesItemsPerPage, activitiesPage * activitiesItemsPerPage);
@@ -1103,6 +1111,23 @@ export default function AssignedActivities() {
     }
     setIsModalOpen(true);
   };
+
+  useEffect(() => {
+    if (searchParams.get('quickStart') !== 'activity' || isLoading || quickStartFormOpened.current) return;
+    quickStartFormOpened.current = true;
+    handleOpenForm();
+    const supportNeed = searchParams.get('supportNeed') as QuickStartNeed | null;
+    const suggestion = supportNeed && supportNeed !== 'other' ? quickStartActivities[supportNeed] : null;
+    if (suggestion) {
+      setFormData(current => ({
+        ...current,
+        activityType: suggestion.title,
+        category: suggestion.category,
+        description: suggestion.description,
+        steps: suggestion.steps.map((description, index) => ({ step_number: index + 1, description, image_url: '' })),
+      }));
+    }
+  }, [isLoading, searchParams]);
 
   const awardBehaviorBonus = async () => {
     const rewardAmount = Number(bonusAmount);
@@ -2740,14 +2765,14 @@ export default function AssignedActivities() {
                     {visibleActivityRows.map((activity, index) => (
                       <Fragment key={activity.id}>
                       {activeTab === 'activities' && (index === 0
-                        || visibleActivityRows[index - 1]?.activity_meaning !== activity.activity_meaning) && (
-                        <tr className={activity.activity_meaning === 'important_today' ? 'bg-amber-50' : 'bg-emerald-50'}>
+                        || activityMeaningOf(visibleActivityRows[index - 1]) !== activityMeaningOf(activity)) && (
+                        <tr className={activityMeaningOf(activity) === 'important_today' ? 'bg-amber-50' : 'bg-emerald-50'}>
                           <td colSpan={8} className="px-3 py-2">
                             <div className="font-black text-slate-900">
-                              {activity.activity_meaning === 'important_today' ? '⭐ Do Today' : '🌱 Learner Can Choose'}
+                              {activityMeaningOf(activity) === 'important_today' ? '⭐ Do Today' : '🌱 Learner Can Choose'}
                             </div>
                             <div className="mt-0.5 text-xs font-medium text-slate-600">
-                              {activity.activity_meaning === 'important_today'
+                              {activityMeaningOf(activity) === 'important_today'
                                 ? 'Activities you want the learner to recognize as important today.'
                                 : 'Activities the learner may choose in the order that works for them.'}
                             </div>
@@ -3747,8 +3772,9 @@ export default function AssignedActivities() {
                     }}
                   >
                     <option value="">Select a place...</option>
-                    {/* Only show locations from existing items */}
-                    {[...new Set(rewardItems.map(item => item.location))].filter(Boolean).map(loc => (
+                    {/* Keep the newly entered location visible and selected
+                        before the reward item has been saved and reloaded. */}
+                    {[...new Set([...rewardItems.map(item => item.location), newReward.location])].filter(Boolean).map(loc => (
                       <option key={loc} value={loc!}>{loc}</option>
                     ))}
                     <option value="ADD_NEW" className="text-blue-600 font-bold">+ Add new location...</option>

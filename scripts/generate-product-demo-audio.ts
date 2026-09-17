@@ -12,7 +12,8 @@ const INSTRUCTIONS = `Read the transcript exactly as written.
 Use a warm, down-to-earth explainer voice. Sound like a friendly educator making an unfamiliar idea feel simple to a neighbor. Keep a light conversational energy and a subtle smile. Let short sentences breathe, pause naturally when the visual focus changes, and emphasize one idea at a time. Use a steady, unhurried pace and clear everyday language. Avoid sounding like an advertisement, a formal lecture, a dramatic performance, or a robotic announcement.`;
 const outputDirectory = path.resolve('public/demo-audio');
 const manifestPath = path.join(outputDirectory, 'manifest.json');
-const requestedScene = process.argv.find(argument => argument.startsWith('--scene='))?.split('=')[1];
+const requestedSceneValue = process.argv.find(argument => argument.startsWith('--scene='))?.split('=')[1];
+const requestedScenes = requestedSceneValue ? new Set(requestedSceneValue.split(',').map(value => value.trim()).filter(Boolean)) : null;
 const force = process.argv.includes('--force');
 const dryRun = process.argv.includes('--dry-run');
 const confirmed = process.argv.includes('--confirm-generation');
@@ -77,8 +78,10 @@ async function main() {
   }
   await mkdir(outputDirectory, { recursive: true });
   const manifest = await existingManifest();
-  const selectedScenes = demoScenes.map((scene, index) => ({ scene, index })).filter(({ scene }) => !requestedScene || scene.id === requestedScene);
-  if (!selectedScenes.length) throw new Error(`Unknown scene "${requestedScene}".`);
+  const currentSceneIds = new Set<string>(demoScenes.map(scene => scene.id));
+  manifest.scenes = Object.fromEntries(Object.entries(manifest.scenes).filter(([id]) => currentSceneIds.has(id)));
+  const selectedScenes = demoScenes.map((scene, index) => ({ scene, index })).filter(({ scene }) => !requestedScenes || requestedScenes.has(scene.id));
+  if (!selectedScenes.length) throw new Error(`Unknown scene selection "${requestedSceneValue}".`);
 
   let generated = 0;
   for (const { scene, index } of selectedScenes) {
@@ -101,15 +104,13 @@ async function main() {
     await rename(temporaryPath, finalPath);
     manifest.scenes[scene.id] = { url: `/demo-audio/${scene.id}.wav`, scriptHash: hash };
     generated += 1;
-  }
-
-  if (!dryRun && generated > 0) {
     manifest.model = MODEL;
     manifest.voice = VOICE;
     manifest.disclosure = 'AI-generated narration';
     manifest.generatedAt = new Date().toISOString();
     await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
   }
+
   console.log(dryRun ? 'Dry run complete; no audio was generated.' : `${generated} clip(s) generated. Existing unchanged clips were reused.`);
 }
 

@@ -1,12 +1,12 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from './Button';
-import { LogOut, Menu, X, Lightbulb, ChevronDown, BookOpen, FileText, Gamepad2, Puzzle, Activity, TrendingUp, Facebook, Instagram, Mail, Newspaper, Users, Database, ShieldCheck, HelpCircle, Plus, Edit2, ShoppingCart, BellRing, Gift, Award } from 'lucide-react';
+import { LogOut, Menu, X, Lightbulb, ChevronDown, BookOpen, FileText, Gamepad2, Puzzle, Activity, TrendingUp, Facebook, Instagram, Mail, Newspaper, Users, Database, ShieldCheck, HelpCircle, Plus, Edit2, ShoppingCart, BellRing, Gift, Award, Lock } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { Tooltip } from './ui/Tooltip';
 import { ParentAssistant } from './ParentAssistant';
-import { isGuestSession } from '../guest/guestSession';
+import { endGuestSession, isGuestSession } from '../guest/guestSession';
 import { apiFetch, clearApiReadCache, safeJson } from '../utils/api';
 import { getRewardIcon } from '../utils/rewardUtils';
 import { prefetchProgressReport } from '../utils/progressReportData';
@@ -196,6 +196,9 @@ export function Layout() {
     { id: 'newsletter', label: 'Newsletter', icon: Mail },
     ...(isNewsletterAdmin ? [{ id: 'admin', label: 'Admin', icon: ShieldCheck }] : []),
   ];
+  const guestMode = isGuestSession();
+  const guestAvailableWorkspaces = new Set(['dashboard', 'activities', 'rewards']);
+  const guestSignupMessage = 'Sign up to use this feature and keep your family’s information.';
 
   useEffect(() => {
     if (!user) {
@@ -426,8 +429,8 @@ export function Layout() {
     else if (path === '/pricing') title = 'Plans & Pricing | Visual Steps';
     else if (path === '/demo' || path === '/guest') title = 'Guest Login | Visual Steps';
     else if (path === '/testimonials') title = 'Testimonials | Visual Steps';
-    else if (path === '/contact') title = 'Contact & Support | Visual Steps';
-    else if (path === '/support') title = 'Contact & Support | Visual Steps';
+    else if (path === '/contact') title = 'Contact | Visual Steps';
+    else if (path === '/support') title = 'Contact | Visual Steps';
     else if (path === '/privacy') title = 'Privacy Policy | Visual Steps';
     else if (path === '/terms') title = 'Terms of Service | Visual Steps';
     else if (path === '/cookies') title = 'Cookies & Analytics | Visual Steps';
@@ -461,6 +464,14 @@ export function Layout() {
                 {parentWorkspaces.map(item => {
                   const Icon = item.icon;
                   const warmWorkspace = () => prefetchWorkspace(item.id);
+                  const guestLocked = guestMode && !guestAvailableWorkspaces.has(item.id);
+                  if (guestLocked) return <Tooltip key={item.id} content={guestSignupMessage}>
+                    <span className="inline-flex" tabIndex={0}>
+                      <button type="button" disabled aria-label={`${item.label}. Sign up required.`} className="inline-flex h-9 cursor-not-allowed items-center gap-1.5 rounded-lg px-3 text-sm font-bold text-slate-400 opacity-70">
+                        <Icon className="h-4 w-4" />{item.label}<Lock className="h-3 w-3" />
+                      </button>
+                    </span>
+                  </Tooltip>;
                   return <Link key={item.id} to={workspaceLink(item.id)} onMouseEnter={warmWorkspace} onFocus={warmWorkspace} onPointerDown={warmWorkspace} aria-current={currentWorkspace === item.id ? 'page' : undefined} className={`inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-bold transition-all ${currentWorkspace === item.id ? 'bg-brand-50 text-brand-700 shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-brand-700'}`}><Icon className="h-4 w-4" />{item.label}</Link>;
                 })}
               </nav>
@@ -656,7 +667,7 @@ export function Layout() {
             {user ? (
               <div className="flex items-center gap-4">
                 <span className="text-sm font-medium text-slate-500">
-                  Hi, <Link to="/profile" className="text-slate-900 font-bold hover:text-brand-600 transition-colors">{user.name.split(' ')[0]}</Link>
+                  Hi, {guestMode ? <span className="font-bold text-slate-900">{user.name.split(' ')[0]}</span> : <Link to="/profile" className="text-slate-900 font-bold hover:text-brand-600 transition-colors">{user.name.split(' ')[0]}</Link>}
                 </span>
                 <Tooltip content="Sign Out">
                   <Button variant="outline" size="sm" onClick={logout} className="h-9">
@@ -717,15 +728,15 @@ export function Layout() {
               )}
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <Button type="button" variant="outline" size="sm" className="h-8 border-blue-600 bg-blue-600 px-3 text-white hover:border-blue-700 hover:bg-blue-700 hover:text-white" onClick={() => navigate('/dashboard?tour=1')}>
+              {!guestMode && <Button type="button" variant="outline" size="sm" className="h-8 border-blue-600 bg-blue-600 px-3 text-white hover:border-blue-700 hover:bg-blue-700 hover:text-white" onClick={() => navigate('/dashboard?tour=1')}>
                 <HelpCircle className="mr-1.5 h-3.5 w-3.5" />Start tour
-              </Button>
+              </Button>}
               {headerKids.length > 0 && (
                 <select aria-label="Select Child" value={selectedKidId || headerKids[0].id} onChange={(event) => selectHeaderKid(event.target.value)} className="h-8 w-36 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100">
                   {headerKids.map(kid => <option key={kid.id} value={kid.id}>{kid.name}</option>)}
                 </select>
               )}
-              <Link to="/add-kid" data-guest-tour="add-child"><Button size="sm" className="h-8 px-3"><Plus className="mr-1.5 h-4 w-4" />Add Child / Adult</Button></Link>
+              {guestMode ? <Tooltip content={guestSignupMessage}><span tabIndex={0}><Button size="sm" disabled className="h-8 px-3"><Lock className="mr-1.5 h-3.5 w-3.5" />Add Child / Adult</Button></span></Tooltip> : <Link to="/add-kid"><Button size="sm" className="h-8 px-3"><Plus className="mr-1.5 h-4 w-4" />Add Child / Adult</Button></Link>}
             </div>
           </div>
         )}
@@ -749,7 +760,7 @@ export function Layout() {
               <Tooltip content={`Buy rewards for ${selectedHeaderKid.name}`}><Link to="/dashboard?shop=1" className="rounded-lg p-2 transition-colors hover:bg-white/15" aria-label={`Buy rewards for ${selectedHeaderKid.name}`}><ShoppingCart className="h-7 w-7" /></Link></Tooltip>
               <img src={getRewardIcon(selectedHeaderKid.reward_type, selectedHeaderKid.reward_icon)} alt={selectedHeaderKid.reward_type || 'Reward'} className="h-8 w-8" referrerPolicy="no-referrer" />
               <span className="text-2xl font-black">{selectedHeaderKid.reward_balance || 0}</span>
-              <Tooltip content="Edit learner profile"><Link to={`/edit-kid/${selectedHeaderKid.id}`} className="rounded-lg p-2 transition-colors hover:bg-white/15" aria-label="Edit learner profile"><Edit2 className="h-6 w-6" /></Link></Tooltip>
+              {guestMode ? <Tooltip content={guestSignupMessage}><span tabIndex={0} className="rounded-lg p-2 text-white/55" aria-label="Edit learner profile. Sign up required."><Lock className="h-5 w-5" /></span></Tooltip> : <Tooltip content="Edit learner profile"><Link to={`/edit-kid/${selectedHeaderKid.id}`} className="rounded-lg p-2 transition-colors hover:bg-white/15" aria-label="Edit learner profile"><Edit2 className="h-6 w-6" /></Link></Tooltip>}
             </div>
           </div>
         )}
@@ -765,12 +776,16 @@ export function Layout() {
                   {parentWorkspaces.map(workspace => {
                     const Icon = workspace.icon;
                     const submenus = workspaceSecondaryLinks[workspace.id] || [];
+                    const guestLocked = guestMode && !guestAvailableWorkspaces.has(workspace.id);
                     return (
                       <section key={workspace.id} className="rounded-lg border border-slate-100 bg-slate-50/60 p-2">
-                        <Link to={workspaceLink(workspace.id)} onClick={() => setIsMenuOpen(false)} className={`flex items-center gap-2 rounded-md px-2 py-2 text-sm font-black ${currentWorkspace === workspace.id ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-800'}`}>
+                        {guestLocked ? <div className="flex cursor-not-allowed items-center gap-2 rounded-md px-2 py-2 text-sm font-black text-slate-400" aria-disabled="true" title={guestSignupMessage}>
+                          <Icon className="h-4 w-4" /> {workspace.label}<Lock className="ml-auto h-3.5 w-3.5" />
+                        </div> : <Link to={workspaceLink(workspace.id)} onClick={() => setIsMenuOpen(false)} className={`flex items-center gap-2 rounded-md px-2 py-2 text-sm font-black ${currentWorkspace === workspace.id ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-800'}`}>
                           <Icon className="h-4 w-4" /> {workspace.label}
-                        </Link>
-                        {submenus.length > 0 && (
+                        </Link>}
+                        {guestLocked && <p className="px-2 pb-1 text-[10px] font-semibold leading-4 text-slate-500">Sign up to use this feature.</p>}
+                        {!guestLocked && submenus.length > 0 && (
                           <div className="ml-4 mt-1 flex flex-col gap-0.5 border-l-2 border-brand-100 pl-2">
                             {submenus.map(item => <Link key={`${workspace.id}-${item.label}`} to={item.to} onClick={() => setIsMenuOpen(false)} onPointerDown={() => prefetchDestination(item.to)} className="rounded px-2 py-1.5 text-xs font-bold text-slate-600 hover:bg-white hover:text-brand-700">{item.label}</Link>)}
                           </div>
@@ -779,8 +794,8 @@ export function Layout() {
                     );
                   })}
                   <section className="flex flex-col gap-1 border-t border-slate-200 pt-2">
-                    <Link to="/profile" className="px-2 py-1.5 text-xs font-bold text-slate-600" onClick={() => setIsMenuOpen(false)}>Parent Profile</Link>
-                    <Link to="/add-kid" className="px-2 py-1.5 text-xs font-bold text-slate-600" onClick={() => setIsMenuOpen(false)}>Add Child / Adult</Link>
+                    {guestMode ? <><span className="px-2 py-1.5 text-xs font-bold text-slate-400" title={guestSignupMessage}>Parent Profile · Sign up required</span><span className="px-2 py-1.5 text-xs font-bold text-slate-400" title={guestSignupMessage}>Add Child / Adult · Sign up required</span></> : <><Link to="/profile" className="px-2 py-1.5 text-xs font-bold text-slate-600" onClick={() => setIsMenuOpen(false)}>Parent Profile</Link><Link to="/add-kid" className="px-2 py-1.5 text-xs font-bold text-slate-600" onClick={() => setIsMenuOpen(false)}>Add Child / Adult</Link></>}
+                    {guestMode && <button type="button" className="px-2 py-1.5 text-left text-xs font-black text-blue-700" onClick={() => { setIsMenuOpen(false); endGuestSession(); window.location.assign('/signup'); }}>Sign up to keep your work</button>}
                     <Link to="/pricing" className="px-2 py-1.5 text-xs font-bold text-slate-600" onClick={() => setIsMenuOpen(false)}>Plans</Link>
                     <Link to="/testimonials" className="px-2 py-1.5 text-xs font-bold text-slate-600" onClick={() => setIsMenuOpen(false)}>Testimonials</Link>
                     <button onClick={() => { logout(); setIsMenuOpen(false); }} className="px-2 py-1.5 text-left text-xs font-bold text-slate-600">Sign out</button>
