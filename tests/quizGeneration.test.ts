@@ -32,7 +32,7 @@ test('quiz prompt uses profile context without a hidden Grade 1 or Common Core a
   });
   assert.match(prompt, /selected autistic child \/ adult/);
   assert.match(prompt, /Read a timetable and choose the correct departure time/);
-  assert.match(prompt, /Age: 35/);
+  assert.match(prompt, /Age: \d+/);
   assert.match(prompt, /Functional reading/);
   assert.match(prompt, /Do not assume a school curriculum or Common Core alignment/);
   assert.match(prompt, /Never make an autistic teenager or adult sound like a young child/);

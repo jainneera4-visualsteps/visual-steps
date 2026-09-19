@@ -15,6 +15,18 @@ import nodemailer from 'nodemailer';
 import path from 'path';
 import { createHash, randomBytes } from 'crypto';
 import sharp from 'sharp';
+import {
+  MAX_UPLOAD_BYTES,
+  UPLOAD_BUCKET,
+  detectImageType,
+  getImageExtension,
+  isSupportedImageMimeType,
+} from './src/utils/uploadSecurity';
+import {
+  DEFAULT_PARENT_MESSAGE_RETENTION_DAYS,
+  getParentMessageCutoff,
+  normalizeParentMessageRetentionDays,
+} from './src/utils/parentMessageRetention';
 
 dotenv.config();
 
@@ -699,40 +711,6 @@ export const sanitizeApiErrorResponse = (
     };
   }
   return sanitized;
-};
-
-// Keep the Vercel function entry self-contained. Local imports from src/ can
-// be omitted by Vercel's serverless file tracer even though esbuild succeeds.
-const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
-const UPLOAD_BUCKET = 'visual-steps-uploads';
-type SupportedUploadImageType = 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
-const uploadExtensionByType: Record<SupportedUploadImageType, string> = {
-  'image/jpeg': 'jpg',
-  'image/png': 'png',
-  'image/webp': 'webp',
-  'image/gif': 'gif',
-};
-const isSupportedImageMimeType = (mimeType: string): mimeType is SupportedUploadImageType => (
-  Object.hasOwn(uploadExtensionByType, mimeType)
-);
-const getImageExtension = (mimeType: SupportedUploadImageType): string => uploadExtensionByType[mimeType];
-const detectImageType = (bytes: Uint8Array): SupportedUploadImageType | null => {
-  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg';
-  if (
-    bytes.length >= 8
-    && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47
-    && bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a
-  ) return 'image/png';
-  if (bytes.length >= 6) {
-    const signature = String.fromCharCode(...bytes.slice(0, 6));
-    if (signature === 'GIF87a' || signature === 'GIF89a') return 'image/gif';
-  }
-  if (bytes.length >= 12) {
-    const riff = String.fromCharCode(...bytes.slice(0, 4));
-    const webp = String.fromCharCode(...bytes.slice(8, 12));
-    if (riff === 'RIFF' && webp === 'WEBP') return 'image/webp';
-  }
-  return null;
 };
 
 type ActivityCompletionRecord = {
@@ -4451,12 +4429,6 @@ app.post('/api/kids/verify-code', async (req, res) => {
   }
 });
 
-const normalizeMaxParentMessageDays = (value: any) => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0) return 20;
-  return Math.floor(parsed);
-};
-
 const getParentMessageRetentionDays = async (supabase: any, userId: string) => {
   for (const column of ['max_parent_message_days', 'max_parent_messages']) {
     const { data, error } = await supabase
@@ -4466,7 +4438,7 @@ const getParentMessageRetentionDays = async (supabase: any, userId: string) => {
       .single();
 
     if (!error && data) {
-      return normalizeMaxParentMessageDays(data[column]);
+      return normalizeParentMessageRetentionDays(data[column]);
     }
 
     if (error && !isMissingColumnError(error)) {
@@ -4475,11 +4447,8 @@ const getParentMessageRetentionDays = async (supabase: any, userId: string) => {
     }
   }
 
-  return 20;
+  return DEFAULT_PARENT_MESSAGE_RETENTION_DAYS;
 };
-
-const getParentMessageCutoff = (retentionDays: number) =>
-  new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000).toISOString();
 
 const getLatestParentMessagesMap = async (supabase: any, userId: string, kidIds: string[]) => {
   const latestByKid: Record<string, string> = {};
@@ -7773,15 +7742,16 @@ export const parentAssistantFeatureCatalog = [
   { area: 'Saved worksheets and printing', routes: ['/saved-worksheets', '/worksheet-generator'], help: 'Open Activities > Worksheets to reach Saved Worksheets. The curated Calm-Down Strategy Map sample can be opened and printed without using AI or saving data. In the worksheet grid find the row and Actions column. Select the eye icon with tooltip View. On View Worksheet select Print Worksheet above the preview. In the browser dialog choose the printer or Save as PDF and select Print or Save. If no dialog opens, allow popups and retry. The other row actions edit or delete; saved content can be assigned to a child.' },
   { area: 'Social stories', routes: ['/social-stories', '/social-stories/create', '/social-stories/edit/:id', '/social-stories/view/:id'], help: 'Open Activities > Social Stories. The curated four-page When My Plan Changes sample can be opened without using AI or saving data. Create a story using Select Kid, Language, Tone, Number of Pages, Sentences per Page, What is the story about?, Narrator Selection, Speech Speed, Visual Sync, Story Title, Page Text, and optional page images. Generate/edit and save. The saved-story Actions icons securely Share, View, Print, Edit, or Delete.' },
   { area: 'Controlled story sharing', routes: ['/social-stories', '/social-stories/shared/:shareToken'], help: 'In Social Stories select the Share securely action. Choose the link lifetime (1, 7, or 30 days), create and copy the link, and send only the URL. Links expire and can be revoked. A recipient can open the shared story without signing in while the link remains valid.' },
-  { area: 'Progress results and history', routes: ['/progress-report/:kidId', '/activity-history'], help: 'Select a learner and open Progress. Quiz Results, Game Scores, Retries, Rewards History, and Activity History open directly to their first view. Result pages provide standard List and Calendar views; a calendar date shows its item count and opens that day’s list. Rewards History combines purchases and positive recognition and supports rolling one-, three-, six-, or twelve-month periods plus custom dates. Activity History shows one row per activity category and name; View opens the complete action history. Select all applies only to the current page.' },
+  { area: 'Progress results and history', routes: ['/progress-report/:kidId', '/activity-history', '/data-management'], help: 'Select a learner and open Progress. Quiz Results, Game Scores, Retries, Rewards History, and Activity History open directly to their first view. Result pages provide standard List and Calendar views; a calendar date shows its item count and opens that day’s list. Rewards History combines purchases and positive recognition and supports rolling one-, three-, six-, or twelve-month periods plus custom dates. Activity History shows one row per activity category and name; View opens the complete action history. Select all applies only to the current page.' },
   { area: 'Summary report', routes: ['/summary-report/:kidId'], help: 'Select a child, open Analytics, and select Summary Report. It combines activity and quiz entries with type, title, details, reward, and date for a concise overview.' },
   { area: 'Parent account settings', routes: ['/profile'], help: 'Select the parent name in the top navigation to open Account Settings. In Profile Information update Full Name or Email. In Change Password enter a new password or leave it blank to keep the current password. In Parent Messaging set Days to Keep Messages. Select Save Changes. Profile also provides welcome-email resend and email-delivery checks when configured.' },
   { area: 'Parent-controlled history management', routes: ['/activity-history', '/progress-report/:kidId'], help: 'Open Progress and choose Activity History or Rewards History. Choose a rolling period or custom dates, search the selected learner’s records, and select a heading to sort. Activity History summarizes each category-and-name group once; View opens all actions in that group. The header checkbox selects only the current page. Deleting an Activity History summary removes the matching history records but never deletes the assigned activity. Rewards History deletion removes the selected purchase or positive-recognition records after confirmation.' },
   { area: 'Parent and caregiver testimonials', routes: ['/testimonials'], help: 'Open Testimonials from the footer or mobile menu to read reviewed experiences that families and caregivers explicitly permitted Visual Steps to publish. Signed-in parents can use Public display name, Experience title, and Your testimonial, confirm publication permission, then select Submit privately for review. The submission remains private until an administrator reviews and approves it in Newsletter Administration. Visual Steps never converts private profiles, child records, messages, or activities into public quotes.' },
-  { area: 'Contact', routes: ['/contact'], help: 'Open Contact from the navigation or footer. Enter your name, email address, subject, and message, then select Send Message. Signed-in parents can also review message status and replies in Connect. Never include passwords, child access codes, medical records, or sensitive family information.' },
+  { area: 'Contact', routes: ['/contact', '/support'], help: 'Open Contact from the navigation or footer. Enter your name, email address, subject, and message, then select Send Message. Signed-in parents can also review message status and replies in Connect. Never include passwords, child access codes, medical records, or sensitive family information.' },
   { area: 'Privacy, terms, cookies, and analytics', routes: ['/privacy', '/terms', '/cookies'], help: 'Open Privacy, Terms, or Cookies & Analytics from the footer on any page. Privacy explains what family information Visual Steps handles, why it is used, limited service-provider processing, AI requests, social-story sharing, uploaded-image links, retention choices, account deletion, and security responsibilities. Terms explains responsible use, caregiver review, community content, availability, and why Visual Steps is not medical or clinical advice. Cookies & Analytics explains essential sign-in and preference storage, the installed-app cache, browser controls, and the current absence of advertising cookies and product analytics. On Create an account, review the Terms and Privacy links and select the agreement checkbox before selecting Sign Up.' },
   { area: 'Visual Steps weekly newsletter', routes: ['/newsletter', '/newsletter/subscribe', '/newsletter/unsubscribe', '/newsletter/community', '/newsletter/archive/:month', '/newsletter/issues/:issueDate', '/newsletter-admin'], help: 'Open the Newsletter menu in the main navigation. Choose Subscribe to open the dedicated signup page, enter Email address, and select Subscribe; confirm the subscription from the email you receive. Active subscribers see Unsubscribe Newsletter instead. Choose Weekly archive, then select a month; months and issues are ordered latest first. Selecting an issue opens the complete newsletter in a large modal window, and Close returns to the archive. Choose Share with the community to open its dedicated submission page. Approved administrators open Admin and choose Manage newsletter for publication controls. Each upcoming weekly issue uses a calm, scannable format with a contents page, new and updated feature details, approved parent stories/news/information/tips, testimonials, popular features, activities and games, books and resources, ideas for using Visual Steps meaningfully, current membership details, practical caregiver tips, and clearly labeled mission-aligned advertisements when approved. Published archive issues retain the content and layout saved when they were released. General non-clinical topics may include communication and speech support, occupational support, positive behavior support, daily living, learning, work, leisure, and community participation for autistic people of all ages. Submissions remain private until reviewed and approved. The protected Newsletter Administration page lets administrators manage submissions, change the weekly delivery day and time in their timezone, edit and save the next issue template, preview it without publishing, and send a prepared issue. Every issue includes Visual Steps Home, Pricing, Subscribe Newsletter, optional configured Facebook and Instagram links, and one-click unsubscribe.' },
-  { area: 'Protected administration', routes: ['/admin/insights', '/newsletter-admin'], help: 'The Admin menu appears only for approved administrators. Choose Insights to review account growth, registration status, parent journey signals, interpreted feature health, the last 24 hours or longer reporting periods, operations, retention, privacy-conscious traffic, and AI Use. AI Use shows where AI is requested, model and token totals, individual request estimates, and aggregate estimated standard paid-tier cost without retaining prompts, responses, or family content. Cost tracking begins after its database update and deployment; estimates are not invoices and free-tier billing may be lower or zero. Child / adult profiles and family content are intentionally excluded. Choose Manage newsletter for publication and subscriber controls. Administrator and membership changes require confirmation and are recorded for accountability.' },
+  { area: 'Protected administration', routes: ['/admin/insights', '/admin/support', '/newsletter-admin'], help: 'The Admin menu appears only for approved administrators. Choose Insights to review account growth, registration status, parent journey signals, interpreted feature health, the last 24 hours or longer reporting periods, operations, retention, privacy-conscious traffic, and AI Use. Open Contact messages to acknowledge parent requests and update their status. Choose Manage newsletter for publication and subscriber controls. AI Use shows where AI is requested, model and token totals, individual request estimates, and aggregate estimated standard paid-tier cost without retaining prompts, responses, or family content. Child / adult profiles and family content are intentionally excluded. Administrator and membership changes require confirmation and are recorded for accountability.' },
+  { area: 'Learning games', routes: ['/games', '/games/place-value', '/games/expanded-form', '/games/digit-value', '/games/place-value-clues', '/kids-games/place-value/:kidId', '/kids-games/expanded-form/:kidId', '/kids-games/digit-value/:kidId', '/kids-games/place-value-clues/:kidId'], help: 'Open Learning → Games to choose a place-value activity. Parents can preview each game and assign it from Activities. Learners open an assigned game from their dashboard, complete the guided rounds, and receive immediate feedback. Saved results appear under Progress → Game Scores.' },
   { area: 'Child dashboard', routes: ['/kids-dashboard/:kidId'], help: 'Children sign in with their Kid Code. Choose an Activity separates visible work into Pick an Activity and Do Today; activities in either section may be opened in the order that works for the learner. Waiting lists work submitted for parent verification, Completed shows completed activities, and Rewards shows items they may purchase with earned tokens. Meaningful completions show celebrations. A verification-required submission tells the child to wait and does not award tokens until parent approval.' },
   { area: 'Offline and installation', routes: ['/'], help: 'Visual Steps can be installed from a supported browser. On an iPhone or iPad, use Safari Share > Add to Home Screen. When internet access is lost, the app displays an offline notice. Sign-in, saved family information, and AI features become available again after reconnection.' },
 ] as const;

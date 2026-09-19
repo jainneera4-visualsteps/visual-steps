@@ -19,7 +19,7 @@ test('home page renders parent login and public navigation', async ({ page }) =>
   await page.goto('/');
 
   await expect(page).toHaveTitle('Login | Visual Steps');
-  await expect(page.getByRole('heading', { name: /Make every day feel more possible/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Make everyday activities easier to understand/i })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Parent Login' })).toBeVisible();
   await expect(page.getByPlaceholder('name@example.com')).toBeVisible();
   await expect(page.locator('form').getByRole('button', { name: 'Sign In' })).toBeVisible();
@@ -70,7 +70,7 @@ test('parent login fields enforce browser validation and password visibility', a
   await password.fill('secret-password');
   await expect(form.evaluate((element: HTMLFormElement) => element.checkValidity())).resolves.toBe(true);
 
-  await form.locator('button[type="button"]').click();
+  await form.getByRole('button', { name: 'Show password' }).click();
   await expect(password).toHaveAttribute('type', 'text');
   await expect(password).toHaveValue('secret-password');
 });
@@ -146,23 +146,18 @@ test('signup with email confirmation displays the correct success state', async 
       created_at: new Date().toISOString(),
     }),
   }));
-  await page.route('**/api/auth/create-profile', route => route.fulfill({
-    status: 201,
-    contentType: 'application/json',
-    body: JSON.stringify({ message: 'Profile created', emailSent: true }),
-  }));
-
   await page.goto('/signup');
   const form = page.locator('form');
   await page.getByPlaceholder('John Doe').fill('New Parent');
   await page.getByPlaceholder('name@example.com').fill('new-parent@example.com');
   await form.locator('input[type="password"]').fill('secure-password');
+  await page.getByRole('checkbox', { name: /I agree to the Terms of Service/ }).check();
   await form.getByRole('button', { name: 'Sign Up' }).click();
 
-  await expect(page.getByText('Account created!')).toBeVisible();
-  await expect(page.getByText('Your account was created successfully. Confirm your email before signing in.')).toBeVisible();
-  await expect(page.getByText(/A welcome email was sent to/)).toContainText('new-parent@example.com');
-  await expect(page.getByRole('button', { name: 'Continue to Sign In' })).toBeVisible();
+  await expect(page.getByText('Verify your email')).toBeVisible();
+  await expect(page.getByText('Open the verification message we sent and select Confirm Email before signing in.')).toBeVisible();
+  await expect(page.getByText(/Verification was requested for/)).toContainText('new-parent@example.com');
+  await expect(page.getByRole('button', { name: 'Resend verification' })).toBeVisible();
   await expect(page).toHaveURL(/\/signup$/);
 });
 

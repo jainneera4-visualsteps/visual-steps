@@ -272,6 +272,7 @@ export default function Home() {
                         rightElement={
                           <button
                             type="button"
+                            aria-label={showPassword ? 'Hide password' : 'Show password'}
                             onClick={() => setShowPassword(!showPassword)}
                             className="text-slate-400 hover:text-slate-600 focus:outline-none"
                           >

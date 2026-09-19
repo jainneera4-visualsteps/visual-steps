@@ -8,7 +8,7 @@ test('administrator navigation and insights are protected by the server allow-li
   const [app, layout, server] = await Promise.all([read('src/App.tsx'), read('src/components/Layout.tsx'), read('server.ts')]);
   assert.match(app, /path="admin\/insights"/);
   assert.match(layout, /isNewsletterAdmin &&/);
-  assert.match(layout, /> Admin /);
+  assert.match(layout, /label: 'Admin'/);
   for (const route of ['/api/admin/overview', '/api/admin/funnel', '/api/admin/feature-health', '/api/admin/operations', '/api/admin/analytics-retention', '/api/admin/parents', '/api/admin/traffic']) {
     const escaped = route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     assert.match(server, new RegExp(`${escaped}[\\s\\S]{0,100}authenticateToken, requireAppAdmin`));
@@ -19,7 +19,7 @@ test('insights sections use accessible pill navigation and explain parent and tr
   const page = await read('src/pages/AdminInsights.tsx');
   assert.match(page, /role="tablist"/);
   assert.match(page, /aria-selected={active}/);
-  assert.match(page, /inline-flex items-center rounded-full/);
+  assert.match(page, /className={`rounded-full px-4 py-2\.5/);
   assert.match(page, /Parent accounts/);
   assert.match(page, /never opens child \/ adult profiles or family content/);
   assert.match(page, /Unique visitors[\s\S]*short-lived privacy-protected visitor identifiers/);

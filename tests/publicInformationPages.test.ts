@@ -43,7 +43,7 @@ test('public contact and newsletter pages keep SMTP secrets on the server', asyn
     readFile(new URL('../src/pages/Contact.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/pages/Newsletter.tsx', import.meta.url), 'utf8'),
   ]);
-  assert.match(contact, /mailto:/);
+  assert.match(contact, /\/api\/contact/);
   assert.match(newsletter, /\/api\/newsletter\/subscribe/);
   assert.match(newsletter, /\/api\/newsletters/);
   assert.doesNotMatch(newsletter, /mailto:/);
@@ -65,7 +65,7 @@ test('community stories do not require a source link', async () => {
   assert.match(newsletter, /Submission preview/);
   assert.match(newsletter, /Preview submission/);
   assert.match(newsletter, /Edit submission/);
-  assert.match(newsletter, /My submissions/);
+  assert.match(newsletter, /You have not saved or submitted anything yet/);
   assert.match(newsletter, /Edit and resubmit/);
   assert.match(newsletter, /Resubmit for review/);
   assert.match(newsletter, /newsletter-book/);
@@ -144,10 +144,10 @@ test('newsletter navigation groups issues by newest month and opens individual i
   const footer = layout.slice(layout.indexOf('<footer'), layout.indexOf('</footer>'));
   assert.doesNotMatch(footer, /to="\/newsletter"/);
   assert.match(newsletter, /monthKeys=Object\.keys\(monthGroups\)\.sort\(\(a,b\)=>b\.localeCompare\(a\)\)/);
-  assert.match(newsletter, /to=\{`\/newsletter\/issues\/\$\{issue\.issue_date\}`\} target="_blank"/);
+  assert.match(newsletter, /setArchiveModalIssue\(issue\)/);
   assert.match(newsletter, /Navigate to=\{`\/newsletter\/archive\/\$\{monthKeys\[0\]\}`\}/);
   assert.doesNotMatch(newsletter, /Back to weekly archive/);
-  assert.match(newsletter, /window\.close\(\)/);
+  assert.match(newsletter, /role="dialog" aria-modal="true"/);
   assert.match(newsletter, /Close newsletter/);
 });
 

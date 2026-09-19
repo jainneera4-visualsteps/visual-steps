@@ -10,16 +10,17 @@ test('data management is parent protected and never deletes records automaticall
   assert.match(server, /app\.get\('\/api\/data-management', authenticateToken/);
   assert.match(server, /app\.delete\('\/api\/data-management\/records', authenticateToken/);
   assert.match(server, /req\.user\.role === 'kid'/);
-  assert.match(page, /never removes these records automatically/i);
+  assert.match(page, /records are never removed automatically/i);
   assert.match(page, /This cannot be undone/);
 });
 
 test('older records grid supports sorting, pagination, page selection, and bulk deletion', () => {
-  assert.match(page, /type SortKey = 'title' \| 'type' \| 'learner' \| 'date'/);
+  assert.match(page, /type SortKey = 'title' \| 'category' \| 'description' \| 'action' \| 'date'/);
   assert.match(page, /<Pagination/);
   assert.match(page, /Select all records on this page/);
-  assert.match(page, /Delete selected \(\{selectedRecords\.length\}\)/);
-  assert.match(page, /Array\.from\(new Set\(\[\.\.\.current, \.\.\.pageKeys\]\)\)/);
+  assert.match(page, /aria-label="Delete selected history records"/);
+  assert.match(page, /deletedCount.*records were.*deleted/s);
+  assert.match(page, /setSelected\(event\.target\.checked \? pageKeys : \[\]\)/);
 });
 
 test('review preferences are constrained and record deletion stays family scoped', () => {

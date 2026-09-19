@@ -43,5 +43,5 @@ test('shared page selection keeps select-all bounded to visible row identifiers'
   const hook = await read('src/hooks/usePageSelection.ts');
   assert.match(hook, /pageIds\.every/);
   assert.match(hook, /\.\.\.pageIds/);
-  assert.match(hook, /!pageIds\.includes/);
+  assert.match(hook, /setSelectedIds\(checked \? \[\.\.\.pageIds\] : \[\]\)/);
 });

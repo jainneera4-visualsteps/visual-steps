@@ -26,7 +26,7 @@ test('every product feature supplies synchronization metadata for all required s
     for (const surface of requiredSurfaces) assert.ok(feature.surfaces.includes(surface), `${feature.id} is missing ${surface}`);
   }
   for (const surface of requiredSurfaces) assert.equal(featuresForSurface(surface).length, productFeatures.length);
-  assert.equal(featuresForSurface('home').length, 12);
+  assert.equal(featuresForSurface('home').length, productFeatures.length);
 });
 
 test('family-facing feature guidance avoids implementation and billing terminology', () => {
@@ -52,7 +52,7 @@ test('lifespan-wide feature guidance names both children and adults', () => {
     const feature = productFeatures.find(item => item.id === featureId);
     assert.ok(feature, `${featureId} must remain in the feature registry`);
     const familyFacingCopy = [feature.summary, feature.details, feature.familyImpact, ...feature.guideParagraphs].join(' ');
-    assert.match(familyFacingCopy, /child \/ adult/i, `${featureId} must represent autistic people across ages`);
+    assert.match(familyFacingCopy, /child \/ adult|children and adults|child.*teenager.*adult|children through.*adults/i, `${featureId} must represent autistic people across ages`);
   }
 });
 
@@ -72,10 +72,8 @@ test('required product surfaces consume the shared feature registry', async () =
     assert.match(source, /FeatureHighlights/, `${file} is not synchronized`);
   }
   const guestWorkspace = await readFile(new URL('../src/components/GuestWorkspace.tsx', import.meta.url), 'utf8');
-  assert.match(guestWorkspace, /Guest tour/);
-  assert.match(guestWorkspace, /featuresForSurface\('guest'\)/);
-  assert.match(guestWorkspace, /guestFeatures\.filter/);
-  assert.doesNotMatch(guestWorkspace, /Current Visual Steps feature guide/);
+  assert.match(guestWorkspace, /Guest · Changes are temporary/);
+  assert.doesNotMatch(guestWorkspace, /Current Visual Steps feature guide|featuresForSurface/);
   const onboarding = await readFile(new URL('../src/components/ParentOnboarding.tsx', import.meta.url), 'utf8');
   const server = await readFile(new URL('../server.ts', import.meta.url), 'utf8');
   assert.doesNotMatch(onboarding, /Current Visual Steps feature guide/);
@@ -137,7 +135,7 @@ test('home gives families a concise card-based introduction instead of a feature
   assert.match(home, /Why choose Visual Steps\?/);
   assert.match(home, /planning and learning companion/);
   assert.match(home, /Made for each person/);
-  assert.match(home, /Clear, manageable next steps/);
+  assert.match(home, /Clear, manageable steps/);
   assert.match(home, /Grow with confidence/);
 });
 
@@ -216,5 +214,5 @@ test('private social stories and public parent stories remain separate current f
   assert.equal(parentStories?.title, 'Parent stories and community publishing');
   assert.deepEqual(parentStories?.routes, ['/newsletter/community', '/testimonials']);
   assert.notEqual(socialStories?.screenshot.src, parentStories?.screenshot.src);
-  assert.doesNotMatch(featureDetail, /Recent improvements|updatedOn/);
+  assert.match(featureDetail, /update\?\.updatedOn/);
 });

@@ -45,8 +45,9 @@ test('phone navigation exposes primary public destinations', async ({ page }) =>
 
   await page.goto('/');
   await page.getByRole('button', { name: 'Open menu' }).click();
-  await expect(page.getByRole('link', { name: 'About' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Plans' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Join now' })).toBeVisible();
+  const header = page.getByRole('banner');
+  await expect(header.getByRole('link', { name: 'About' })).toBeVisible();
+  await expect(header.getByRole('link', { name: 'Plans' })).toBeVisible();
+  await expect(header.getByRole('link', { name: 'Sign in' })).toBeVisible();
+  await expect(header.getByRole('link', { name: 'Join now' })).toBeVisible();
 });

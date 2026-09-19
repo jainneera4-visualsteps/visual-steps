@@ -51,6 +51,12 @@ This section is generated from `feature-registry.json`. Update the registry when
 
 Before deployment, run `npm run lint`, `npm test`, and `npm run build`. Apply any new file in `database_updates` to the intended Supabase project before deploying code that depends on it. Verify environment variables in the deployment environment without committing secret values to the repository.
 
+### Retired schema decisions
+
+Consultations are permanently retired and are not planned to return. Apply `database_updates/2026-09-17_remove_consultations.sql` only after deploying code that no longer references consultation routes or tables.
+
+The release audit on 18 Sep 2026 verified production read-only and confirmed that `public.kids.pending_reward` does not exist (`PostgreSQL 42703`). Do not add a drop migration for that column. Reward balances and pending purchases must continue to use the current reward tables and APIs.
+
 ### Support Inbox deployment
 
 Apply `database_updates/2026-09-02_support_inbox.sql` and `database_updates/2026-09-02_support_inbox_outbound.sql` before deploying the Support Inbox routes. Confirm that `SUPABASE_SERVICE_ROLE_KEY` is configured for server-side message storage and administrator access, and that SMTP plus `CONTACT_TO_EMAIL` are configured for Contact notifications, in-app replies, and administrator-composed parent messages. After deployment, submit one Contact-page message, verify it appears under **Admin → Support Inbox**, send a test reply, and confirm the conversation becomes resolved. Then use **Compose message** with one selected test parent, confirm the recipient cannot see other addresses, and verify the sent-delivery summary.

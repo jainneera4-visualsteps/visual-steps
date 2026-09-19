@@ -22,7 +22,7 @@ test('activity workspace shows contextual secondary navigation', () => {
   assert.doesNotMatch(activities, /> Back to Dashboard/);
   assert.match(activities, /<div className="w-full space-y-2 px-0">/);
   assert.match(activities, /<div className="hidden" aria-hidden="true">/);
-  assert.match(activities, /text-3xl font-black/);
+  assert.match(activities, /app-page-title/);
   assert.match(activities, /ACTIVITY_WORKSPACE_TABS\.includes\(nextTab as ActivityWorkspaceTab\)/);
   assert.match(activities, /activeTab === 'rewards'[\s\S]*?Add New Reward Item[\s\S]*?Add Reward Item/);
   assert.doesNotMatch(activities, /Filter rewards by location[\s\S]{0,800}data-guest-tour="add-reward"/);
@@ -42,7 +42,7 @@ test('growth follows a documented three-level navigation standard', () => {
 
 test('parent shell uses stable primary workspaces and contextual navigation', () => {
   assert.match(layout, /Main parent workspaces/);
-  for (const label of ['Dashboard', 'Activities', 'Rewards', 'Learning', 'Progress', 'Support', 'Newsletter']) {
+  for (const label of ['Dashboard', 'Activities', 'Rewards', 'Learning', 'Progress', 'Connect', 'Newsletter']) {
     assert.match(layout, new RegExp(`label: '${label}'`));
   }
   assert.match(layout, /workspaceSecondaryLinks/);
@@ -63,14 +63,14 @@ test('parent shell uses stable primary workspaces and contextual navigation', ()
   assert.match(layout, /rewards: \[[\s\S]*?label: 'Rewards Catalog'[\s\S]*?label: 'Positive Recognition'/);
   assert.doesNotMatch(layout, /progress: \[[\s\S]*?label: 'Rewards'[\s\S]*?\],\n    support:/);
   assert.doesNotMatch(layout, /progress: \[[\s\S]*?label: 'Completed Work'[\s\S]*?\],\n    support:/);
-  assert.match(layout, /progress: \[[\s\S]*?label: 'Quizzes'[\s\S]*?label: 'Games'[\s\S]*?label: 'Purchases'[\s\S]*?label: 'Retries'[\s\S]*?label: 'Summary'[\s\S]*?label: 'Data'/);
+  assert.match(layout, /progress: \[[\s\S]*?label: 'Quizzes'[\s\S]*?label: 'Games'[\s\S]*?label: 'Retries'[\s\S]*?label: 'Rewards History'[\s\S]*?label: 'Activity History'[\s\S]*?label: 'Summary'/);
   assert.match(layout, /\?view=quiz-results/);
   assert.match(layout, /\?view=game-results/);
   assert.match(layout, /\['rewards', 'bonus_rewards'\]\.includes\(requestedActivityTab/);
   assert.match(layout, /support: \[[\s\S]*?label: 'Contact'[\s\S]*?label: 'Share with the Community'/);
   assert.doesNotMatch(layout, /support: \[[\s\S]*?label: 'Plans'[\s\S]*?\],\n    admin:/);
   assert.match(layout, /to="\/pricing"[^>]*>Plans<\/Link>/);
-  assert.match(layout, /newsletter: \[[\s\S]*?label: 'Weekly Archive'[\s\S]*?label: 'Subscribe Newsletter'/);
+  assert.match(layout, /newsletter: \[[\s\S]*?label: 'Weekly Archive'[\s\S]*?label: isNewsletterSubscribed \? 'Unsubscribe Newsletter' : 'Subscribe Newsletter'/);
   assert.doesNotMatch(layout, /label: 'Learner Messages'/);
   assert.match(layout, /isNewsletterAdmin \? \[\{ id: 'admin', label: 'Admin'/);
   assert.match(layout, /workspace === 'admin'\) return '\/admin\/insights'/);
@@ -97,5 +97,5 @@ test('learner dashboard uses a fixed simplified application frame', () => {
   assert.match(kidsDashboard, /parent-nav relative z-50/);
   assert.match(kidsDashboard, /data-layout-row="content-spacing"/);
   assert.match(kidsDashboard, /min-h-0 w-full flex-1 overflow-y-auto/);
-  assert.doesNotMatch(kidsDashboard, /<footer/);
+  assert.match(kidsDashboard, /<footer/);
 });
