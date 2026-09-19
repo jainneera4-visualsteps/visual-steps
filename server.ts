@@ -15,18 +15,6 @@ import nodemailer from 'nodemailer';
 import path from 'path';
 import { createHash, randomBytes } from 'crypto';
 import sharp from 'sharp';
-import {
-  MAX_UPLOAD_BYTES,
-  UPLOAD_BUCKET,
-  detectImageType,
-  getImageExtension,
-  isSupportedImageMimeType,
-} from './src/utils/uploadSecurity';
-import {
-  DEFAULT_PARENT_MESSAGE_RETENTION_DAYS,
-  getParentMessageCutoff,
-  normalizeParentMessageRetentionDays,
-} from './src/utils/parentMessageRetention';
 
 dotenv.config();
 
@@ -711,6 +699,52 @@ export const sanitizeApiErrorResponse = (
     };
   }
   return sanitized;
+};
+
+// Keep the Vercel function entry self-contained. Vercel's serverless file
+// tracer can omit local imports from src/ even when the local esbuild bundle
+// succeeds, which prevents every production API route from starting.
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+const UPLOAD_BUCKET = 'visual-steps-uploads';
+type SupportedUploadImageType = 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
+const uploadExtensionByType: Record<SupportedUploadImageType, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+};
+const isSupportedImageMimeType = (mimeType: string): mimeType is SupportedUploadImageType => (
+  Object.hasOwn(uploadExtensionByType, mimeType)
+);
+const getImageExtension = (mimeType: SupportedUploadImageType): string => uploadExtensionByType[mimeType];
+const detectImageType = (bytes: Uint8Array): SupportedUploadImageType | null => {
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg';
+  if (
+    bytes.length >= 8
+    && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47
+    && bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a
+  ) return 'image/png';
+  if (bytes.length >= 6) {
+    const signature = String.fromCharCode(...bytes.slice(0, 6));
+    if (signature === 'GIF87a' || signature === 'GIF89a') return 'image/gif';
+  }
+  if (bytes.length >= 12) {
+    const riff = String.fromCharCode(...bytes.slice(0, 4));
+    const webp = String.fromCharCode(...bytes.slice(8, 12));
+    if (riff === 'RIFF' && webp === 'WEBP') return 'image/webp';
+  }
+  return null;
+};
+
+const DEFAULT_PARENT_MESSAGE_RETENTION_DAYS = 20;
+const normalizeParentMessageRetentionDays = (value: unknown): number => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_PARENT_MESSAGE_RETENTION_DAYS;
+  return Math.floor(parsed);
+};
+const getParentMessageCutoff = (retentionDays: number): string => {
+  const normalizedDays = normalizeParentMessageRetentionDays(retentionDays);
+  return new Date(Date.now() - normalizedDays * 24 * 60 * 60 * 1000).toISOString();
 };
 
 type ActivityCompletionRecord = {
