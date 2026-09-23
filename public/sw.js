@@ -63,28 +63,7 @@ self.addEventListener('notificationclick', event => {
     target.href = new URL('/dashboard?messages=1', self.location.origin).href;
   }
   target.searchParams.set('messages', '1');
-  event.waitUntil((async () => {
-    const windows = (await self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
-      .filter(client => new URL(client.url).origin === self.location.origin);
-    const appWindows = await Promise.all(windows.map(client => new Promise(resolve => {
-      const channel = new MessageChannel();
-      const timeout = setTimeout(() => resolve(null), 500);
-      channel.port1.onmessage = message => {
-        clearTimeout(timeout);
-        resolve(message.data?.standalone ? client : null);
-      };
-      client.postMessage({ type: 'visual-steps-display-mode' }, [channel.port2]);
-    })));
-    // A normal Chrome tab may be hidden in another window or desktop. Only
-    // reuse a confirmed standalone app; otherwise open the message URL anew.
-    const existing = appWindows.find(Boolean);
-    if (existing) {
-      try {
-        const navigated = await existing.navigate(target.href);
-        if (navigated) return await navigated.focus();
-      } catch { /* A closed or no-longer-navigable window should not swallow the click. */ }
-    }
-    const opened = await self.clients.openWindow(target.href);
-    return opened?.focus();
-  })());
+  // Request the website while the notification click still has user activation.
+  // Chrome may route this into the installed app, but a browser tab is fine too.
+  event.waitUntil(self.clients.openWindow(target.href).then(opened => opened?.focus()));
 });
