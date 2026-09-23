@@ -75,13 +75,16 @@ self.addEventListener('notificationclick', event => {
       };
       client.postMessage({ type: 'visual-steps-display-mode' }, [channel.port2]);
     })));
-    const existing = appWindows.find(Boolean) || windows[0];
+    // A normal Chrome tab may be hidden in another window or desktop. Only
+    // reuse a confirmed standalone app; otherwise open the message URL anew.
+    const existing = appWindows.find(Boolean);
     if (existing) {
       try {
         const navigated = await existing.navigate(target.href);
         if (navigated) return await navigated.focus();
       } catch { /* A closed or no-longer-navigable window should not swallow the click. */ }
     }
-    return self.clients.openWindow(target.href);
+    const opened = await self.clients.openWindow(target.href);
+    return opened?.focus();
   })());
 });

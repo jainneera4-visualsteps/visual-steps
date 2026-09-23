@@ -25,3 +25,10 @@ test('push alert keeps the learner message body off the lock screen', () => {
   assert.match(worker, /self\.addEventListener\('notificationclick'/);
   assert.doesNotMatch(worker, /payload\.message/);
 });
+
+test('notification click opens the message URL when no standalone app is found', () => {
+  assert.match(worker, /const existing = appWindows\.find\(Boolean\);/);
+  assert.match(worker, /self\.clients\.openWindow\(target\.href\)/);
+  assert.match(worker, /return opened\?\.focus\(\)/);
+  assert.doesNotMatch(worker, /\|\| windows\[0\]/);
+});
