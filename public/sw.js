@@ -52,18 +52,36 @@ self.addEventListener('push', event => {
     icon: '/icons/icon-192.png',
     badge: '/icons/icon-192.png',
     tag: 'learner-message',
-    data: { url: '/dashboard' },
+    data: { url: '/dashboard?messages=1' },
   }));
 });
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async clients => {
-    const existing = clients.find(client => new URL(client.url).origin === self.location.origin);
+  const target = new URL(event.notification.data?.url || '/dashboard?messages=1', self.location.origin);
+  if (target.origin !== self.location.origin || target.pathname !== '/dashboard') {
+    target.href = new URL('/dashboard?messages=1', self.location.origin).href;
+  }
+  target.searchParams.set('messages', '1');
+  event.waitUntil((async () => {
+    const windows = (await self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
+      .filter(client => new URL(client.url).origin === self.location.origin);
+    const appWindows = await Promise.all(windows.map(client => new Promise(resolve => {
+      const channel = new MessageChannel();
+      const timeout = setTimeout(() => resolve(null), 500);
+      channel.port1.onmessage = message => {
+        clearTimeout(timeout);
+        resolve(message.data?.standalone ? client : null);
+      };
+      client.postMessage({ type: 'visual-steps-display-mode' }, [channel.port2]);
+    })));
+    const existing = appWindows.find(Boolean) || windows[0];
     if (existing) {
-      await existing.navigate('/dashboard');
-      return existing.focus();
+      try {
+        const navigated = await existing.navigate(target.href);
+        if (navigated) return await navigated.focus();
+      } catch { /* A closed or no-longer-navigable window should not swallow the click. */ }
     }
-    return self.clients.openWindow('/dashboard');
-  }));
+    return self.clients.openWindow(target.href);
+  })());
 });

@@ -263,6 +263,14 @@ export default function Dashboard() {
   }, [dashboardSelectedKidId, kids]);
 
   useEffect(() => {
+    if (searchParams.get('messages') !== '1' || isLoading || !dashboardSelectedKidId) return;
+    const frame = requestAnimationFrame(() => {
+      document.getElementById('parent-messages')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [searchParams, isLoading, dashboardSelectedKidId]);
+
+  useEffect(() => {
     if (!dashboardSelectedKidId || isGuestSession()) {
       setActivityCount(null);
       setNeedsAttentionCount(0);
@@ -752,7 +760,7 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  <div className="mt-4 space-y-2">
+                  <div id="parent-messages" className="mt-4 scroll-mt-6 space-y-2">
                     <div className="flex items-center justify-between">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                         Messages {((messagesByKid[kid.id] || []).filter(item => item.sender === 'learner' && !item.parent_read_at).length > 0) && <span className="ml-1 rounded-full bg-blue-600 px-2 py-0.5 text-white">{(messagesByKid[kid.id] || []).filter(item => item.sender === 'learner' && !item.parent_read_at).length} new</span>}
