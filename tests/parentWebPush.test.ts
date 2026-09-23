@@ -18,12 +18,13 @@ test('parent can opt in per device without replacing email alerts', () => {
   assert.match(migration, /REVOKE ALL ON public\.parent_push_subscriptions FROM anon, authenticated/);
 });
 
-test('push alert keeps the learner message body off the lock screen', () => {
-  assert.match(server, /JSON\.stringify\(\{ title: `\$\{kid\.name\} sent you a message` \}\)/);
+test('push alert includes the learner message and keeps each reply distinct', () => {
+  assert.match(server, /JSON\.stringify\(\{ title: `\$\{kid\.name\} sent you a message`, body: message, tag: `learner-message-\$\{reply\.id\}` \}\)/);
   assert.match(worker, /self\.addEventListener\('push'/);
-  assert.match(worker, /Open Visual Steps to read the message/);
+  assert.match(worker, /body = payload\.body/);
+  assert.match(worker, /tag = payload\.tag/);
   assert.match(worker, /self\.addEventListener\('notificationclick'/);
-  assert.doesNotMatch(worker, /payload\.message/);
+  assert.match(profile, /text may be visible on its lock screen/);
 });
 
 test('notification click opens the message URL without waiting for window detection', () => {

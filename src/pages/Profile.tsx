@@ -259,7 +259,7 @@ export default function Profile() {
               <p className="mt-1 text-sm text-slate-500">
                 {!pushSupported ? 'Use a supported browser, or add Visual Steps to your iPhone or iPad Home Screen.' :
                   !pushPublicKey ? 'Device notifications are not configured yet.' :
-                    'Get a brief alert on this device when your learner replies. Email alerts and the dashboard new count still work separately.'}
+                    'See your learner’s message in the notification on this device. The text may be visible on its lock screen; you can control previews in device settings. Email alerts and the dashboard new count still work separately.'}
               </p>
               {pushStatus && <p role="status" className="mt-1 text-sm text-slate-700">{pushStatus}</p>}
             </div>

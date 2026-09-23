@@ -41,17 +41,21 @@ self.addEventListener('fetch', event => {
 
 self.addEventListener('push', event => {
   let title = 'Visual Steps';
+  let body = 'Open Visual Steps to read the message.';
+  let tag = 'learner-message';
   if (event.data) {
     try {
       const payload = event.data.json();
       if (typeof payload.title === 'string' && payload.title.length <= 100) title = payload.title;
+      if (typeof payload.body === 'string' && payload.body.length <= 500) body = payload.body;
+      if (typeof payload.tag === 'string' && /^learner-message-[0-9a-f-]{36}$/.test(payload.tag)) tag = payload.tag;
     } catch { /* A malformed payload still produces a safe generic alert. */ }
   }
   event.waitUntil(self.registration.showNotification(title, {
-    body: 'Open Visual Steps to read the message.',
+    body,
     icon: '/icons/icon-192.png',
     badge: '/icons/icon-192.png',
-    tag: 'learner-message',
+    tag,
     data: { url: '/dashboard?messages=1' },
   }));
 });
