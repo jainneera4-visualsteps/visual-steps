@@ -19,7 +19,7 @@ test('parent can opt in per device without replacing email alerts', () => {
 });
 
 test('push alert includes the learner message and keeps each reply distinct', () => {
-  assert.match(server, /JSON\.stringify\(\{ title: `\$\{kid\.name\} sent you a message`, body: message, tag: `learner-message-\$\{reply\.id\}` \}\)/);
+  assert.match(server, /JSON\.stringify\(\{ title: `\$\{kid\.name\} sent you a message through Visual Steps`, body: message, tag: `learner-message-\$\{reply\.id\}` \}\)/);
   assert.match(worker, /self\.addEventListener\('push'/);
   assert.match(worker, /body = payload\.body/);
   assert.match(worker, /tag = payload\.tag/);

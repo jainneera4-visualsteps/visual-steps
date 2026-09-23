@@ -6329,7 +6329,7 @@ app.post('/api/kids/:kidId/replies', authenticateToken, async (req: any, res) =>
         await Promise.all((subscriptions || []).map(async subscription => {
           try {
             await webPush.sendNotification({ endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } },
-              JSON.stringify({ title: `${kid.name} sent you a message`, body: message, tag: `learner-message-${reply.id}` }), { TTL: 3600, timeout: 5000 });
+              JSON.stringify({ title: `${kid.name} sent you a message through Visual Steps`, body: message, tag: `learner-message-${reply.id}` }), { TTL: 3600, timeout: 5000 });
           } catch (pushError: any) {
             if (pushError?.statusCode === 404 || pushError?.statusCode === 410) {
               await admin.from('parent_push_subscriptions').delete().eq('id', subscription.id).eq('user_id', req.user.id);
