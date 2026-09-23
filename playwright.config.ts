@@ -19,6 +19,11 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
     {
+      name: 'android-chromium',
+      testMatch: /chat-layout\.spec\.ts/,
+      use: { ...devices['Pixel 7'] },
+    },
+    {
       name: 'iphone-webkit',
       testMatch: /pwa-mobile\.spec\.ts/,
       use: { ...devices['iPhone 13'] },

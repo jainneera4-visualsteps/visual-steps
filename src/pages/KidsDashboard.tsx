@@ -2,7 +2,7 @@ import { apiFetch, safeJson } from '../utils/api';
 import { isGuestSession } from '../guest/guestSession';
 import { io } from 'socket.io-client';
 import { formatReward, getRewardIcon } from '../utils/rewardUtils';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Calendar, Star, Lightbulb, CheckCircle, Clock, LayoutList, WifiOff, Sun, CloudSun, Moon, Sparkles, LogOut, Trophy, Eye, MessageSquare, ShieldCheck, Send } from 'lucide-react';
 import { Card, CardContent } from '../components/Card';
@@ -128,9 +128,15 @@ export default function KidsDashboard() {
   const [helpRequestedActivityIds, setHelpRequestedActivityIds] = useState<string[]>([]);
   const [parentComingActivityIds, setParentComingActivityIds] = useState<string[]>([]);
   const [familyMessages, setFamilyMessages] = useState<FamilyMessage[]>([]);
+  const messageListRef = useRef<HTMLDivElement | null>(null);
   const [replyText, setReplyText] = useState('');
   const [isSendingReply, setIsSendingReply] = useState(false);
   const [requestingHelpActivityId, setRequestingHelpActivityId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const list = messageListRef.current;
+    if (list) list.scrollTop = list.scrollHeight;
+  }, [familyMessages]);
 
   const sendLearnerReply = async (message: string) => {
     const reply = message.trim();
@@ -1119,27 +1125,27 @@ export default function KidsDashboard() {
           />
         ) : (
           <div className={`kid-dashboard-workspace grid items-stretch gap-0 overflow-hidden rounded-3xl border border-white/80 bg-white/70 shadow-sm backdrop-blur-sm lg:grid-cols-[minmax(250px,270px)_minmax(0,1fr)] ${positiveRecognitions[0] && isAccessAllowed ? 'xl:grid-cols-[minmax(250px,270px)_minmax(0,1fr)_minmax(250px,270px)]' : ''}`}>
-              <aside data-guest-tour="child-message" aria-label="Family messages" className={`kid-theme-side min-w-0 rounded-2xl border p-4 shadow-sm lg:sticky lg:top-3 ${currentTheme.rules}`}>
-                <div className="flex items-center gap-2 font-bold"><MessageSquare className="h-5 w-5" /> Messages with Parent</div>
-                <div className="kid-message-list mt-2 max-h-72 space-y-2 overflow-y-auto" aria-live="polite">
-                  {familyMessages.length > 0 ? familyMessages.map(message => (
-                    <div key={message.id} className="kid-message-entry rounded-lg bg-white/90 p-3 text-slate-800">
-                      <p className={`mb-1 text-xs font-bold ${currentTheme.accent}`}>{message.sender === 'learner' ? 'You' : 'Parent'}</p>
-                      <p className="break-words text-base">{message.message}</p>
+              <aside data-guest-tour="child-message" aria-label="Family messages" className={`kid-theme-side kid-chat-panel min-w-0 ${currentTheme.rules}`}>
+                <div className="kid-chat-header flex shrink-0 items-center gap-2 font-bold"><MessageSquare className="h-5 w-5 shrink-0" /> Messages with Parent</div>
+                <div ref={messageListRef} className="kid-message-list mt-2 min-h-0 flex-1 space-y-2 overflow-y-auto" aria-live="polite" role="log" aria-label="Conversation with Parent">
+                  {familyMessages.length > 0 ? [...familyMessages].sort((a, b) => a.created_at.localeCompare(b.created_at)).map(message => (
+                    <div key={message.id} className={`kid-chat-bubble ${message.sender === 'learner' ? 'kid-chat-bubble--learner' : 'kid-chat-bubble--parent'}`}>
+                      <span className="kid-chat-sender">{message.sender === 'learner' ? 'You' : 'Parent'}</span>
+                      <p className="kid-chat-text break-words">{message.message}</p>
                       {message.audio_url && <audio controls src={message.audio_url} className="mt-2 max-w-full" aria-label="Play parent's voice" />}
+                      <span className="kid-chat-time">{formatInTimezone(message.created_at, kid?.timezone, { hour: 'numeric', minute: '2-digit' })}</span>
                     </div>
-                  )) : <p className="rounded-lg bg-white/90 p-3 text-base text-slate-700">{kid?.parent_message || 'No messages yet. You can send one to your parent.'}</p>}
+                  )) : <div className="kid-chat-bubble kid-chat-bubble--parent"><span className="kid-chat-sender">Parent</span><p className="kid-chat-text">{kid?.parent_message || 'No messages yet. You can send one to your parent.'}</p></div>}
                 </div>
-                {familyMessages.some(message => message.sender === 'parent') || kid?.parent_message ? <div className="mt-2 flex flex-wrap gap-2">
+                {familyMessages.some(message => message.sender === 'parent') || kid?.parent_message ? <div className="kid-chat-quick-replies mt-2 flex shrink-0 gap-2 overflow-x-auto pb-1">
                   {['Thank you ❤️', 'I need help', 'Can we talk?'].map(reply => (
-                    <button key={reply} type="button" disabled={isSendingReply} onClick={() => void sendLearnerReply(reply)} className={`rounded-lg border bg-white/90 px-3 py-2 text-sm font-semibold disabled:opacity-50 ${currentTheme.card} ${currentTheme.accent}`}>{reply}</button>
+                    <button key={reply} type="button" disabled={isSendingReply} onClick={() => void sendLearnerReply(reply)} className={`shrink-0 rounded-full border bg-white/90 px-3 py-1.5 font-semibold disabled:opacity-50 ${currentTheme.card} ${currentTheme.accent}`}>{reply}</button>
                   ))}
                 </div> : null}
-                <form className="mt-2 flex gap-2" onSubmit={event => { event.preventDefault(); void sendLearnerReply(replyText); }}>
+                <form className="kid-chat-compose mt-2 flex shrink-0 gap-2" onSubmit={event => { event.preventDefault(); void sendLearnerReply(replyText); }}>
                   <input value={replyText} onChange={event => setReplyText(event.target.value)} maxLength={500} placeholder="Write to Parent" aria-label="Write a message to Parent" className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-base" />
                   <button type="submit" disabled={!replyText.trim() || isSendingReply} aria-label="Send reply" className={`rounded-lg px-4 text-white disabled:opacity-50 ${currentTheme.button}`}><Send className="h-5 w-5" /></button>
                 </form>
-                {companionStyle !== 'none' && <div className="kid-sidebar-scene" aria-hidden="true"><span>{themeCompanion.decorations[0]}</span><span>{companionStyle === 'simple' ? themeCompanion.icon : themeCompanion.character}</span></div>}
               </aside>
 
             <div className="kid-dashboard-center min-w-0 space-y-1 p-2">

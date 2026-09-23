@@ -413,6 +413,7 @@
   }
   .kid-dashboard-workspace .kid-theme-nav button {
     border-radius: 0.9rem;
+    font-size: 0.9rem;
     background: transparent;
     box-shadow: none;
     color: rgb(var(--kid-primary));
@@ -451,21 +452,55 @@
     border-bottom: 1px solid rgb(var(--kid-glow-one) / 0.24);
     background: transparent;
   }
-  .kid-dashboard-workspace .kid-theme-side { font-size: clamp(1.1rem, 0.8vw, 1.3rem); line-height: 1.5; }
-  .kid-dashboard-workspace .kid-theme-side > div:first-child { color: rgb(var(--kid-primary)); font-size: clamp(1.2rem, 0.9vw, 1.45rem); line-height: 1.25; }
+  .kid-dashboard-workspace .kid-theme-side { font-size: clamp(1rem, 0.75vw, 1.18rem); line-height: 1.5; }
+  .kid-dashboard-workspace .kid-theme-side > div:first-child { color: rgb(var(--kid-primary)); font-size: clamp(1.1rem, 0.85vw, 1.32rem); line-height: 1.25; }
   .kid-dashboard-workspace .kid-message-entry p:first-child { color: rgb(var(--kid-primary)); font-size: 1.03rem; }
   .kid-dashboard-workspace .kid-message-entry p:nth-child(2) { font-size: clamp(1.18rem, 0.85vw, 1.35rem); line-height: 1.5; }
   .kid-dashboard-workspace .kid-theme-side button,
-  .kid-dashboard-workspace .kid-theme-side input { font-size: 1.12rem; }
-  .kid-dashboard-workspace .kid-recognition-entry { font-size: 1.22rem; line-height: 1.45; }
-  .kid-dashboard-workspace .kid-theme-side p.text-xs { font-size: 1.02rem; }
-  .kid-dashboard-workspace .kid-choice-note p { font-size: clamp(1.12rem, 0.85vw, 1.38rem); line-height: 1.45; }
-  .kid-dashboard-workspace .kid-choice-heading h3 { color: rgb(var(--kid-primary)); font-size: clamp(1.4rem, 1vw, 1.7rem); }
-  .kid-dashboard-workspace .kid-choice-heading p { font-size: 1.05rem; }
-  .kid-dashboard-workspace .kid-activity-card h3 { font-size: clamp(1.5rem, 1vw, 1.8rem); line-height: 1.28; }
-  .kid-dashboard-workspace .kid-activity-card p { font-size: clamp(1.12rem, 0.85vw, 1.35rem); line-height: 1.4; }
-  .kid-dashboard-workspace .kid-activity-card .kid-activity-meta { font-size: 1.05rem; }
+  .kid-dashboard-workspace .kid-theme-side input { font-size: 1rem; }
+  .kid-dashboard-workspace .kid-recognition-entry { font-size: 1.1rem; line-height: 1.45; }
+  .kid-dashboard-workspace .kid-theme-side p.text-xs { font-size: 0.92rem; }
+  .kid-dashboard-workspace .kid-choice-note p { font-size: clamp(1rem, 0.8vw, 1.25rem); line-height: 1.45; }
+  .kid-dashboard-workspace .kid-choice-heading h3 { color: rgb(var(--kid-primary)); font-size: clamp(1.25rem, 0.95vw, 1.55rem); }
+  .kid-dashboard-workspace .kid-choice-heading p { font-size: 0.95rem; }
+  .kid-dashboard-workspace .kid-activity-card h3 { font-size: clamp(1.375rem, 0.95vw, 1.65rem); line-height: 1.28; }
+  .kid-dashboard-workspace .kid-activity-card p { font-size: clamp(1rem, 0.8vw, 1.23rem); line-height: 1.4; }
+  .kid-dashboard-workspace .kid-activity-card .kid-activity-meta { font-size: 0.95rem; }
   .kid-dashboard-workspace .kid-message-list { max-height: min(46vh, 34rem); }
+  .kid-dashboard-workspace .kid-chat-panel {
+    height: min(36rem, 66dvh);
+    min-height: 20rem;
+    align-self: start;
+    overflow: hidden;
+  }
+  .kid-dashboard-workspace .kid-chat-panel .kid-message-list { max-height: none; }
+  .kid-dashboard-workspace .kid-chat-bubble {
+    width: fit-content;
+    max-width: 92%;
+    padding: 0.55rem 0.7rem;
+    border-radius: 1rem;
+    color: #263b49;
+    background: rgb(255 255 255 / 0.92);
+    box-shadow: 0 2px 8px rgb(15 23 42 / 0.08);
+  }
+  .kid-dashboard-workspace .kid-chat-bubble--parent { border-bottom-left-radius: 0.25rem; }
+  .kid-dashboard-workspace .kid-chat-bubble--learner {
+    margin-left: auto;
+    border-bottom-right-radius: 0.25rem;
+    background: rgb(var(--kid-glow-one) / 0.42);
+  }
+  .kid-dashboard-workspace .kid-chat-sender,
+  .kid-dashboard-workspace .kid-chat-time {
+    display: block;
+    color: rgb(var(--kid-primary));
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+  .kid-dashboard-workspace .kid-chat-text { margin-top: 0.18rem; font-size: 0.95rem; line-height: 1.4; }
+  .kid-dashboard-workspace .kid-chat-time { margin-top: 0.15rem; text-align: right; font-size: 0.68rem; opacity: 0.8; }
+  .kid-dashboard-workspace .kid-chat-quick-replies button { font-size: 0.85rem; white-space: nowrap; }
+  .kid-dashboard-workspace .kid-chat-compose { border-top: 1px solid rgb(var(--kid-glow-one) / 0.28); padding-top: 0.6rem; }
   .kid-dashboard-workspace .kid-dashboard-center { padding: 0.55rem 0.8rem; }
   .kid-dashboard-workspace .kid-theme-side { padding: 0.7rem; }
   .kid-dashboard-workspace .kid-theme-nav { padding-block: 0.15rem 0.3rem; }
@@ -537,6 +572,10 @@
   .kid-theme-dark .kid-dashboard-workspace .kid-message-entry,
   .kid-theme-dark .kid-dashboard-workspace .kid-message-entry p:nth-child(2) { color: #f8fafc; }
   .kid-theme-dark .kid-dashboard-workspace .kid-message-entry p:first-child { color: #a5b4fc; }
+  .kid-theme-dark .kid-dashboard-workspace .kid-chat-bubble { background: #334155; color: #f8fafc; }
+  .kid-theme-dark .kid-dashboard-workspace .kid-chat-bubble--learner { background: #373b79; }
+  .kid-theme-dark .kid-dashboard-workspace .kid-chat-sender,
+  .kid-theme-dark .kid-dashboard-workspace .kid-chat-time { color: #c7d2fe; }
   .kid-theme-dark .kid-dashboard-workspace .kid-theme-side > p { color: #f8fafc; }
   .kid-theme-dark .kid-theme-nav button[aria-current="page"] { color: white; }
   @media (min-width: 1024px) {

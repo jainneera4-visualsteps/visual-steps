@@ -32,3 +32,10 @@ test('notification click opens the message URL without waiting for window detect
   assert.match(worker, /opened\?\.focus\(\)/);
   assert.doesNotMatch(worker, /clients\.matchAll/);
 });
+
+test('parent push accepts common Android and Windows browser endpoints', () => {
+  assert.match(server, /fcm\\\.googleapis\\\.com/);
+  assert.match(server, /notify\\\.windows\\\.com/);
+  assert.match(server, /Promise\.all\(\(subscriptions \|\| \[\]\)\.map/);
+  assert.match(profile, /'PushManager' in window && 'Notification' in window/);
+});
