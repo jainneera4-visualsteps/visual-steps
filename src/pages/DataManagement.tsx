@@ -182,7 +182,7 @@ export default function DataManagement({ mode = 'activity' }: { mode?: 'activity
   return <div className="w-full space-y-3 px-0 [&_.app-data-table-head_th]:cursor-pointer" onClick={handleGridHeaderClick}>
     <div className="app-page-header">
       <h1 className="app-page-title"><span className="flex items-center gap-3"><Database className="h-8 w-8 text-blue-600" />{mode === 'activity' ? `${summary?.settings.learnerName || 'Learner'}'s Activity History` : 'Rewards History'}</span></h1>
-      <p className="app-page-subtitle">{mode === 'activity' ? "Review one summary row per activity category and name. Open View to see every recorded action." : "Review purchases and bonus rewards for the selected learner, grouped by reward name."}</p>
+      <p className="app-page-subtitle">{mode === 'activity' ? "Review one summary row per activity category and name. Open View to see every recorded action." : "Review purchases and bonus-token additions for the selected learner, grouped by reward name."}</p>
     </div>
 
     {loading ? <div className="flex min-h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-blue-600" /></div> : error ? <Card><CardContent className="p-6 text-center"><p className="text-red-700">{error}</p><Button className="mt-3" onClick={() => void loadSummary()}>Try again</Button></CardContent></Card> : summary && <>

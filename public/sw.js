@@ -38,3 +38,32 @@ self.addEventListener('fetch', event => {
     );
   }
 });
+
+self.addEventListener('push', event => {
+  let title = 'Visual Steps';
+  if (event.data) {
+    try {
+      const payload = event.data.json();
+      if (typeof payload.title === 'string' && payload.title.length <= 100) title = payload.title;
+    } catch { /* A malformed payload still produces a safe generic alert. */ }
+  }
+  event.waitUntil(self.registration.showNotification(title, {
+    body: 'Open Visual Steps to read the message.',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    tag: 'learner-message',
+    data: { url: '/dashboard' },
+  }));
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async clients => {
+    const existing = clients.find(client => new URL(client.url).origin === self.location.origin);
+    if (existing) {
+      await existing.navigate('/dashboard');
+      return existing.focus();
+    }
+    return self.clients.openWindow('/dashboard');
+  }));
+});

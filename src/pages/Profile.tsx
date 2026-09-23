@@ -4,8 +4,16 @@ import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import { AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
+import { AlertCircle, CheckCircle, ArrowLeft, Bell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { isGuestSession } from '../guest/guestSession';
+
+const decodeVapidKey = (key: string): Uint8Array<ArrayBuffer> => {
+  const binary = atob(key.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(key.length / 4) * 4, '='));
+  const bytes = new Uint8Array(new ArrayBuffer(binary.length));
+  for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
+  return bytes;
+};
 
 export default function Profile() {
   const { user, refreshProfile } = useAuth();
@@ -13,17 +21,83 @@ export default function Profile() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [maxParentMessageDays, setMaxParentMessageDays] = useState('20');
+  const [learnerReplyEmailNotifications, setLearnerReplyEmailNotifications] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
+  const [pushPublicKey, setPushPublicKey] = useState<string | null>(null);
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushStatus, setPushStatus] = useState('');
+  const pushSupported = !isGuestSession() && window.isSecureContext && 'serviceWorker' in navigator &&
+    'PushManager' in window && 'Notification' in window;
+
+  useEffect(() => {
+    if (!user || !pushSupported) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await apiFetch('/api/user/push-config');
+        if (!response.ok) return;
+        const config = await response.json();
+        if (cancelled) return;
+        setPushPublicKey(config.available ? config.publicKey : null);
+        if (config.available && Notification.permission === 'granted') {
+          const registration = await navigator.serviceWorker.ready;
+          const subscription = await registration.pushManager.getSubscription();
+          if (!cancelled) setPushEnabled(Boolean(subscription));
+        }
+      } catch { if (!cancelled) setPushStatus('Unable to check device notifications right now.'); }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id, pushSupported]);
+
+  const togglePushNotifications = async () => {
+    if (!pushPublicKey || pushBusy) return;
+    setPushBusy(true);
+    setPushStatus('');
+    try {
+      if (!pushEnabled && Notification.permission !== 'granted') {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') throw new Error('Allow notifications in your device settings to enable this feature.');
+      }
+      const registration = await navigator.serviceWorker.ready;
+      const current = await registration.pushManager.getSubscription();
+      if (pushEnabled) {
+        if (current) {
+          const response = await apiFetch('/api/user/push-subscriptions', {
+            method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: current.endpoint }),
+          });
+          if (!response.ok) throw new Error('Could not disable notifications on this device.');
+          await current.unsubscribe();
+        }
+        setPushEnabled(false);
+        setPushStatus('Device notifications turned off.');
+      } else {
+        const subscription = current || await registration.pushManager.subscribe({
+          userVisibleOnly: true, applicationServerKey: decodeVapidKey(pushPublicKey),
+        });
+        const response = await apiFetch('/api/user/push-subscriptions', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscription: subscription.toJSON() }),
+        });
+        if (!response.ok) {
+          if (!current) await subscription.unsubscribe();
+          throw new Error('Could not save notifications for this device.');
+        }
+        setPushEnabled(true);
+        setPushStatus('Device notifications turned on.');
+      }
+    } catch (error) {
+      setPushStatus(error instanceof Error ? error.message : 'Could not change device notifications.');
+    } finally { setPushBusy(false); }
+  };
 
   useEffect(() => {
     if (user) {
       setName(user.name);
       setEmail(user.email);
-      setMaxParentMessageDays(String(user.max_parent_message_days || user.max_parent_messages || 20));
+      setLearnerReplyEmailNotifications(user.learner_reply_email_notifications === true);
     }
   }, [user]);
 
@@ -36,7 +110,7 @@ export default function Profile() {
       const res = await apiFetch('/api/user/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, newPassword, maxParentMessageDays }),
+        body: JSON.stringify({ name, email, newPassword, learnerReplyEmailNotifications }),
       });
 
       const data = await res.json();
@@ -48,7 +122,7 @@ export default function Profile() {
       if (data?.profile) {
         setName(data.profile.name || '');
         setEmail(data.profile.email || '');
-        setMaxParentMessageDays(String(data.profile.max_parent_message_days || data.profile.max_parent_messages || 20));
+        setLearnerReplyEmailNotifications(data.profile.learner_reply_email_notifications === true);
       }
 
       await refreshProfile();
@@ -169,18 +243,25 @@ export default function Profile() {
 
             <div className="pt-1.5 border-t border-slate-100">
               <h3 className="text-[12px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Parent Messaging</h3>
-              <Input
-                label="Days to Keep Messages"
-                type="number"
-                min="1"
-                step="1"
-                value={maxParentMessageDays}
-                onChange={(e) => setMaxParentMessageDays(e.target.value)}
-                className="h-7 text-sm"
-              />
-              <p className="mt-1 text-[11px] text-slate-500">
-                Messages older than this many days are automatically deleted.
+              <p className="text-sm text-slate-600">Messages stay available until you delete them.</p>
+              <label className="mt-3 flex items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" checked={learnerReplyEmailNotifications} onChange={event => setLearnerReplyEmailNotifications(event.target.checked)} />
+                Email me when the learner sends a reply
+              </label>
+              <p className="mt-1 text-[11px] text-slate-500">The email includes the learner's message. Turn this off if you prefer messages to stay inside Visual Steps.</p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <Button type="button" variant="outline" size="xs" onClick={() => void togglePushNotifications()}
+                  disabled={!pushSupported || !pushPublicKey || pushBusy} className="h-8 gap-1.5 text-sm">
+                  <Bell className="h-4 w-4" /> {pushEnabled ? 'Turn off device notifications' : 'Enable device notifications'}
+                </Button>
+                <span className="text-sm text-slate-600">{pushEnabled ? 'On for this device' : 'Off for this device'}</span>
+              </div>
+              <p className="mt-1 text-sm text-slate-500">
+                {!pushSupported ? 'Use a supported browser, or add Visual Steps to your iPhone or iPad Home Screen.' :
+                  !pushPublicKey ? 'Device notifications are not configured yet.' :
+                    'Get a brief alert on this device when your learner replies. Email alerts and the dashboard new count still work separately.'}
               </p>
+              {pushStatus && <p role="status" className="mt-1 text-sm text-slate-700">{pushStatus}</p>}
             </div>
 
             <div className="flex flex-wrap justify-between gap-2 pt-1.5">

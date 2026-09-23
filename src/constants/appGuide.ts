@@ -14,7 +14,7 @@ export const APP_GUIDE = {
   },
   knowledgeBase: {
     features: currentFeatures.map(feature => ({ id: feature.id, help: feature.help, familyImpact: feature.familyImpact })),
-    learnerDashboard: "The learner dashboard presents assigned work, verification status, earned rewards, and recent positive recognition in a focused child / adult view.",
+    learnerDashboard: "The learner dashboard presents available choices, verification status, earned rewards, and recent token-free positive recognition in a focused child / adult view.",
     parentWorkspace: "The parent workspace manages profiles, activities, verification, rewards, learning resources, reports, sharing, and family-controlled data review.",
     fallback: "If the exact answer is not available in the current Visual Steps guide, explain that clearly and direct the parent or caregiver to the closest relevant menu without inventing a field or button."
   }

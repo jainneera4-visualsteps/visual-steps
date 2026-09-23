@@ -728,7 +728,7 @@ export default function AddEditKid() {
                   <div className="group relative">
                     <HelpCircle className="h-3.5 w-3.5 cursor-help text-brand-500" />
                     <div className="pointer-events-none absolute right-0 top-full z-[100] mt-2 w-80 rounded-2xl border-2 border-yellow-200 bg-[#fffdea] p-4 font-[Arial] text-slate-800 opacity-0 shadow-2xl transition-all group-hover:opacity-100">
-                      <span className="font-bold text-[15px] leading-tight">Choose how many recent parent-awarded behavior bonuses appear on the child dashboard, from 1 to 10.</span>
+                      <span className="font-bold text-[15px] leading-tight">Choose how many recent positive recognitions appear on the learner dashboard, from 1 to 10.</span>
                     </div>
                   </div>
                 </div>

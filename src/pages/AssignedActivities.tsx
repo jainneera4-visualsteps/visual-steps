@@ -24,9 +24,9 @@ type ActivityStatus = 'pending' | 'awaiting_verification' | 'completed' | 'on_ho
 type ActivityOutcome = '' | 'reassign' | 'on_hold' | 'ended';
 type ReassignmentLevel = 'same' | 'up' | 'down';
 type ActivityMeaning = 'available_choice' | 'important_today';
-type ActivityWorkspaceTab = 'activities' | 'help_requested' | 'verification' | 'completed' | 'on_hold' | 'ended' | 'history' | 'quiz_results' | 'rewards' | 'bonus_rewards';
+type ActivityWorkspaceTab = 'activities' | 'help_requested' | 'verification' | 'completed' | 'on_hold' | 'ended' | 'history' | 'quiz_results' | 'rewards' | 'positive_recognition' | 'bonus_tokens';
 
-const ACTIVITY_WORKSPACE_TABS: ActivityWorkspaceTab[] = ['activities', 'help_requested', 'verification', 'completed', 'on_hold', 'ended', 'history', 'quiz_results', 'rewards', 'bonus_rewards'];
+const ACTIVITY_WORKSPACE_TABS: ActivityWorkspaceTab[] = ['activities', 'help_requested', 'verification', 'completed', 'on_hold', 'ended', 'history', 'quiz_results', 'rewards', 'positive_recognition', 'bonus_tokens'];
 
 interface Activity {
   id: string;
@@ -109,6 +109,13 @@ interface BehaviorBonusAward {
   awarded_at: string;
 }
 
+interface PositiveRecognition {
+  id: string;
+  kid_id: string;
+  recognition_message: string;
+  recognized_at: string;
+}
+
 interface ActivityTemplate {
   id: string;
   activity_type: string;
@@ -159,7 +166,7 @@ export default function AssignedActivities() {
     return new Date(zoned.year, zoned.month - 1, 1);
   });
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const requestedTab = searchParams.get('tab');
+  const requestedTab = searchParams.get('tab') === 'bonus_rewards' ? 'positive_recognition' : searchParams.get('tab');
   const [activeTab, setActiveTab] = useState<ActivityWorkspaceTab>(ACTIVITY_WORKSPACE_TABS.includes(requestedTab as ActivityWorkspaceTab) ? requestedTab as ActivityWorkspaceTab : 'activities');
 
   useEffect(() => {
@@ -180,11 +187,14 @@ export default function AssignedActivities() {
   const [rewardItems, setRewardItems] = useState<RewardItem[]>([]);
   const [quizResults, setQuizResults] = useState<any[]>([]);
   const [behaviorBonuses, setBehaviorBonuses] = useState<BehaviorBonusAward[]>([]);
+  const [positiveRecognitions, setPositiveRecognitions] = useState<PositiveRecognition[]>([]);
   const [isAwardingBonus, setIsAwardingBonus] = useState(false);
   const [isBonusFormOpen, setIsBonusFormOpen] = useState(false);
-  const [showAllBehaviorBonuses, setShowAllBehaviorBonuses] = useState(false);
-  const [bonusReason, setBonusReason] = useState('Focused effort');
+  const [bonusReason, setBonusReason] = useState('Bonus tokens');
   const [bonusAmount, setBonusAmount] = useState('1');
+  const [recognitionMessage, setRecognitionMessage] = useState('Focused effort');
+  const [isSavingRecognition, setIsSavingRecognition] = useState(false);
+  const [isRecognitionFormOpen, setIsRecognitionFormOpen] = useState(false);
   const [isRewardModalOpen, setIsRewardModalOpen] = useState(false);
   const [isHistoryDeleteConfirmOpen, setIsHistoryDeleteConfirmOpen] = useState(false);
   const [activityToDelete, setActivityToDelete] = useState<string | null>(null);
@@ -354,7 +364,6 @@ export default function AssignedActivities() {
   ];
   const todayInKidTimezone = getZonedTime(kid?.timezone).isoDate;
   const todaysBehaviorBonuses = behaviorBonuses.filter(award => getZonedTime(kid?.timezone, new Date(award.awarded_at)).isoDate === todayInKidTimezone);
-  const todaysBehaviorRewardTotal = todaysBehaviorBonuses.reduce((total, award) => total + Number(award.reward_amount || 0), 0);
   const behaviorReasonChoices = [
     ['⏳', 'Waited calmly'], ['🙋', 'Asked for help'], ['🔄', 'Tried again'],
     ['💬', 'Used kind words'], ['👂', 'Followed a direction'], ['🌈', 'Managed a change'],
@@ -777,16 +786,18 @@ export default function AssignedActivities() {
       setHelpRequests([]);
       setHistoryActivities([]);
       setBehaviorBonuses([]);
+      setPositiveRecognitions([]);
     }
     try {
       // Load independent learner collections concurrently. The activities API
       // resolves the learner timezone itself, so it does not need to wait for
       // the profile request first.
-      const [kidRes, actRes, histRes, bonusRes] = await Promise.all([
+      const [kidRes, actRes, histRes, bonusRes, recognitionRes] = await Promise.all([
         apiFetch(`/api/kids/${encodeURIComponent(requestedKidId)}`),
         apiFetch(`/api/kids/${encodeURIComponent(requestedKidId)}/activities?mode=parent`),
         apiFetch(`/api/kids/${encodeURIComponent(requestedKidId)}/activity-history`),
         apiFetch(`/api/kids/${encodeURIComponent(requestedKidId)}/behavior-bonuses`),
+        apiFetch(`/api/kids/${encodeURIComponent(requestedKidId)}/positive-recognitions`),
       ]);
       if (!isCurrentRequest()) return;
 
@@ -842,6 +853,10 @@ export default function AssignedActivities() {
       if (bonusRes.ok) {
         const bonusData = await safeJson(bonusRes);
         setBehaviorBonuses(bonusData.awards || []);
+      }
+      if (recognitionRes.ok) {
+        const recognitionData = await safeJson(recognitionRes);
+        setPositiveRecognitions(recognitionData.recognitions || []);
       }
     } catch (error: any) {
       setActivitiesLoadError(
@@ -1143,7 +1158,7 @@ export default function AssignedActivities() {
         body: JSON.stringify({ behaviorReason: bonusReason, rewardAmount }),
       });
       const payload = await safeJson(response);
-      if (!response.ok) throw new Error(payload?.error || 'Unable to award the behavior bonus.');
+      if (!response.ok) throw new Error(payload?.error || 'Unable to give bonus tokens.');
       setBehaviorBonuses(current => [payload.award, ...current]);
       const updatedBalance = Number.isFinite(Number(payload.rewardBalance))
         ? Number(payload.rewardBalance)
@@ -1154,9 +1169,33 @@ export default function AssignedActivities() {
       }));
       setIsBonusFormOpen(false);
     } catch (error: any) {
-      alert(error?.message || 'Unable to award the behavior bonus.');
+      alert(error?.message || 'Unable to give bonus tokens.');
     } finally {
       setIsAwardingBonus(false);
+    }
+  };
+
+  const savePositiveRecognition = async () => {
+    const message = recognitionMessage.trim();
+    if (!message) {
+      alert('Enter what you would like to recognize.');
+      return;
+    }
+    setIsSavingRecognition(true);
+    try {
+      const response = await apiFetch(`/api/kids/${encodeURIComponent(kidId)}/positive-recognitions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recognitionMessage: message }),
+      });
+      const payload = await safeJson(response);
+      if (!response.ok) throw new Error(payload?.error || 'Unable to save the recognition.');
+      setPositiveRecognitions(current => [payload.recognition, ...current]);
+      setIsRecognitionFormOpen(false);
+    } catch (error: any) {
+      alert(error?.message || 'Unable to save the recognition.');
+    } finally {
+      setIsSavingRecognition(false);
     }
   };
 
@@ -2348,8 +2387,10 @@ export default function AssignedActivities() {
                                   </div>
                                 )}
                               </div>
-                                : activeTab === 'bonus_rewards'
+                                : activeTab === 'positive_recognition'
                                   ? <div className="flex items-center gap-3"><Award className="h-8 w-8 text-indigo-600" /> {kid?.name ? `${kid.name}'s ` : ''}Positive Recognition</div>
+                                  : activeTab === 'bonus_tokens'
+                                    ? <div className="flex items-center gap-3"><Sparkles className="h-8 w-8 text-emerald-600" /> Give Bonus Tokens</div>
                                   : <div className="flex items-center gap-3"><Award className="h-8 w-8 text-amber-500" /> {kid?.name ? `${kid.name}'s ` : ''}Rewards Catalog</div>}
                 </h1>
                 <p className="app-page-subtitle">
@@ -2369,8 +2410,10 @@ export default function AssignedActivities() {
                             ? 'Review completed quiz attempts, answers, and practical learning insights.'
                         : activeTab === 'history'
                             ? 'View past activity and reward history.'
-                            : activeTab === 'bonus_rewards'
-                              ? 'Recognize positive behavior with a small, clearly explained bonus.'
+                            : activeTab === 'positive_recognition'
+                              ? 'Recognize effort, communication, flexibility, or progress without adding tokens.'
+                              : activeTab === 'bonus_tokens'
+                                ? `Add tokens to ${kid?.name || 'the learner'}'s balance without attaching praise or recognition.`
                               : 'Add or edit reward items'}
                 </p>
               </div>
@@ -2435,21 +2478,23 @@ export default function AssignedActivities() {
                       </Button>
                     </CustomTooltip>
                   )}
-                  {activeTab === 'bonus_rewards' && (
-                    <>
-                      <div className="mr-1 inline-flex h-7 items-center rounded-md border border-emerald-200 bg-emerald-50 px-2.5 text-[11px] font-bold text-emerald-800">
-                        {todaysBehaviorBonuses.length} {todaysBehaviorBonuses.length === 1 ? 'recognition' : 'recognitions'} today
-                        <span className="mx-1.5 text-emerald-400">·</span>
-                        {todaysBehaviorRewardTotal} {formatReward(kid?.reward_type, todaysBehaviorRewardTotal)} given
-                      </div>
-                      {!isBonusFormOpen && (
-                        <CustomTooltip content="Give Positive Recognition">
+                  {activeTab === 'positive_recognition' && (
+                    !isRecognitionFormOpen && (
+                      <CustomTooltip content="Recognize Something Positive">
+                        <Button size="xs" onClick={() => setIsRecognitionFormOpen(true)} className="ml-1 h-7 shrink-0 text-[12px]">
+                          <Award className="mr-1 h-3 w-3" /> Add Recognition
+                        </Button>
+                      </CustomTooltip>
+                    )
+                  )}
+                  {activeTab === 'bonus_tokens' && (
+                    !isBonusFormOpen && (
+                        <CustomTooltip content="Give Bonus Tokens">
                           <Button size="xs" onClick={() => setIsBonusFormOpen(true)} className="ml-1 h-7 shrink-0 text-[12px]" data-guest-tour="bonus-reward">
-                            <Award className="mr-1 h-3 w-3" /> Give Bonus
+                            <Sparkles className="mr-1 h-3 w-3" /> Give Bonus Tokens
                           </Button>
                         </CustomTooltip>
-                      )}
-                    </>
+                    )
                   )}
                 </div>
               </div>
@@ -3282,27 +3327,56 @@ export default function AssignedActivities() {
             
 
 
-      ) : ['rewards', 'bonus_rewards'].includes(activeTab) ? (
+      ) : ['rewards', 'positive_recognition', 'bonus_tokens'].includes(activeTab) ? (
         <div className="w-full">
-          {activeTab === 'bonus_rewards' && (
+          {activeTab === 'positive_recognition' && (
+            <div className="space-y-3">
+              {isRecognitionFormOpen && (
+                <Card className="border-indigo-200 shadow-sm">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 px-4 py-2">
+                    <CardTitle className="text-base font-bold">Recognize Something Positive</CardTitle>
+                    <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="xs" className="h-8 px-3 text-[12px] font-bold" disabled={isSavingRecognition} onClick={() => setIsRecognitionFormOpen(false)}>Cancel</Button>
+                      <Button size="xs" className="h-8 px-3 text-[12px] font-bold" disabled={isSavingRecognition || !recognitionMessage.trim()} onClick={() => void savePositiveRecognition()}>{isSavingRecognition ? 'Giving…' : 'Give Recognition'}</Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-2 px-4 pb-3">
+                    <p className="text-xs font-semibold text-slate-600">Recognize effort, communication, flexibility, or progress. This does not add tokens.</p>
+                    <div className="flex flex-wrap gap-1">{behaviorReasonChoices.map(([icon, reason]) => <button key={reason} type="button" onClick={() => setRecognitionMessage(reason)} className={`rounded-md border px-2 py-1 text-[11px] font-bold ${recognitionMessage === reason ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}><span aria-hidden="true">{icon}</span> {reason}</button>)}</div>
+                    <label htmlFor="recognition-message" className="block text-xs font-bold text-slate-700">Recognition message</label>
+                    <Input id="recognition-message" maxLength={160} value={recognitionMessage} onChange={event => setRecognitionMessage(event.target.value)} placeholder="Describe what you noticed" className="h-9 w-full" />
+                  </CardContent>
+                </Card>
+              )}
+              <Card className="overflow-hidden border-slate-200 shadow-sm">
+                <CardContent className="p-0">
+                  <table className="w-full table-fixed border-collapse text-left">
+                    <colgroup><col className="w-[75%]" /><col className="w-[25%]" /></colgroup>
+                    <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-black uppercase tracking-wide text-slate-600"><tr><th className="px-4 py-2">Recognition</th><th className="px-4 py-2">Date</th></tr></thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {positiveRecognitions.map(item => <tr key={item.id} className="text-sm text-slate-700"><td className="break-words px-4 py-2 font-semibold">{item.recognition_message}</td><td className="px-4 py-2">{formatKidDate(item.recognized_at, { month: 'short', day: 'numeric', year: 'numeric' })}</td></tr>)}
+                      {positiveRecognitions.length === 0 && <tr><td colSpan={2} className="px-4 py-8 text-center text-sm font-medium text-slate-500">No positive recognition recorded yet.</td></tr>}
+                    </tbody>
+                  </table>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+          {activeTab === 'bonus_tokens' && (
           <div className="space-y-3">
               {isBonusFormOpen && (
                 <Card data-guest-tour="bonus-reward" className="border-indigo-200 shadow-sm">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 px-4 py-2">
-                    <CardTitle className="text-base font-bold">Give Positive Recognition</CardTitle>
+                    <CardTitle className="text-base font-bold">Give Bonus Tokens</CardTitle>
                     <div className="flex items-center gap-2">
                       <Button variant="ghost" size="xs" className="h-8 px-3 text-[12px] font-bold" disabled={isAwardingBonus} onClick={() => setIsBonusFormOpen(false)}>Cancel</Button>
-                      <Button size="xs" className="h-8 px-3 text-[12px] font-bold" disabled={isAwardingBonus || !bonusReason.trim() || !Number.isInteger(Number(bonusAmount)) || Number(bonusAmount) < 1} onClick={() => void awardBehaviorBonus()}>{isAwardingBonus ? 'Giving…' : 'Give Recognition'}</Button>
+                      <Button size="xs" className="h-8 px-3 text-[12px] font-bold" disabled={isAwardingBonus || !bonusReason.trim() || !Number.isInteger(Number(bonusAmount)) || Number(bonusAmount) < 1} onClick={() => void awardBehaviorBonus()}>{isAwardingBonus ? 'Giving…' : 'Give Tokens'}</Button>
                     </div>
                   </CardHeader>
-                  <CardContent className="grid gap-2 px-4 pb-3 lg:grid-cols-2">
-                    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-                      <p className="mb-1.5 text-xs font-bold text-slate-700">What did {kid?.name || 'your child'} do?</p>
-                      <div className="flex flex-wrap gap-1">{behaviorReasonChoices.map(([icon, reason]) => <button key={reason} type="button" onClick={() => setBonusReason(reason)} className={`rounded-md border px-2 py-1 text-[11px] font-bold ${bonusReason === reason ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}><span aria-hidden="true">{icon}</span> {reason}</button>)}</div>
-                    </div>
+                  <CardContent className="px-4 pb-3">
                     <div className="flex flex-col rounded-lg border border-slate-200 bg-white px-3 py-2">
-                      <label htmlFor="recognition-reason" className="mb-1 block text-xs font-bold text-slate-700">Recognition message</label>
-                      <Input id="recognition-reason" maxLength={160} value={bonusReason} onChange={event => setBonusReason(event.target.value)} placeholder="Describe another positive choice" className="h-8 w-full" />
+                      <label htmlFor="bonus-token-note" className="mb-1 block text-xs font-bold text-slate-700">Reason for bonus tokens</label>
+                      <Input id="bonus-token-note" maxLength={160} value={bonusReason} onChange={event => setBonusReason(event.target.value)} placeholder="For example: Starting balance" className="h-8 w-full" />
                       <p className="mb-1 mt-2 text-xs font-bold text-slate-700">Reward amount</p>
                       <div className="flex flex-wrap items-center gap-1">
                         {[1, 2, 3, 5].map(amount => <button key={amount} type="button" onClick={() => setBonusAmount(String(amount))} className={`h-7 min-w-9 rounded-md border px-2 text-[11px] font-black ${bonusAmount === String(amount) ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-700'}`}>+{amount}</button>)}
@@ -3316,23 +3390,22 @@ export default function AssignedActivities() {
                 <CardContent className="p-0">
                   <div className="overflow-x-auto">
                     <table className="w-full table-fixed border-collapse text-left">
-                      <colgroup><col className="w-[62%]" /><col className="w-[18%]" /><col className="w-[20%]" /></colgroup>
+                      <colgroup><col className="w-[60%]" /><col className="w-[22%]" /><col className="w-[18%]" /></colgroup>
                       <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-black uppercase tracking-wide text-slate-600">
-                        <tr><th className="px-4 py-2">Positive behavior</th><th className="px-4 py-2">Reward amount</th><th className="px-4 py-2">Date</th></tr>
+                        <tr><th className="px-4 py-3">Bonus Reason</th><th className="px-4 py-3">Bonus Amount</th><th className="px-4 py-3">Time</th></tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {behaviorBonuses.slice(0, showAllBehaviorBonuses ? 20 : 5).map(award => (
+                        {todaysBehaviorBonuses.map(award => (
                           <tr key={award.id} className="text-sm text-slate-700">
-                            <td className="whitespace-normal break-words px-4 py-2 font-semibold">{award.behavior_reason}</td>
-                            <td className="whitespace-normal px-4 py-2 font-black text-emerald-700">+{award.reward_amount} {formatReward(kid?.reward_type, award.reward_amount)}</td>
-                            <td className="whitespace-normal px-4 py-2">{formatKidDate(award.awarded_at, { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                            <td className="break-words px-4 py-3 font-semibold">{award.behavior_reason}</td>
+                            <td className="px-4 py-3 font-bold text-emerald-700">+{award.reward_amount} {formatReward(kid?.reward_type, award.reward_amount)}</td>
+                            <td className="whitespace-nowrap px-4 py-3">{formatTimeOnly(award.awarded_at)}</td>
                           </tr>
                         ))}
-                        {behaviorBonuses.length === 0 && <tr><td colSpan={3} className="px-4 py-8 text-center text-sm font-medium text-slate-500">No positive recognition recorded yet.</td></tr>}
+                        {todaysBehaviorBonuses.length === 0 && <tr><td colSpan={3} className="px-4 py-8 text-center text-sm text-slate-500">No bonus tokens given today.</td></tr>}
                       </tbody>
                     </table>
                   </div>
-                  {behaviorBonuses.length > 5 && <button type="button" className="border-t border-slate-100 px-4 py-2 text-xs font-bold text-blue-600 hover:text-blue-800" onClick={() => setShowAllBehaviorBonuses(current => !current)}>{showAllBehaviorBonuses ? 'Show latest five' : 'View all'}</button>}
                 </CardContent>
               </Card>
           </div>

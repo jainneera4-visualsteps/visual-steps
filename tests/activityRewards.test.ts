@@ -26,9 +26,16 @@ test('completion awards the amount stored on the completed activity', () => {
     assert.doesNotMatch(server, /standardRewardQty/);
 });
 
-test('learner sees the activity reward before completion', () => {
+test('learner sees the chosen activity reward in details rather than on every choice card', () => {
     const dashboard = read('src/pages/KidsDashboard.tsx');
     const details = read('src/components/ActivityDetailModal.tsx');
-    assert.match(dashboard, /Earn \{Math\.max\(1, Number\(activity\.reward_qty\) \|\| 1\)\}/);
+    assert.doesNotMatch(dashboard, /Earn \{Math\.max\(1, Number\(activity\.reward_qty\) \|\| 1\)\}/);
     assert.match(details, /Number\(activity\.reward_qty\) \|\| 1/);
+});
+
+test('reward cards use neutral balance and cost information', () => {
+    const dashboard = read('src/pages/KidsDashboard.tsx');
+    assert.match(dashboard, /You have \$\{kid\?\.reward_balance \|\| 0\}/);
+    assert.match(dashboard, /This reward costs \$\{item\.cost\}/);
+    assert.doesNotMatch(dashboard, /Only \{item\.cost - \(kid\?\.reward_balance \|\| 0\)\} more/);
 });

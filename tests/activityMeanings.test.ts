@@ -24,9 +24,8 @@ test('new activities use standard rewards while legacy extra activity records re
 test('learner sees one choice-based activity view without a separate extras menu', () => {
   const childDashboard = readFileSync('src/pages/KidsDashboard.tsx', 'utf8');
   assert.match(childDashboard, /Choose an Activity/);
-  assert.match(childDashboard, /Choose any activity below\. You can do them in the order that works for you\./);
-  assert.match(childDashboard, /Do Today/);
-  assert.match(childDashboard, /description: 'Choose any activity you would like to do\.'/);
+  assert.match(childDashboard, /time: 'Available Choices'/);
+  assert.match(childDashboard, /Choose one activity that works for you\. You do not need to do every activity shown\./);
   assert.doesNotMatch(childDashboard, /⭐ Extra Activities/);
   assert.doesNotMatch(server, /activity\.is_optional_bonus !== true \|\| activity\.optional_selected_at/);
 });
@@ -35,8 +34,11 @@ test('parent and learner lists group meanings under headings instead of card tag
   const childDashboard = readFileSync('src/pages/KidsDashboard.tsx', 'utf8');
   assert.match(activityPage, /⭐ Do Today/);
   assert.match(activityPage, /🌱 Learner Can Choose/);
-  assert.match(childDashboard, /time: 'Do Today'/);
-  assert.match(childDashboard, /time: 'Pick an Activity'/);
+  assert.doesNotMatch(childDashboard, /time: 'Available Choices for Today'/);
+  assert.match(childDashboard, /<LayoutList className="h-6 w-6" aria-label="Activity with visual steps"/);
+  assert.doesNotMatch(childDashboard, /<Circle className="h-6 w-6"/);
+  assert.doesNotMatch(childDashboard, /time: 'Pick an Activity'/);
+  assert.doesNotMatch(childDashboard, /visibleAvailable\.filter\(activity => activity\.activity_meaning/);
   assert.doesNotMatch(childDashboard, /activity\.activity_meaning === 'important_today' \? 'Important Today' : 'Available Choice'/);
 });
 
@@ -61,6 +63,9 @@ test('flexible time guidance remains optional and is preserved through activity 
   assert.match(activityPage, /After the time passes/);
   assert.match(childDashboard, /time: 'Coming Up'/);
   assert.match(childDashboard, /Later Today/);
+  assert.match(childDashboard, /'Show More Activities'/);
+  assert.doesNotMatch(childDashboard, /Show \$\{availableChoices\.length - 6\} More Activities/);
+  assert.doesNotMatch(childDashboard, /Later Today \(\$\{later\.length\}\)/);
   assert.match(childDashboard, /Show .* More Activities/);
   assert.match(server, /exact_time: activity\.exact_time \|\| null/);
   assert.match(timeMigration, /ADD COLUMN IF NOT EXISTS time_guidance/);

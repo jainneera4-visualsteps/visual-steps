@@ -4,12 +4,11 @@ import { io } from 'socket.io-client';
 import { formatReward, getRewardIcon } from '../utils/rewardUtils';
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Calendar, Star, Lightbulb, CheckCircle, Circle, Clock, LayoutList, WifiOff, Sun, CloudSun, Moon, Sparkles, LogOut, Trophy, Eye, MessageSquare, ShieldCheck } from 'lucide-react';
+import { Calendar, Star, Lightbulb, CheckCircle, Clock, LayoutList, WifiOff, Sun, CloudSun, Moon, Sparkles, LogOut, Trophy, Eye, MessageSquare, ShieldCheck, Send } from 'lucide-react';
 import { Card, CardContent } from '../components/Card';
 import { ActivityDetailModal } from '../components/ActivityDetailModal';
 import { getZonedTime, formatInTimezone, convertDateToTimeZone } from '../utils/dateUtils';
 import { SocialStoryModal } from '../components/SocialStoryModal';
-import { countActivitiesCompletedOnDate } from '../utils/activityCompletion';
 import { getChildSubmissionStatus } from '../utils/activityVerification';
 
 interface ActivityStep {
@@ -93,11 +92,18 @@ interface RewardItem {
   location?: string;
 }
 
-interface BehaviorBonusAward {
+interface PositiveRecognition {
   id: string;
-  behavior_reason: string;
-  reward_amount: number;
-  awarded_at: string;
+  recognition_message: string;
+  recognized_at: string;
+}
+
+interface FamilyMessage {
+  id: string;
+  message: string;
+  sender: 'parent' | 'learner';
+  audio_url?: string | null;
+  created_at: string;
 }
 
 export default function KidsDashboard() {
@@ -117,12 +123,35 @@ export default function KidsDashboard() {
   const [activeTab, setActiveTab] = useState<'todo' | 'verification' | 'completed' | 'rewards'>('todo');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [timezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
-  const [completedTodayCount, setCompletedTodayCount] = useState(0);
   const [showAllActivityChoices, setShowAllActivityChoices] = useState(false);
   const [showLaterActivities, setShowLaterActivities] = useState(false);
   const [helpRequestedActivityIds, setHelpRequestedActivityIds] = useState<string[]>([]);
   const [parentComingActivityIds, setParentComingActivityIds] = useState<string[]>([]);
+  const [familyMessages, setFamilyMessages] = useState<FamilyMessage[]>([]);
+  const [replyText, setReplyText] = useState('');
+  const [isSendingReply, setIsSendingReply] = useState(false);
   const [requestingHelpActivityId, setRequestingHelpActivityId] = useState<string | null>(null);
+
+  const sendLearnerReply = async (message: string) => {
+    const reply = message.trim();
+    if (!kidId || !reply || isSendingReply) return;
+    setIsSendingReply(true);
+    try {
+      const response = await apiFetch(`/api/kids/${encodeURIComponent(kidId)}/replies`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: reply }),
+      });
+      if (!response.ok) throw new Error('Your reply could not be sent. Please try again.');
+      const data = await safeJson(response);
+      setFamilyMessages(current => [data.reply, ...current]);
+      setReplyText('');
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Your reply could not be sent.');
+    } finally {
+      setIsSendingReply(false);
+    }
+  };
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -442,7 +471,7 @@ export default function KidsDashboard() {
   const themeCompanions: Record<string, { character: string; icon: string; name: string; decorations: string[] }> = {
     sky: { character: '🌈', icon: '☁️', name: 'Rainbow', decorations: ['☁️', '✨', '☀️'] },
     emerald: { character: '🐢', icon: '🌿', name: 'Turtle', decorations: ['🌿', '🌱', '🍃'] },
-    sunset: { character: '🦊', icon: '☀️', name: 'Fox', decorations: ['☀️', '✨', '🍂'] },
+    sunset: { character: '🦊', icon: '🍁', name: 'Fox', decorations: ['🍁', '🍂', '🎃', '✨'] },
     royal: { character: '🦉', icon: '✨', name: 'Owl', decorations: ['✨', '⭐', '💫'] },
     space: { character: '🤖', icon: '🪐', name: 'Robot', decorations: ['⭐', '🪐', '✨'] },
     jungle: { character: '🐒', icon: '🌿', name: 'Monkey', decorations: ['🌿', '🍃', '🌱'] },
@@ -457,6 +486,18 @@ export default function KidsDashboard() {
     construction: { character: '🚜', icon: '🔧', name: 'Builder', decorations: ['🔧', '⚙️', '✨'] },
   };
   const themeCompanion = themeCompanions[kid?.theme || 'sky'] || themeCompanions.sky;
+  const themeFriends: Record<string, [string, string]> = {
+    sky: ['☀️', '🦋'], emerald: ['🐸', '🦋'], sunset: ['🐿️', '🦋'],
+    royal: ['🦋', '⭐'], space: ['🛸', '⭐'], jungle: ['🦜', '🦋'],
+    ocean: ['🐠', '🐢'], dino: ['🥚', '🌿'], fairy: ['🦋', '🌸'],
+    hero: ['⚡', '⭐'], sports: ['⚽', '🏆'], safari: ['🦓', '🦋'],
+    art: ['🖌️', '🌈'], music: ['🎶', '⭐'], construction: ['🚧', '⚙️'],
+  };
+  const companionsNearby = themeFriends[kid?.theme || 'sky'] || themeFriends.sky;
+  const ambientMotifs = [...themeCompanion.decorations, ...companionsNearby, ...themeCompanion.decorations].slice(0, 8);
+  const ambientPositions = [
+    [14, 4], [22, 86], [37, 14], [48, 72], [63, 94], [74, 32], [86, 7], [88, 77],
+  ];
   const companionStyle = kid?.theme_companion_style || 'character';
   const themeNavigationIcons: Record<string, [string, string, string, string]> = {
     sky: ['☁️', '🌤️', '🌈', '⭐'],
@@ -493,7 +534,7 @@ export default function KidsDashboard() {
 
   // Exit Modal State
   const [rewardItems, setRewardItems] = useState<RewardItem[]>([]);
-  const [behaviorBonuses, setBehaviorBonuses] = useState<BehaviorBonusAward[]>([]);
+  const [positiveRecognitions, setPositiveRecognitions] = useState<PositiveRecognition[]>([]);
 
   const safeLocalStorageGet = (key: string) => {
     try {
@@ -665,11 +706,6 @@ export default function KidsDashboard() {
       try {
         const parsedActivities = JSON.parse(cachedActivities);
         setActivities(parsedActivities);
-        setCompletedTodayCount(countActivitiesCompletedOnDate(
-          parsedActivities,
-          getZonedTime(cachedKidData?.timezone).isoDate,
-          cachedKidData?.timezone,
-        ));
       } catch (error) {
         console.warn('KidsDashboard: Failed to parse cached activities', error, cachedActivities);
       }
@@ -704,11 +740,12 @@ export default function KidsDashboard() {
           }
         };
 
-        const [kidRes, actRes, rewardRes, bonusRes] = await Promise.all([
+        const [kidRes, actRes, rewardRes, recognitionRes, messageRes] = await Promise.all([
           fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}`), 'kid'),
           fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/activities?mode=kid&localDate=${localDate}&localTime=${localTime}&_t=${Date.now()}`), 'activities'),
           fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/reward-items?onlyActive=true`), 'rewards'),
-          fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/behavior-bonuses`), 'behavior bonuses')
+          fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/positive-recognitions`), 'positive recognitions'),
+          fetchWrapper(apiFetch(`/api/kids/${encodeURIComponent(kidId || '')}/messages`), 'family messages')
         ]);
 
         // Process Kid Data
@@ -742,16 +779,6 @@ export default function KidsDashboard() {
               ? actData.helpRequests.filter((request: any) => request.status === 'acknowledged').map((request: any) => String(request.activity_id))
               : [],
           );
-          if (typeof actData.completedTodayCount === 'number') {
-            setCompletedTodayCount(actData.completedTodayCount);
-          } else {
-            const fallbackCount = countActivitiesCompletedOnDate(
-              normalizedActivities,
-              localDate,
-              kid?.timezone,
-            );
-            setCompletedTodayCount(fallbackCount);
-          }
           safeLocalStorageSet(`activities_${kidId}`, JSON.stringify(normalizedActivities));
         }
 
@@ -760,9 +787,13 @@ export default function KidsDashboard() {
           const rewardData = await safeJson(rewardRes);
           setRewardItems(rewardData.items || []);
         }
-        if (bonusRes.ok) {
-          const bonusData = await safeJson(bonusRes);
-          setBehaviorBonuses(bonusData.awards || []);
+        if (recognitionRes.ok) {
+          const recognitionData = await safeJson(recognitionRes);
+          setPositiveRecognitions(recognitionData.recognitions || []);
+        }
+        if (messageRes.ok) {
+          const messageData = await safeJson(messageRes);
+          setFamilyMessages(messageData.messages || []);
         }
 
       } catch (error: any) {
@@ -858,7 +889,6 @@ export default function KidsDashboard() {
         : a
     );
     setActivities(updatedActivities);
-    if (newStatus === 'completed') setCompletedTodayCount(count => count + 1);
     safeLocalStorageSet(`activities_${kidId}`, JSON.stringify(updatedActivities));
     
     // Optimistic update for kid's reward balance
@@ -978,26 +1008,31 @@ export default function KidsDashboard() {
   }
 
   return (
-    <div className={`child-page flex h-dvh w-full flex-col overflow-hidden ${currentTheme.bg} ${isDarkTheme ? 'kid-theme-dark' : ''} font-display`}>
-      <div className="pointer-events-none fixed inset-0 z-0 hidden overflow-hidden sm:block" aria-hidden="true">
-        {themeCompanion.decorations.slice(0, 3).map((decoration, index) => (
+    <div className={`child-page kid-theme-atmosphere kid-theme-${kid?.theme || 'sky'} flex h-dvh w-full flex-col overflow-hidden ${currentTheme.bg} ${isDarkTheme ? 'kid-theme-dark' : ''} font-display`}>
+      <div className="kid-theme-glow pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden="true">
+        <span className="kid-theme-orb kid-theme-orb--one" />
+        <span className="kid-theme-orb kid-theme-orb--two" />
+        <span className="kid-theme-orb kid-theme-orb--three" />
+      </div>
+      {companionStyle !== 'none' && <div className="kid-ambient-world pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden="true">
+        {ambientMotifs.map((decoration, index) => (
           <span
             key={`page-${decoration}-${index}`}
-            className="absolute select-none text-6xl opacity-[0.24]"
-            style={{ top: `${22 + index * 27}%`, [index % 2 === 0 ? 'left' : 'right']: `${1 + index}%`, transform: `rotate(${index * 16 - 10}deg)` }}
+            className="kid-theme-decoration absolute select-none"
+            style={{ top: `${ambientPositions[index][0]}%`, left: `${ambientPositions[index][1]}%`, fontSize: `${2.5 + (index % 3) * 0.55}rem`, animationDelay: `${-index * 2.1}s`, animationDuration: `${12 + (index % 4) * 3}s` }}
           >
             {decoration}
           </span>
         ))}
-      </div>
+      </div>}
       {/* Global Header */}
-      <header className="parent-nav relative z-50 w-full shrink-0 border-b border-slate-200 shadow-sm">
+      <header className={`parent-nav relative z-50 w-full shrink-0 border-b shadow-sm ${isDarkTheme ? 'border-slate-700 bg-slate-900' : `${currentTheme.banner} border-white/70`}`}>
         <div className="relative flex h-16 w-full items-center px-4">
           <div className="flex items-center gap-2">
             <div className="parent-brand-mark flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-sm">
               <Lightbulb className="h-6 w-6" />
             </div>
-            <span className="hidden text-xl font-bold tracking-tight text-slate-900 sm:inline">Visual Steps</span>
+            <span className={`hidden text-xl font-bold tracking-tight sm:inline ${isDarkTheme ? 'text-white' : 'text-slate-900'}`}>Visual Steps</span>
           </div>
 
           {/* Centered Child Profile Card removed */}
@@ -1033,36 +1068,22 @@ export default function KidsDashboard() {
           {kid?.avatar ? <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full border-4 border-white bg-white shadow-md"><img src={kid.avatar} alt={kid.name} className="h-full w-full object-cover" referrerPolicy="no-referrer" /></div> : <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-4 border-white bg-white text-2xl font-black shadow-md ${currentTheme.accent}`}>{kid?.name?.charAt(0) || '?'}</div>}
           <div className="min-w-0">
             <h1 className={`truncate text-2xl font-black ${currentTheme.bannerText}`}>{kid?.name || 'Learner'}</h1>
-            <p className={`truncate text-xs font-bold ${currentTheme.bannerSubtext}`}>{formatInTimezone(currentTime, kid?.timezone, { weekday: 'short', month: 'short', day: 'numeric' })}</p>
+            <p className={`truncate text-base font-bold ${currentTheme.bannerSubtext}`}>{formatInTimezone(currentTime, kid?.timezone, { weekday: 'short', month: 'short', day: 'numeric' })}</p>
           </div>
-          {isAccessAllowed && companionStyle !== 'none' && <span className="hidden text-3xl sm:inline" role="img" aria-label={`${themeCompanion.name} theme companion`}>{companionStyle === 'simple' ? themeCompanion.icon : themeCompanion.character}</span>}
+          {isAccessAllowed && companionStyle !== 'none' && <span className="text-3xl lg:hidden" role="img" aria-label={`${themeCompanion.name} theme companion`}>{companionStyle === 'simple' ? themeCompanion.icon : themeCompanion.character}</span>}
         </div>
+        {isAccessAllowed && companionStyle !== 'none' && (
+          <div className="kid-summary-companions relative z-10 hidden min-w-0 flex-1 items-center justify-center gap-3 lg:flex" aria-label={`${themeCompanion.name} theme companions`}>
+            <span className="kid-summary-companions__friend" aria-hidden="true">{companionsNearby[0]}</span>
+            <span className="kid-summary-companions__character" role="img" aria-label={themeCompanion.name}>{companionStyle === 'simple' ? themeCompanion.icon : themeCompanion.character}</span>
+            <span className="kid-summary-companions__friend" aria-hidden="true">{companionsNearby[1]}</span>
+            <span className={`hidden text-lg font-black xl:inline ${currentTheme.bannerText}`}>Choose your way!</span>
+          </div>
+        )}
         <div className="relative z-10 flex items-center gap-5">
-          <div data-guest-tour="child-done-today" className="text-center"><span className={`block text-[9px] font-black uppercase tracking-wider ${currentTheme.bannerSubtext}`}>Done Today</span><span className={`flex items-center gap-1 text-xl font-black ${currentTheme.bannerText}`}><CheckCircle className="h-5 w-5 text-emerald-500" />{completedTodayCount}</span></div>
-          <div data-guest-tour="child-token-balance" className="text-center"><span className={`block text-[9px] font-black uppercase tracking-wider ${currentTheme.bannerSubtext}`}>Total {kid?.reward_type || 'Rewards'}</span><span className={`flex items-center gap-1 text-xl font-black ${currentTheme.bannerText}`}><img src={rewardIcon} alt={kid?.reward_type} className="h-6 w-6 object-contain" referrerPolicy="no-referrer" />{kid?.reward_balance || 0}</span></div>
+          <div data-guest-tour="child-token-balance" className="text-center"><span className={`block text-sm font-black uppercase tracking-wider ${currentTheme.bannerSubtext}`}>Total {kid?.reward_type ? formatReward(kid.reward_type, 2) : 'Rewards'}</span><span className={`flex items-center gap-1 text-xl font-black ${currentTheme.bannerText}`}><img src={rewardIcon} alt={kid?.reward_type} className="h-6 w-6 object-contain" referrerPolicy="no-referrer" />{kid?.reward_balance || 0}</span></div>
         </div>
       </section>
-      {isAccessAllowed && (
-        <nav className={`relative z-40 flex h-12 w-full shrink-0 items-center overflow-hidden border-b px-3 shadow-sm ${currentTheme.banner}`} aria-label="Learner dashboard sections">
-          <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-            {themeCompanion.decorations.slice(0, 3).map((decoration, index) => <span key={`tab-decoration-${decoration}-${index}`} className="absolute text-2xl opacity-20" style={{ right: `${4 + index * 8}%`, top: index % 2 ? '45%' : '5%' }}>{decoration}</span>)}
-          </div>
-          <div className="relative z-10 flex items-center gap-1 overflow-x-auto">
-            {[
-              ['todo', 'Choose an Activity', navigationIcons[0], 'child-activities'],
-              ['verification', 'Waiting', navigationIcons[1], 'child-waiting'],
-              ['completed', 'Completed', navigationIcons[2], 'child-completed'],
-              ['rewards', 'Rewards', navigationIcons[3], 'child-rewards'],
-            ].map(([tab, label, icon, tour]) => (
-              <button key={tab} data-guest-tour={tour} type="button" onClick={() => setActiveTab(tab as typeof activeTab)} aria-current={activeTab === tab ? 'page' : undefined} className={`flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-xs font-black transition-all ${activeTab === tab ? `${currentTheme.button} text-white shadow-sm` : `${currentTheme.bannerText} bg-white/65 hover:bg-white/85`}`}>
-                <span className="text-base" aria-hidden="true">{icon}</span>{label}
-              </button>
-            ))}
-          </div>
-        </nav>
-      )}
-      <div className="h-3 w-full shrink-0 bg-white" aria-hidden="true" data-layout-row="content-spacing" />
-
       {parentComingActivityIds.length > 0 && (
         <div role="status" className="flex w-full shrink-0 items-center justify-center gap-2 border-y border-emerald-200 bg-emerald-50 px-4 py-2 text-center text-sm font-black text-emerald-900">
           <span aria-hidden="true">💚</span>
@@ -1070,7 +1091,7 @@ export default function KidsDashboard() {
         </div>
       )}
 
-      <main className="app-page-scroll relative z-10 min-h-0 w-full flex-1 overflow-y-auto px-4 py-0">
+      <main className="app-page-scroll relative z-10 min-h-0 w-full flex-1 overflow-y-auto px-3 py-3">
         {selectedActivity && isAccessAllowed ? (
           <ActivityDetailModal 
             activity={selectedActivity}
@@ -1097,38 +1118,46 @@ export default function KidsDashboard() {
             onClose={() => setViewingStoryId(null)} 
           />
         ) : (
-          <div className="space-y-3">
-            {/* Parent Message - If exists */}
-            {kid?.parent_message && (
-              <div data-guest-tour="child-message" className={`rounded-xl p-4 ${currentTheme.rules} border-l-4 border-blue-500 shadow-lg animate-in fade-in slide-in-from-top-4 duration-500 relative overflow-hidden group`}>
-                {/* Decoration for celebration */}
-                <div className="absolute top-0 right-0 p-2">
-                  <div className="relative">
-                    <Sparkles className="h-5 w-5 text-yellow-500 animate-pulse" />
-                    <div className="absolute top-0 left-0 h-5 w-5 animate-ping rounded-full bg-yellow-400 opacity-20"></div>
-                  </div>
+          <div className={`kid-dashboard-workspace grid items-stretch gap-0 overflow-hidden rounded-3xl border border-white/80 bg-white/70 shadow-sm backdrop-blur-sm lg:grid-cols-[minmax(250px,270px)_minmax(0,1fr)] ${positiveRecognitions[0] && isAccessAllowed ? 'xl:grid-cols-[minmax(250px,270px)_minmax(0,1fr)_minmax(250px,270px)]' : ''}`}>
+              <aside data-guest-tour="child-message" aria-label="Family messages" className={`kid-theme-side min-w-0 rounded-2xl border p-4 shadow-sm lg:sticky lg:top-3 ${currentTheme.rules}`}>
+                <div className="flex items-center gap-2 font-bold"><MessageSquare className="h-5 w-5" /> Messages with Parent</div>
+                <div className="kid-message-list mt-2 max-h-72 space-y-2 overflow-y-auto" aria-live="polite">
+                  {familyMessages.length > 0 ? familyMessages.map(message => (
+                    <div key={message.id} className="kid-message-entry rounded-lg bg-white/90 p-3 text-slate-800">
+                      <p className={`mb-1 text-xs font-bold ${currentTheme.accent}`}>{message.sender === 'learner' ? 'You' : 'Parent'}</p>
+                      <p className="break-words text-base">{message.message}</p>
+                      {message.audio_url && <audio controls src={message.audio_url} className="mt-2 max-w-full" aria-label="Play parent's voice" />}
+                    </div>
+                  )) : <p className="rounded-lg bg-white/90 p-3 text-base text-slate-700">{kid?.parent_message || 'No messages yet. You can send one to your parent.'}</p>}
                 </div>
-                
-                <div className="flex items-start gap-3">
-                  <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600 shadow-inner">
-                    <MessageSquare className="h-5 w-5" />
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-[10px] font-black uppercase tracking-widest ${currentTheme.cardSubtext} mb-1 flex items-center gap-2`}>
-                      <span className="flex h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse"></span>
-                      Special Message from Parent
-                    </p>
-                    <p className={`text-lg font-black ${currentTheme.cardTitle} italic tracking-tight leading-snug break-words`}>
-                      "{kid.parent_message}"
-                    </p>
-                  </div>
-                </div>
+                {familyMessages.some(message => message.sender === 'parent') || kid?.parent_message ? <div className="mt-2 flex flex-wrap gap-2">
+                  {['Thank you ❤️', 'I need help', 'Can we talk?'].map(reply => (
+                    <button key={reply} type="button" disabled={isSendingReply} onClick={() => void sendLearnerReply(reply)} className={`rounded-lg border bg-white/90 px-3 py-2 text-sm font-semibold disabled:opacity-50 ${currentTheme.card} ${currentTheme.accent}`}>{reply}</button>
+                  ))}
+                </div> : null}
+                <form className="mt-2 flex gap-2" onSubmit={event => { event.preventDefault(); void sendLearnerReply(replyText); }}>
+                  <input value={replyText} onChange={event => setReplyText(event.target.value)} maxLength={500} placeholder="Write to Parent" aria-label="Write a message to Parent" className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-base" />
+                  <button type="submit" disabled={!replyText.trim() || isSendingReply} aria-label="Send reply" className={`rounded-lg px-4 text-white disabled:opacity-50 ${currentTheme.button}`}><Send className="h-5 w-5" /></button>
+                </form>
+                {companionStyle !== 'none' && <div className="kid-sidebar-scene" aria-hidden="true"><span>{themeCompanion.decorations[0]}</span><span>{companionStyle === 'simple' ? themeCompanion.icon : themeCompanion.character}</span></div>}
+              </aside>
 
-                <div className="absolute -bottom-2 -left-2 opacity-5">
-                  <Trophy className="h-16 w-16 text-blue-500 -rotate-12 group-hover:rotate-0 transition-transform duration-700" />
+            <div className="kid-dashboard-center min-w-0 space-y-1 p-2">
+            {isAccessAllowed && (
+              <nav className={`kid-theme-nav relative flex min-w-0 items-center overflow-hidden rounded-2xl border border-white/70 px-2 py-2 shadow-sm ${isDarkTheme ? 'bg-slate-900/90' : currentTheme.banner}`} aria-label="Learner dashboard sections">
+                <div className="flex min-w-0 items-center gap-1 overflow-x-auto">
+                  {[
+                    ['todo', 'Choose an Activity', navigationIcons[0], 'child-activities'],
+                    ['verification', 'Waiting', navigationIcons[1], 'child-waiting'],
+                    ['completed', 'Completed', navigationIcons[2], 'child-completed'],
+                    ['rewards', 'Rewards', navigationIcons[3], 'child-rewards'],
+                  ].map(([tab, label, icon, tour]) => (
+                    <button key={tab} data-guest-tour={tour} type="button" onClick={() => setActiveTab(tab as typeof activeTab)} aria-current={activeTab === tab ? 'page' : undefined} className={`flex h-11 shrink-0 items-center gap-1.5 rounded-xl px-3 text-base font-black transition-all ${activeTab === tab ? `${currentTheme.button} text-white shadow-sm` : `${currentTheme.bannerText} bg-white/65 hover:bg-white/90`}`}>
+                      <span className="text-base" aria-hidden="true">{icon}</span>{label}
+                    </button>
+                  ))}
                 </div>
-              </div>
+              </nav>
             )}
 
             {/* Dashboard Banner - Full Width */}
@@ -1168,14 +1197,7 @@ export default function KidsDashboard() {
                 </div>
               </div>
 
-              <div className="relative z-10 flex w-full items-center justify-between gap-4 border-t border-slate-100 pt-3 sm:w-auto sm:justify-end sm:gap-8 sm:border-l sm:border-t-0 sm:pl-8 sm:pt-0">
-                <div data-guest-tour="child-done-today" className="flex flex-col items-center sm:items-end">
-                  <span className={`text-[10px] font-black uppercase tracking-widest ${currentTheme.bannerSubtext} opacity-60 mb-0.5`}>Done Today</span>
-                  <div className={`flex items-center gap-1.5 text-xl font-black ${currentTheme.bannerText}`}>
-                    <CheckCircle className="h-5 w-5 text-emerald-500" />
-                    {completedTodayCount}
-                  </div>
-                </div>
+              <div className="relative z-10 flex w-full items-center justify-end gap-4 border-t border-slate-100 pt-3 sm:w-auto sm:gap-8 sm:border-l sm:border-t-0 sm:pl-8 sm:pt-0">
                 <div data-guest-tour="child-token-balance" className="flex flex-col items-center sm:items-end">
                   <span className={`text-[10px] font-black uppercase tracking-widest ${currentTheme.bannerSubtext} opacity-60 mb-0.5`}>Total {kid?.reward_type || 'Rewards'}</span>
                   <div className={`flex items-center gap-1.5 text-xl font-black ${currentTheme.bannerText}`}>
@@ -1186,7 +1208,7 @@ export default function KidsDashboard() {
               </div>
             </div>
 
-            <div className={`relative flex w-full flex-col gap-4 overflow-hidden rounded-none p-4 shadow-none ring-0 sm:p-5 ${isDarkTheme ? 'bg-slate-950/95' : 'bg-white/75'}`}>
+            <div className={`kid-theme-content relative flex w-full flex-col gap-4 overflow-hidden rounded-2xl border p-4 shadow-sm sm:p-5 ${isDarkTheme ? 'border-slate-700 bg-slate-900/85' : 'border-white/80 bg-white/65 backdrop-blur-sm'}`}>
               <div className="pointer-events-none absolute right-5 top-3 hidden items-center gap-3 text-4xl opacity-45 xl:flex" aria-hidden="true">
                 {themeCompanion.decorations.slice(0, 3).map((decoration, index) => <span key={`panel-${decoration}-${index}`}>{decoration}</span>)}
               </div>
@@ -1246,7 +1268,7 @@ export default function KidsDashboard() {
                 </div>
               )}
 
-              <div className={`grid gap-6 ${behaviorBonuses[0] && isAccessAllowed ? 'lg:grid-cols-[minmax(0,1fr)_300px]' : ''}`}>
+              <div className="grid gap-6">
                     {!isAccessAllowed ? (
                       <div className={`p-8 rounded-2xl border-2 border-dashed ${isDarkTheme ? 'border-slate-700 bg-slate-900/80' : 'border-slate-200 bg-white/50'} text-center flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-500`}>
                         <div className={`mb-4 rounded-full ${currentTheme.rulesHeader} p-6 shadow-md animate-bounce`}>
@@ -1304,14 +1326,13 @@ export default function KidsDashboard() {
                                     </div>
                                     <div className="min-w-0 flex-1">
                                       <h4 className={`font-bold ${currentTheme.cardTitle}`}>{item.name}</h4>
-                                      <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider">
-                                        Cost: {item.cost} {formatReward(kid?.reward_type, item.cost)}
+                                      <p className="text-xs font-bold text-emerald-600">
+                                        {(kid?.reward_balance || 0) < item.cost
+                                          ? `You have ${kid?.reward_balance || 0} ${formatReward(kid?.reward_type, kid?.reward_balance || 0)}. This reward costs ${item.cost} ${formatReward(kid?.reward_type, item.cost)}.`
+                                          : `Cost: ${item.cost} ${formatReward(kid?.reward_type, item.cost)}`}
                                       </p>
                                       {(kid?.reward_balance || 0) < item.cost && (
                                         <div className="mt-2 max-w-52">
-                                          <p className={`text-xs font-black ${isDarkTheme ? 'text-violet-200' : 'text-violet-700'}`}>
-                                            ✨ Only {item.cost - (kid?.reward_balance || 0)} more to reach this reward!
-                                          </p>
                                           <div className={`mt-1.5 h-2.5 overflow-hidden rounded-full ${isDarkTheme ? 'bg-slate-700' : 'bg-violet-100'}`} aria-label={`${Math.min(100, Math.round(((kid?.reward_balance || 0) / Math.max(item.cost, 1)) * 100))}% earned toward ${item.name}`}>
                                             <div className="kid-reward-progress h-full rounded-full bg-gradient-to-r from-violet-500 via-fuchsia-400 to-amber-400" style={{ width: `${Math.min(100, ((kid?.reward_balance || 0) / Math.max(item.cost, 1)) * 100)}%` }} />
                                           </div>
@@ -1343,10 +1364,8 @@ export default function KidsDashboard() {
                     ) : (
                       <div className="w-full">
                         {activeTab === 'todo' && (
-                          <div className={`mb-4 rounded-xl p-4 ring-1 ${currentTheme.banner}`}>
-                            <p className={`text-sm font-bold ${currentTheme.bannerText}`}>
-                              Choose any activity below. You can do them in the order that works for you.
-                            </p>
+                          <div className={`kid-choice-note mb-3 px-3 py-2 ${currentTheme.banner}`}>
+                            <p className={`text-sm font-bold ${currentTheme.bannerText}`}>Choose one activity that works for you. You do not need to do every activity shown.</p>
                           </div>
                         )}
                         {(() => {
@@ -1406,11 +1425,8 @@ export default function KidsDashboard() {
                           const available = activeTab === 'todo'
                             ? filtered.filter(activity => !isComingUp(activity) && !isLater(activity) && !isHiddenAfterTime(activity))
                             : filtered;
-                          const orderedAvailable = [
-                            ...available.filter(activity => activity.activity_meaning === 'important_today'),
-                            ...available.filter(activity => activity.activity_meaning !== 'important_today'),
-                          ];
-                          const visibleAvailable = showAllActivityChoices ? orderedAvailable : orderedAvailable.slice(0, 6);
+                          const availableChoices = available;
+                          const visibleAvailable = showAllActivityChoices ? availableChoices : availableChoices.slice(0, 6);
                           const grouped: { time: string; items: Activity[]; description?: string }[] = activeTab === 'todo'
                             ? [
                                 {
@@ -1419,14 +1435,8 @@ export default function KidsDashboard() {
                                   description: 'It is almost time. Open the activity when you are ready.',
                                 },
                                 {
-                                  time: 'Do Today',
-                                  items: visibleAvailable.filter(activity => activity.activity_meaning === 'important_today'),
-                                  description: 'These are important today. You can choose which one to do first.',
-                                },
-                                {
-                                  time: 'Pick an Activity',
-                                  items: visibleAvailable.filter(activity => activity.activity_meaning !== 'important_today'),
-                                  description: 'Choose any activity you would like to do.',
+                                  time: 'Available Choices',
+                                  items: visibleAvailable,
                                 },
                                 ...(showLaterActivities ? [{ time: 'Later Today', items: later, description: 'These activities will be available later.' }] : []),
                               ].filter(group => group.items.length > 0)
@@ -1448,23 +1458,21 @@ export default function KidsDashboard() {
                             'Night': <Sparkles className="h-4 w-4 text-slate-400" />,
                             'Any time': <Clock className="h-4 w-4 text-slate-400" />,
                             'Other': <Clock className="h-4 w-4 text-slate-400" />,
-                            'Do Today': <Star className="h-4 w-4 text-amber-500" />,
-                            'Pick an Activity': <Sparkles className="h-4 w-4 text-emerald-500" />,
+                            'Available Choices': <Sparkles className="h-4 w-4 text-emerald-500" />,
                             'Coming Up': <Clock className="h-4 w-4 text-blue-500" />,
                             'Later Today': <Calendar className="h-4 w-4 text-slate-500" />,
                           };
                           const sectionTone: Record<string, string> = {
                             'Coming Up': isDarkTheme ? 'bg-blue-950/70 ring-blue-700/60' : 'bg-blue-50 ring-blue-200',
-                            'Do Today': isDarkTheme ? 'bg-amber-950/60 ring-amber-700/60' : 'bg-amber-50 ring-amber-200',
-                            'Pick an Activity': isDarkTheme ? 'bg-emerald-950/60 ring-emerald-700/60' : 'bg-emerald-50 ring-emerald-200',
+                            'Available Choices': isDarkTheme ? 'bg-emerald-950/60 ring-emerald-700/60' : 'bg-emerald-50 ring-emerald-200',
                             'Later Today': isDarkTheme ? 'bg-violet-950/60 ring-violet-700/60' : 'bg-violet-50 ring-violet-200',
                           };
 
                           return (
-                            <div className="space-y-6">
+                            <div className="space-y-3">
                               {grouped.map((group) => (
-                                <div key={group.time} className="space-y-3">
-                                  <div className={`rounded-2xl p-3 ring-1 ${sectionTone[group.time] || (isDarkTheme ? 'bg-slate-900 ring-slate-700' : 'bg-sky-50 ring-sky-200')}`}>
+                                <div key={group.time} className="space-y-2">
+                                  <div className={`kid-choice-heading rounded-2xl p-3 ring-1 ${sectionTone[group.time] || (isDarkTheme ? 'bg-slate-900 ring-slate-700' : 'bg-sky-50 ring-sky-200')}`}>
                                     <div className="kid-section-heading flex items-center gap-2">
                                       <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${isDarkTheme ? 'bg-slate-800' : 'bg-white/90'}`}>
                                         {timeIcons[group.time]}
@@ -1475,13 +1483,11 @@ export default function KidsDashboard() {
                                     </div>
                                     {group.description && (
                                       <p className={`mt-1.5 pl-10 text-base font-bold leading-relaxed ${isDarkTheme ? 'text-slate-200' : 'text-slate-700'}`}>
-                                        {group.time === 'Do Today'
-                                          ? 'Please do these today. You can pick which one comes first.'
-                                          : group.description}
+                                        {group.description}
                                       </p>
                                     )}
                                   </div>
-                                  <div className="flex flex-col gap-3">
+                                  <div className="grid grid-cols-1 gap-1.5 xl:grid-cols-2">
                                     {group.items.map((activity, activityIndex) => (
                                       <Card data-guest-tour={activity.status === 'pending' ? 'child-activity-card' : undefined}
                                         key={activity.id} 
@@ -1498,7 +1504,7 @@ export default function KidsDashboard() {
                                         {parentComingActivityIds.includes(activity.id) && (
                                           <span className="absolute right-3 bottom-2 z-20 rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-emerald-800 ring-1 ring-emerald-300">Parent is coming 💚</span>
                                         )}
-                                        <CardContent className="relative z-10 p-2.5 flex items-start gap-2.5">
+                                        <CardContent className="relative z-10 p-2 flex items-start gap-2">
                                           <div 
                                             className={`mt-0.5 flex-shrink-0 rounded-full transition-colors ${
                                               activity.status === 'completed'
@@ -1513,13 +1519,13 @@ export default function KidsDashboard() {
                                             ) : activity.status === 'awaiting_verification' ? (
                                               <ShieldCheck className="h-6 w-6" />
                                             ) : (
-                                              <Circle className="h-6 w-6" />
+                                              <LayoutList className="h-6 w-6" aria-label="Activity with visual steps" />
                                             )}
                                           </div>
                                           
                                           <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2">
-                                              <h3 className={`font-black text-lg truncate ${activity.status === 'completed' ? (isDarkTheme ? 'text-slate-300' : 'text-slate-400') + ' line-through' : currentTheme.cardTitle}`}>
+                                              <h3 className={`font-black text-lg break-words ${activity.status === 'completed' ? (isDarkTheme ? 'text-slate-300' : 'text-slate-400') + ' line-through' : currentTheme.cardTitle}`}>
                                                 {activity.activity_type}
                                               </h3>
                                               {activity.link?.includes('/social-stories/view/') && (
@@ -1551,7 +1557,7 @@ export default function KidsDashboard() {
                                               </div>
                                             )}
 
-                                            <div className={`mt-2 flex items-center gap-3 text-[11px] font-bold ${currentTheme.bannerSubtext} uppercase tracking-wider`}>
+                                            <div className={`kid-activity-meta mt-2 flex items-center gap-3 text-sm font-bold ${currentTheme.bannerSubtext} uppercase tracking-wider`}>
                                               {activity.due_date && activity.due_date !== today && (
                                                 <div className="flex items-center gap-1">
                                                   <Calendar className="h-3 w-3" />
@@ -1562,12 +1568,6 @@ export default function KidsDashboard() {
                                                 <div className="flex items-center gap-1">
                                                   <LayoutList className="h-3 w-3" />
                                                   {activity.steps.length} steps
-                                                </div>
-                                              )}
-                                              {activity.status === 'pending' && (
-                                                <div className="flex items-center gap-1 font-black text-emerald-600 normal-case tracking-normal">
-                                                  <img src={rewardIcon} alt="" className="h-4 w-4 object-contain" />
-                                                  Earn {Math.max(1, Number(activity.reward_qty) || 1)} {formatReward(kid?.reward_type, Math.max(1, Number(activity.reward_qty) || 1))}
                                                 </div>
                                               )}
                                               {activity.exact_time && (
@@ -1596,14 +1596,14 @@ export default function KidsDashboard() {
                                   </div>
                                 </div>
                               ))}
-                              {activeTab === 'todo' && orderedAvailable.length > 6 && (
+                              {activeTab === 'todo' && availableChoices.length > 6 && (
                                 <button type="button" onClick={() => setShowAllActivityChoices(value => !value)} className={`mx-auto block rounded-xl px-5 py-2 text-sm font-black ${currentTheme.button} text-white`}>
-                                  {showAllActivityChoices ? 'Show Fewer Activities' : `Show ${orderedAvailable.length - 6} More Activities`}
+                                  {showAllActivityChoices ? 'Show Fewer Activities' : 'Show More Activities'}
                                 </button>
                               )}
                               {activeTab === 'todo' && later.length > 0 && (
                                 <button type="button" onClick={() => setShowLaterActivities(value => !value)} className={`mx-auto block rounded-xl border px-5 py-2 text-sm font-black ${isDarkTheme ? 'border-slate-600 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-700'}`}>
-                                  {showLaterActivities ? 'Hide Later Activities' : `Later Today (${later.length})`}
+                                  {showLaterActivities ? 'Hide Later Activities' : 'Later Today'}
                                 </button>
                               )}
                             </div>
@@ -1611,28 +1611,26 @@ export default function KidsDashboard() {
                         })()}
                       </div>
                     )}
-                    {behaviorBonuses[0] && isAccessAllowed && (
-                      <aside className={`h-fit rounded-2xl border-2 p-4 shadow-sm lg:sticky lg:top-20 ${isDarkTheme ? 'border-emerald-400/40 bg-slate-900/90 text-white' : 'border-emerald-200 bg-gradient-to-br from-emerald-50 to-sky-50 text-slate-800'}`} aria-label="Recent bonus rewards">
-                        <div className="mb-3 flex items-center gap-2">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100"><Sparkles className="h-5 w-5 text-emerald-600" /></div>
-                          <div><p className={`text-xs font-black uppercase tracking-widest ${isDarkTheme ? 'text-emerald-300' : 'text-emerald-700'}`}>Bonus Rewards</p><p className={`text-[11px] font-semibold ${isDarkTheme ? 'text-slate-400' : 'text-slate-500'}`}>Your good choices were noticed!</p></div>
-                        </div>
-                        <ul className="space-y-2">
-                          {behaviorBonuses.slice(0, Math.min(10, Math.max(1, kid?.bonus_history_limit || 5))).map(award => (
-                            <li key={award.id} className={`flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-black ${isDarkTheme ? 'bg-slate-800 text-slate-100' : 'bg-white/90 text-slate-800'}`}>
-                              <span className="min-w-0 flex-1 break-words">{award.behavior_reason}</span>
-                              <span className="flex shrink-0 items-center gap-1.5 text-emerald-600" aria-label={`${award.reward_amount} ${formatReward(kid?.reward_type, award.reward_amount)}`}>
-                                <span>{award.reward_amount}</span>
-                                <img src={rewardIcon} alt={kid?.reward_type || 'Reward'} className="h-5 w-5 object-contain" referrerPolicy="no-referrer" />
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      </aside>
-                    )}
                   </div>
                 </div>
               </div>
+            {positiveRecognitions[0] && isAccessAllowed && (
+              <aside className={`kid-theme-side h-fit min-w-0 rounded-2xl border p-4 shadow-sm lg:sticky lg:top-3 lg:col-start-2 xl:col-start-3 xl:row-start-1 ${isDarkTheme ? 'text-white' : 'text-slate-800'}`} aria-label="Recent positive recognition">
+                <div className="mb-3 flex items-center gap-2">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100"><Sparkles className="h-5 w-5 text-emerald-600" /></div>
+                  <div><p className={`text-sm font-black uppercase tracking-widest ${currentTheme.accent}`}>You Were Noticed</p><p className={`text-base font-semibold ${isDarkTheme ? 'text-slate-300' : 'text-slate-700'}`}>What your parent appreciates about you.</p></div>
+                </div>
+                <ul className="space-y-2">
+                  {positiveRecognitions.slice(0, Math.min(10, Math.max(1, kid?.bonus_history_limit || 5))).map(recognition => (
+                    <li key={recognition.id} className={`kid-recognition-entry rounded-xl px-3 py-2 text-sm font-black ${isDarkTheme ? 'bg-slate-800 text-slate-100' : 'bg-white/90 text-slate-800'}`}>
+                      <span className="break-words">{recognition.recognition_message}</span>
+                    </li>
+                  ))}
+                </ul>
+                {companionStyle !== 'none' && <div className="kid-sidebar-scene kid-sidebar-scene--right" aria-hidden="true"><span>{companionsNearby[0]}</span><span>{companionsNearby[1]}</span></div>}
+              </aside>
+            )}
+          </div>
         )}
         {showRewardModal && pendingReward && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">

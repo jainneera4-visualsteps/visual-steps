@@ -8,7 +8,7 @@ import { createPortal } from 'react-dom';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import { Plus, User, Loader2, ArrowLeft, ArrowRight, CheckCircle2, Edit2, Eye, Send, HelpCircle, Trash2, Smile } from 'lucide-react';
+import { Plus, User, Loader2, ArrowLeft, ArrowRight, CheckCircle2, Edit2, Eye, Send, HelpCircle, Trash2, Smile, Mic, Square, Volume2 } from 'lucide-react';
 import { ParentOnboarding } from '../components/ParentOnboarding';
 import { GuestQuickStart } from '../components/GuestQuickStart';
 import { useAuth } from '../context/AuthContext';
@@ -38,6 +38,9 @@ interface ParentMessageRecord {
   kid_id: string;
   message: string;
   created_at: string;
+  sender?: 'parent' | 'learner';
+  audio_url?: string | null;
+  parent_read_at?: string | null;
 }
 
 export default function Dashboard() {
@@ -100,6 +103,11 @@ export default function Dashboard() {
   });
   const [parentMessage, setParentMessage] = useState<string>('');
   const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [messageAudioUrl, setMessageAudioUrl] = useState('');
+  const [isRecordingMessage, setIsRecordingMessage] = useState(false);
+  const [isUploadingMessageAudio, setIsUploadingMessageAudio] = useState(false);
+  const messageRecorderRef = useRef<MediaRecorder | null>(null);
+  const messageStreamRef = useRef<MediaStream | null>(null);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const emojiButtonRef = useRef<HTMLButtonElement | null>(null);
   const [emojiPickerPosition, setEmojiPickerPosition] = useState({ top: 0, left: 0 });
@@ -417,11 +425,12 @@ export default function Dashboard() {
       const res = await apiFetch(`/api/kids/${kidId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: parentMessage }),
+        body: JSON.stringify({ message: parentMessage, audioUrl: messageAudioUrl || undefined }),
       });
 
       if (res.ok) {
         setParentMessage('');
+        setMessageAudioUrl('');
         await fetchMessagesForKid(kidId);
       } else {
         const data = await safeJson(res);
@@ -433,6 +442,58 @@ export default function Dashboard() {
     } finally {
       setIsSendingMessage(false);
     }
+  };
+
+  const toggleMessageRecording = async () => {
+    if (isRecordingMessage) {
+      messageRecorderRef.current?.stop();
+      setIsRecordingMessage(false);
+      return;
+    }
+    try {
+      if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') throw new Error('Voice recording is unavailable in this browser.');
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      messageStreamRef.current = stream;
+      const recorder = new MediaRecorder(stream);
+      const chunks: Blob[] = [];
+      recorder.ondataavailable = event => { if (event.data.size) chunks.push(event.data); };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach(track => track.stop());
+        setIsUploadingMessageAudio(true);
+        try {
+          const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+          if (!blob.size || blob.size > 5 * 1024 * 1024) throw new Error('Record a short message under 5 MB.');
+          if (isGuestSession()) {
+            setMessageAudioUrl(URL.createObjectURL(blob));
+          } else {
+            const form = new FormData();
+            form.append('audio', blob, 'parent-message.webm');
+            const response = await apiFetch('/api/upload-help-audio', { method: 'POST', body: form });
+            const result = await safeJson(response);
+            if (!response.ok || !result.audioUrl) throw new Error(result.error || 'Unable to save the recording.');
+            setMessageAudioUrl(result.audioUrl);
+          }
+        } catch (error) {
+          alert(error instanceof Error ? error.message : 'Unable to save the recording.');
+        } finally {
+          setIsUploadingMessageAudio(false);
+          messageRecorderRef.current = null;
+          messageStreamRef.current = null;
+        }
+      };
+      messageRecorderRef.current = recorder;
+      recorder.start();
+      setIsRecordingMessage(true);
+    } catch (error) {
+      messageStreamRef.current?.getTracks().forEach(track => track.stop());
+      alert(error instanceof Error ? error.message : 'Unable to start recording.');
+    }
+  };
+
+  const markRepliesRead = async (kidId: string) => {
+    const response = await apiFetch(`/api/kids/${kidId}/replies/read`, { method: 'POST' });
+    if (!response.ok) return;
+    setMessagesByKid(current => ({ ...current, [kidId]: (current[kidId] || []).map(item => item.sender === 'learner' ? { ...item, parent_read_at: item.parent_read_at || new Date().toISOString() } : item) }));
   };
 
   const handleToggleMessageSelection = (kidId: string, messageId: string) => {
@@ -675,23 +736,28 @@ export default function Dashboard() {
                         <Button 
                           size="sm" 
                           onClick={() => handleSendMessage(kid.id)}
-                          disabled={isSendingMessage || !parentMessage.trim()}
+                          disabled={isSendingMessage || isRecordingMessage || isUploadingMessageAudio || !parentMessage.trim()}
                           aria-label="Send message"
                         >
                           {isSendingMessage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                         </Button>
                       </Tooltip>
                     </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button type="button" size="sm" variant="outline" onClick={() => void toggleMessageRecording()} disabled={isUploadingMessageAudio} aria-label={isRecordingMessage ? 'Stop recording message' : 'Record message in your voice'}>
+                        {isRecordingMessage ? <Square className="mr-1 h-4 w-4" /> : <Mic className="mr-1 h-4 w-4" />}
+                        {isRecordingMessage ? 'Stop Recording' : isUploadingMessageAudio ? 'Saving Recording…' : 'Record Your Voice'}
+                      </Button>
+                      {messageAudioUrl && <><audio controls src={messageAudioUrl} aria-label="Preview your recorded message" /><button type="button" className="text-xs font-bold text-red-600" onClick={() => setMessageAudioUrl('')}>Remove recording</button></>}
+                    </div>
                   </div>
 
                   <div className="mt-4 space-y-2">
                     <div className="flex items-center justify-between">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                        Message History
+                        Messages {((messagesByKid[kid.id] || []).filter(item => item.sender === 'learner' && !item.parent_read_at).length > 0) && <span className="ml-1 rounded-full bg-blue-600 px-2 py-0.5 text-white">{(messagesByKid[kid.id] || []).filter(item => item.sender === 'learner' && !item.parent_read_at).length} new</span>}
                       </label>
-                      <span className="text-[10px] font-medium text-slate-400">
-                        Latest first
-                      </span>
+                      {(messagesByKid[kid.id] || []).some(item => item.sender === 'learner' && !item.parent_read_at) && <button type="button" className="text-xs font-bold text-blue-700" onClick={() => void markRepliesRead(kid.id)}>Mark replies read</button>}
                     </div>
 
                     {isMessagesLoadingByKid[kid.id] ? (
@@ -738,10 +804,11 @@ export default function Dashboard() {
                                 aria-label="Select message"
                               />
                               <div className="min-w-0 flex-1">
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                                  {formatMessageTimestamp(msg.created_at)}
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                  {msg.sender === 'learner' ? `${kid.name} replied` : 'From you'} · {formatMessageTimestamp(msg.created_at)}
                                 </p>
                                 <p className="mt-1 text-sm text-slate-700 leading-6 break-words">{msg.message}</p>
+                                {msg.audio_url && <audio controls src={msg.audio_url} className="mt-2 max-w-full" aria-label="Play parent voice message" />}
                               </div>
                             </div>
                           </div>

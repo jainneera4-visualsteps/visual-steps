@@ -1,8 +1,7 @@
-import { CheckCircle, Circle, Sparkles, Edit2, ArrowLeft, Printer, Eye, RotateCcw, Pause, Volume2 } from 'lucide-react';
+import { CheckCircle, Circle, Edit2, ArrowLeft, Printer, Eye, RotateCcw, Pause, Volume2 } from 'lucide-react';
 import { Button } from './Button';
 import { Card, CardHeader, CardTitle, CardContent } from './Card';
 import { useRef, useState, useEffect } from 'react';
-import { celebrate } from '../utils/celebration';
 import { SocialStoryModal } from './SocialStoryModal';
 import { Link } from 'react-router-dom';
 import { Tooltip } from './ui/Tooltip';
@@ -98,7 +97,9 @@ export function ActivityDetailModal({
         ? 'Discontinued / Ended'
         : activity.status === 'completed'
           ? 'Completed'
-          : 'Assigned';
+          : showToggleOnly
+            ? 'Available'
+            : 'Assigned';
   const assignedDate = /^\d{4}-\d{2}-\d{2}/.test(activity.due_date || '')
     ? formatAppDate(`${activity.due_date.slice(0, 10)}T12:00:00Z`, 'UTC')
     : formatAppDate(activity.due_date, timezone);
@@ -115,11 +116,10 @@ export function ActivityDetailModal({
 
   useEffect(() => {
     if (showPraise) {
-      celebrate('achievement');
       const timer = setTimeout(() => {
         setShowPraise(false);
         onCloseRef.current();
-      }, 3000);
+      }, 4500);
       return () => clearTimeout(timer);
     }
   }, [showPraise]);
@@ -303,17 +303,11 @@ export function ActivityDetailModal({
       </div>
 
       {showPraise && (
-        <div className="fixed inset-0 z-[101] flex items-center justify-center bg-slate-50/90 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-          <div className="bg-white p-8 rounded-3xl shadow-2xl text-center space-y-4 max-w-sm border border-slate-100">
-            <Sparkles className="h-16 w-16 text-yellow-500 mx-auto animate-bounce" />
-            <h2 className="text-3xl font-black text-slate-900">🌟 Great Job! 🌟</h2>
-            <p className="text-lg text-slate-600 font-bold">You did it! Keep up the amazing work! 🏆</p>
-            {timezone && (
-              <div className="mt-4 p-3 bg-blue-50 rounded-xl border border-blue-100">
-                <p className="text-xs font-bold text-blue-400 uppercase tracking-widest mb-1">Your Timezone</p>
-                <p className="text-sm font-black text-blue-700">{timezone}</p>
-              </div>
-            )}
+        <div className="fixed inset-0 z-[101] flex items-center justify-center bg-slate-50/90 p-4 animate-in fade-in duration-300" role="status" aria-live="polite">
+          <div className="max-w-md space-y-3 rounded-3xl border border-emerald-100 bg-white p-8 text-center shadow-xl">
+            <CheckCircle className="mx-auto h-12 w-12 text-emerald-500" />
+            <h2 className="text-2xl font-black text-slate-900">You finished this activity.</h2>
+            <p className="text-base font-semibold leading-7 text-slate-600">You may choose another activity, take a break, or leave.</p>
           </div>
         </div>
       )}
@@ -330,7 +324,7 @@ export function ActivityDetailModal({
                     ? 'border-emerald-500 bg-emerald-500 text-white'
                     : 'border-slate-300 bg-white hover:border-blue-400'
                 }`}
-                title={activity.status === 'completed' ? "Mark as pending" : "Mark as done"}
+                title={activity.status === 'completed' ? "Mark as pending" : "I’m finished with this activity"}
               >
                 {activity.status === 'completed' && <CheckCircle className="h-4 w-4" />}
               </button>
@@ -364,7 +358,7 @@ export function ActivityDetailModal({
                 className="flex h-8 items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 text-[11px] font-black uppercase tracking-wider text-white shadow-sm transition-all hover:bg-blue-700 active:scale-[0.98]"
               >
                 <CheckCircle className="h-4 w-4" />
-                Mark as Finished
+                I’m finished with this activity
               </button>
             </div>
           )}
@@ -534,7 +528,7 @@ export function ActivityDetailModal({
                     {activity.status === 'completed' ? <CheckCircle className="h-3 w-3" /> : <Circle className="h-3 w-3" />}
                   </div>
                   <span>
-                    {activity.status === 'completed' ? 'Activity Completed!' : 'Mark as Finished'}
+                    {activity.status === 'completed' ? 'Activity Completed!' : 'I’m finished with this activity'}
                   </span>
                 </button>
                 </div>

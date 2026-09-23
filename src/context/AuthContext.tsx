@@ -8,8 +8,7 @@ interface User {
   id: string;
   email: string;
   name: string;
-  max_parent_message_days?: number;
-  max_parent_messages?: number;
+  learner_reply_email_notifications?: boolean;
   onboarding_completed?: boolean;
 }
 

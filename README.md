@@ -157,9 +157,12 @@ Existing Supabase projects must run `database_updates/2026-09-02_game_companions
 | `APP_URL` | Deployment-dependent | Public application URL used in generated links and emails; production uses `https://visual-steps-six.vercel.app` |
 | `FACEBOOK_URL`, `INSTAGRAM_URL` | Optional | Public social-profile links shown in newsletters when configured |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Optional | Transactional email, Contact notifications, and Support Inbox replies |
+| `WEB_PUSH_VAPID_PUBLIC_KEY`, `WEB_PUSH_VAPID_PRIVATE_KEY`, `WEB_PUSH_VAPID_SUBJECT` | Optional | Parent device notifications for learner replies; generate one VAPID pair and keep the private key server-side. The subject must be `mailto:` followed by a working contact address. |
 | `CONTACT_TO_EMAIL` | Optional | Administrator address receiving Contact-page notification emails |
 
 See `.env.example` for the complete template.
+
+Parent device notifications are optional and separate from email alerts and the dashboard's unread-message count. Apply `database_updates/2026-09-23_parent_web_push.sql`, generate one VAPID key pair with `npx web-push generate-vapid-keys`, and set the three `WEB_PUSH_VAPID_*` variables in the server environment. Then, in a signed-in parent's **Profile → Parent Messaging**, choose **Enable device notifications** on each device. Notifications require HTTPS and browser permission; on iPhone and iPad, add Visual Steps to the Home Screen first. The notification contains only the learner's name and a prompt to open the app, not the message body. Parents can turn it off per device from the same Profile control. Guest sessions cannot subscribe.
 
 For the Vercel Production environment, set `APP_URL` to `https://visual-steps-six.vercel.app`. Local development can use `http://localhost:3000`. When the production domain changes, update `APP_URL` in Vercel and the Supabase Authentication Site URL/redirect allow list, then redeploy.
 
@@ -251,7 +254,7 @@ This section is generated from `feature-registry.json`. Update the registry when
 | --- | --- | --- | --- | --- |
 | Clear visual activities | starter | 2026-03-01 | 2026-09-12 | Stable parent navigation groups related tools without turning every new feature into another top-level menu. |
 | Parent activity verification | starter | 2026-08-20 | — | Choose which activities require parent approval before rewards are earned. |
-| Positive behavior bonuses | starter | 2026-08-20 | — | Parents can recognize a specific calm, focused, helpful, or persistent behavior. |
+| Positive recognition and bonus tokens | starter | 2026-08-20 | — | Parents can recognize meaningful effort without tokens or give separate positive-only bonus tokens. |
 | Personalized, fair quizzes | starter | 2026-08-20 | 2026-08-24 | Quiz creation now connects every quiz to a measurable learning objective, lets parents privately try it as the learner, controls illustration use, and turns completed answers into practical planning guidance. |
 | Curated learning samples | starter | 2026-08-21 | 2026-09-02 | Parents can see one shared daily allowance for AI-created quizzes, worksheets, and social stories, with the exact local time when creation becomes available again. |
 | Parent Quick Start and replayable tour | starter | 2026-08-20 | 2026-09-16 | A focused three-step Quick Start guides parents through one real profile, activity, and learner preview without introducing a separate setup interface. |
@@ -273,7 +276,7 @@ This section is generated from `feature-registry.json`. Update the registry when
 | 2026-09-12 | Clear visual activities | A clearer parent workspace as Visual Steps grows | Stable parent navigation groups related tools without turning every new feature into another top-level menu. |
 | 2026-09-12 | Clear visual activities | A calm way to ask for help | Learners see a familiar picture-led prompt for asking a nearby parent or caregiver for help. |
 | 2026-09-11 | Clear visual activities | Rewards matched to each activity | Parents choose a reward amount for each activity according to the learner’s effort and challenge. |
-| 2026-09-11 | Clear visual activities | Readable themed activity worlds | Learner themes now add calm color, companions, decorations, activity accents, and celebrations without placing text over photographs. |
+| 2026-09-11 | Clear visual activities | Readable themed activity worlds | Learner themes add calm color, companions, decorations, and activity accents without placing text over photographs. |
 | 2026-09-11 | Clear visual activities | Flexible activity meanings and learner choice | Parents use Learner Can Choose or Do Today, while learners choose from one clear activity view. |
 | 2026-09-11 | Clear visual activities | Calm time guidance without a rigid schedule | Parents can add suggested periods or exact times, while learners see what is relevant now without facing one long schedule. |
 | 2026-09-11 | Clear visual activities | A compact activity form that keeps the essentials in view | Activity meaning, rewards, verification, timing, and repetition remain visible in compact rows without large settings panels. |

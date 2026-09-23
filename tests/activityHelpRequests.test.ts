@@ -13,8 +13,8 @@ const stepProgressMigration = readFileSync('database_updates/2026-09-13_activity
 const helpCommunicationMigration = readFileSync('database_updates/2026-09-13_help_communication_method.sql', 'utf8');
 
 test('learner dashboard uses the standard framed content area', () => {
-  assert.match(childDashboard, /data-layout-row="content-spacing"/);
-  assert.match(childDashboard, /app-page-scroll[^\n]+px-4 py-0/);
+  assert.match(childDashboard, /app-page-scroll[^\n]+px-3 py-3/);
+  assert.match(childDashboard, /kid-theme-content/);
   assert.match(childDashboard, /aria-label="Learner dashboard footer"/);
   assert.match(activityModal, /Back to List/);
   assert.match(activityModal, /text-\[12px\] font-bold uppercase transition-colors/);
@@ -54,13 +54,13 @@ test('learner receives a profile-selected visual prompt for nearby help', () => 
     activityModal.indexOf('<CardContent className='),
   );
   assert.match(cardHeader, /Need help\?/);
-  assert.match(cardHeader, /Mark as Finished/);
+  assert.match(cardHeader, /I’m finished with this activity/);
 });
 
 test('visual step progress is persisted without blocking learner completion', () => {
   assert.match(activityModal, /onToggleStep/);
   assert.doesNotMatch(activityModal, /Complete Each Step/);
-  assert.match(activityModal, /Mark as Finished/);
+  assert.match(activityModal, /I’m finished with this activity/);
   assert.match(childDashboard, /\/api\/activity-steps\/\$\{encodeURIComponent\(String\(step\.id\)\)\}\/completion/);
   assert.match(stepProgressMigration, /ADD COLUMN IF NOT EXISTS is_completed BOOLEAN NOT NULL DEFAULT false/);
   assert.match(stepProgressMigration, /ADD COLUMN IF NOT EXISTS current_step_number INTEGER/);
@@ -73,6 +73,14 @@ test('visual step progress is persisted without blocking learner completion', ()
   assert.match(parentActivities, /current_step_number/);
 });
 
+test('activity completion uses a calm, choice-preserving acknowledgement', () => {
+  assert.match(activityModal, /You finished this activity\./);
+  assert.match(activityModal, /You may choose another activity, take a break, or leave\./);
+  assert.match(activityModal, /aria-live="polite"/);
+  assert.doesNotMatch(activityModal, /Great Job/);
+  assert.doesNotMatch(activityModal, /celebrate\('achievement'\)/);
+});
+
 test('activity details keeps back navigation left and form actions top-right', () => {
   assert.match(activityModal, /sm:items-end sm:justify-between/);
   assert.match(activityModal, /View Activity Details/);
@@ -83,6 +91,11 @@ test('activity details keeps back navigation left and form actions top-right', (
   assert.match(actionHeader, /Print/);
   assert.match(actionHeader, /Edit/);
   assert.doesNotMatch(actionHeader, /Back to List/);
+});
+
+test('learner activity details describe a pending activity as available', () => {
+  assert.match(activityModal, /showToggleOnly\s*\? 'Available'\s*:\s*'Assigned'/);
+  assert.match(childDashboard, /showToggleOnly=\{true\}/);
 });
 
 test('parent receives a separate help queue with one immediate response', () => {

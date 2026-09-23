@@ -11,8 +11,6 @@ export const guestProfile = {
   id: GUEST_PARENT_ID,
   email: 'guest@visualsteps.demo',
   name: 'Guest Parent',
-  max_parent_message_days: 20,
-  max_parent_messages: 20,
   onboarding_completed: true,
 };
 
@@ -52,7 +50,7 @@ let activities: Array<Record<string, any>> = [
 const seedActivities = structuredClone(activities);
 let nextGuestStepId = 1000;
 
-const seedMessages = [{ id: '91111111-1111-4111-8111-111111111111', kid_id: GUEST_KID_ID, user_id: GUEST_PARENT_ID, message: kid.parent_message, created_at: now() }];
+const seedMessages = [{ id: '91111111-1111-4111-8111-111111111111', kid_id: GUEST_KID_ID, user_id: GUEST_PARENT_ID, message: kid.parent_message, sender: 'parent', audio_url: null as string | null, parent_read_at: null as string | null, created_at: now() }];
 let messages = structuredClone(seedMessages);
 const seedReviewItems = [
   { id: 'a1111111-1111-4111-8111-111111111111', type: 'quiz_result', title: 'Reading Comprehension Check', date: '2025-04-14T15:00:00.000Z', learner: 'Alex' },
@@ -64,8 +62,10 @@ let dataReviewMonths = 12;
 
 const seedRewardItems = [{ id: '41111111-1111-4111-8111-111111111111', kid_id: GUEST_KID_ID, name: 'Choose family game', cost: 6, location: 'Home', is_active: true, image_url: '' }];
 let rewardItems = structuredClone(seedRewardItems);
-const seedBonuses = [{ id: '51111111-1111-4111-8111-111111111111', kid_id: GUEST_KID_ID, behavior_reason: 'Trying again calmly', reward_amount: 2, awarded_at: now() }];
+const seedBonuses = [{ id: '51111111-1111-4111-8111-111111111111', kid_id: GUEST_KID_ID, behavior_reason: 'Trying again calmly', reward_amount: 2, awarded_at: now(), is_legacy_recognition: true }];
 let bonuses = structuredClone(seedBonuses);
+const seedRecognitions = [{ id: '61111111-1111-4111-8111-111111111112', kid_id: GUEST_KID_ID, recognition_message: 'You kept trying when it felt difficult.', recognized_at: now() }];
+let recognitions = structuredClone(seedRecognitions);
 const sampleQuiz = { id: '61111111-1111-4111-8111-111111111111', user_id: GUEST_PARENT_ID, kid_id: GUEST_KID_ID, title: 'Space Explorer Sample Quiz', topic: 'The solar system', difficulty: 'Easy', grade_level: '5th', content: JSON.stringify({ questions: [{ question: 'Which planet is known as the Red Planet?', options: ['Earth', 'Mars', 'Venus', 'Jupiter'], answer: 'Mars' }] }), created_at: now(), is_sample: true };
 const sampleWorksheet = { id: '71111111-1111-4111-8111-111111111111', user_id: GUEST_PARENT_ID, kid_id: GUEST_KID_ID, title: 'Calm Morning Sequence', topic: 'Daily routines', subject: 'Life Skills', grade_level: 'All levels', worksheet_type: 'Sequencing', content: 'Number the morning steps in the order that works best for you.', created_at: now(), is_sample: true };
 const sampleStory = { id: '81111111-1111-4111-8111-111111111111', user_id: GUEST_PARENT_ID, kid_id: GUEST_KID_ID, title: 'Trying Something New', content: 'Sometimes a new activity feels uncertain. I can look at the first step, ask for help, and try at my own pace.', created_at: now(), updated_at: now(), is_sample: true };
@@ -75,6 +75,7 @@ export function startGuestSession() {
   activities = structuredClone(seedActivities);
   rewardItems = structuredClone(seedRewardItems);
   bonuses = structuredClone(seedBonuses);
+  recognitions = structuredClone(seedRecognitions);
   messages = structuredClone(seedMessages);
   reviewItems = structuredClone(seedReviewItems);
   dataReviewMonths = 12;
@@ -165,8 +166,9 @@ export async function guestApiFetch(input: RequestInfo | URL, init?: RequestInit
   if (kidMessagesMatch && decodeURIComponent(kidMessagesMatch[1]) === GUEST_KID_ID) {
     if (method === 'GET') return json({ messages });
     if (method === 'POST' && !kidMessagesMatch[2]) {
-      const message = { id: crypto.randomUUID(), kid_id: GUEST_KID_ID, user_id: GUEST_PARENT_ID, message: body.message, created_at: now() };
+      const message = { id: crypto.randomUUID(), kid_id: GUEST_KID_ID, user_id: GUEST_PARENT_ID, message: body.message, sender: 'parent', audio_url: body.audioUrl || null, parent_read_at: null, created_at: now() };
       messages = [message, ...messages];
+      kid = { ...kid, parent_message: body.message };
       return json({ message }, 201);
     }
     if (method === 'DELETE' && kidMessagesMatch[2]) {
@@ -174,6 +176,15 @@ export async function guestApiFetch(input: RequestInfo | URL, init?: RequestInit
       messages = messages.filter((message) => message.id !== messageId);
       return json({ success: true });
     }
+  }
+  if (path === `/api/kids/${GUEST_KID_ID}/replies` && method === 'POST') {
+    const reply = { id: crypto.randomUUID(), kid_id: GUEST_KID_ID, user_id: GUEST_PARENT_ID, message: String(body.message || '').trim(), sender: 'learner', audio_url: null, parent_read_at: null, created_at: now() };
+    messages = [reply, ...messages];
+    return json({ reply }, 201);
+  }
+  if (path === `/api/kids/${GUEST_KID_ID}/replies/read` && method === 'POST') {
+    messages = messages.map(message => message.sender === 'learner' ? { ...message, parent_read_at: now() } : message);
+    return json({ success: true });
   }
   if (/^\/api\/activity-steps\/[^/]+\/completion$/.test(path) && method === 'PUT') {
     const stepId = decodeURIComponent(path.split('/')[3]);
@@ -220,12 +231,33 @@ export async function guestApiFetch(input: RequestInfo | URL, init?: RequestInit
         behavior_reason: String(body.behaviorReason || 'Positive recognition').trim(),
         reward_amount: rewardAmount,
         awarded_at: now(),
+        is_legacy_recognition: false,
       };
       bonuses = [award, ...bonuses];
       kid = { ...kid, reward_balance: Number(kid.reward_balance || 0) + rewardAmount };
       return json({ award, rewardBalance: kid.reward_balance }, 201);
     }
     return json({ awards: bonuses });
+  }
+  if (path === `/api/kids/${GUEST_KID_ID}/positive-recognitions`) {
+    if (method === 'POST') {
+      const recognition = {
+        id: crypto.randomUUID(),
+        kid_id: GUEST_KID_ID,
+        recognition_message: String(body.recognitionMessage || '').trim(),
+        recognized_at: now(),
+      };
+      if (!recognition.recognition_message) return json({ error: 'Enter what you would like to recognize.' }, 400);
+      recognitions = [recognition, ...recognitions];
+      return json({ recognition }, 201);
+    }
+    const legacyRecognitions = bonuses.filter(award => award.is_legacy_recognition === true).map(award => ({
+      id: `legacy-${award.id}`,
+      kid_id: award.kid_id,
+      recognition_message: award.behavior_reason,
+      recognized_at: award.awarded_at,
+    }));
+    return json({ recognitions: [...recognitions, ...legacyRecognitions].sort((a, b) => String(b.recognized_at).localeCompare(String(a.recognized_at))) });
   }
   if (path === `/api/kids/${GUEST_KID_ID}/reward-items`) {
     if (method === 'POST') {

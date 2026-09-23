@@ -495,7 +495,7 @@ export default function ProgressReport() {
   const focusedViewDetails: Record<string, { title: string; subtitle: string; icon: typeof LayoutList }> = {
     'quiz-results': { title: 'Quiz Results', subtitle: 'Review quiz scores and completed attempts.', icon: ClipboardCheck },
     'game-results': { title: 'Game Scores', subtitle: 'Review learning-game scores and completed attempts.', icon: Gamepad2 },
-    'reward-purchases': { title: 'Rewards History', subtitle: 'Review reward purchases and positive recognition for the selected period.', icon: ShoppingCart },
+    'reward-purchases': { title: 'Rewards History', subtitle: 'Review reward purchases and bonus-token additions for the selected period.', icon: ShoppingCart },
     'activity-retries': { title: 'Activities That Needed Another Try', subtitle: 'Review activities that were reassigned for another attempt.', icon: RotateCcw },
   };
   const focusedView = reportView ? focusedViewDetails[reportView] : null;
@@ -1052,8 +1052,8 @@ export default function ProgressReport() {
               <thead className="app-data-table-head">
                 <tr>
                   <th className="w-20 px-3 py-3">{renderSelectionHeader()}</th>
-                  <th className="cursor-pointer px-4 py-3" onClick={() => toggleRewardSort('name')}><span className="inline-flex items-center gap-2"><GridColumnHeader label="Reward" help="The purchased reward item or positive recognition."/><RewardSortIcon column="name"/></span></th>
-                  <th className="cursor-pointer px-4 py-3" onClick={() => toggleRewardSort('details')}><span className="inline-flex items-center gap-2"><GridColumnHeader label="Details" help="The purchase action or reason for positive recognition."/><RewardSortIcon column="details"/></span></th>
+                  <th className="cursor-pointer px-4 py-3" onClick={() => toggleRewardSort('name')}><span className="inline-flex items-center gap-2"><GridColumnHeader label="Reward" help="The purchased reward item or bonus-token addition."/><RewardSortIcon column="name"/></span></th>
+                  <th className="cursor-pointer px-4 py-3" onClick={() => toggleRewardSort('details')}><span className="inline-flex items-center gap-2"><GridColumnHeader label="Details" help="The purchase action or reason for bonus tokens."/><RewardSortIcon column="details"/></span></th>
                   <th className="cursor-pointer px-4 py-3" onClick={() => toggleRewardSort('location')}><span className="inline-flex items-center gap-2"><GridColumnHeader label="Location" help="Where the reward was purchased. Bonus rewards are recorded as System."/><RewardSortIcon column="location"/></span></th>
                   <th className="cursor-pointer px-4 py-3 text-left" onClick={() => toggleRewardSort('amount')}><span className="inline-flex items-center gap-2"><GridColumnHeader label="Amount" help="Rewards spent on a purchase or received as a bonus."/><RewardSortIcon column="amount"/></span></th>
                   <th className="cursor-pointer px-4 py-3 text-left" onClick={() => toggleRewardSort('date')}><span className="inline-flex items-center gap-2"><GridColumnHeader label="Date" help="The date of the purchase or bonus reward."/><RewardSortIcon column="date"/></span></th>

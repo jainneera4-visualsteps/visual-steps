@@ -15,6 +15,7 @@ import nodemailer from 'nodemailer';
 import path from 'path';
 import { createHash, randomBytes } from 'crypto';
 import sharp from 'sharp';
+import webPush from 'web-push';
 
 dotenv.config();
 
@@ -25,12 +26,12 @@ const productFeatureRegistry = [
     "id": "visual-activities",
     "title": "Clear visual activities",
     "summary": "Build clear visual activities and offer each one as Learner Can Choose or Do Today.",
-    "details": "Parents and caregivers can turn a routine, responsibility, or learning goal into a clear activity with descriptions, real-life images, smaller steps, timing, recurrence, verification, and its own reward amount. Each activity can be offered as Learner Can Choose or Do Today. Both parent and learner activity views separate these meanings under clear headings instead of repeating labels on every activity. Do Today communicates significance without forcing an order, while the learner may open any visible activity in the order that works for them.",
+    "details": "Parents and caregivers can turn a routine, responsibility, or learning goal into a clear activity with descriptions, real-life images, smaller steps, timing, recurrence, verification, and its own reward amount. Each activity can be offered as Learner Can Choose or Do Today. The parent view keeps those meanings available for planning, while the learner sees all activities that are currently available together under one Available Choices heading and may choose any one in the order that works for them. The learner does not need to complete every activity shown.",
     "familyImpact": "Clear visual sequences can reduce uncertainty and make a task easier to begin, understand, and finish for autistic people of different ages and support needs. Parents and caregivers can divide responsibilities into achievable steps, adapt the pace, and use consistent instructions across home, learning, work, therapy support, and community routines.",
     "guideParagraphs": [
       "A visual activity is most useful when it answers the questions a person may naturally have before beginning: what am I doing, how much is expected, what happens next, and how will I know I am finished? Parents can keep the wording concrete, choose an illustration that truly matches the task, and add only the steps that make the activity easier to follow. For a familiar routine, a short instruction may be enough; for a newer or more demanding responsibility, several smaller steps can provide a clearer path.",
       "The same approach can support a young child learning self-care, a teenager managing school or household responsibilities, or an autistic adult building independence at home, work, or in the community. Caregivers can observe where the person pauses, becomes uncertain, or needs prompting, then adjust the wording, image, timing, or number of steps. Reassignment provides another opportunity without erasing the value of the first effort.",
-      "While adding or editing an activity, parents choose how it should be offered. Learner Can Choose means it may be selected when it is useful or meaningful. Do Today gives the parent a way to communicate that an activity matters today without imposing an order. The learner dashboard uses the short headings Pick an Activity and Do Today without forcing either group into a first-to-last sequence."
+      "While adding or editing an activity, parents choose how it should be offered. Learner Can Choose means it may be selected when it is useful or meaningful. Do Today gives the parent a way to identify an activity that may be especially helpful today without imposing an order. The learner dashboard combines both meanings under Available Choices and explains that the learner may choose one activity and does not need to do every activity shown."
     ],
     "help": "From Dashboard, select a child / adult and open Activities Setup. Choose Add Activity or edit an existing activity. In the compact Offer as row, select Learner Can Choose or Do Today, choose that activity's reward, then save. The Activities list places it under the matching section.",
     "screenshot": {
@@ -56,7 +57,7 @@ const productFeatureRegistry = [
         "updatedOn": "2026-09-12",
         "title": "A calm way to ask for help",
         "summary": "Learners see a familiar picture-led prompt for asking a nearby parent or caregiver for help.",
-        "details": "The learner may check each visual step as it is completed. Progress saves immediately and remains available after a break, reload, or return to the activity. Step checks are supportive rather than compulsory: Mark as Finished remains available without changing unchecked steps, so parents see the learner’s actual step progress during review. The profile records whether the learner asks for help with spoken words, a familiar sign or gesture, or a help picture card. For spoken communication, the parent saves the exact displayed words and records the same phrase for the learner to play. For sign or card communication, the parent uploads the familiar image used at home. Activity details display that method as a compact visual prompt instead of requiring a digital help-request workflow.",
+        "details": "The learner may check each visual step as it is completed. Progress saves immediately and remains available after a break, reload, or return to the activity. Step checks are supportive rather than compulsory: the self-directed I’m finished with this activity action remains available without changing unchecked steps, so parents see the learner’s actual step progress during review. The profile records whether the learner asks for help with spoken words, a familiar sign or gesture, or a help picture card. For spoken communication, the parent saves the exact displayed words and records the same phrase for the learner to play. For sign or card communication, the parent uploads the familiar image used at home. Activity details display that method as a compact visual prompt instead of requiring a digital help-request workflow.",
         "familyImpact": "The prompt reinforces the communication method the family already practices and assumes a parent or caregiver is nearby. It does not ask the learner to understand notifications, explain the problem in a form, or wait for a remote response. Asking for support never reduces the activity reward.",
         "guideParagraphs": [
           "Each completed visual step receives a clear checkmark. Taking a break does not erase those checks, while a new repeated or reassigned occurrence begins with fresh unchecked steps.",
@@ -69,7 +70,7 @@ const productFeatureRegistry = [
         "updatedOn": "2026-09-11",
         "title": "A compact activity form that keeps the essentials in view",
         "summary": "Activity meaning, rewards, verification, timing, and repetition remain visible in compact rows without large settings panels.",
-        "details": "The Add and Edit Activity form keeps its established fields and behavior while reducing the space taken by additional settings. The activity’s date, time, and repetition appear immediately after its visual steps. Activity meaning, reward, and verification then use compact rows with a label on the left and direct choices on the right. The parent labels Learner Can Choose and Do Today correspond to the established Available Choice and Important Today meanings. The learner sees the shorter headings Pick an Activity and Do Today. The controls remain visible without requiring parents to open panels, while longer explanatory text and oversized colored blocks no longer push the central activity fields far down the page. Cancel and Save appear in the top-right Activity Details header, so they are visible as soon as the form opens and never cover a form field.",
+        "details": "The Add and Edit Activity form keeps its established fields and behavior while reducing the space taken by additional settings. The activity’s date, time, and repetition appear immediately after its visual steps. Activity meaning, reward, and verification then use compact rows with a label on the left and direct choices on the right. The parent labels Learner Can Choose and Do Today correspond to the established Available Choice and Important Today meanings. The learner sees all currently available activities together under Available Choices. The controls remain visible without requiring parents to open panels, while longer explanatory text and oversized colored blocks no longer push the central activity fields far down the page. Cancel and Save appear in the top-right Activity Details header, so they are visible as soon as the form opens and never cover a form field.",
         "familyImpact": "Parents can reach the activity name, description, image, and visual steps more quickly without losing detailed controls when those controls are useful. This keeps the central Activity to Steps workflow prominent as Visual Steps gains capabilities.",
         "help": "Open Add Activity or edit an activity. Use the compact option rows to choose how the activity is offered, its reward, verification, date, time, and repetition, then save."
       },
@@ -77,11 +78,11 @@ const productFeatureRegistry = [
         "updatedOn": "2026-09-11",
         "title": "Rewards matched to each activity",
         "summary": "Parents choose a reward amount for each activity according to the learner’s effort and challenge.",
-        "details": "Reward amounts are now part of the activity rather than the child / adult profile. While adding or editing an activity, the parent can choose a gentle, moderate, or bigger-challenge amount, or enter a custom value from 1 to 50. The learner sees what that activity can earn before choosing it. Rewards are added only when the activity is completed immediately or approved through required parent verification. Existing activities inherit the profile’s former reward amount during the database update so established work does not unexpectedly lose or change its value.",
+        "details": "Reward amounts are now part of the activity rather than the child / adult profile. While adding or editing an activity, the parent can choose a gentle, moderate, or bigger-challenge amount, or enter a custom value from 1 to 50. The learner can see what the chosen activity earns inside its details without placing reward amounts across the choice screen. Rewards are added only when the activity is completed immediately or approved through required parent verification. Existing activities inherit the profile’s former reward amount during the database update so established work does not unexpectedly lose or change its value.",
         "familyImpact": "Different activities can recognize different levels of effort without defining one fixed reward for everything a learner does. Parents can make harder or less-preferred work more motivating while keeping familiar activities achievable and preserving the established completion and verification flow.",
         "guideParagraphs": [
           "Choose rewards according to the effort required from this particular learner, not according to how difficult the activity may look to someone else. A familiar activity may reasonably earn one reward while a newer or more demanding activity earns more.",
-          "The activity card and activity details show the available reward before the learner begins. This keeps the choice understandable and avoids surprising the learner after completion.",
+          "After choosing and opening an activity, the learner can see its available reward in the activity details before beginning. The choice screen stays focused on the activities themselves instead of presenting every option as a reward opportunity.",
           "Changing an activity’s reward does not award anything immediately. The configured amount is earned only through the normal completion flow, including parent approval when verification is required."
         ],
         "help": "Open Activities Setup, add or edit an activity, and use Reward for completing this activity to choose a suggested or custom amount. Save the activity. The learner will see that amount on the activity, and it will be added after successful completion or required verification."
@@ -89,14 +90,14 @@ const productFeatureRegistry = [
       {
         "updatedOn": "2026-09-11",
         "title": "Readable themed activity worlds",
-        "summary": "Learner themes now add calm color, companions, decorations, activity accents, and celebrations without placing text over photographs.",
-        "details": "Each learner theme uses a softly tinted background and keeps essential information on reliable high-contrast surfaces. A matching companion can invite the learner to choose an activity, restrained decorations stay around the edges, activity cards receive theme accents, and completion celebrations use the selected theme. The Rewards view carries the same theme into its header and reward cards, while not-yet-affordable rewards remain inviting through clear progress, gentle glow, and encouraging language instead of appearing disabled. Parents can choose a friendly character and message, a quieter theme icon, or no companion for an older learner or adult.",
+        "summary": "Learner themes add calm color, companions, decorations, and activity accents without placing text over photographs.",
+        "details": "Each learner theme uses a softly tinted background and keeps essential information on reliable high-contrast surfaces. A matching companion can invite the learner to choose an activity, restrained decorations stay around the edges, and activity cards receive theme accents. Completing an activity shows a calm acknowledgement and makes clear that the learner may choose another activity, take a break, or leave. The Rewards view carries the same theme into its header and reward cards, while not-yet-affordable rewards remain inviting through clear progress, gentle glow, and neutral information instead of appearing disabled. Parents can choose a friendly character and message, a quieter theme icon, or no companion for an older learner or adult.",
         "familyImpact": "Learners receive a more welcoming and personalized dashboard without sacrificing readability or introducing visual clutter. Parents can adjust the amount of playful decoration to suit the person’s age, preferences, and support needs.",
         "guideParagraphs": [
           "The theme changes color and decoration rather than the location or behavior of important controls, so the dashboard remains predictable across every style.",
           "Choose Friendly character and message for a playful invitation, Simple theme icon for a quieter visual cue, or No companion when a minimal presentation is more appropriate.",
-          "Section colors continue to communicate Coming Up, Do Today, Pick an Activity, and Later Today consistently. Theme details decorate these sections without changing their meaning or forcing an order.",
-          "In Rewards, each goal shows how many rewards are still needed and a progress bar makes movement toward it visible. A slow glow adds encouragement without rapid blinking, and device reduced-motion preferences are respected."
+          "Section colors continue to communicate Coming Up, Available Choices, and Later Today consistently. Theme details decorate these sections without changing their meaning or forcing an order.",
+          "In Rewards, each item neutrally shows the learner's current balance and the item's cost, while a progress bar makes the relationship between them visible. A slow glow adds encouragement without rapid blinking, and device reduced-motion preferences are respected."
         ],
         "help": "Open the child / adult profile and use the compact Personalize the learner's experience section. Choose any established Reward name from the list, or choose Custom name, enter the family's wording, and upload a custom icon. Then choose a Favorite world and Friendly helper style, review the live preview, and save. The learner dashboard applies the choices automatically."
       },
@@ -104,7 +105,7 @@ const productFeatureRegistry = [
         "updatedOn": "2026-09-11",
         "title": "Calm time guidance without a rigid schedule",
         "summary": "Parents can add suggested periods or exact times, while learners see what is relevant now without facing one long schedule.",
-        "details": "Ordinary activities remain flexible and unrestricted. Parents may continue using a broad morning, afternoon, evening, or night suggestion, or choose Specific time for an appointment or meeting. Exact-time activities support a preparation offset, suggested or fixed timing, and a parent-selected action after the time passes. The learner view keeps Do Today and Pick an Activity, adds a small Coming Up section, keeps future choices under a collapsible Later Today control, and initially shows up to six available choices.",
+        "details": "Ordinary activities remain flexible and unrestricted. Parents may continue using a broad morning, afternoon, evening, or night suggestion, or choose Specific time for an appointment or meeting. Exact-time activities support a preparation offset, suggested or fixed timing, and a parent-selected action after the time passes. The learner view places currently available activities together under Available Choices, adds a small Coming Up section, keeps future choices under a collapsible Later Today control, and initially shows up to six available choices.",
         "familyImpact": "Learners can prepare for appointments and meaningful time-based events without having to scan a long chronological schedule. Current choices stay easy to find, future information remains available when wanted, and ordinary activities continue to support autonomy.",
         "guideParagraphs": [
           "Use broad time periods as gentle guidance for routines that do not need an exact start. Any time activities remain available without unnecessary time labels.",
@@ -122,7 +123,7 @@ const productFeatureRegistry = [
         "guideParagraphs": [
           "Learner Can Choose is the everyday default. It tells the parent that the activity may be offered as one meaningful option and does not need to be completed in a fixed order.",
           "Do Today is for an activity that genuinely matters on that day, such as preparing for an appointment or completing an essential responsibility. It communicates importance, not a first-to-last sequence.",
-          "On both the parent and learner dashboards, Do Today and Learner Can Choose appear as separate, plainly explained sections instead of repeated tags. Empty sections stay out of the way. The learner may choose within either section, and steps, completion, verification, rewards, and history continue through the established activity flow."
+          "The parent view keeps Do Today and Learner Can Choose as separate planning meanings. The learner sees one Available Choices section with a reminder that only one suitable activity may be chosen and not every visible activity must be done. Empty sections stay out of the way, and steps, completion, verification, rewards, and history continue through the established activity flow."
         ],
         "help": "Open Activities Setup for a child / adult. Add or edit an activity, choose Learner Can Choose or Do Today in the compact Offer as row, and save. Review the two clearly headed sections in the activity list."
       }
@@ -179,15 +180,15 @@ const productFeatureRegistry = [
   },
   {
     "id": "behavior-bonuses",
-    "title": "Positive behavior bonuses",
-    "summary": "Parents can recognize a specific calm, focused, helpful, or persistent behavior.",
-    "details": "Parents and caregivers can recognize positive behavior they personally observed without creating another activity. Every bonus records a specific reason, such as trying again, staying calm, focusing, or following a rule. The child / adult sees the reason and reward together, reinforcing that the bonus was earned rather than freely requested. Parents and caregivers control when a bonus is appropriate, and the child / adult cannot request one through the app.",
-    "familyImpact": "Specific recognition helps an autistic person connect a reward with a meaningful behavior such as persistence, self-regulation, communication, kindness, or following an agreed routine. Parents and caregivers retain control of the decision and can describe exactly what went well, encouraging healthy growth without presenting rewards as something obtained through repeated demands.",
+    "title": "Positive recognition and bonus tokens",
+    "summary": "Parents can recognize meaningful effort without tokens or give separate positive-only bonus tokens.",
+    "details": "Rewards contains two clearly separated parent tools. Positive Recognition records a specific observation such as trying again, communicating, managing a change, or making progress, and never changes the learner's token balance. Give Bonus Tokens adds a positive whole-number amount without presenting it as appreciation or recognition. The learner sees recognition under You Were Noticed without a token amount; bonus tokens simply update the balance.",
+    "familyImpact": "Separating encouragement from tokens lets an autistic person receive genuine acknowledgement without learning that every positive interaction has a price. Token changes remain predictable: parents can add bonus tokens, while tokens decrease only when the learner chooses a reward purchase.",
     "guideParagraphs": [
-      "A behavior bonus works best when it follows something the parent actually noticed and names that behavior clearly. Instead of giving an unexplained token, a parent can write “Returned to the task after a break,” “Used words to ask for help,” or “Stayed calm while the plan changed.” The reason appears with the reward so the recognition remains connected to effort, regulation, communication, or another meaningful action.",
-      "The child / adult cannot request or award these bonuses, which helps parents and caregivers maintain a calm and consistent boundary when a person repeatedly asks for more rewards. Parents and caregivers decide whether a behavior deserves recognition and how many rewards are appropriate within the family’s existing expectations. Over time, the recent bonus list can also remind everyone of real examples of growth that might otherwise be overlooked."
+      "Positive Recognition works best when it names something the parent actually noticed. A parent might write “You returned after taking a break,” “You asked for help,” or “You stayed calm while the plan changed.” Recognition stands on its own and does not add tokens, change a balance, or imply that encouragement must be earned. The learner sees the message calmly under You Were Noticed, keeping sincere acknowledgement separate from purchases and activity rewards.",
+      "Give Bonus Tokens is a separate parent-only action for adding tokens without attaching praise. It accepts positive whole-number amounts only and requires a short administrative reason so parents can remember why the balance changed. The child / adult cannot request or award recognition or bonus tokens through the app, and the parent tool never removes previously earned tokens. This keeps token changes predictable while still allowing a family to add an opening balance or another intentional bonus."
     ],
-    "help": "Open a child’s Activities page, select Rewards, type the observed positive behavior, select 1–10 rewards, and confirm the bonus.",
+    "help": "Open Rewards for the selected learner. Choose Positive Recognition to give a token-free acknowledgement, or Give Bonus Tokens to add a positive whole-number amount separately. Today's bonus reasons, amounts, and times appear in the Bonus Tokens grid.",
     "screenshot": {
       "src": "/onboarding/behavior-bonuses.png",
       "alt": "Visual Steps positive behavior bonus workspace",
@@ -603,7 +604,7 @@ const productFeatureRegistry = [
     "id": "parent-data-management",
     "title": "Parent-controlled activity and rewards history",
     "summary": "Review a learner’s recent activity and reward history, open grouped details, and selectively remove history that is no longer useful.",
-    "details": "Parents and caregivers can choose a learner and review two focused timelines: Activity History and Rewards History. Activity History shows one summary row for each activity category and name; View opens the chronological sequence of Created, Completed, Verified & Completed, Reassigned, On-Hold, Ended, and Deleted actions with date and time. Rewards History combines purchases and positive recognition, identifies System as the location for bonuses, and supports search, date ranges, and sortable headings. Both pages use rolling one-, three-, six-, or twelve-month periods instead of loading an unbounded all-time list. Page-level selection affects only the visible page, and deletion reports how many records were removed.",
+    "details": "Parents and caregivers can choose a learner and review two focused timelines: Activity History and Rewards History. Activity History shows one summary row for each activity category and name, and View opens the chronological sequence of lifecycle actions with date and time. Rewards History combines purchases and bonus-token additions, identifies System as the location for bonuses, and supports search, date ranges, and sortable headings. Token-free positive recognition remains separate from reward history. Both pages use rolling periods instead of loading an unbounded all-time list, while page-level selection affects only the visible page and deletion reports how many records were removed.",
     "familyImpact": "Families can keep useful evidence of growth while removing detailed records they no longer need. Parent-controlled review supports thoughtful planning for a child / adult without turning retention into an automatic decision made by the app.",
     "guideParagraphs": [
       "Activity History is a compact index rather than a repeated event list. Each category-and-name combination appears once with its latest action and Last Updated date. Selecting View opens the complete saved audit trail for that activity group. Deleting the summary row removes all matching history entries but never deletes or changes the live assigned activity.",
@@ -734,17 +735,6 @@ const detectImageType = (bytes: Uint8Array): SupportedUploadImageType | null => 
     if (riff === 'RIFF' && webp === 'WEBP') return 'image/webp';
   }
   return null;
-};
-
-const DEFAULT_PARENT_MESSAGE_RETENTION_DAYS = 20;
-const normalizeParentMessageRetentionDays = (value: unknown): number => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_PARENT_MESSAGE_RETENTION_DAYS;
-  return Math.floor(parsed);
-};
-const getParentMessageCutoff = (retentionDays: number): string => {
-  const normalizedDays = normalizeParentMessageRetentionDays(retentionDays);
-  return new Date(Date.now() - normalizedDays * 24 * 60 * 60 * 1000).toISOString();
 };
 
 type ActivityCompletionRecord = {
@@ -1081,7 +1071,9 @@ export const isKidApiRequestAllowed = (method: string, pathName: string, kidId: 
   if (methodUpper === 'GET' && pathName === ownKidBase) return true;
   if (methodUpper === 'GET' && pathName === `${ownKidBase}/activities`) return true;
   if (methodUpper === 'GET' && pathName === `${ownKidBase}/reward-items`) return true;
-  if (methodUpper === 'GET' && pathName === `${ownKidBase}/behavior-bonuses`) return true;
+  if (methodUpper === 'GET' && pathName === `${ownKidBase}/positive-recognitions`) return true;
+  if (methodUpper === 'GET' && pathName === `${ownKidBase}/messages`) return true;
+  if (methodUpper === 'POST' && pathName === `${ownKidBase}/replies`) return true;
   if (methodUpper === 'GET' && pathName === `${ownKidBase}/optional-bonus-activities`) return true;
   if (methodUpper === 'POST' && pathName === `${ownKidBase}/game-results`) return true;
   if (methodUpper === 'POST' && /^\/api\/activities\/[^/]+\/select-optional$/.test(pathName)) return true;
@@ -1286,7 +1278,7 @@ const featureForPath = (pathName: string) => {
   if (pathValue.includes('worksheet')) return 'Worksheets';
   if (pathValue.includes('social-stor')) return 'Social stories';
   if (pathValue.includes('activit')) return 'Activities';
-  if (pathValue.includes('reward') || pathValue.includes('behavior-bonus')) return 'Rewards';
+  if (pathValue.includes('reward') || pathValue.includes('behavior-bonus') || pathValue.includes('positive-recognition')) return 'Rewards';
   if (pathValue.includes('report')) return 'Reports';
   if (pathValue.includes('data-management')) return 'Data management';
   if (pathValue.includes('profile') || pathValue.includes('/kids')) return 'Profiles';
@@ -3582,11 +3574,10 @@ const isMissingColumnError = (error: any) => {
   return message.includes('column') && (message.includes('does not exist') || message.includes('not found'));
 };
 
-const fetchUserProfileWithRetentionFallback = async (supabase: any, userId: string) => {
+const fetchUserProfile = async (supabase: any, userId: string) => {
   const projections = [
-    'id, name, email, max_parent_message_days, onboarding_completed',
-    'id, name, email, max_parent_message_days',
-    'id, name, email, max_parent_messages',
+    'id, name, email, onboarding_completed, learner_reply_email_notifications',
+    'id, name, email, onboarding_completed',
     'id, name, email',
   ];
 
@@ -3600,10 +3591,7 @@ const fetchUserProfileWithRetentionFallback = async (supabase: any, userId: stri
       .single();
 
     if (!error && data) {
-      return {
-        ...data,
-        max_parent_message_days: data.max_parent_message_days ?? data.max_parent_messages ?? 20,
-      };
+      return data;
     }
 
     if (isMissingColumnError(error)) {
@@ -3632,10 +3620,10 @@ app.get('/api/user/profile', authenticateToken, async (req: any, res) => {
     let profile: any;
 
     try {
-      profile = await fetchUserProfileWithRetentionFallback(supabase, userId);
+      profile = await fetchUserProfile(supabase, userId);
     } catch (err) {
       const adminSupabase = getAdminSupabaseClient();
-      profile = await fetchUserProfileWithRetentionFallback(adminSupabase, userId);
+      profile = await fetchUserProfile(adminSupabase, userId);
     }
 
     res.json({ profile });
@@ -3647,7 +3635,7 @@ app.get('/api/user/profile', authenticateToken, async (req: any, res) => {
 
 app.put('/api/user/profile', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
-  const { name, email, newPassword, maxParentMessageDays, maxParentMessages, onboardingCompleted } = req.body;
+  const { name, email, newPassword, onboardingCompleted, learnerReplyEmailNotifications } = req.body;
   const userId = req.user.id;
 
   try {
@@ -3656,17 +3644,7 @@ app.put('/api/user/profile', authenticateToken, async (req: any, res) => {
     if (name) baseUpdates.name = name;
     if (email) baseUpdates.email = email;
     if (typeof onboardingCompleted === 'boolean') baseUpdates.onboarding_completed = onboardingCompleted;
-
-    const incomingRetentionDays = maxParentMessageDays !== undefined ? maxParentMessageDays : maxParentMessages;
-    let parsedRetentionDays: number | undefined;
-    if (incomingRetentionDays !== undefined) {
-      const parsedDays = Number(incomingRetentionDays);
-      if (Number.isFinite(parsedDays) && parsedDays > 0) {
-        parsedRetentionDays = Math.floor(parsedDays);
-      } else {
-        return res.status(400).json({ error: 'Retention days must be a positive number' });
-      }
-    }
+    if (typeof learnerReplyEmailNotifications === 'boolean') baseUpdates.learner_reply_email_notifications = learnerReplyEmailNotifications;
 
     if (newPassword && String(newPassword).length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
@@ -3687,7 +3665,7 @@ app.put('/api/user/profile', authenticateToken, async (req: any, res) => {
       }
     }
 
-    if (Object.keys(baseUpdates).length === 0 && parsedRetentionDays === undefined) {
+    if (Object.keys(baseUpdates).length === 0) {
       return res.json({ message: 'No changes made' });
     }
 
@@ -3696,60 +3674,20 @@ app.put('/api/user/profile', authenticateToken, async (req: any, res) => {
       if (error) throw error;
     };
 
-    const attemptRetentionUpdate = async (client: any) => {
-      if (parsedRetentionDays === undefined) {
-        return { applied: false, skipped: true };
-      }
-
-      const { error: newColumnError } = await client
-        .from('users')
-        .update({ max_parent_message_days: parsedRetentionDays })
-        .eq('id', userId);
-
-      if (!newColumnError) {
-        return { applied: true, column: 'max_parent_message_days' };
-      }
-
-      if (!isMissingColumnError(newColumnError) || !String(newColumnError.message || '').includes('max_parent_message_days')) {
-        throw newColumnError;
-      }
-
-      const { error: legacyColumnError } = await client
-        .from('users')
-        .update({ max_parent_messages: parsedRetentionDays })
-        .eq('id', userId);
-
-      if (!legacyColumnError) {
-        return { applied: true, column: 'max_parent_messages' };
-      }
-
-      if (isMissingColumnError(legacyColumnError)) {
-        throw legacyColumnError;
-      }
-
-      throw legacyColumnError;
-    };
-
     try {
-      if (Object.keys(baseUpdates).length > 0) {
-        await attemptBaseProfileUpdate(supabase);
-      }
-      await attemptRetentionUpdate(supabase);
+      await attemptBaseProfileUpdate(supabase);
     } catch (err) {
       const adminSupabase = getAdminSupabaseClient();
-      if (Object.keys(baseUpdates).length > 0) {
-        await attemptBaseProfileUpdate(adminSupabase);
-      }
-      await attemptRetentionUpdate(adminSupabase);
+      await attemptBaseProfileUpdate(adminSupabase);
     }
 
     let updatedProfile: any;
     try {
-      updatedProfile = await fetchUserProfileWithRetentionFallback(supabase, userId);
+      updatedProfile = await fetchUserProfile(supabase, userId);
     } catch (err) {
       try {
         const adminSupabase = getAdminSupabaseClient();
-        updatedProfile = await fetchUserProfileWithRetentionFallback(adminSupabase, userId);
+        updatedProfile = await fetchUserProfile(adminSupabase, userId);
       } catch (readError: any) {
         // Do not fail the entire update if read-back fails after a successful write.
         console.warn('PUT /api/user/profile read-back failed after successful update:', readError);
@@ -3757,7 +3695,6 @@ app.put('/api/user/profile', authenticateToken, async (req: any, res) => {
           id: userId,
           name: name ?? req.user?.name,
           email: email ?? req.user?.email,
-          max_parent_message_days: parsedRetentionDays,
         };
       }
     }
@@ -3767,10 +3704,6 @@ app.put('/api/user/profile', authenticateToken, async (req: any, res) => {
       // Complete the SMTP attempt before returning so Vercel cannot terminate
       // the function while the email is still being sent.
       await sendPasswordChangeEmail(email || req.user.email, name || req.user.name);
-    }
-
-    if (parsedRetentionDays !== undefined) {
-      await pruneExpiredParentMessages(supabase, userId);
     }
 
     res.json({ message: 'Profile updated successfully', profile: updatedProfile });
@@ -4463,85 +4396,32 @@ app.post('/api/kids/verify-code', async (req, res) => {
   }
 });
 
-const getParentMessageRetentionDays = async (supabase: any, userId: string) => {
-  for (const column of ['max_parent_message_days', 'max_parent_messages']) {
-    const { data, error } = await supabase
-      .from('users')
-      .select(column)
-      .eq('id', userId)
-      .single();
-
-    if (!error && data) {
-      return normalizeParentMessageRetentionDays(data[column]);
-    }
-
-    if (error && !isMissingColumnError(error)) {
-      console.warn(`Failed to read parent-message retention from ${column}:`, error);
-      break;
-    }
-  }
-
-  return DEFAULT_PARENT_MESSAGE_RETENTION_DAYS;
-};
-
 const getLatestParentMessagesMap = async (supabase: any, userId: string, kidIds: string[]) => {
   const latestByKid: Record<string, string> = {};
   if (!kidIds || kidIds.length === 0) return latestByKid;
 
-  const retentionDays = await getParentMessageRetentionDays(supabase, userId);
-  const cutoff = getParentMessageCutoff(retentionDays);
-
-  const { data, error } = await supabase
-    .from('parent_messages')
-    .select('kid_id, message, created_at')
-    .eq('user_id', userId)
-    .in('kid_id', kidIds)
-    .gte('created_at', cutoff)
-    .order('created_at', { ascending: false });
-
-  if (error || !data) {
-    return latestByKid;
-  }
-
-  for (const row of data) {
-    if (!latestByKid[row.kid_id]) {
-      latestByKid[row.kid_id] = row.message;
-    }
-  }
+  await Promise.all(kidIds.map(async kidId => {
+    const { data, error } = await supabase
+      .from('parent_messages')
+      .select('message')
+      .eq('user_id', userId)
+      .eq('kid_id', kidId)
+      .eq('sender', 'parent')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!error && data?.message) latestByKid[kidId] = data.message;
+  }));
 
   return latestByKid;
 };
 
-const pruneExpiredParentMessages = async (
-  supabase: any,
-  userId: string,
-  kidId?: string
-) => {
-  const retentionDays = await getParentMessageRetentionDays(supabase, userId);
-  const cutoff = getParentMessageCutoff(retentionDays);
-
-  let deleteQuery = supabase
-    .from('parent_messages')
-    .delete()
-    .eq('user_id', userId)
-    .lt('created_at', cutoff);
-
-  if (kidId) {
-    deleteQuery = deleteQuery.eq('kid_id', kidId);
-  }
-
-  const { error: pruneError } = await deleteQuery;
-
-  if (pruneError) {
-    console.warn('Failed to prune expired parent messages:', pruneError);
-  }
-};
-
-const insertParentMessageAndPrune = async (
+const insertParentMessage = async (
   supabase: any,
   userId: string,
   kidId: string,
-  messageRaw: string
+  messageRaw: string,
+  audioUrl?: string
 ) => {
   const message = (messageRaw || '').trim();
   if (!message) {
@@ -4550,13 +4430,11 @@ const insertParentMessageAndPrune = async (
 
   const { error: insertError } = await supabase
     .from('parent_messages')
-    .insert({ user_id: userId, kid_id: kidId, message });
+    .insert({ user_id: userId, kid_id: kidId, message, sender: 'parent', audio_url: audioUrl || null });
 
   if (insertError) {
     throw insertError;
   }
-
-  await pruneExpiredParentMessages(supabase, userId, kidId);
 };
 
 const aggregateRewardMessages = (currentNotes: string, newRewardAmount: number, newBehaviorName: string, rewardTypeRaw: string) => {
@@ -4692,7 +4570,6 @@ app.get('/api/kids', authenticateToken, async (req: any, res) => {
     console.log(`Fetched ${kids?.length || 0} kids for user ${userId}`);
     
     const messageKidIds = (kids || []).map(k => k.id);
-    await pruneExpiredParentMessages(supabase, userId);
     const latestMessages = await getLatestParentMessagesMap(supabase, userId, messageKidIds);
 
     const processedKids = (kids || []).map(k => {
@@ -4743,7 +4620,6 @@ app.get('/api/kids/:id', authenticateToken, async (req: any, res) => {
     const processedKid = { ...kid };
     try {
       const messageOwnerId = req.user.userId || req.user.id;
-      await pruneExpiredParentMessages(supabase, messageOwnerId, id);
       const latestMessages = await getLatestParentMessagesMap(supabase, messageOwnerId, [id]);
       if (latestMessages[id]) {
         processedKid.parent_message = latestMessages[id];
@@ -4919,7 +4795,7 @@ app.put('/api/kids/:id', authenticateToken, async (req: any, res) => {
     if (timezone !== undefined) updates.timezone = timezone;
     if (kidCode !== undefined) updates.kid_code = kidCode;
     if (parentMessage !== undefined && String(parentMessage).trim()) {
-      await insertParentMessageAndPrune(supabase, userId, id, String(parentMessage));
+      await insertParentMessage(supabase, userId, id, String(parentMessage));
     }
     // timezone is removed as it does not exist in the database schema
 
@@ -5712,7 +5588,7 @@ app.get('/api/kids/:kidId/progress-report', authenticateToken, async (req: any, 
         ...purchases.map((item: any) => ({ ...item, history_type: 'purchase' })),
         ...bonuses.map((item: any) => ({
           id: item.id,
-          item_name: 'Positive Recognition',
+          item_name: 'Bonus Tokens',
           description: item.behavior_reason,
           cost: item.reward_amount,
           location: null,
@@ -6031,7 +5907,72 @@ app.post('/api/activities/:activityId/select-optional', authenticateToken, async
   }
 });
 
-// Behavior bonuses are initiated only by parents and always include a reason.
+// Positive recognition is parent-authored encouragement and never changes tokens.
+app.get('/api/kids/:kidId/positive-recognitions', authenticateToken, async (req: any, res) => {
+  const { kidId } = req.params;
+  if (req.user.role === 'kid' && req.user.kidId !== kidId) return res.status(403).json({ error: 'Forbidden' });
+  try {
+    const supabase = getSupabaseForUser(req);
+    if (req.user.role !== 'kid') {
+      const { data: kid, error: kidError } = await supabase.from('kids').select('id').eq('id', kidId).eq('user_id', req.user.id).maybeSingle();
+      if (kidError || !kid) return res.status(404).json({ error: 'Child not found' });
+    }
+    const [recognitionsResult, legacyResult] = await Promise.all([
+      supabase.from('positive_recognitions')
+        .select('id, kid_id, recognition_message, recognized_at')
+        .eq('kid_id', kidId).order('recognized_at', { ascending: false }).limit(20),
+      supabase.from('behavior_bonus_awards')
+        .select('id, kid_id, behavior_reason, awarded_at')
+        .eq('kid_id', kidId).eq('is_legacy_recognition', true)
+        .order('awarded_at', { ascending: false }).limit(20),
+    ]);
+    if (recognitionsResult.error) throw recognitionsResult.error;
+    if (legacyResult.error) throw legacyResult.error;
+    const recognitions = [
+      ...(recognitionsResult.data || []),
+      ...(legacyResult.data || []).map(item => ({
+        id: `legacy-${item.id}`,
+        kid_id: item.kid_id,
+        recognition_message: item.behavior_reason,
+        recognized_at: item.awarded_at,
+      })),
+    ].sort((a, b) => new Date(b.recognized_at).getTime() - new Date(a.recognized_at).getTime()).slice(0, 20);
+    res.json({ recognitions });
+  } catch (error) {
+    console.error('Failed to load positive recognitions:', error);
+    res.status(500).json({ error: 'Unable to load positive recognitions' });
+  }
+});
+
+app.post('/api/kids/:kidId/positive-recognitions', authenticateToken, async (req: any, res) => {
+  const { kidId } = req.params;
+  if (req.user.role !== 'parent') return res.status(403).json({ error: 'Parent access required' });
+  const recognitionMessage = typeof req.body?.recognitionMessage === 'string' ? req.body.recognitionMessage.trim().slice(0, 160) : '';
+  if (!recognitionMessage) return res.status(400).json({ error: 'Enter what you would like to recognize.' });
+  try {
+    const supabase = getSupabaseForUser(req);
+    const { data, error } = await supabase.rpc('record_positive_recognition', {
+      kid_id_param: kidId, recognition_message_param: recognitionMessage,
+    });
+    if (error) throw error;
+    const savedRecognition = Array.isArray(data) ? data[0] : data;
+    if (!savedRecognition) return res.status(404).json({ error: 'Child not found' });
+    const recognition = {
+      id: savedRecognition.recognition_id,
+      kid_id: savedRecognition.kid_id,
+      recognition_message: savedRecognition.recognition_message,
+      recognized_at: savedRecognition.recognized_at,
+    };
+    const io = req.app.get('io');
+    if (io) io.to(`kid_${kidId}`).emit('data_updated', { kidId });
+    res.status(201).json({ recognition, message: 'Positive recognition saved.' });
+  } catch (error) {
+    console.error('Failed to save positive recognition:', error);
+    res.status(500).json({ error: 'Unable to save positive recognition' });
+  }
+});
+
+// Bonus tokens are initiated only by parents and can only increase the balance.
 app.get('/api/kids/:kidId/behavior-bonuses', authenticateToken, async (req: any, res) => {
   const { kidId } = req.params;
   if (req.user.role === 'kid' && req.user.kidId !== kidId) return res.status(403).json({ error: 'Forbidden' });
@@ -6061,7 +6002,7 @@ app.post('/api/kids/:kidId/behavior-bonuses', authenticateToken, async (req: any
   const behaviorReason = typeof req.body?.behaviorReason === 'string' ? req.body.behaviorReason.trim().slice(0, 160) : '';
   const rewardAmount = Number(req.body?.rewardAmount);
   if (!behaviorReason || !Number.isInteger(rewardAmount) || rewardAmount < 1) {
-    return res.status(400).json({ error: 'Choose a positive behavior reason and enter a positive whole-number reward amount.' });
+    return res.status(400).json({ error: 'Enter a reason and a positive whole-number token amount.' });
   }
   try {
     const supabase = getSupabaseForUser(req);
@@ -6082,10 +6023,10 @@ app.post('/api/kids/:kidId/behavior-bonuses', authenticateToken, async (req: any
     if (balanceError) throw balanceError;
     const io = req.app.get('io');
     if (io) io.to(`kid_${kidId}`).emit('data_updated', { kidId });
-    res.status(201).json({ award, rewardBalance: Number(updatedKid.reward_balance || 0), message: 'Behavior bonus granted.' });
+    res.status(201).json({ award, rewardBalance: Number(updatedKid.reward_balance || 0), message: 'Bonus tokens given.' });
   } catch (error) {
-    console.error('Failed to award behavior bonus:', error);
-    res.status(500).json({ error: 'Unable to award the behavior bonus' });
+    console.error('Failed to give bonus tokens:', error);
+    res.status(500).json({ error: 'Unable to give bonus tokens' });
   }
 });
 
@@ -6178,13 +6119,18 @@ app.post('/api/activities', authenticateToken, async (req: any, res) => {
 
 // Parent messages
 app.post('/api/kids/:kidId/messages', authenticateToken, async (req: any, res) => {
+  if (req.user.role !== 'parent') return res.status(403).json({ error: 'Parent access required' });
   const supabase = getSupabaseForUser(req);
   const { kidId } = req.params;
-  const { message } = req.body;
+  const { message, audioUrl } = req.body;
   const userId = req.user.id;
 
   if (!message || !String(message).trim()) {
     return res.status(400).json({ error: 'Message is required' });
+  }
+  if (String(message).length > 1000) return res.status(400).json({ error: 'Message is too long' });
+  if (audioUrl && (typeof audioUrl !== 'string' || !audioUrl.startsWith(`${supabaseUrl}/storage/v1/object/public/${UPLOAD_BUCKET}/`))) {
+    return res.status(400).json({ error: 'Invalid voice recording' });
   }
 
   try {
@@ -6218,7 +6164,7 @@ app.post('/api/kids/:kidId/messages', authenticateToken, async (req: any, res) =
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    await insertParentMessageAndPrune(supabase, userId, kidId, String(message));
+    await insertParentMessage(supabase, userId, kidId, String(message), audioUrl);
 
     const io = req.app.get('io');
     if (io) {
@@ -6232,6 +6178,16 @@ app.post('/api/kids/:kidId/messages', authenticateToken, async (req: any, res) =
 });
 
 app.get('/api/kids/:kidId/messages', authenticateToken, async (req: any, res) => {
+  if (req.user.role === 'kid') {
+    if (req.user.kidId !== req.params.kidId) return res.status(403).json({ error: 'Forbidden' });
+    const admin = getAdminSupabaseClient();
+    const { data, error } = await admin.from('parent_messages')
+      .select('id,kid_id,message,created_at,sender,audio_url')
+      .eq('kid_id', req.params.kidId).eq('user_id', req.user.id)
+      .order('created_at', { ascending: false }).limit(30);
+    if (error) return res.status(500).json({ error: 'Unable to load messages' });
+    return res.json({ messages: data || [] });
+  }
   const supabase = getSupabaseForUser(req);
   const { kidId } = req.params;
   const userId = req.user.id;
@@ -6267,17 +6223,11 @@ app.get('/api/kids/:kidId/messages', authenticateToken, async (req: any, res) =>
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    await pruneExpiredParentMessages(supabase, userId, kidId);
-
-    const retentionDays = await getParentMessageRetentionDays(supabase, userId);
-    const cutoff = getParentMessageCutoff(retentionDays);
-
     const { data: messages, error } = await supabase
       .from('parent_messages')
-      .select('id, kid_id, message, created_at')
+      .select('id, kid_id, message, created_at, sender, audio_url, parent_read_at')
       .eq('kid_id', kidId)
       .eq('user_id', userId)
-      .gte('created_at', cutoff)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -6286,6 +6236,128 @@ app.get('/api/kids/:kidId/messages', authenticateToken, async (req: any, res) =>
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Failed to fetch parent messages' });
   }
+});
+
+const getWebPushConfig = () => {
+  const publicKey = cleanEnvVar('WEB_PUSH_VAPID_PUBLIC_KEY');
+  const privateKey = cleanEnvVar('WEB_PUSH_VAPID_PRIVATE_KEY');
+  const subject = cleanEnvVar('WEB_PUSH_VAPID_SUBJECT');
+  if (!/^[A-Za-z0-9_-]{80,100}$/.test(publicKey) || !/^[A-Za-z0-9_-]{40,60}$/.test(privateKey) ||
+      !/^mailto:[^\s@]+@[^\s@]+\.[^\s@]+$/.test(subject)) return null;
+  return { publicKey, privateKey, subject };
+};
+
+const isValidPushSubscription = (value: any) => {
+  if (!value || typeof value.endpoint !== 'string' || typeof value.keys?.p256dh !== 'string' || typeof value.keys?.auth !== 'string') return false;
+  if (value.endpoint.length > 2048 || value.keys.p256dh.length > 256 || value.keys.auth.length > 256) return false;
+  try {
+    const url = new URL(value.endpoint);
+    return url.protocol === 'https:' && !url.username && !url.password &&
+      (/^web\.push\.apple\.com$/.test(url.hostname) || /^fcm\.googleapis\.com$/.test(url.hostname) ||
+        /^updates\.push\.services\.mozilla\.com$/.test(url.hostname) || /(^|\.)notify\.windows\.com$/.test(url.hostname));
+  } catch { return false; }
+};
+
+app.get('/api/user/push-config', authenticateToken, (req: any, res) => {
+  if (req.user.role === 'kid') return res.status(403).json({ error: 'Parent access required' });
+  const config = getWebPushConfig();
+  res.json({ available: Boolean(config), publicKey: config?.publicKey || null });
+});
+
+app.post('/api/user/push-subscriptions', authenticateToken, async (req: any, res) => {
+  if (req.user.role === 'kid') return res.status(403).json({ error: 'Parent access required' });
+  if (!getWebPushConfig()) return res.status(503).json({ error: 'Push notifications are not configured' });
+  if (!isValidPushSubscription(req.body?.subscription)) return res.status(400).json({ error: 'Invalid push subscription' });
+  const { endpoint, keys } = req.body.subscription;
+  const admin = getAdminSupabaseClient();
+  const { data: existing, error: lookupError } = await admin.from('parent_push_subscriptions')
+    .select('user_id').eq('endpoint', endpoint).maybeSingle();
+  if (lookupError) return res.status(500).json({ error: 'Could not check this device subscription' });
+  if (existing && existing.user_id !== req.user.id) return res.status(409).json({ error: 'This device is already linked to another account' });
+  const { error } = await admin.from('parent_push_subscriptions').upsert({
+    user_id: req.user.id, endpoint, p256dh: keys.p256dh, auth: keys.auth, updated_at: new Date().toISOString(),
+  }, { onConflict: 'endpoint' });
+  if (error) return res.status(500).json({ error: 'Could not save this device for notifications' });
+  res.status(201).json({ enabled: true });
+});
+
+app.delete('/api/user/push-subscriptions', authenticateToken, async (req: any, res) => {
+  if (req.user.role === 'kid') return res.status(403).json({ error: 'Parent access required' });
+  const endpoint = req.body?.endpoint;
+  if (typeof endpoint !== 'string' || endpoint.length > 2048) return res.status(400).json({ error: 'Invalid subscription' });
+  const { error } = await getAdminSupabaseClient().from('parent_push_subscriptions').delete().eq('user_id', req.user.id).eq('endpoint', endpoint);
+  if (error) return res.status(500).json({ error: 'Could not disable notifications on this device' });
+  res.json({ enabled: false });
+});
+
+app.post('/api/kids/:kidId/replies', authenticateToken, async (req: any, res) => {
+  if (req.user.role !== 'kid' || req.user.kidId !== req.params.kidId) return res.status(403).json({ error: 'Learner access required' });
+  const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
+  if (!message || message.length > 500) return res.status(400).json({ error: 'Enter a reply of 500 characters or fewer' });
+  try {
+    const admin = getAdminSupabaseClient();
+    const { data: kid, error: kidError } = await admin.from('kids').select('id,name,user_id').eq('id', req.params.kidId).eq('user_id', req.user.id).maybeSingle();
+    if (kidError || !kid) return res.status(403).json({ error: 'Forbidden' });
+    const { data: reply, error } = await admin.from('parent_messages')
+      .insert({ user_id: req.user.id, kid_id: kid.id, sender: 'learner', message })
+      .select('id,kid_id,message,created_at,sender').single();
+    if (error) throw error;
+    const io = req.app.get('io');
+    if (io) io.to(`kid_${kid.id}`).emit('data_updated', { kidId: kid.id });
+
+    const { data: parent } = await admin.from('users').select('email,learner_reply_email_notifications').eq('id', req.user.id).maybeSingle();
+    if (parent?.learner_reply_email_notifications && parent.email) {
+      try {
+        const transporter = await getTransporter();
+        if (transporter) await transporter.sendMail({
+          from: cleanEnvVar('SMTP_FROM') || cleanEnvVar('SMTP_USER') || 'Visual Steps <noreply@visualsteps.com>',
+          to: parent.email,
+          subject: `${kid.name} sent you a message in Visual Steps`,
+          text: `${kid.name} sent you a message in Visual Steps:\n\n${message}`,
+        });
+      } catch (mailError) {
+        console.error('Learner reply email failed:', getSafeSmtpError(mailError));
+      }
+    }
+    const pushConfig = getWebPushConfig();
+    if (pushConfig) {
+      try {
+        webPush.setVapidDetails(pushConfig.subject, pushConfig.publicKey, pushConfig.privateKey);
+        const { data: subscriptions, error: subscriptionError } = await admin.from('parent_push_subscriptions')
+          .select('id,endpoint,p256dh,auth').eq('user_id', req.user.id);
+        if (subscriptionError) throw subscriptionError;
+        await Promise.all((subscriptions || []).map(async subscription => {
+          try {
+            await webPush.sendNotification({ endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } },
+              JSON.stringify({ title: `${kid.name} sent you a message` }), { TTL: 3600, timeout: 5000 });
+          } catch (pushError: any) {
+            if (pushError?.statusCode === 404 || pushError?.statusCode === 410) {
+              await admin.from('parent_push_subscriptions').delete().eq('id', subscription.id).eq('user_id', req.user.id);
+            } else {
+              console.error('Learner reply push failed:', pushError?.statusCode || pushError?.message || 'Unknown push error');
+            }
+          }
+        }));
+      } catch (pushError: any) {
+        console.error('Learner reply push setup failed:', pushError?.message || 'Unknown push error');
+      }
+    }
+    res.status(201).json({ reply });
+  } catch (error) {
+    console.error('Failed to save learner reply:', error);
+    res.status(500).json({ error: 'Unable to send reply' });
+  }
+});
+
+app.post('/api/kids/:kidId/replies/read', authenticateToken, async (req: any, res) => {
+  if (req.user.role !== 'parent') return res.status(403).json({ error: 'Parent access required' });
+  const supabase = getSupabaseForUser(req);
+  const { error } = await supabase.from('parent_messages')
+    .update({ parent_read_at: new Date().toISOString() })
+    .eq('kid_id', req.params.kidId).eq('user_id', req.user.id)
+    .eq('sender', 'learner').is('parent_read_at', null);
+  if (error) return res.status(500).json({ error: 'Unable to mark replies as read' });
+  res.json({ success: true });
 });
 
 app.delete('/api/kids/:kidId/messages/:messageId', authenticateToken, async (req: any, res) => {
@@ -7768,7 +7840,7 @@ export const parentAssistantFeatureCatalog = [
   { area: 'Activities', routes: ['/assigned-activities/:kidId'], help: 'From Dashboard select a child and Activities. Add Activity opens the form. Enter activity type/name and description, optional link/image and steps, Due Date, Time, Repeat and Repeats till. Choose the reward for this specific activity according to effort and challenge. For custom repeats set Every and Unit. Enable Parent verification required when approval is needed. Finish with Add Activity or Save Changes. List and Calendar views are available.' },
   { area: 'Activity verification and reassignment', routes: ['/assigned-activities/:kidId'], help: 'The child submits a verification-required activity into Waiting for parent verification. On the parent Activities page open the To Be Verified tab/grid. Select Verify & complete to approve it and award the configured tokens, or Reassign to return the same activity record to pending without awarding tokens. Reassignment intentionally removes it from completed counts until it is completed again.' },
   { area: 'Completed activity history', routes: ['/assigned-activities/:kidId'], help: 'Use Completed for currently completed assignments and History for completion records. Done Today is based on activities.completion_date, so reassigning an activity reduces the current completed count as intended.' },
-  { area: 'Rewards and positive recognition', routes: ['/dashboard', '/assigned-activities/:kidId', '/kids-dashboard/:kidId'], help: 'Open Rewards → Positive Recognition for the selected learner. Choose or type the specific behavior you observed, enter any positive whole-number reward amount, review the preview, and confirm. The child dashboard shows recent recognition as a reason and amount. Edit the child profile and set Bonus History from 1 to 10 to control how many recent entries appear. The child has no control for requesting or awarding rewards.' },
+  { area: 'Rewards and positive recognition', routes: ['/dashboard', '/assigned-activities/:kidId', '/kids-dashboard/:kidId'], help: 'Open Rewards → Positive Recognition to record effort, communication, flexibility, or progress without adding tokens. The learner sees it under You Were Noticed. Open Rewards → Give Bonus Tokens when you want to add a positive whole-number token amount without attaching praise. Tokens cannot be removed through this parent tool, and learners cannot create either type of record.' },
   { area: 'Activity library', routes: ['/activity-library'], help: 'Open the top Activities menu and Activity Library. Create reusable activities with Activity Category, Activity Name, Description, optional External Link, Display Artwork, milestones/steps, and an optional linked asset type: Interactive Quizzes, Social Narratives, or Practice Sheets. Saved templates can be assigned to a selected child.' },
   { area: 'Quiz generation and saved quizzes', routes: ['/quiz-generator', '/saved-quizzes', '/edit-quiz/:id'], help: 'Open Activities > Quizzes. Saved Quizzes includes a curated Space Explorer Quiz sample that can be opened and scored without using AI or saving data. In Quiz Generator, select a Child / adult profile, Subject, Learning goal or topic, Learning purpose, Question Type, Challenge level, 3–20 questions, and Score / Question. Optional learning and accessibility settings control clue support, a reading-level override, explicit Common Core alignment, special instructions, and illustrations. Select Generate Quiz, then select Review & Edit to change the title, questions, answer choices, correct answers, or explanations. Resolve any quality-check items and select Preview as Learner to privately try the child-friendly quiz without saving a score, using an assigned attempt, or changing rewards. Close the preview, select Finish Review, and select Save Quiz. Saved Quizzes provides View, Edit, Delete, and assignment actions. Each assigned quiz occurrence accepts one submitted attempt; parent reassignment creates one fresh attempt.' },
   { area: 'Playing quizzes', routes: ['/play-quiz/:id', '/play-quiz/:id/:kidId'], help: 'Open an assigned quiz from the child dashboard, answer each question, then submit. Listen controls can read questions or feedback. After an assignment attempt is submitted it is locked; Back to activities returns to the dashboard. A parent must reassign the activity to allow a new attempt.' },
@@ -7778,7 +7850,7 @@ export const parentAssistantFeatureCatalog = [
   { area: 'Controlled story sharing', routes: ['/social-stories', '/social-stories/shared/:shareToken'], help: 'In Social Stories select the Share securely action. Choose the link lifetime (1, 7, or 30 days), create and copy the link, and send only the URL. Links expire and can be revoked. A recipient can open the shared story without signing in while the link remains valid.' },
   { area: 'Progress results and history', routes: ['/progress-report/:kidId', '/activity-history', '/data-management'], help: 'Select a learner and open Progress. Quiz Results, Game Scores, Retries, Rewards History, and Activity History open directly to their first view. Result pages provide standard List and Calendar views; a calendar date shows its item count and opens that day’s list. Rewards History combines purchases and positive recognition and supports rolling one-, three-, six-, or twelve-month periods plus custom dates. Activity History shows one row per activity category and name; View opens the complete action history. Select all applies only to the current page.' },
   { area: 'Summary report', routes: ['/summary-report/:kidId'], help: 'Select a child, open Analytics, and select Summary Report. It combines activity and quiz entries with type, title, details, reward, and date for a concise overview.' },
-  { area: 'Parent account settings', routes: ['/profile'], help: 'Select the parent name in the top navigation to open Account Settings. In Profile Information update Full Name or Email. In Change Password enter a new password or leave it blank to keep the current password. In Parent Messaging set Days to Keep Messages. Select Save Changes. Profile also provides welcome-email resend and email-delivery checks when configured.' },
+  { area: 'Parent account settings', routes: ['/profile'], help: 'Select the parent name in the top navigation to open Account Settings. In Profile Information update Full Name or Email. In Change Password enter a new password or leave it blank to keep the current password. In Parent Messaging, optionally turn on email alerts when the learner replies. Messages stay until a parent deletes them. Select Save Changes. Profile also provides welcome-email resend and email-delivery checks when configured.' },
   { area: 'Parent-controlled history management', routes: ['/activity-history', '/progress-report/:kidId'], help: 'Open Progress and choose Activity History or Rewards History. Choose a rolling period or custom dates, search the selected learner’s records, and select a heading to sort. Activity History summarizes each category-and-name group once; View opens all actions in that group. The header checkbox selects only the current page. Deleting an Activity History summary removes the matching history records but never deletes the assigned activity. Rewards History deletion removes the selected purchase or positive-recognition records after confirmation.' },
   { area: 'Parent and caregiver testimonials', routes: ['/testimonials'], help: 'Open Testimonials from the footer or mobile menu to read reviewed experiences that families and caregivers explicitly permitted Visual Steps to publish. Signed-in parents can use Public display name, Experience title, and Your testimonial, confirm publication permission, then select Submit privately for review. The submission remains private until an administrator reviews and approves it in Newsletter Administration. Visual Steps never converts private profiles, child records, messages, or activities into public quotes.' },
   { area: 'Contact', routes: ['/contact', '/support'], help: 'Open Contact from the navigation or footer. Enter your name, email address, subject, and message, then select Send Message. Signed-in parents can also review message status and replies in Connect. Never include passwords, child access codes, medical records, or sensitive family information.' },
@@ -7786,7 +7858,7 @@ export const parentAssistantFeatureCatalog = [
   { area: 'Visual Steps weekly newsletter', routes: ['/newsletter', '/newsletter/subscribe', '/newsletter/unsubscribe', '/newsletter/community', '/newsletter/archive/:month', '/newsletter/issues/:issueDate', '/newsletter-admin'], help: 'Open the Newsletter menu in the main navigation. Choose Subscribe to open the dedicated signup page, enter Email address, and select Subscribe; confirm the subscription from the email you receive. Active subscribers see Unsubscribe Newsletter instead. Choose Weekly archive, then select a month; months and issues are ordered latest first. Selecting an issue opens the complete newsletter in a large modal window, and Close returns to the archive. Choose Share with the community to open its dedicated submission page. Approved administrators open Admin and choose Manage newsletter for publication controls. Each upcoming weekly issue uses a calm, scannable format with a contents page, new and updated feature details, approved parent stories/news/information/tips, testimonials, popular features, activities and games, books and resources, ideas for using Visual Steps meaningfully, current membership details, practical caregiver tips, and clearly labeled mission-aligned advertisements when approved. Published archive issues retain the content and layout saved when they were released. General non-clinical topics may include communication and speech support, occupational support, positive behavior support, daily living, learning, work, leisure, and community participation for autistic people of all ages. Submissions remain private until reviewed and approved. The protected Newsletter Administration page lets administrators manage submissions, change the weekly delivery day and time in their timezone, edit and save the next issue template, preview it without publishing, and send a prepared issue. Every issue includes Visual Steps Home, Pricing, Subscribe Newsletter, optional configured Facebook and Instagram links, and one-click unsubscribe.' },
   { area: 'Protected administration', routes: ['/admin/insights', '/admin/support', '/newsletter-admin'], help: 'The Admin menu appears only for approved administrators. Choose Insights to review account growth, registration status, parent journey signals, interpreted feature health, the last 24 hours or longer reporting periods, operations, retention, privacy-conscious traffic, and AI Use. Open Contact messages to acknowledge parent requests and update their status. Choose Manage newsletter for publication and subscriber controls. AI Use shows where AI is requested, model and token totals, individual request estimates, and aggregate estimated standard paid-tier cost without retaining prompts, responses, or family content. Child / adult profiles and family content are intentionally excluded. Administrator and membership changes require confirmation and are recorded for accountability.' },
   { area: 'Learning games', routes: ['/games', '/games/place-value', '/games/expanded-form', '/games/digit-value', '/games/place-value-clues', '/kids-games/place-value/:kidId', '/kids-games/expanded-form/:kidId', '/kids-games/digit-value/:kidId', '/kids-games/place-value-clues/:kidId'], help: 'Open Learning → Games to choose a place-value activity. Parents can preview each game and assign it from Activities. Learners open an assigned game from their dashboard, complete the guided rounds, and receive immediate feedback. Saved results appear under Progress → Game Scores.' },
-  { area: 'Child dashboard', routes: ['/kids-dashboard/:kidId'], help: 'Children sign in with their Kid Code. Choose an Activity separates visible work into Pick an Activity and Do Today; activities in either section may be opened in the order that works for the learner. Waiting lists work submitted for parent verification, Completed shows completed activities, and Rewards shows items they may purchase with earned tokens. Meaningful completions show celebrations. A verification-required submission tells the child to wait and does not award tokens until parent approval.' },
+  { area: 'Child dashboard', routes: ['/kids-dashboard/:kidId'], help: 'Children sign in with their Kid Code. Available Choices presents activities that may be opened in the order that works for the learner; the learner does not need to complete every activity shown. Waiting lists work submitted for parent verification, Completed shows completed activities, and Rewards shows items they may purchase with earned tokens. Completing an activity shows a calm acknowledgement and reminds the learner that they may choose another activity, take a break, or leave. A verification-required submission tells the child to wait and does not award tokens until parent approval.' },
   { area: 'Offline and installation', routes: ['/'], help: 'Visual Steps can be installed from a supported browser. On an iPhone or iPad, use Safari Share > Add to Home Screen. When internet access is lost, the app displays an offline notice. Sign-in, saved family information, and AI features become available again after reconnection.' },
 ] as const;
 

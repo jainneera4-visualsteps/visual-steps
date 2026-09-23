@@ -59,7 +59,6 @@ const createParent = async (email: string, password: string) => {
     id: userId,
     email,
     name: 'API Test Parent',
-    max_parent_message_days: 20,
   });
   assertNoError(profileError, `create profile ${email}`);
 
