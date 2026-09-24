@@ -40,6 +40,24 @@ test('core public screens fit phone and tablet viewports', async ({ page }) => {
   }
 });
 
+test('Install App explains the available browser path', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Install App' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Use Visual Steps as an app' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText(/Add to Home Screen|Install Visual Steps|Install app/);
+  await dialog.getByRole('button', { name: 'Close install instructions' }).click();
+  await expect(dialog).toBeHidden();
+});
+
+test('Guest Login opens the same install guidance without saving guest work', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Continue as Guest' }).click();
+  await page.getByRole('button', { name: 'Use as an app' }).click();
+  await expect(page.getByRole('dialog', { name: 'Use Visual Steps as an app' })).toBeVisible();
+  await expect(page.getByText('Installing the app does not save guest work')).toBeVisible();
+});
+
 test('phone navigation exposes primary public destinations', async ({ page }) => {
   test.skip(!test.info().project.name.includes('iphone'), 'Phone navigation coverage');
 

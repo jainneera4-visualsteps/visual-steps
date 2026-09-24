@@ -44,7 +44,7 @@ try {
 
   await page.goBack();
   await page.goBack();
-  await page.getByRole('link', { name: 'Rewards' }).click();
+  await page.getByRole('link', { name: 'Rewards', exact: true }).click();
   await page.getByRole('button', { name: 'Add Reward Item' }).click();
   await page.getByRole('heading', { name: 'New Reward Item' }).waitFor();
   await page.getByPlaceholder('e.g., 15 mins Screen Time').fill('Choose a favorite game');
@@ -56,9 +56,15 @@ try {
   await capture('05-recognition');
   await page.screenshot({ path: 'public/onboarding/behavior-bonuses.png', type: 'png' });
 
+  await page.getByRole('link', { name: 'Dashboard' }).click();
+  await page.getByRole('button', { name: 'Use as an app' }).click();
+  await page.getByRole('dialog', { name: 'Use Visual Steps as an app' }).waitFor();
+  await capture('06-install');
+  await page.getByRole('button', { name: 'Close install instructions' }).click();
+
   await page.goto(`${baseUrl}/signup`);
   await page.getByRole('heading', { name: 'Create an account' }).waitFor();
-  await capture('06-sign-up');
+  await capture('07-sign-up');
 
   await page.goto(baseUrl);
   await page.setViewportSize({ width: 1280, height: 900 });

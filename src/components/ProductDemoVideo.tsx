@@ -42,8 +42,14 @@ const demoScenes = [
     narration: 'Here is Positive Recognition. Write something you genuinely noticed, such as asking for help, trying again, or handling a change. Your words appear for the learner under You Were Noticed. Recognition does not add tokens; it stands on its own. If you want to add bonus tokens, that is a separate parent choice.',
   },
   {
+    id: 'guest-install',
+    title: 'Keep Visual Steps close by', focus: 'Use as an app', image: '/demo-guest/06-install.jpg', cursor: { left: '50%', top: '50%' },
+    description: 'Open the install guide from Guest Login and add Visual Steps to a phone, tablet, or computer.',
+    narration: 'You can also use Visual Steps like an app. Select Use as an app here, or Install App in the website footer. If your browser can install it directly, you will see an install button. Otherwise, these steps explain how to add it on your device. Installing does not save temporary guest work; a family account keeps your work when you are ready.',
+  },
+  {
     id: 'guest-next-step',
-    title: 'Make room for their way', focus: 'Your Next Step', image: '/demo-guest/06-sign-up.jpg', cursor: { left: '30%', top: '39%' },
+    title: 'Make room for their way', focus: 'Your Next Step', image: '/demo-guest/07-sign-up.jpg', cursor: { left: '30%', top: '39%' },
     description: 'Start with one useful activity and build a family workspace when you are ready.',
     narration: 'That is the heart of Visual Steps: parents offer meaningful choices, and each chosen activity has steps that make it easier to understand. The learner can participate, ask for help, pause, or choose something else. When you are ready, you can create a private family workspace and begin with just one useful activity. There is no need to set up everything at once.',
   },

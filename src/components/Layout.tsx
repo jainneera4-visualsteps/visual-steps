@@ -10,6 +10,7 @@ import { endGuestSession, isGuestSession } from '../guest/guestSession';
 import { apiFetch, clearApiReadCache, safeJson } from '../utils/api';
 import { getRewardIcon } from '../utils/rewardUtils';
 import { prefetchProgressReport } from '../utils/progressReportData';
+import { InstallApp } from './InstallApp';
 
 export function Layout() {
   const { user, logout } = useAuth();
@@ -848,6 +849,7 @@ export function Layout() {
             <Link to="/cookies" className="hover:text-brand-600">Cookies & Analytics</Link>
             {publicLinks.facebook && <a href={publicLinks.facebook} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 hover:text-brand-600"><Facebook className="h-4 w-4" />Facebook</a>}
             {publicLinks.instagram && <a href={publicLinks.instagram} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 hover:text-brand-600"><Instagram className="h-4 w-4" />Instagram</a>}
+            <InstallApp />
             {!guestMode && (user || location.pathname === '/' || location.pathname === '/login') && (
               <button type="button" onClick={() => window.dispatchEvent(new Event(OPEN_PARENT_ASSISTANT_EVENT))} className="hover:text-brand-600">Parent Assistant</button>
             )}

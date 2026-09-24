@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Eye, Sparkles } from 'lucide-react';
+import { ArrowRight, Download, Eye, Sparkles } from 'lucide-react';
 import { Button } from './Button';
 import { quickStartActivities, quickStartNeeds, type QuickStartNeed } from '../content/quickStartActivities';
 import { endGuestSession } from '../guest/guestSession';
+import { OPEN_INSTALL_APP_EVENT } from './InstallApp';
 
 export function GuestQuickStart({ kidId }: { kidId: string }) {
   const [need, setNeed] = useState<QuickStartNeed>('routine');
@@ -38,8 +39,9 @@ export function GuestQuickStart({ kidId }: { kidId: string }) {
           <Link to={activityUrl}><Button>{suggestion ? 'Use and edit this activity' : 'Create my activity'}<ArrowRight className="ml-2 h-4 w-4" /></Button></Link>
           <Link to={`/kids-dashboard/${kidId}`}><Button variant="outline">Preview learner view<Eye className="ml-2 h-4 w-4" /></Button></Link>
           <Button variant="ghost" onClick={() => { endGuestSession(); window.location.assign('/signup'); }}>Sign up to keep your work</Button>
+          <Button variant="ghost" onClick={() => window.dispatchEvent(new Event(OPEN_INSTALL_APP_EVENT))}><Download className="mr-2 h-4 w-4" />Use as an app</Button>
         </div>
-        <p className="mt-3 text-xs leading-5 text-slate-500">Activities you add remain in this temporary guest session. Refreshing or exiting Guest Login restores the original demonstration.</p>
+        <p className="mt-3 text-xs leading-5 text-slate-500">Activities you add remain in this temporary guest session. Installing the app does not save guest work; sign up to keep it. Refreshing or exiting Guest Login restores the original demonstration.</p>
       </div>
     </div>
   </section>;

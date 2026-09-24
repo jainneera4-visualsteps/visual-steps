@@ -219,9 +219,11 @@ Without `RUN_GEMINI_SMOKE_TEST=true`, the test is safely skipped.
 
 The public demo video plays approved audio files from `public/demo-audio`. Normal visitors never call the Gemini API. When the narration script changes, first run `npm run audio:demo:check`; it reports only the clips that need refreshing and does not generate audio. After adding `GEMINI_API_KEY` to the local `.env` file and reviewing that list, run `npm run audio:demo -- --confirm-generation`. Gemini 3.1 Flash TTS generates the narration with the Leda voice. Unchanged clips are reused, the new WAV files and manifest are saved with the application, and the browser falls back to a selected device voice until recorded clips are installed.
 
-## Install on iPhone or iPad
+## Use Visual Steps as an app
 
-Visual Steps is configured as a Progressive Web App (PWA). After deploying over HTTPS, open the site in Safari, tap **Share**, choose **Add to Home Screen**, and confirm **Add**. The installed icon launches Visual Steps in a standalone app-style window. API and Supabase operations still require a network connection; the service worker only provides the application shell and static assets during a temporary outage.
+Visual Steps is configured as a Progressive Web App (PWA). On the website, select **Install App** in the footer. Supported browsers may show an install button; otherwise the dialog gives device-specific steps. On iPhone or iPad, use Safari’s **Share → Add to Home Screen**. On a Mac in Safari, use **File → Add to Dock**. The footer link is hidden when Visual Steps is already running as an installed app. API and Supabase operations still require a network connection; the service worker only provides the application shell and static assets during a temporary outage.
+
+Guest Login also has a **Use as an app** button beside its Quick Start actions, and the narrated guest video shows that real installation dialog. Installing does not create a family account or preserve temporary guest changes; visitors must sign up to keep their work.
 
 Run `npm run test:browser:mobile` to check install metadata, icons, public-page overflow, and phone navigation with iPhone and iPad WebKit emulation. These tests approximate Safari layouts but do not replace a final check on physical Apple devices.
 
@@ -261,7 +263,7 @@ This section is generated from `feature-registry.json`. Update the registry when
 | Visual Steps Parent Assistant | family | 2026-08-20 | 2026-09-01 | The assistant keeps the current day’s conversation until 7:00 AM, offers Copy and Listen controls, and can search current venue information when a parent plans an outing for their child or adult learner. |
 | Controlled social-story sharing | family | 2026-08-19 | — | Share one social story using a private link that can expire or be revoked. |
 | Parent stories and community publishing | starter | 2026-08-25 | 2026-09-15 | Connect now keeps parent messages, community contributions, newsletter subscriptions, and a clearer weekly archive together. |
-| Narrated tour and temporary Guest Login | starter | 2026-08-21 | 2026-09-24 | The narrated guest video and Quick Start now show activities as choices, clear steps within one activity, token-free recognition, and rewards kept secondary. |
+| Narrated tour and temporary Guest Login | starter | 2026-08-21 | 2026-09-24 | The narrated guest video and Quick Start show choice-first activities, token-free recognition, and a simple path to use Visual Steps as an app. |
 | Adaptive place-value learning games | starter | 2026-09-03 | — | Practice place value through four focused games with five levels, automatic progression, optional assignment, personalized companions, and parent-visible scores. |
 | Learning, progress, and meaningful rewards | starter | 2026-03-15 | — | Create personalized resources, notice useful patterns, and keep rewards secondary to learning and participation. |
 | Parent-controlled activity and rewards history | starter | 2026-08-24 | — | Review a learner’s recent activity and reward history, open grouped details, and selectively remove history that is no longer useful. |
@@ -270,7 +272,7 @@ This section is generated from `feature-registry.json`. Update the registry when
 
 | Updated | Feature | Improvement | Family-facing summary |
 | --- | --- | --- | --- |
-| 2026-09-24 | Narrated tour and temporary Guest Login | A choice-first introduction with current real screens | The narrated guest video and Quick Start now show activities as choices, clear steps within one activity, token-free recognition, and rewards kept secondary. |
+| 2026-09-24 | Narrated tour and temporary Guest Login | A choice-first introduction with current real screens | The narrated guest video and Quick Start show choice-first activities, token-free recognition, and a simple path to use Visual Steps as an app. |
 | 2026-09-24 | Clear visual activities | Clearer learner activity details | Learners see one readable step sequence, nearby-help guidance, and a calm finish action after the steps. |
 | 2026-09-24 | Clear visual activities | Category-matched activity names | Add Activity suggests only names previously used in the selected category. |
 | 2026-09-23 | Clear visual activities | Review choices that were not selected | Unchosen activities keep their original date and move to a parent-only Not Chosen view instead of silently moving to tomorrow. |

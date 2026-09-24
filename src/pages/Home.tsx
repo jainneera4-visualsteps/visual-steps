@@ -201,7 +201,7 @@ export default function Home() {
               <h1 className="text-4xl md:text-6xl font-bold text-slate-950 leading-[0.98] tracking-tight">
                 Make everyday activities easier to <span className="text-brand-600">understand.</span>
               </h1>
-              <p className="text-lg leading-8 text-slate-600 max-w-2xl">
+              <p className="w-full text-pretty text-lg leading-8 text-slate-600">
                 You offer activities that fit. Your child or adult learner chooses one. Clear visual steps help them know what to expect—without turning the day into a list they must finish.
               </p>
               <HomeIllustrationSlideshow />

@@ -43,7 +43,7 @@ test('parent onboarding uses captured real application screens', async () => {
 test('guest login opens the real parent workspace with a focused quick start', async () => {
   const quickStart = await readFile(new URL('../src/components/GuestQuickStart.tsx', import.meta.url), 'utf8');
   const [demo, workspace, home] = await Promise.all([readFile(demoPath, 'utf8'), readFile(workspacePath, 'utf8'), readFile(homePath, 'utf8')]);
-  for (const expected of ['Continue as Guest', 'What would you like to make easier?', 'Use and edit this activity', 'Preview learner view', 'Sign up to keep your work', 'Changes are temporary']) {
+  for (const expected of ['Continue as Guest', 'What would you like to make easier?', 'Use and edit this activity', 'Preview learner view', 'Use as an app', 'Sign up to keep your work', 'Changes are temporary']) {
     assert.match(`${demo}\n${workspace}\n${quickStart}\n${home}`, new RegExp(expected, 'i'));
   }
   assert.match(demo, /navigate\('\/dashboard'/);

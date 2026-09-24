@@ -20,7 +20,7 @@ This section is generated from `feature-registry.json`. Update the registry when
 | Visual Steps Parent Assistant | family | 2026-08-20 | 2026-09-01 | The assistant keeps the current day’s conversation until 7:00 AM, offers Copy and Listen controls, and can search current venue information when a parent plans an outing for their child or adult learner. |
 | Controlled social-story sharing | family | 2026-08-19 | — | Share one social story using a private link that can expire or be revoked. |
 | Parent stories and community publishing | starter | 2026-08-25 | 2026-09-15 | Connect now keeps parent messages, community contributions, newsletter subscriptions, and a clearer weekly archive together. |
-| Narrated tour and temporary Guest Login | starter | 2026-08-21 | 2026-09-24 | The narrated guest video and Quick Start now show activities as choices, clear steps within one activity, token-free recognition, and rewards kept secondary. |
+| Narrated tour and temporary Guest Login | starter | 2026-08-21 | 2026-09-24 | The narrated guest video and Quick Start show choice-first activities, token-free recognition, and a simple path to use Visual Steps as an app. |
 | Adaptive place-value learning games | starter | 2026-09-03 | — | Practice place value through four focused games with five levels, automatic progression, optional assignment, personalized companions, and parent-visible scores. |
 | Learning, progress, and meaningful rewards | starter | 2026-03-15 | — | Create personalized resources, notice useful patterns, and keep rewards secondary to learning and participation. |
 | Parent-controlled activity and rewards history | starter | 2026-08-24 | — | Review a learner’s recent activity and reward history, open grouped details, and selectively remove history that is no longer useful. |
@@ -29,7 +29,7 @@ This section is generated from `feature-registry.json`. Update the registry when
 
 | Updated | Feature | Improvement | Family-facing summary |
 | --- | --- | --- | --- |
-| 2026-09-24 | Narrated tour and temporary Guest Login | A choice-first introduction with current real screens | The narrated guest video and Quick Start now show activities as choices, clear steps within one activity, token-free recognition, and rewards kept secondary. |
+| 2026-09-24 | Narrated tour and temporary Guest Login | A choice-first introduction with current real screens | The narrated guest video and Quick Start show choice-first activities, token-free recognition, and a simple path to use Visual Steps as an app. |
 | 2026-09-24 | Clear visual activities | Clearer learner activity details | Learners see one readable step sequence, nearby-help guidance, and a calm finish action after the steps. |
 | 2026-09-24 | Clear visual activities | Category-matched activity names | Add Activity suggests only names previously used in the selected category. |
 | 2026-09-23 | Clear visual activities | Review choices that were not selected | Unchosen activities keep their original date and move to a parent-only Not Chosen view instead of silently moving to tomorrow. |
@@ -55,6 +55,8 @@ This section is generated from `feature-registry.json`. Update the registry when
 ## Release check
 
 Before deployment, run `npm run lint`, `npm test`, and `npm run build`. Apply any new file in `database_updates` to the intended Supabase project before deploying code that depends on it. Verify environment variables in the deployment environment without committing secret values to the repository.
+
+For app installation, verify **Install App** in the website footer and **Use as an app** in Guest Login. In a supported Chromium browser, confirm the install prompt when available; in Safari on iPhone or iPad, follow **Share → Add to Home Screen**, and on Mac Safari follow **File → Add to Dock**. Confirm the entry point is hidden in the installed app. Installation must not be described as preserving temporary guest work; an account is required for that.
 
 ### Retired schema decisions
 
