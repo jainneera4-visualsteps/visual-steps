@@ -1,6 +1,6 @@
 # Visual Steps
 
-Visual Steps is a full-stack web application that helps parents and caregivers create structured, visual routines and personalized learning experiences for an autistic child / adult. Parents and caregivers manage profiles, activities, learning materials, progress, messages, and rewards; the child / adult receives a focused dashboard for completing activities, playing assigned quizzes, and redeeming earned rewards.
+Visual Steps helps parents and caregivers offer meaningful activity choices to an autistic child or adult. A learner can choose an activity in any order, then use its clear visual steps for predictability without pressure to finish every visible choice. Parents manage the deeper planning, communication, learning, and reward controls. See [the product philosophy](PRODUCT_PHILOSOPHY.md) before changing learner-facing behavior.
 
 ## What the application includes
 
@@ -13,7 +13,7 @@ Visual Steps is a full-stack web application that helps parents and caregivers c
 - Ask the parent-only AI assistant how to use Visual Steps, summarize owned child data, or suggest relevant activities within a strictly app-related scope. Its verified catalog covers every registered app route; parents can view that coverage and report missing information for review without automatically training the model.
 - Control AI spending with an atomic 30-question daily allowance per parent, including visible remaining usage and reset information.
 - Add suggested periods or exact times, repeat activities when useful, choose a reward amount for each activity, optionally require parent verification, and review completion history.
-- Let parents type why a positive behavior deserves a limited bonus, with optional suggestions. The child dashboard shows a profile-configurable number of recent bonuses as compact reason-and-amount entries, and the child / adult cannot request them.
+- Give specific positive recognition without tokens, or separately add bonus tokens without attaching praise. The learner sees recognition apart from token changes.
 - Generate and edit AI-assisted quizzes, worksheets, and social stories.
 - Choose a learner-specific game companion, assign place-value games through the normal activity form, and review scores by game and level.
 - Assign quizzes for one attempt per activity occurrence and review results through progress and summary reports. A deliberate reassignment unlocks one new attempt without deleting earlier results.
@@ -23,7 +23,7 @@ Visual Steps is a full-stack web application that helps parents and caregivers c
 ### Child / adult experience
 
 - Sign in with a parent email and child access code.
-- View current, waiting-for-verification, and completed activities in a child-friendly dashboard.
+- Choose from activities currently available, in any order, without an obligation to complete them all. Waiting and Completed remain separate views.
 - Follow activity instructions with text, images, and links.
 - Receive small, reduced-motion-aware celebrations for correct quiz answers and meaningful completions.
 - Submit assigned work and earn configured tokens or stickers only after the completion requirements are satisfied.
@@ -31,7 +31,7 @@ Visual Steps is a full-stack web application that helps parents and caregivers c
 
 For activities marked **Parent verification required**, a child / adult submission moves to a waiting queue. It does not update completion totals or rewards until the parent selects **Verify & complete**. A parent can instead reassign it to pending without granting a reward. Existing activities default to immediate completion.
 - Read assigned social stories and messages from a parent.
-- Spend earned rewards in the reward shop.
+- See only active rewards they can currently afford; unaffordable rewards do not appear as locked goals or progress bars.
 
 Real-time Socket.IO events keep the parent and child experiences synchronized when the application runs as a persistent Node server. Vercel uses a no-op Socket.IO fallback, so clients rely on subsequent API refreshes there.
 
@@ -261,15 +261,16 @@ This section is generated from `feature-registry.json`. Update the registry when
 | Visual Steps Parent Assistant | family | 2026-08-20 | 2026-09-01 | The assistant keeps the current day’s conversation until 7:00 AM, offers Copy and Listen controls, and can search current venue information when a parent plans an outing for their child or adult learner. |
 | Controlled social-story sharing | family | 2026-08-19 | — | Share one social story using a private link that can expire or be revoked. |
 | Parent stories and community publishing | starter | 2026-08-25 | 2026-09-15 | Connect now keeps parent messages, community contributions, newsletter subscriptions, and a clearer weekly archive together. |
-| Narrated tour and temporary Guest Login | starter | 2026-08-21 | 2026-09-16 | Guest Login now guides visitors through one suggested activity instead of a long sequence of screen callouts. |
+| Narrated tour and temporary Guest Login | starter | 2026-08-21 | 2026-09-24 | The narrated guest video and Quick Start now show activities as choices, clear steps within one activity, token-free recognition, and rewards kept secondary. |
 | Adaptive place-value learning games | starter | 2026-09-03 | — | Practice place value through four focused games with five levels, automatic progression, optional assignment, personalized companions, and parent-visible scores. |
-| Learning, progress, and meaningful rewards | starter | 2026-03-15 | — | Create personalized resources, understand progress, and connect earned rewards to meaningful goals. |
+| Learning, progress, and meaningful rewards | starter | 2026-03-15 | — | Create personalized resources, notice useful patterns, and keep rewards secondary to learning and participation. |
 | Parent-controlled activity and rewards history | starter | 2026-08-24 | — | Review a learner’s recent activity and reward history, open grouped details, and selectively remove history that is no longer useful. |
 
 ### Feature update history
 
 | Updated | Feature | Improvement | Family-facing summary |
 | --- | --- | --- | --- |
+| 2026-09-24 | Narrated tour and temporary Guest Login | A choice-first introduction with current real screens | The narrated guest video and Quick Start now show activities as choices, clear steps within one activity, token-free recognition, and rewards kept secondary. |
 | 2026-09-24 | Clear visual activities | Clearer learner activity details | Learners see one readable step sequence, nearby-help guidance, and a calm finish action after the steps. |
 | 2026-09-24 | Clear visual activities | Category-matched activity names | Add Activity suggests only names previously used in the selected category. |
 | 2026-09-23 | Clear visual activities | Review choices that were not selected | Unchosen activities keep their original date and move to a parent-only Not Chosen view instead of silently moving to tomorrow. |

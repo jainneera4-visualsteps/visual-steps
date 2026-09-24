@@ -5,28 +5,28 @@
   "scenes": {
     "guest-start": {
       "url": "/demo-audio/guest-start.wav",
-      "scriptHash": "890c33e55268e5539495037e10e442c241058191b93d8a7c5fb766b5a4d2a6b2"
+      "scriptHash": "4a098f2feceae3f1f6dc821cb52d992f6b708c5f9ea1cefc68d2d780b65aa33c"
     },
     "guest-edit": {
       "url": "/demo-audio/guest-edit.wav",
-      "scriptHash": "0ba8d9038957050c371e1382ca86e8d2bf02d2624f09bdda1bd1b0ce17539fa0"
+      "scriptHash": "2b2e99dcf661eb0d58f756f111087e1c41ba9a2be7df439f1f614abb5ac2a025"
     },
     "guest-learner": {
       "url": "/demo-audio/guest-learner.wav",
-      "scriptHash": "a5af4d07c64c454e7bed2e0f6152ece0786bfc7cb785ca97e7e151671e0380bc"
+      "scriptHash": "c6c154f69e18edea6d3f6fe2f43162126e6a00255eab7d416f6f64a6d4840652"
     },
     "guest-next-step": {
       "url": "/demo-audio/guest-next-step.wav",
-      "scriptHash": "33ff36787e7baf32fefde95f19b6d3b10fba5deb72cb600759e878e76e7945e5"
+      "scriptHash": "8f36776fc1e7c423b147ac7cd26b224d31f4283f79cca670ef770ba1f820bad4"
     },
     "guest-add-reward": {
       "url": "/demo-audio/guest-add-reward.wav",
-      "scriptHash": "ffb899b97ee017d10da8da6492c118863cf2be49772334b269f8034cdba65c8b"
+      "scriptHash": "909d15110e53184daa757d11b962b2aae0a83b207df4dffbf2931207bda711ce"
     },
     "guest-recognition": {
       "url": "/demo-audio/guest-recognition.wav",
-      "scriptHash": "025dfdfac5e66c59978b74082a6983c73dc6892c3f134956a52b72615af37a39"
+      "scriptHash": "79b0bd846ea2f1da07c6f9ad8cc6161996f20c16eb92750873e70e4f2ebcc515"
     }
   },
-  "generatedAt": "2026-09-17T03:33:09.169Z"
+  "generatedAt": "2026-09-24T18:39:28.439Z"
 }

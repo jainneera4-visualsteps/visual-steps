@@ -202,7 +202,7 @@ export default function Home() {
                 Make everyday activities easier to <span className="text-brand-600">understand.</span>
               </h1>
               <p className="text-lg leading-8 text-slate-600 max-w-2xl">
-                Create meaningful activities for a child or adult, then break each activity into small, concrete visual steps. Activities can stay flexible while the steps inside them provide predictability.
+                You offer activities that fit. Your child or adult learner chooses one. Clear visual steps help them know what to expect—without turning the day into a list they must finish.
               </p>
               <HomeIllustrationSlideshow />
               <div className="rounded-2xl border border-brand-100 bg-white/85 p-5 text-left shadow-sm" aria-label="Example visual activity">

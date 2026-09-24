@@ -30,16 +30,15 @@ try {
   await page.getByRole('button', { name: 'Continue as Guest' }).click();
   await page.waitForURL('**/dashboard');
   await capture('01-start');
+  await page.screenshot({ path: 'public/onboarding/dashboard.png', type: 'png' });
 
   await page.getByRole('link', { name: 'Use and edit this activity' }).click();
   await page.getByRole('heading', { name: 'New Activity' }).waitFor();
   await capture('02-edit');
-  await page.getByRole('button', { name: 'Add Activity' }).click();
-  await page.getByText('Get ready for the day', { exact: true }).waitFor();
-
+  await page.screenshot({ path: 'public/onboarding/activities.png', type: 'png' });
   await page.getByRole('link', { name: 'Dashboard' }).click();
   await page.getByRole('link', { name: 'Preview learner view' }).click();
-  await page.getByText('Get ready for the day', { exact: true }).click();
+  await page.getByText('Morning routine', { exact: true }).click();
   await page.getByRole('heading', { name: 'View Activity Details' }).waitFor();
   await capture('03-learner');
 
@@ -53,12 +52,9 @@ try {
 
   await page.getByRole('button', { name: 'Back to List' }).click();
   await page.getByRole('link', { name: 'Positive Recognition' }).click();
-  const giveBonus = page.getByRole('button', { name: 'Give Bonus' });
-  await giveBonus.waitFor({ state: 'visible' });
-  await giveBonus.click();
-  await page.getByText('Give Positive Recognition', { exact: true }).waitFor();
-  await page.getByPlaceholder('Describe another positive choice').fill('You kept trying when the task felt difficult.');
+  await page.getByText('Positive Recognition', { exact: true }).first().waitFor();
   await capture('05-recognition');
+  await page.screenshot({ path: 'public/onboarding/behavior-bonuses.png', type: 'png' });
 
   await page.goto(`${baseUrl}/signup`);
   await page.getByRole('heading', { name: 'Create an account' }).waitFor();

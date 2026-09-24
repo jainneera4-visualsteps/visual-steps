@@ -20,14 +20,14 @@ export default function About() {
   return (
     <div className="page-shell">
       <div className="page-container space-y-10">
-        <PageHeader title="About Visual Steps" description="A family planning and learning companion designed to make everyday expectations clearer, calmer and easier to celebrate." backLabel="Back" onBack={() => navigate(-1)} />
+        <PageHeader title="About Visual Steps" description="Meaningful choices and clear visual steps, without turning a learner’s day into a checklist." backLabel="Back" onBack={() => navigate(-1)} />
 
         <section className="public-hero bg-gradient-to-br from-brand-50 via-white to-emerald-50/70 p-7 sm:p-10 lg:p-14">
           <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
             <div>
               <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-brand-800 shadow-sm"><Heart className="h-4 w-4" /> Built with families in mind</span>
               <h2 className="mt-6 text-3xl font-bold leading-tight sm:text-5xl">Less uncertainty. More shared wins.</h2>
-              <p className="mt-5 max-w-2xl text-base leading-8 text-slate-600 sm:text-lg">Visual Steps gives parents and caregivers one place to prepare routines, create personalized learning resources and recognize progress. The child / adult receives a simpler experience focused on what to do now, what comes next and what they have accomplished.</p>
+              <p className="mt-5 max-w-2xl text-base leading-8 text-slate-600 sm:text-lg">Parents and caregivers offer activities that fit the person and the moment. The learner chooses what works for them, then follows clear visual steps within that activity. One choice is enough; there is no list they must finish.</p>
             </div>
             <figure className="overflow-hidden rounded-3xl border border-white/90 bg-white shadow-lg shadow-slate-300/25">
               <img
@@ -38,7 +38,7 @@ export default function About() {
                 height="960"
                 loading="lazy"
               />
-              <figcaption className="flex items-center gap-2 px-5 py-4 text-sm font-semibold text-slate-700"><Heart className="h-4 w-4 text-rose-500" /> Small steps deserve to be celebrated.</figcaption>
+              <figcaption className="flex items-center gap-2 px-5 py-4 text-sm font-semibold text-slate-700"><Heart className="h-4 w-4 text-rose-500" /> Every meaningful choice deserves understanding and support.</figcaption>
             </figure>
           </div>
         </section>

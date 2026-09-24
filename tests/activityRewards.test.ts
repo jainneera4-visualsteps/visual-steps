@@ -33,10 +33,12 @@ test('learner sees the chosen activity reward in details rather than on every ch
     assert.match(details, /Number\(activity\.reward_qty\) \|\| 1/);
 });
 
-test('reward cards use neutral balance and cost information', () => {
+test('learner sees only affordable rewards with neutral cost information', () => {
     const dashboard = read('src/pages/KidsDashboard.tsx');
-    assert.match(dashboard, /You have \$\{kid\?\.reward_balance \|\| 0\}/);
-    assert.match(dashboard, /This reward costs \$\{item\.cost\}/);
+    assert.match(dashboard, /rewardItems\.filter\(item => item\.cost <= \(kid\?\.reward_balance \|\| 0\)\)/);
+    assert.match(dashboard, /Object\.entries\(affordableRewardItems\.reduce/);
+    assert.match(dashboard, /Cost: \{item\.cost\}/);
+    assert.match(dashboard, /There are no rewards to choose right now\./);
     assert.doesNotMatch(dashboard, /Only \{item\.cost - \(kid\?\.reward_balance \|\| 0\)\} more/);
     assert.doesNotMatch(dashboard, /kid-reward-progress|earned toward/);
 });

@@ -88,6 +88,12 @@ test('parent shell uses stable primary workspaces and contextual navigation', ()
   assert.doesNotMatch(layout, /activities: \[[\s\S]*?label: 'Activity Library'[\s\S]*?\],\n    learning:/);
 });
 
+test('Not Chosen navigation appears only when the selected learner has an item', () => {
+  assert.match(layout, /activityWorkspaceCounts\.notChosen > 0 \? \[\{ label: 'Not Chosen'/);
+  assert.match(layout, /notChosen: activities\.filter\(activity => activity\.status === 'not_chosen'\)\.length/);
+  assert.match(layout, /requestedTab === 'not_chosen' \? nextCounts\.notChosen === 0/);
+});
+
 test('learner dashboard uses a fixed simplified application frame', () => {
   assert.match(kidsDashboard, /flex h-dvh w-full flex-col overflow-hidden/);
   assert.match(kidsDashboard, /flex h-16 w-full items-center/);

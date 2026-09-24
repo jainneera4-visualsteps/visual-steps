@@ -16,7 +16,7 @@ export function GuestQuickStart({ kidId }: { kidId: string }) {
       <div>
         <p className="text-[11px] font-black uppercase tracking-[0.18em] text-brand-700">Try Visual Steps</p>
         <h2 id="guest-quick-start-title" className="mt-1 text-2xl font-black text-slate-950">What would you like to make easier?</h2>
-        <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">Choose one real situation. We will suggest a starting activity that you can change in the regular activity form—no signup required.</p>
+        <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">Choose one real situation. We will suggest an activity you can change in the regular form—no signup required. The learner can choose when to use an available activity; it is not a list to finish.</p>
       </div>
     </div>
 

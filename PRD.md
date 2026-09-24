@@ -2,11 +2,11 @@
 
 **Status:** Active product, reflecting the current repository
 
-**Last updated:** September 12, 2026
+**Last updated:** September 24, 2026
 
 ## 1. Product summary
 
-Visual Steps is a flexible visual-support environment for parents and caregivers supporting an autistic child / adult. It combines meaningful visual activities, small concrete steps, personalized learning content, progress tracking, family communication, and positive reinforcement in one environment. It is not primarily a scheduling application and does not require every visible activity to be completed in a fixed order.
+Visual Steps is a flexible visual-support environment for parents and caregivers supporting an autistic child / adult. It offers meaningful activities as choices, then makes a chosen activity predictable through small, concrete visual steps. It is not a to-do list, and the learner does not need to complete every visible activity. [The product philosophy](PRODUCT_PHILOSOPHY.md) is the governing reference for learner-facing changes.
 
 Parents and caregivers use a management dashboard to plan activities and tailor the experience to each child / adult. The child / adult uses a simplified dashboard that emphasizes predictability, clear instructions, immediate feedback, and earned rewards.
 
@@ -34,7 +34,9 @@ Visual Steps provides a shared system in which a parent or caregiver can prepare
 - **Clarity:** Present tasks in small, concrete, visual steps.
 - **Predictability with flexibility:** Make each activity and its steps understandable while allowing the learner to choose an appropriate activity order and receive visual support when plans change.
 - **Personalization:** Adapt content to the child / adult’s age, learning level, interests, strengths, and support needs.
-- **Positive reinforcement:** Reward effort and completion without using punitive mechanics.
+- **Choice without obligation:** Activities are available choices, not a daily completion quota or a mandatory sequence.
+- **Recognition before rewards:** Recognize what a parent genuinely noticed without attaching tokens. Keep bonus tokens and purchases separate, and never use punitive token adjustments.
+- **Rewards in proportion:** Keep rewards secondary to participation and understanding; show learners only active rewards they can currently afford, without locked goals or progress bars.
 - **Parent control:** Keep assignment, configuration, purchasing, and sensitive information under caregiver supervision.
 - **Accessibility:** Use readable, responsive interfaces and avoid unnecessary cognitive load.
 - **Privacy:** Treat child / adult profiles, behavioral context, messages, and learning data as sensitive information.
@@ -66,7 +68,7 @@ Visual Steps provides a shared system in which a parent or caregiver can prepare
 - Display pending and completed work in the child dashboard.
 - Let parents optionally require verification for an individual activity.
 - Display submitted activities in parent and child waiting-for-verification queues.
-- Let parents type a specific observed positive behavior—with optional suggestions—and grant 1–10 bonus rewards. Show a configurable 1–10 recent bonuses as compact reason-and-amount entries on the child dashboard; children cannot request them.
+- Let parents give specific positive recognition without tokens and separately add positive bonus tokens. The learner sees recognition under You Were Noticed; the two actions remain distinct.
 - Grant completion credit and rewards only after final completion; allow a parent to reassign an unverified submission without granting rewards.
 - Preserve completion history and use time-zone-aware dates.
 - Support offline awareness and cached dashboard data for graceful degradation.
@@ -94,7 +96,7 @@ Visual Steps provides a shared system in which a parent or caregiver can prepare
 - Configure a reward symbol and balance per child / adult, with a separate parent-selected reward amount on each activity.
 - Award the activity's configured reward only after immediate completion or required parent verification.
 - Create reward-shop items with cost, image, location, and active state.
-- Let children request or buy rewards and let parents confirm pending rewards.
+- Let children see only active, currently affordable rewards, request or buy one, and let parents confirm pending rewards.
 - Keep a purchase history.
 
 ### 5.7 Communication and assistance
@@ -116,8 +118,8 @@ Visual Steps provides a shared system in which a parent or caregiver can prepare
 ### Daily activity completion
 
 1. A child signs in with the parent email and child code.
-2. The child sees the activities relevant to the current day and time.
-3. The child opens an activity and follows its ordered visual steps.
+2. The child sees available choices relevant to the current day and time, without a requirement to choose them all.
+3. The child chooses an activity in any order and follows its ordered visual steps if useful.
 4. An activity without verification completes immediately. An activity requiring verification moves to a waiting queue.
 5. The parent verifies and completes it, or reassigns it to pending for another attempt.
 6. Completion totals and rewards update only when the activity reaches the completed state.
@@ -210,9 +212,9 @@ Product analytics are not yet defined in the repository. Initial measures should
 
 - Percentage of new parents who create a child and assign an activity.
 - Weekly active parent-child pairs.
-- Assigned activities completed on the intended day.
+- Parent-reported usefulness of available choices and clarity of visual steps.
 - Quiz and worksheet generation-to-assignment rate.
-- Child return rate and activity completion streaks.
+- Whether learners can choose, pause, and ask for help without feeling pressured to finish every activity.
 - Reward redemption rate without balance or approval errors.
 - Parent-reported ease of planning and child-reported clarity.
 - API, AI-generation, and authentication error rates.
@@ -276,15 +278,16 @@ This section is generated from `feature-registry.json`. Update the registry when
 | Visual Steps Parent Assistant | family | 2026-08-20 | 2026-09-01 | The assistant keeps the current day’s conversation until 7:00 AM, offers Copy and Listen controls, and can search current venue information when a parent plans an outing for their child or adult learner. |
 | Controlled social-story sharing | family | 2026-08-19 | — | Share one social story using a private link that can expire or be revoked. |
 | Parent stories and community publishing | starter | 2026-08-25 | 2026-09-15 | Connect now keeps parent messages, community contributions, newsletter subscriptions, and a clearer weekly archive together. |
-| Narrated tour and temporary Guest Login | starter | 2026-08-21 | 2026-09-16 | Guest Login now guides visitors through one suggested activity instead of a long sequence of screen callouts. |
+| Narrated tour and temporary Guest Login | starter | 2026-08-21 | 2026-09-24 | The narrated guest video and Quick Start now show activities as choices, clear steps within one activity, token-free recognition, and rewards kept secondary. |
 | Adaptive place-value learning games | starter | 2026-09-03 | — | Practice place value through four focused games with five levels, automatic progression, optional assignment, personalized companions, and parent-visible scores. |
-| Learning, progress, and meaningful rewards | starter | 2026-03-15 | — | Create personalized resources, understand progress, and connect earned rewards to meaningful goals. |
+| Learning, progress, and meaningful rewards | starter | 2026-03-15 | — | Create personalized resources, notice useful patterns, and keep rewards secondary to learning and participation. |
 | Parent-controlled activity and rewards history | starter | 2026-08-24 | — | Review a learner’s recent activity and reward history, open grouped details, and selectively remove history that is no longer useful. |
 
 ### Feature update history
 
 | Updated | Feature | Improvement | Family-facing summary |
 | --- | --- | --- | --- |
+| 2026-09-24 | Narrated tour and temporary Guest Login | A choice-first introduction with current real screens | The narrated guest video and Quick Start now show activities as choices, clear steps within one activity, token-free recognition, and rewards kept secondary. |
 | 2026-09-24 | Clear visual activities | Clearer learner activity details | Learners see one readable step sequence, nearby-help guidance, and a calm finish action after the steps. |
 | 2026-09-24 | Clear visual activities | Category-matched activity names | Add Activity suggests only names previously used in the selected category. |
 | 2026-09-23 | Clear visual activities | Review choices that were not selected | Unchosen activities keep their original date and move to a parent-only Not Chosen view instead of silently moving to tomorrow. |

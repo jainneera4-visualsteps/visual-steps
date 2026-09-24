@@ -13,39 +13,39 @@ const DEMO_PLAYBACK_RATES = [0.75, 1, 1.08, 1.25, 1.5] as const;
 const demoScenes = [
   {
     id: 'guest-start',
-    title: 'Begin with what matters today', focus: 'Guest Login', image: '/demo-guest/01-start.jpg', cursor: { left: '31%', top: '15%' },
-    description: 'Choose one everyday situation and begin with a practical activity you can shape for your learner.',
-    narration: 'Welcome to Visual Steps. Begin with one everyday situation that you would like to make easier. It might be getting ready, handling a transition, practicing communication, or working on a learning goal. Choose the situation here, and Visual Steps offers a simple starting activity. This gives you a calm place to begin with what matters to your family today.',
+    title: 'Begin with one meaningful choice', focus: 'Guest Login', image: '/demo-guest/01-start.jpg', cursor: { left: '31%', top: '15%' },
+    description: 'Choose one everyday situation and explore an activity you can shape for your learner.',
+    narration: 'Welcome to Visual Steps. You know the person you support best. Begin with one everyday situation where a little more clarity could help. Choose it here, and you will see a suggested activity with a few simple steps. It is a starting point you can change, not another list your family has to finish.',
   },
   {
     id: 'guest-edit',
     title: 'Shape the activity around your learner', focus: 'Activity', image: '/demo-guest/02-edit.jpg', cursor: { left: '49%', top: '37%' },
-    description: 'Use familiar words and divide the activity into small, clear visual steps.',
-    narration: 'Now make the activity feel familiar. Give it a clear name, describe what will happen, and divide it into small steps the learner can understand. You can adjust the timing, repetition, picture, and reward to match the person, the moment, and the support they need. The aim is a meaningful activity with a clear path from beginning to finished.',
+    description: 'Use familiar words and divide one chosen activity into small, clear steps.',
+    narration: 'Here is the regular activity form. Give the activity a familiar name and describe what it means for your learner. Then add only the steps that make it easier to understand. You can adjust the picture and timing to fit real life. Activities are choices; the steps inside a chosen activity provide the predictable sequence.',
   },
   {
     id: 'guest-learner',
-    title: 'Make the next step easy to see', focus: 'Learner View', image: '/demo-guest/03-learner.jpg', cursor: { left: '73%', top: '18%' },
-    description: 'The learner sees a focused activity and can complete each step at a manageable pace.',
-    narration: 'This is the learner view. The activity is presented without unnecessary distractions, and each visual step shows what comes next. The learner can complete one step at a time, see their progress, and ask for help when they need it. Clear information supports participation, confidence, and greater independence at a pace that works for them.',
+    title: 'See the learner’s chosen activity', focus: 'Learner View', image: '/demo-guest/03-learner.jpg', cursor: { left: '73%', top: '18%' },
+    description: 'One activity opens into a readable step sequence, with room to ask for help or take a break.',
+    narration: 'Now we are in the real learner view. The learner can choose an available activity in any order. When they open one, its steps appear together in a clear sequence. A checkmark can show which steps are done, and taking a break does not erase them. They can ask for help or message a parent. The goal is understanding and confidence at their pace.',
   },
   {
     id: 'guest-add-reward',
-    title: 'Add a reward that feels meaningful', focus: 'Rewards', image: '/demo-guest/04-add-reward.jpg', cursor: { left: '63%', top: '38%' },
-    description: 'Create a reward the learner values, then choose its cost and where it is available.',
-    narration: 'Rewards are most helpful when they are personal and meaningful. Add something the learner genuinely enjoys, choose a simple token amount, and show where the reward is available. The reward catalog makes the connection between effort and a positive outcome concrete, predictable, and easy to understand.',
+    title: 'Keep rewards in their place', focus: 'Rewards', image: '/demo-guest/04-add-reward.jpg', cursor: { left: '63%', top: '38%' },
+    description: 'Parents can add meaningful rewards; learners see only active rewards they can currently afford.',
+    narration: 'A parent can add a reward that matters to this learner and choose its cost. The parent may keep a larger catalog, but the learner sees only active rewards they can afford right now. No locked prizes or progress bars pull attention away from the activity. Rewards can motivate, while learning and participation stay at the center.',
   },
   {
     id: 'guest-recognition',
     title: 'Notice effort as it happens', focus: 'Positive Recognition', image: '/demo-guest/05-recognition.jpg', cursor: { left: '69%', top: '45%' },
-    description: 'Recognize a specific positive action with a clear message and a small bonus.',
-    narration: 'Visual Steps also helps you notice the effort behind progress. Choose the positive action you observed, add a few encouraging words, and give a small bonus. Recognition can celebrate asking for help, trying again, waiting calmly, or managing a change. The learner receives a clear message that their effort was seen and valued.',
+    description: 'Give a specific recognition message without attaching tokens.',
+    narration: 'Here is Positive Recognition. Write something you genuinely noticed, such as asking for help, trying again, or handling a change. Your words appear for the learner under You Were Noticed. Recognition does not add tokens; it stands on its own. If you want to add bonus tokens, that is a separate parent choice.',
   },
   {
     id: 'guest-next-step',
-    title: 'Grow from one small success', focus: 'Your Next Step', image: '/demo-guest/06-sign-up.jpg', cursor: { left: '30%', top: '39%' },
-    description: 'Create your family workspace and continue building from the activity that helped you begin.',
-    narration: 'You have now seen the heart of Visual Steps: begin with a meaningful activity, make each step clear, support the learner as they participate, and celebrate their effort. When you are ready, create your family workspace and continue building from one manageable success. Small, understandable steps can grow into confidence, connection, and greater independence.',
+    title: 'Make room for their way', focus: 'Your Next Step', image: '/demo-guest/06-sign-up.jpg', cursor: { left: '30%', top: '39%' },
+    description: 'Start with one useful activity and build a family workspace when you are ready.',
+    narration: 'That is the heart of Visual Steps: parents offer meaningful choices, and each chosen activity has steps that make it easier to understand. The learner can participate, ask for help, pause, or choose something else. When you are ready, you can create a private family workspace and begin with just one useful activity. There is no need to set up everything at once.',
   },
 ] as const;
 
@@ -248,7 +248,7 @@ export function ProductDemoVideo({ autoOpen = false, standalone = false }: { aut
   const share = async () => {
     const url = `${window.location.origin}/watch`;
     try {
-      if (navigator.share) await navigator.share({ title: 'Visual Steps', text: 'See how Visual Steps supports clearer routines, learning, progress, and meaningful rewards.', url });
+      if (navigator.share) await navigator.share({ title: 'Visual Steps', text: 'See how Visual Steps offers meaningful choices and clear steps within each chosen activity.', url });
       else await navigator.clipboard.writeText(url);
       setShareStatus(navigator.share ? 'Shared' : 'Link copied');
       window.setTimeout(() => setShareStatus(''), 2500);

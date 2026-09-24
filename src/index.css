@@ -1399,19 +1399,9 @@ p.text-right {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .kid-reward-goal-card { animation: none !important; }
   .product-demo__image,
   .product-demo__caption,
   .product-demo__timeline button span { animation: none !important; }
-}
-
-@keyframes kid-reward-gentle-glow {
-  0%, 100% { box-shadow: 0 4px 14px rgb(124 58 237 / 0.08); }
-  50% { box-shadow: 0 7px 24px rgb(124 58 237 / 0.22); }
-}
-
-.kid-reward-goal-card {
-  animation: kid-reward-gentle-glow 3.2s ease-in-out infinite;
 }
 
 /* Focused progress views reuse the established result tables without showing

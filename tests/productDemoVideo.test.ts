@@ -84,4 +84,7 @@ test('the demo uses only real screens from the focused Guest Login journey', asy
     assert.doesNotMatch(demo, new RegExp(oldImage.replace('.', '\\.')));
   }
   assert.equal((demo.match(/id: 'guest-/g) || []).length, 6);
+  assert.match(demo, /Activities are choices; the steps inside a chosen activity provide the predictable sequence/);
+  assert.match(demo, /Recognition does not add tokens; it stands on its own/);
+  assert.match(demo, /No locked prizes or progress bars pull attention away from the activity/);
 });

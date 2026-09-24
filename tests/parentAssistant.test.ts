@@ -23,6 +23,9 @@ test('parent assistant prompt is restricted to Visual Steps and owned child cont
   assert.match(prompt, /What happens next/);
   assert.match(prompt, /Never output unmatched Markdown markers/i);
   assert.match(prompt, /Never stop halfway through/i);
+  assert.match(prompt, /Activities are parent-offered choices, not a daily quota/);
+  assert.match(prompt, /Keep positive recognition separate from messages and token changes/);
+  assert.match(prompt, /only active items the learner can currently afford/);
   assert.match(prompt, /Saved Worksheets/);
   assert.match(prompt, /Actions/);
   assert.match(prompt, /tooltip View/);

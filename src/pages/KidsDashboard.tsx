@@ -546,6 +546,7 @@ export default function KidsDashboard() {
 
   // Exit Modal State
   const [rewardItems, setRewardItems] = useState<RewardItem[]>([]);
+  const affordableRewardItems = rewardItems.filter(item => item.cost <= (kid?.reward_balance || 0));
   const [positiveRecognitions, setPositiveRecognitions] = useState<PositiveRecognition[]>([]);
 
   const safeLocalStorageGet = (key: string) => {
@@ -1308,11 +1309,11 @@ export default function KidsDashboard() {
                           <p className={`relative z-10 mt-1 font-bold ${currentTheme.bannerSubtext}`}>
                             You have <span className="text-emerald-600 font-bold">{kid?.reward_balance || 0}</span> {formatReward(kid?.reward_type, kid?.reward_balance || 0)}!
                           </p>
-                          {companionStyle === 'character' && <p className={`relative z-10 mt-2 text-sm font-black ${currentTheme.bannerText}`}>{themeCompanion.character} Keep going—choose something you would enjoy working toward!</p>}
+                          {companionStyle === 'character' && affordableRewardItems.length > 0 && <p className={`relative z-10 mt-2 text-sm font-black ${currentTheme.bannerText}`}>{themeCompanion.character} You can choose a reward if you'd like.</p>}
                         </div>
 
                         <div className="space-y-6">
-                          {Object.entries(rewardItems.reduce((acc, item) => {
+                          {Object.entries(affordableRewardItems.reduce((acc, item) => {
                             const location = item.location || 'General';
                             if (!acc[location]) acc[location] = [];
                             acc[location].push(item);
@@ -1323,11 +1324,7 @@ export default function KidsDashboard() {
                               {items.map((item, itemIndex) => (
                                 <div 
                                   key={item.id} 
-                                  className={`relative flex items-center justify-between overflow-hidden rounded-xl border-2 p-4 transition-all ${
-                                    (kid?.reward_balance || 0) >= item.cost 
-                                      ? `${currentTheme.card} ${isDarkTheme ? 'bg-slate-900' : 'bg-white'} shadow-sm`
-                                      : `kid-reward-goal-card ${isDarkTheme ? 'border-violet-500/60 bg-slate-900' : 'border-violet-200 bg-gradient-to-r from-white via-violet-50/70 to-amber-50/70'}`
-                                  }`}
+                                  className={`relative flex items-center justify-between overflow-hidden rounded-xl border-2 p-4 transition-all ${currentTheme.card} ${isDarkTheme ? 'bg-slate-900' : 'bg-white'} shadow-sm`}
                                 >
                                   <span className="pointer-events-none absolute right-3 top-2 text-4xl opacity-25" aria-hidden="true">{themeCompanion.decorations[itemIndex % themeCompanion.decorations.length]}</span>
                                   <div className="relative z-10 flex items-center gap-4">
@@ -1342,33 +1339,29 @@ export default function KidsDashboard() {
                                     </div>
                                     <div className="min-w-0 flex-1">
                                       <h4 className={`font-bold ${currentTheme.cardTitle}`}>{item.name}</h4>
-                                      <p className="text-xs font-bold text-emerald-600">
-                                        {(kid?.reward_balance || 0) < item.cost
-                                          ? `You have ${kid?.reward_balance || 0} ${formatReward(kid?.reward_type, kid?.reward_balance || 0)}. This reward costs ${item.cost} ${formatReward(kid?.reward_type, item.cost)}.`
-                                          : `Cost: ${item.cost} ${formatReward(kid?.reward_type, item.cost)}`}
-                                      </p>
+                                      <p className="text-xs font-bold text-emerald-600">Cost: {item.cost} {formatReward(kid?.reward_type, item.cost)}</p>
                                     </div>
                                   </div>
                                 </div>
                               ))}
                             </div>
                           ))}
-                          {rewardItems.length === 0 && (
+                          {affordableRewardItems.length === 0 && (
                             <div className={`text-center py-12 rounded-2xl border-2 border-dashed ${isDarkTheme ? 'border-slate-700 text-slate-300 bg-slate-900/70' : 'border-slate-200 text-slate-400'}`}>
                               <Sparkles className="h-12 w-12 opacity-20 mx-auto mb-4" />
-                              <p className="font-bold">No rewards in the catalog yet!</p>
-                              <p className="text-sm mt-1">Ask your parent to add some prizes.</p>
+                              <p className="font-bold">There are no rewards to choose right now.</p>
+                              <p className="text-sm mt-1">You can come back later.</p>
                             </div>
                           )}
                         </div>
 
-                        <div className={`relative overflow-hidden rounded-xl border p-4 text-center ${isDarkTheme ? 'border-slate-700 bg-slate-900' : 'border-emerald-200 bg-gradient-to-r from-emerald-50 via-sky-50 to-violet-50'}`}>
+                        {affordableRewardItems.length > 0 && <div className={`relative overflow-hidden rounded-xl border p-4 text-center ${isDarkTheme ? 'border-slate-700 bg-slate-900' : 'border-emerald-200 bg-gradient-to-r from-emerald-50 via-sky-50 to-violet-50'}`}>
                           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-3xl opacity-30" aria-hidden="true">{themeCompanion.icon}</span>
                           <span className="absolute right-4 top-1/2 -translate-y-1/2 text-3xl opacity-30" aria-hidden="true">{themeCompanion.character}</span>
                           <p className={`relative z-10 font-black ${isDarkTheme ? 'text-slate-100' : 'text-blue-900'}`}>
                             Ask your parent when you are ready to choose a reward!
                           </p>
-                        </div>
+                        </div>}
                       </div>
                     ) : (
                       <div className="w-full">

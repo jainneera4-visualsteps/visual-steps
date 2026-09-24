@@ -29,7 +29,7 @@ export function Layout() {
   const [publicLinks, setPublicLinks] = useState<{ facebook?: string; instagram?: string }>({});
   const [selectedKidId, setSelectedKidId] = useState<string | null>(localStorage.getItem('dashboard_selected_kid_id') || localStorage.getItem('analysis_selected_kid_id'));
   const [headerKids, setHeaderKids] = useState<{ id: string; name: string; avatar?: string; reward_balance?: number; reward_type?: string; reward_icon?: string }[]>([]);
-  const [activityWorkspaceCounts, setActivityWorkspaceCounts] = useState({ needsAttention: 0, verification: 0, completed: 0, onHold: 0, ended: 0 });
+  const [activityWorkspaceCounts, setActivityWorkspaceCounts] = useState({ needsAttention: 0, verification: 0, completed: 0, notChosen: 0, onHold: 0, ended: 0 });
   const [activityCountsRefreshKey, setActivityCountsRefreshKey] = useState(0);
   const alertAudioContextRef = useRef<AudioContext | null>(null);
 
@@ -149,7 +149,7 @@ export function Layout() {
       ...(activityWorkspaceCounts.needsAttention > 0 ? [{ label: 'Needs Attention', to: `${learnerActivitiesRoute}?tab=help_requested` }] : []),
       ...(activityWorkspaceCounts.verification > 0 ? [{ label: 'Verification', to: `${learnerActivitiesRoute}?tab=verification` }] : []),
       { label: 'Completed', to: `${learnerActivitiesRoute}?tab=completed` },
-      { label: 'Not Chosen', to: `${learnerActivitiesRoute}?tab=not_chosen` },
+      ...(activityWorkspaceCounts.notChosen > 0 ? [{ label: 'Not Chosen', to: `${learnerActivitiesRoute}?tab=not_chosen` }] : []),
       ...(activityWorkspaceCounts.onHold > 0 ? [{ label: 'On Hold', to: `${learnerActivitiesRoute}?tab=on_hold` }] : []),
       ...(activityWorkspaceCounts.ended > 0 ? [{ label: 'Ended', to: `${learnerActivitiesRoute}?tab=ended` }] : []),
     ],
@@ -234,7 +234,7 @@ export function Layout() {
 
   useEffect(() => {
     if (!user || !selectedKidId) {
-      setActivityWorkspaceCounts({ needsAttention: 0, verification: 0, completed: 0, onHold: 0, ended: 0 });
+      setActivityWorkspaceCounts({ needsAttention: 0, verification: 0, completed: 0, notChosen: 0, onHold: 0, ended: 0 });
       return;
     }
     let cancelled = false;
@@ -244,6 +244,7 @@ export function Layout() {
         needsAttention: helpRequests.length,
         verification: activities.filter(activity => activity.status === 'awaiting_verification').length,
         completed: activities.filter(activity => activity.status === 'completed').length,
+        notChosen: activities.filter(activity => activity.status === 'not_chosen').length,
         onHold: activities.filter(activity => activity.status === 'on_hold').length,
         ended: activities.filter(activity => activity.status === 'ended').length,
       };
@@ -253,6 +254,7 @@ export function Layout() {
       const requestedTab = new URLSearchParams(currentLocation.search).get('tab');
       const activeListIsEmpty = requestedTab === 'help_requested' ? nextCounts.needsAttention === 0
         : requestedTab === 'verification' ? nextCounts.verification === 0
+          : requestedTab === 'not_chosen' ? nextCounts.notChosen === 0
           : requestedTab === 'on_hold' ? nextCounts.onHold === 0
               : requestedTab === 'ended' ? nextCounts.ended === 0
                 : false;
@@ -263,7 +265,7 @@ export function Layout() {
     apiFetch(`/api/kids/${encodeURIComponent(selectedKidId)}/activities?mode=parent`)
       .then(async response => response.ok ? safeJson(response) : Promise.reject(new Error('Unable to load activity menu counts')))
       .then(data => applyCounts(Array.isArray(data?.activities) ? data.activities : [], Array.isArray(data?.helpRequests) ? data.helpRequests : []))
-      .catch(() => { if (!cancelled) setActivityWorkspaceCounts({ needsAttention: 0, verification: 0, completed: 0, onHold: 0, ended: 0 }); });
+      .catch(() => { if (!cancelled) setActivityWorkspaceCounts({ needsAttention: 0, verification: 0, completed: 0, notChosen: 0, onHold: 0, ended: 0 }); });
 
     const handleCounts = (event: Event) => {
       const detail = (event as CustomEvent<{ kidId: string; activities: any[]; helpRequests: any[] }>).detail;
