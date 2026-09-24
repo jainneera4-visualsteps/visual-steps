@@ -28,7 +28,7 @@ test('learner receives a profile-selected visual prompt for nearby help', () => 
   assert.match(childDashboard, /helpCommunicationMethod=\{kid\?\.help_communication_method/);
   assert.match(childDashboard, /helpPromptAudioUrl=\{kid\?\.help_prompt_audio_url\}/);
   assert.match(activityModal, /Play: \$\{helpPromptText\}/);
-  assert.match(activityModal, />Say</);
+  assert.match(activityModal, /Say “\{helpPromptText\}”/);
   assert.match(profileForm, /Test recording/);
   assert.doesNotMatch(profileForm, /Recorded words:/);
   assert.match(profileForm, /SpeechRecognitionClass/);
@@ -53,8 +53,22 @@ test('learner receives a profile-selected visual prompt for nearby help', () => 
     activityModal.indexOf('<CardHeader className='),
     activityModal.indexOf('<CardContent className='),
   );
-  assert.match(cardHeader, /Need help\?/);
-  assert.match(cardHeader, /I’m finished with this activity/);
+  assert.doesNotMatch(cardHeader, /onToggleStatus && showToggleOnly/);
+  assert.match(activityModal.slice(activityModal.indexOf('<CardContent className=')), /Need help\?/);
+});
+
+test('learner activity details focus on one themed step sequence with support and a calm finish action', () => {
+  assert.match(activityModal, /showToggleOnly \? 'grid-cols-1 gap-2'/);
+  assert.match(activityModal, /showToggleOnly \? 'text-lg'/);
+  assert.match(activityModal, /kid-activity-detail/);
+  assert.match(activityModal, /showToggleOnly \? activity\.activity_type :/);
+  assert.match(activityModal, /!showToggleOnly && <span>\{activity\.activity_type\}<\/span>/);
+  assert.match(activityModal, /You can take a break and come back\. Your checked steps will stay here\./);
+  assert.match(activityModal, /onMessageParent/);
+  assert.match(childDashboard, /messageInputRef\.current\?\.focus\(\)/);
+  const cardContent = activityModal.slice(activityModal.indexOf('<CardContent className='));
+  assert.ok(cardContent.indexOf('Need help?') < cardContent.indexOf('kid-activity-finish'));
+  assert.ok(cardContent.indexOf('kid-activity-step') < cardContent.indexOf('kid-activity-finish'));
 });
 
 test('visual step progress is persisted without blocking learner completion', () => {

@@ -46,6 +46,7 @@ export function ActivityDetailModal({
   onToggleStatus, 
   onRequestHelp,
   onToggleStep,
+  onMessageParent,
   helpRequested = false,
   parentComing = false,
   isRequestingHelp = false,
@@ -67,6 +68,7 @@ export function ActivityDetailModal({
   onToggleStatus?: (activity: Activity) => void;
   onRequestHelp?: (activity: Activity) => void;
   onToggleStep?: (activity: Activity, step: ActivityStep, isCompleted: boolean) => void;
+  onMessageParent?: () => void;
   helpRequested?: boolean;
   parentComing?: boolean;
   isRequestingHelp?: boolean;
@@ -252,14 +254,14 @@ export function ActivityDetailModal({
     : activityLink;
   
   return (
-    <div className="w-full" ref={printRef}>
-      <div className="mb-4 flex flex-col gap-3 no-print sm:flex-row sm:items-end sm:justify-between">
+    <div className={`w-full ${showToggleOnly ? 'kid-activity-detail' : ''}`} ref={printRef}>
+      <div className="mb-2 flex flex-col gap-2 no-print sm:flex-row sm:items-end sm:justify-between">
         <div>
           <Button data-guest-tour="child-activity-close" variant="ghost" size="xs" onClick={onClose} className="mb-2 h-7 pl-0 text-[12px] font-bold uppercase transition-colors hover:bg-transparent hover:text-blue-600">
             <ArrowLeft className="mr-1 h-3 w-3" />
             Back to List
           </Button>
-          <h1 className="text-xl font-bold tracking-tight text-slate-900 leading-none">
+          <h1 className={`${showToggleOnly ? 'text-2xl' : 'text-xl'} font-bold tracking-tight text-slate-900 leading-none`}>
             View Activity Details
           </h1>
           {isReadOnly && (
@@ -331,8 +333,8 @@ export function ActivityDetailModal({
                 {activity.status === 'completed' && <CheckCircle className="h-4 w-4" />}
               </button>
             )}
-            <CardTitle className="text-base font-bold flex items-center gap-2">
-              {activity.category || 'Activity'} - {statusLabel}
+            <CardTitle className={`${showToggleOnly ? 'text-lg' : 'text-base'} font-bold flex items-center gap-2`}>
+              {showToggleOnly ? activity.activity_type : `${activity.category || 'Activity'} - ${statusLabel}`}
               {isSocialStoryLink && (
                 <div className={`flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-blue-600`}>
                   <Eye className="h-3 w-3" />
@@ -340,32 +342,8 @@ export function ActivityDetailModal({
               )}
             </CardTitle>
           </div>
-          {!isReadOnly && onToggleStatus && showToggleOnly && (
-            <div className="flex flex-wrap items-center justify-end gap-2 no-print">
-              {!helpRequested && !parentComing && (
-                <div role="note" aria-label="How to ask for help" className="flex min-h-10 items-center gap-2 rounded-xl border-2 border-sky-300 bg-white px-3 py-1.5 text-sky-900 shadow-sm">
-                  {(helpCommunicationMethod === 'sign' && helpSignImageUrl) || (helpCommunicationMethod === 'card' && helpCardImageUrl) ? (
-                    <img src={helpCommunicationMethod === 'sign' ? helpSignImageUrl : helpCardImageUrl} alt={helpCommunicationMethod === 'sign' ? 'Help sign' : 'Help card'} className="h-14 w-16 rounded-md bg-white object-contain" />
-                  ) : <span className="text-2xl" aria-hidden="true">{helpCommunicationMethod === 'sign' ? '🤟' : helpCommunicationMethod === 'card' ? '🆘' : '🗣️'}</span>}
-                  <span className="text-left leading-tight"><span className="block text-[10px] font-black uppercase tracking-wide text-sky-600">Need help?</span>{helpCommunicationMethod === 'spoken' ? <span className="block"><span className="text-[10px] font-black uppercase text-slate-500">Say</span><span className="ml-1 text-sm font-black">“{helpPromptText}”</span></span> : <span className="block text-xs font-black">{helpCommunicationMethod === 'sign' ? 'Use your help sign' : 'Show your help card'}</span>}</span>
-                  {helpCommunicationMethod === 'spoken' && helpPromptAudioUrl && (
-                    <button type="button" onClick={() => void new Audio(helpPromptAudioUrl).play()} className="ml-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white shadow-sm" aria-label={`Play: ${helpPromptText}`}><Volume2 className="h-5 w-5" /></button>
-                  )}
-                </div>
-              )}
-              <button
-                data-guest-tour="child-mark-finished"
-                onClick={handleToggle}
-                disabled={activity.status === 'completed' || showPraise}
-                className="flex h-8 items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 text-[11px] font-black uppercase tracking-wider text-white shadow-sm transition-all hover:bg-blue-700 active:scale-[0.98]"
-              >
-                <CheckCircle className="h-4 w-4" />
-                I’m finished with this activity
-              </button>
-            </div>
-          )}
         </CardHeader>
-        <CardContent className="px-4 py-4 space-y-4">
+        <CardContent className={`px-4 ${showToggleOnly ? 'py-3 space-y-3' : 'py-4 space-y-4'}`}>
           {(helpRequested || parentComing) && (
             <div role="status" aria-live="polite" className="w-full rounded-xl border-2 border-sky-300 bg-sky-50 px-4 py-4 no-print">
               <div className="mx-auto grid max-w-2xl grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-2 text-center">
@@ -425,9 +403,9 @@ export function ActivityDetailModal({
                   Assigned Date: {assignedDate}
                 </div>
               )}
-              <div className="text-lg font-bold leading-relaxed text-slate-800">
-                <span>{activity.activity_type}</span>
-                {activity.description && <span aria-hidden="true"> — </span>}
+              {(!showToggleOnly || activity.description) && <div className={`${showToggleOnly ? 'text-xl' : 'text-lg'} font-bold leading-snug text-slate-800`}>
+                {!showToggleOnly && <span>{activity.activity_type}</span>}
+                {!showToggleOnly && activity.description && <span aria-hidden="true"> — </span>}
                 {activity.description && (
                   activity.link ? (
                     isSocialStoryLink ? (
@@ -459,7 +437,7 @@ export function ActivityDetailModal({
                     )
                   ) : <span>{activity.description}</span>
                 )}
-              </div>
+              </div>}
               {printableActivityLink && (
                 <div className="activity-print-url break-all text-[11px] font-normal leading-5 text-slate-600">
                   URL: {printableActivityLink}
@@ -478,25 +456,40 @@ export function ActivityDetailModal({
             </div>
           </div>
 
+          {showToggleOnly && !isReadOnly && activity.status === 'pending' && !helpRequested && !parentComing && (
+            <div className="kid-activity-support flex flex-wrap items-center gap-2 no-print">
+              <div role="note" aria-label="How to ask for help" className="flex min-h-10 items-center gap-2 rounded-xl border bg-white px-3 py-1.5 text-slate-900">
+                {(helpCommunicationMethod === 'sign' && helpSignImageUrl) || (helpCommunicationMethod === 'card' && helpCardImageUrl) ? (
+                  <img src={helpCommunicationMethod === 'sign' ? helpSignImageUrl : helpCardImageUrl} alt={helpCommunicationMethod === 'sign' ? 'Help sign' : 'Help card'} className="h-12 w-14 rounded-md bg-white object-contain" />
+                ) : <span className="text-2xl" aria-hidden="true">{helpCommunicationMethod === 'sign' ? '🤟' : helpCommunicationMethod === 'card' ? '🆘' : '🗣️'}</span>}
+                <span className="text-left leading-tight"><span className="block text-xs font-black uppercase tracking-wide">Need help?</span>{helpCommunicationMethod === 'spoken' ? <span className="block text-sm font-bold">Say “{helpPromptText}”</span> : <span className="block text-sm font-bold">{helpCommunicationMethod === 'sign' ? 'Use your help sign' : 'Show your help card'}</span>}</span>
+                {helpCommunicationMethod === 'spoken' && helpPromptAudioUrl && (
+                  <button type="button" onClick={() => void new Audio(helpPromptAudioUrl).play()} className="ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white" aria-label={`Play: ${helpPromptText}`}><Volume2 className="h-5 w-5" /></button>
+                )}
+              </div>
+              {onMessageParent && <button type="button" onClick={onMessageParent} className="kid-activity-message min-h-10 rounded-xl border bg-white px-4 py-2 text-sm font-bold no-print">Message Parent</button>}
+            </div>
+          )}
+
           {activity.steps && activity.steps.length > 0 && (
-            <div className="space-y-3 pt-4 border-t border-blue-100/50">
+            <div className={`border-t border-blue-100/50 ${showToggleOnly ? 'space-y-2 pt-3' : 'space-y-3 pt-4'}`}>
               <h3 className="text-[12px] font-bold text-slate-500 uppercase tracking-widest">Steps</h3>
-              <div className="grid gap-3 sm:grid-cols-2 print:grid-cols-1">
+              <div className={`grid ${showToggleOnly ? 'grid-cols-1 gap-2' : 'gap-3 sm:grid-cols-2 print:grid-cols-1'}`}>
                 {activity.steps.map((step, index) => (
-                  <div key={step.id || index} className={`flex gap-3 print:gap-2 items-start print:items-center rounded-xl border p-3 shadow-sm transition-colors print:shadow-none print:break-inside-avoid print:border-0 print:bg-transparent print:p-2 ${step.is_completed ? 'border-emerald-200 bg-emerald-50/70' : 'border-blue-100 bg-white'}`}>
+                  <div key={step.id || index} className={`kid-activity-step flex gap-3 print:gap-2 items-start print:items-center rounded-xl border p-3 shadow-sm transition-colors print:shadow-none print:break-inside-avoid print:border-0 print:bg-transparent print:p-2 ${step.is_completed ? 'kid-activity-step--checked border-emerald-200 bg-emerald-50/70' : 'border-blue-100 bg-white'}`}>
                     <div className="hidden print:!flex items-center gap-2 flex-shrink-0">
                       <div className="h-4 w-4 border border-slate-400 rounded-sm bg-white"></div>
                       <span className="text-sm font-bold text-slate-900">{index + 1}.</span>
                     </div>
                     {!isReadOnly && onToggleStep && activity.status === 'pending' ? (
-                      <button type="button" onClick={() => onToggleStep(activity, step, !step.is_completed)} disabled={!step.id} aria-label={`${step.is_completed ? 'Mark incomplete' : 'Mark complete'}: step ${index + 1}`} aria-pressed={step.is_completed === true} className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border-2 transition print:hidden ${step.is_completed ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-blue-300 bg-white text-blue-700 hover:border-blue-500'}`}>
+                      <button type="button" onClick={() => onToggleStep(activity, step, !step.is_completed)} disabled={!step.id} aria-label={`${step.is_completed ? 'Mark incomplete' : 'Mark complete'}: step ${index + 1}`} aria-pressed={step.is_completed === true} className={`flex flex-shrink-0 items-center justify-center rounded-full border-2 transition print:hidden ${showToggleOnly ? 'h-10 w-10 text-base' : 'h-7 w-7'} ${step.is_completed ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-blue-300 bg-white text-blue-700 hover:border-blue-500'}`}>
                         {step.is_completed ? <CheckCircle className="h-4 w-4" /> : <span className="text-[10px] font-black">{index + 1}</span>}
                       </button>
                     ) : (
                       <span className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg text-[10px] font-black text-white print:hidden ${step.is_completed ? 'bg-emerald-500' : 'bg-blue-600'}`}>{step.is_completed ? <CheckCircle className="h-4 w-4" /> : index + 1}</span>
                     )}
                     <div className="flex-1">
-                      <p className={`text-[13px] font-bold leading-snug ${step.is_completed ? 'text-emerald-800' : 'text-slate-800'}`}>{step.description}</p>
+                      <p className={`font-bold leading-snug ${showToggleOnly ? 'text-lg' : 'text-[13px]'} ${step.is_completed ? 'text-emerald-800' : 'text-slate-800'}`}>{step.description}</p>
                       {step.image_url && (
                         <div className="mt-2 rounded-lg overflow-hidden border border-blue-50 print-image">
                           <img src={step.image_url} alt={`Step ${index + 1}`} className="max-h-32 w-full bg-slate-50 object-contain p-1" />
@@ -510,8 +503,13 @@ export function ActivityDetailModal({
           )}
 
           {!isReadOnly && onToggleStatus && (
-            <div className="pt-4 border-t border-blue-100/50 flex flex-col items-center gap-3 no-print">
-              {!showToggleOnly ? (
+            <div className="pt-3 border-t border-blue-100/50 flex flex-col items-center gap-3 no-print">
+              {showToggleOnly ? (
+                <div className="flex w-full flex-wrap items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-slate-700">You can take a break and come back. Your checked steps will stay here.</p>
+                  <button data-guest-tour="child-mark-finished" onClick={handleToggle} disabled={activity.status === 'completed' || showPraise} className="kid-activity-finish flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-black text-white shadow-sm transition-all active:scale-[0.98] disabled:opacity-60"><CheckCircle className="h-5 w-5" />I’m finished with this activity</button>
+                </div>
+              ) : (
                 <div className="w-full">
                 <button data-guest-tour="child-mark-finished"
                   onClick={handleToggle}
@@ -534,7 +532,7 @@ export function ActivityDetailModal({
                   </span>
                 </button>
                 </div>
-              ) : null}
+              )}
             </div>
           )}
         </CardContent>

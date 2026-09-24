@@ -11,7 +11,7 @@ This section is generated from `feature-registry.json`. Update the registry when
 
 | Feature | Plan | Introduced | Latest update | Current description |
 | --- | --- | --- | --- | --- |
-| Clear visual activities | starter | 2026-03-01 | 2026-09-23 | Unchosen activities keep their original date and move to a parent-only Not Chosen view instead of silently moving to tomorrow. |
+| Clear visual activities | starter | 2026-03-01 | 2026-09-24 | Add Activity suggests only names previously used in the selected category. |
 | Parent activity verification | starter | 2026-08-20 | — | Choose which activities require parent approval before rewards are earned. |
 | Positive recognition and bonus tokens | starter | 2026-08-20 | — | Parents can recognize meaningful effort without tokens or give separate positive-only bonus tokens. |
 | Personalized, fair quizzes | starter | 2026-08-20 | 2026-08-24 | Quiz creation now connects every quiz to a measurable learning objective, lets parents privately try it as the learner, controls illustration use, and turns completed answers into practical planning guidance. |
@@ -29,6 +29,8 @@ This section is generated from `feature-registry.json`. Update the registry when
 
 | Updated | Feature | Improvement | Family-facing summary |
 | --- | --- | --- | --- |
+| 2026-09-24 | Clear visual activities | Clearer learner activity details | Learners see one readable step sequence, nearby-help guidance, and a calm finish action after the steps. |
+| 2026-09-24 | Clear visual activities | Category-matched activity names | Add Activity suggests only names previously used in the selected category. |
 | 2026-09-23 | Clear visual activities | Review choices that were not selected | Unchosen activities keep their original date and move to a parent-only Not Chosen view instead of silently moving to tomorrow. |
 | 2026-09-23 | Clear visual activities | Explain changed activity plans | Parents can temporarily pause, cancel, or replace a learner choice and explain the change in simple words. |
 | 2026-09-16 | Parent Quick Start and replayable tour | A simpler first experience for parents | A focused three-step Quick Start guides parents through one real profile, activity, and learner preview without introducing a separate setup interface. |

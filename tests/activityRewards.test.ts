@@ -38,4 +38,5 @@ test('reward cards use neutral balance and cost information', () => {
     assert.match(dashboard, /You have \$\{kid\?\.reward_balance \|\| 0\}/);
     assert.match(dashboard, /This reward costs \$\{item\.cost\}/);
     assert.doesNotMatch(dashboard, /Only \{item\.cost - \(kid\?\.reward_balance \|\| 0\)\} more/);
+    assert.doesNotMatch(dashboard, /kid-reward-progress|earned toward/);
 });

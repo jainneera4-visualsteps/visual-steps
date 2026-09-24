@@ -357,7 +357,11 @@ export async function guestApiFetch(input: RequestInfo | URL, init?: RequestInit
     kid = { ...kid, reward_balance: Math.max(0, Number(kid.reward_balance || 0) - Number(body.quantity || 0)) };
     return json({ success: true, balance: kid.reward_balance, rewardBalance: kid.reward_balance });
   }
-  if (path === '/api/activity-types') return json({ types: ['Daily Routine', 'Learning', 'Exercise', 'Life Skills'] });
+  if (path === '/api/activity-types') {
+    const typeCategories = activities.filter(item => item.activity_type && item.category)
+      .map(item => ({ name: item.activity_type, category: item.category }));
+    return json({ types: [...new Set(typeCategories.map(item => item.name))].sort(), typeCategories });
+  }
   if (path === '/api/activity-categories') return json({ categories: ['Daily Living', 'Learning', 'Wellbeing', 'Responsibility'] });
   if (path === '/api/activity-templates') return json({ templates: [] });
   if (path === '/api/social-stories') return json({ stories: [sampleStory] });

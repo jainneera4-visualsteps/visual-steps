@@ -27,6 +27,8 @@ test('guest session starts with a learner, named activities, and a temporary res
   const initial = await payload(await guest.guestApiFetch(`/api/kids/${guest.GUEST_KID_ID}/activities`));
   assert.ok(initial.activities.length >= 4);
   assert.ok(initial.activities.every((activity: any) => activity.activity_type.trim().length > 0));
+  const suggestions = await payload(await guest.guestApiFetch('/api/activity-types'));
+  assert.ok(suggestions.typeCategories.some((item: any) => item.category === 'Daily Living' && item.name === 'Morning routine'));
 
   await guest.guestApiFetch(`/api/kids/${guest.GUEST_KID_ID}`, {
     method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Temporary learner' }),

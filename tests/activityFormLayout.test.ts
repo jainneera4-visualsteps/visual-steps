@@ -18,6 +18,17 @@ test('activity form keeps options visible in compact rows', () => {
   assert.doesNotMatch(activityPage, /activeActivityOption/);
 });
 
+test('new activity name suggestions follow the selected category', () => {
+  const server = readFileSync('server.ts', 'utf8');
+  assert.match(server, /res\.json\(\{ types, typeCategories \}\)/);
+  assert.match(activityPage, /item\.category\.trim\(\)\.toLocaleLowerCase\(\) === selectedCategory/);
+  assert.match(activityPage, /activityType: previous\.category === e\.target\.value \? previous\.activityType : ''/);
+  assert.match(activityPage, /autoComplete="off"/);
+  assert.match(activityPage, /matchingSameDayActivity = !editingActivity/);
+  assert.match(activityPage, /item\.due_date === formData\.dueDate/);
+  assert.match(activityPage, /Already on this learner’s schedule\./);
+});
+
 test('advanced activity settings retain their established controls', () => {
   assert.match(activityPage, /name="requiresVerification"/);
   assert.match(activityPage, /name="rewardQtyPreset"/);
@@ -42,9 +53,9 @@ test('parent activity details are informational and non-editable', () => {
   assert.doesNotMatch(parentDetailUsage, /onToggleStatus=/);
   assert.doesNotMatch(parentDetailUsage, /onEdit=/);
   assert.match(activityDetails, /const statusLabel =/);
-  assert.match(activityDetails, /\{statusLabel\}/);
+  assert.match(activityDetails, /\$\{statusLabel\}/);
   assert.doesNotMatch(activityDetails, />Activity Mode</);
-  assert.match(activityDetails, /\{activity\.category \|\| 'Activity'\} - \{statusLabel\}/);
+  assert.match(activityDetails, /showToggleOnly \? activity\.activity_type : `\$\{activity\.category \|\| 'Activity'\} - \$\{statusLabel\}`/);
   assert.match(activityDetails, /formatAppDate\(`\$\{activity\.due_date\.slice\(0, 10\)\}T12:00:00Z`, 'UTC'\)/);
   assert.match(activityDetails, /Assigned Date: \{assignedDate\}/);
   assert.ok(activityDetails.indexOf('Assigned Date: {assignedDate}') < activityDetails.indexOf('<span>{activity.activity_type}</span>'));

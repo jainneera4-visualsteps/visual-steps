@@ -134,6 +134,7 @@ export default function KidsDashboard() {
   const [parentComingActivityIds, setParentComingActivityIds] = useState<string[]>([]);
   const [familyMessages, setFamilyMessages] = useState<FamilyMessage[]>([]);
   const messageListRef = useRef<HTMLDivElement | null>(null);
+  const messageInputRef = useRef<HTMLInputElement | null>(null);
   const [replyText, setReplyText] = useState('');
   const [isSendingReply, setIsSendingReply] = useState(false);
   const [requestingHelpActivityId, setRequestingHelpActivityId] = useState<string | null>(null);
@@ -1109,6 +1110,10 @@ export default function KidsDashboard() {
             onClose={() => setSelectedActivity(null)}
             onToggleStatus={handleToggleStatus}
             onToggleStep={handleToggleStep}
+            onMessageParent={() => {
+              setSelectedActivity(null);
+              window.setTimeout(() => messageInputRef.current?.focus(), 0);
+            }}
             helpRequested={helpRequestedActivityIds.includes(selectedActivity.id)}
             parentComing={parentComingActivityIds.includes(selectedActivity.id)}
             isRequestingHelp={requestingHelpActivityId === selectedActivity.id}
@@ -1148,7 +1153,7 @@ export default function KidsDashboard() {
                   ))}
                 </div> : null}
                 <form className="kid-chat-compose mt-2 flex shrink-0 gap-2" onSubmit={event => { event.preventDefault(); void sendLearnerReply(replyText); }}>
-                  <input value={replyText} onChange={event => setReplyText(event.target.value)} maxLength={500} placeholder="Write to Parent" aria-label="Write a message to Parent" className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-base" />
+                  <input ref={messageInputRef} value={replyText} onChange={event => setReplyText(event.target.value)} maxLength={500} placeholder="Write to Parent" aria-label="Write a message to Parent" className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-base" />
                   <button type="submit" disabled={!replyText.trim() || isSendingReply} aria-label="Send reply" className={`rounded-lg px-4 text-white disabled:opacity-50 ${currentTheme.button}`}><Send className="h-5 w-5" /></button>
                 </form>
               </aside>
@@ -1342,13 +1347,6 @@ export default function KidsDashboard() {
                                           ? `You have ${kid?.reward_balance || 0} ${formatReward(kid?.reward_type, kid?.reward_balance || 0)}. This reward costs ${item.cost} ${formatReward(kid?.reward_type, item.cost)}.`
                                           : `Cost: ${item.cost} ${formatReward(kid?.reward_type, item.cost)}`}
                                       </p>
-                                      {(kid?.reward_balance || 0) < item.cost && (
-                                        <div className="mt-2 max-w-52">
-                                          <div className={`mt-1.5 h-2.5 overflow-hidden rounded-full ${isDarkTheme ? 'bg-slate-700' : 'bg-violet-100'}`} aria-label={`${Math.min(100, Math.round(((kid?.reward_balance || 0) / Math.max(item.cost, 1)) * 100))}% earned toward ${item.name}`}>
-                                            <div className="kid-reward-progress h-full rounded-full bg-gradient-to-r from-violet-500 via-fuchsia-400 to-amber-400" style={{ width: `${Math.min(100, ((kid?.reward_balance || 0) / Math.max(item.cost, 1)) * 100)}%` }} />
-                                          </div>
-                                        </div>
-                                      )}
                                     </div>
                                   </div>
                                 </div>

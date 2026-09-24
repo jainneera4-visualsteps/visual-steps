@@ -154,7 +154,7 @@ export default function AssignedActivities() {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
-  const [activityTypes, setActivityTypes] = useState<string[]>([]);
+  const [activityTypeCategories, setActivityTypeCategories] = useState<{ name: string; category: string }[]>([]);
   const [activityCategories, setActivityCategories] = useState<string[]>([]);
   const [previewActivity, setPreviewActivity] = useState<Activity | null>(null);
   const quickStartFormOpened = useRef(false);
@@ -167,9 +167,6 @@ export default function AssignedActivities() {
     }
   }, [kidId]);
 
-  useEffect(() => {
-    console.log('Activity types:', activityTypes);
-  }, [activityTypes]);
   const [currentMonth, setCurrentMonth] = useState(() => {
     const zoned = getZonedTime();
     return new Date(zoned.year, zoned.month - 1, 1);
@@ -784,6 +781,12 @@ export default function AssignedActivities() {
   });
   const [formError, setFormError] = useState<string | null>(null);
   const [isSavingActivity, setIsSavingActivity] = useState(false);
+  const matchingSameDayActivity = !editingActivity && formData.category.trim() && formData.activityType.trim() && formData.dueDate
+    ? activities.find(item => item.kid_id === kidId
+      && item.due_date === formData.dueDate
+      && item.category?.trim().toLocaleLowerCase() === formData.category.trim().toLocaleLowerCase()
+      && item.activity_type.trim().toLocaleLowerCase() === formData.activityType.trim().toLocaleLowerCase())
+    : null;
 
   const fetchData = async (options: { silent?: boolean; skipSamples?: boolean } = {}) => {
     const { silent = false, skipSamples = false } = options;
@@ -944,8 +947,7 @@ export default function AssignedActivities() {
       const res = await apiFetch('/api/activity-types');
       if (res.ok) {
         const data = await safeJson(res);
-        console.log('Fetched activity types:', data.types);
-        setActivityTypes(data.types);
+        setActivityTypeCategories(Array.isArray(data.typeCategories) ? data.typeCategories : []);
       } else {
         console.error('Failed to fetch activity types, status:', res.status);
       }
@@ -4314,7 +4316,7 @@ export default function AssignedActivities() {
                         list="activity-categories"
                         className="flex h-8 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-transparent"
                         value={formData.category}
-                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                        onChange={(e) => setFormData(previous => ({ ...previous, category: e.target.value, activityType: previous.category === e.target.value ? previous.activityType : '' }))}
                         placeholder="e.g., Education, Chores"
                         readOnly={!!editingActivity}
                       />
@@ -4351,12 +4353,14 @@ export default function AssignedActivities() {
                         required
                         placeholder="e.g., Read a book"
                         disabled={!!editingActivity}
-                        autoComplete="on"
+                        autoComplete="off"
                       />
                       <datalist id="activity-types">
                         {(() => {
-                          const options = Array.from(new Set([...activityTypes]));
-                          console.log('Datalist options:', options);
+                          const selectedCategory = formData.category.trim().toLocaleLowerCase();
+                          const options = Array.from(new Set(activityTypeCategories
+                            .filter(item => selectedCategory && item.category.trim().toLocaleLowerCase() === selectedCategory)
+                            .map(item => item.name))).sort();
                           return options.map((type) => (
                             <option key={type} value={type} />
                           ));
@@ -4365,6 +4369,11 @@ export default function AssignedActivities() {
                     </div>
                   </div>
                 </div>
+                {matchingSameDayActivity && (
+                  <div role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                    <strong>Already on this learner’s schedule.</strong> An activity with this category and name exists on {formatSimpleDate(formData.dueDate)}. You can review it in the Activities list, or continue if this separate assignment is intentional.
+                  </div>
+                )}
 
                 <div className="space-y-0.5" data-guest-tour="activity-description">
                   <div className="flex items-center gap-1.5 mb-1">
@@ -4573,7 +4582,7 @@ export default function AssignedActivities() {
                               <HelpCircle className="h-4 w-4 text-yellow-700" />
                             </div>
                             <span className="font-bold text-[15px] leading-tight text-slate-900 normal-case">
-                              Activities start appearing on your child's dashboard from this date. If not finished, the activity will automatically roll over to the next day.
+                              This is the date the activity is offered. If it is not chosen by the end of the day, it moves to the parent’s Not Chosen list instead of rolling over.
                             </span>
                           </div>
                           <div className="absolute left-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>

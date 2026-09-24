@@ -340,6 +340,26 @@
   .kid-theme-hero, .kid-theme-art { --kid-glow-one: 255 151 151; --kid-glow-two: 255 183 213; --kid-glow-three: 255 210 150; --kid-primary: 172 45 67; --kid-secondary: 157 73 113; }
   .kid-theme-space { --kid-glow-one: 105 121 202; --kid-glow-two: 128 100 185; --kid-glow-three: 79 159 196; --kid-primary: 99 126 235; --kid-secondary: 136 108 226; }
 
+  .kid-activity-detail .activity-print-card {
+    border-color: rgb(var(--kid-primary) / 0.28);
+    background: linear-gradient(150deg, rgb(var(--kid-glow-one) / 0.18), rgb(255 255 255 / 0.96) 38%, rgb(var(--kid-glow-two) / 0.13));
+  }
+  .kid-activity-detail > div:first-child h1 { color: rgb(var(--kid-primary)); }
+  .kid-activity-detail .activity-print-card > div:first-child { border-color: rgb(var(--kid-primary) / 0.22); }
+  .kid-activity-detail .activity-print-card h3 { color: rgb(var(--kid-primary)); }
+  .kid-activity-detail .kid-activity-step {
+    border-color: rgb(var(--kid-primary) / 0.22);
+    border-left: 4px solid rgb(var(--kid-primary) / 0.68);
+    background: rgb(255 255 255 / 0.96);
+  }
+  .kid-activity-detail .kid-activity-step--checked { border-left-color: #059669; background: #ecfdf5; }
+  .kid-activity-detail .kid-activity-step button[aria-pressed="false"] { border-color: rgb(var(--kid-primary) / 0.6); color: rgb(var(--kid-primary)); }
+  .kid-activity-detail .kid-activity-support > div,
+  .kid-activity-detail .kid-activity-message { border-color: rgb(var(--kid-primary) / 0.38); }
+  .kid-activity-detail .kid-activity-message { color: rgb(var(--kid-primary)); }
+  .kid-activity-detail .kid-activity-finish { background: rgb(var(--kid-primary)); }
+  .kid-activity-detail .kid-activity-finish:hover { filter: brightness(0.9); }
+
   .kid-theme-glow {
     background: linear-gradient(125deg, rgb(var(--kid-glow-one) / 0.14), transparent 45%, rgb(var(--kid-glow-two) / 0.14));
   }
@@ -1379,8 +1399,7 @@ p.text-right {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .kid-reward-goal-card,
-  .kid-reward-progress { animation: none !important; }
+  .kid-reward-goal-card { animation: none !important; }
   .product-demo__image,
   .product-demo__caption,
   .product-demo__timeline button span { animation: none !important; }
@@ -1391,18 +1410,8 @@ p.text-right {
   50% { box-shadow: 0 7px 24px rgb(124 58 237 / 0.22); }
 }
 
-@keyframes kid-reward-progress-shimmer {
-  0%, 100% { filter: brightness(1); }
-  50% { filter: brightness(1.2); }
-}
-
 .kid-reward-goal-card {
   animation: kid-reward-gentle-glow 3.2s ease-in-out infinite;
-}
-
-.kid-reward-progress {
-  min-width: 0.45rem;
-  animation: kid-reward-progress-shimmer 2.4s ease-in-out infinite;
 }
 
 /* Focused progress views reuse the established result tables without showing

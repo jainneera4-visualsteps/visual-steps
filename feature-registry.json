@@ -15,6 +15,29 @@
     "introducedOn": "2026-03-01",
     "updates": [
       {
+        "updatedOn": "2026-09-24",
+        "title": "Category-matched activity names",
+        "summary": "Add Activity suggests only names previously used in the selected category.",
+        "details": "After a parent chooses or types an activity category, the Activity Name suggestions show names from that category rather than every saved activity name. Parents can still type a new name. Changing the category clears the previous name so an unrelated suggestion is not carried forward. If the same learner already has that category and name on the selected date, a non-blocking notice points this out before saving; intentional separate assignments remain possible. Existing activity names remain unchanged while editing.",
+        "familyImpact": "Parents find relevant familiar activity names more quickly without losing the option to create a new choice for the learner.",
+        "guideParagraphs": [
+          "Choose the activity category first, then select a suggested activity name or enter a new one. Suggestions are based on activities already used in that category. If an assignment with the same category and name already exists for this learner on the selected date, review the notice and decide whether a separate assignment is intentional."
+        ],
+        "help": "In Add Activity, select Activity Category before Activity Name. The name suggestions now match the chosen category, and a new name can still be typed."
+      },
+      {
+        "updatedOn": "2026-09-24",
+        "title": "Clearer learner activity details",
+        "summary": "Learners see one readable step sequence, nearby-help guidance, and a calm finish action after the steps.",
+        "details": "The learner activity view displays visual steps in a single column with larger text and touch targets. Theme colors accent the steps without reducing text contrast. A compact help prompt preserves the learner's chosen spoken, sign, or card method; Message Parent returns to the existing family chat. The finish action follows the steps, while a reminder explains that the learner may take a break and return to saved step checks. Parent previews retain their existing layout.",
+        "familyImpact": "A predictable reading order makes the selected activity easier to follow without turning the available choices into a checklist. Learners can ask for nearby help or send a message, pause safely, and finish at their own pace.",
+        "guideParagraphs": [
+          "After choosing an activity, read its steps from top to bottom. Checkmarks can mark steps that were done, and they stay saved if the learner takes a break.",
+          "Use the family's familiar help phrase, sign, or card when a nearby adult can help. Message Parent opens the existing chat when a written message is more useful. Finishing the activity does not require every step to be checked."
+        ],
+        "help": "Open an available choice on the learner dashboard. Follow the single-column steps, use Need help or Message Parent if useful, and choose I’m finished with this activity when done. Back to List allows a break without clearing checked steps."
+      },
+      {
         "updatedOn": "2026-09-23",
         "title": "Review choices that were not selected",
         "summary": "Unchosen activities keep their original date and move to a parent-only Not Chosen view instead of silently moving to tomorrow.",
