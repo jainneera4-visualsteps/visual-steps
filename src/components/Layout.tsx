@@ -5,7 +5,7 @@ import { LogOut, Menu, X, Lightbulb, ChevronDown, BookOpen, FileText, Gamepad2, 
 import { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { Tooltip } from './ui/Tooltip';
-import { ParentAssistant } from './ParentAssistant';
+import { OPEN_PARENT_ASSISTANT_EVENT, ParentAssistant } from './ParentAssistant';
 import { endGuestSession, isGuestSession } from '../guest/guestSession';
 import { apiFetch, clearApiReadCache, safeJson } from '../utils/api';
 import { getRewardIcon } from '../utils/rewardUtils';
@@ -148,7 +148,8 @@ export function Layout() {
       { label: 'Current', to: `${learnerActivitiesRoute}?tab=activities` },
       ...(activityWorkspaceCounts.needsAttention > 0 ? [{ label: 'Needs Attention', to: `${learnerActivitiesRoute}?tab=help_requested` }] : []),
       ...(activityWorkspaceCounts.verification > 0 ? [{ label: 'Verification', to: `${learnerActivitiesRoute}?tab=verification` }] : []),
-      ...(activityWorkspaceCounts.completed > 0 ? [{ label: 'Completed', to: `${learnerActivitiesRoute}?tab=completed` }] : []),
+      { label: 'Completed', to: `${learnerActivitiesRoute}?tab=completed` },
+      { label: 'Not Chosen', to: `${learnerActivitiesRoute}?tab=not_chosen` },
       ...(activityWorkspaceCounts.onHold > 0 ? [{ label: 'On Hold', to: `${learnerActivitiesRoute}?tab=on_hold` }] : []),
       ...(activityWorkspaceCounts.ended > 0 ? [{ label: 'Ended', to: `${learnerActivitiesRoute}?tab=ended` }] : []),
     ],
@@ -252,8 +253,7 @@ export function Layout() {
       const requestedTab = new URLSearchParams(currentLocation.search).get('tab');
       const activeListIsEmpty = requestedTab === 'help_requested' ? nextCounts.needsAttention === 0
         : requestedTab === 'verification' ? nextCounts.verification === 0
-          : requestedTab === 'completed' ? nextCounts.completed === 0
-            : requestedTab === 'on_hold' ? nextCounts.onHold === 0
+          : requestedTab === 'on_hold' ? nextCounts.onHold === 0
               : requestedTab === 'ended' ? nextCounts.ended === 0
                 : false;
       if (currentLocation.pathname.startsWith('/assigned-activities/') && activeListIsEmpty) {
@@ -842,14 +842,17 @@ export function Layout() {
         <div className="flex w-full flex-col items-center gap-2 px-4">
           <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm font-bold text-slate-600" aria-label="Public information">
             <Link to="/about" className="hover:text-brand-600">About</Link>
-            <Link to="/testimonials" className="hover:text-brand-600">Testimonials</Link>
-            <Link to="/pricing" className="hover:text-brand-600">Plans</Link>
             <Link to="/contact" className="hover:text-brand-600">Contact</Link>
-            <Link to="/privacy" className="hover:text-brand-600">Privacy</Link>
-            <Link to="/terms" className="hover:text-brand-600">Terms</Link>
             <Link to="/cookies" className="hover:text-brand-600">Cookies & Analytics</Link>
             {publicLinks.facebook && <a href={publicLinks.facebook} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 hover:text-brand-600"><Facebook className="h-4 w-4" />Facebook</a>}
             {publicLinks.instagram && <a href={publicLinks.instagram} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 hover:text-brand-600"><Instagram className="h-4 w-4" />Instagram</a>}
+            {!guestMode && (user || location.pathname === '/' || location.pathname === '/login') && (
+              <button type="button" onClick={() => window.dispatchEvent(new Event(OPEN_PARENT_ASSISTANT_EVENT))} className="hover:text-brand-600">Parent Assistant</button>
+            )}
+            <Link to="/pricing" className="hover:text-brand-600">Plans</Link>
+            <Link to="/privacy" className="hover:text-brand-600">Privacy</Link>
+            <Link to="/terms" className="hover:text-brand-600">Terms</Link>
+            <Link to="/testimonials" className="hover:text-brand-600">Testimonials</Link>
           </nav>
           <div className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">
             &copy; {new Date().getFullYear()} Visual Steps.

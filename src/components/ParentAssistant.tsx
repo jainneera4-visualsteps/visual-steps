@@ -46,6 +46,7 @@ const plainTextForCopy = (value: string) => value
   .trim();
 
 const deviceTimezone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York';
+export const OPEN_PARENT_ASSISTANT_EVENT = 'visual-steps:open-parent-assistant';
 
 export function ParentAssistant({ publicMode = false }: { publicMode?: boolean }) {
   const suggestions = publicMode ? guestSuggestions : parentSuggestions;
@@ -53,6 +54,7 @@ export function ParentAssistant({ publicMode = false }: { publicMode?: boolean }
     ? { id: 'welcome', role: 'assistant', content: 'Hi! I can explain what families can expect from Visual Steps and how its features work. I cannot access or discuss any parent or child records before sign-in.' }
     : welcomeMessage;
   const [isOpen, setIsOpen] = useState(false);
+  const [showInvitation, setShowInvitation] = useState(true);
   const [messages, setMessages] = useState<ChatMessage[]>([initialMessage]);
   const [question, setQuestion] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -66,6 +68,12 @@ export function ParentAssistant({ publicMode = false }: { publicMode?: boolean }
   const [speakingMessageId, setSpeakingMessageId] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const openFromNavigation = () => setIsOpen(true);
+    window.addEventListener(OPEN_PARENT_ASSISTANT_EVENT, openFromNavigation);
+    return () => window.removeEventListener(OPEN_PARENT_ASSISTANT_EVENT, openFromNavigation);
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -223,13 +231,28 @@ export function ParentAssistant({ publicMode = false }: { publicMode?: boolean }
     void askQuestion(question);
   };
 
+  const dismissInvitation = () => {
+    setShowInvitation(false);
+  };
+
   return (
     <>
+      {!isOpen && showInvitation && (
+        <div className="fixed bottom-3 right-16 z-[70] flex max-w-[min(15rem,calc(100vw-5rem))] items-center gap-1.5 rounded-full border border-white/80 bg-gradient-to-br from-blue-100/80 via-white/70 to-emerald-100/80 px-3 py-2 text-left shadow-[0_8px_28px_rgba(24,91,145,0.16)] ring-1 ring-blue-200/60 backdrop-blur-xl sm:max-w-xs" role="note">
+          <span aria-hidden="true" className="pointer-events-none absolute bottom-5 -right-2 h-4 w-4 rotate-45 rounded-[3px] border-r border-t border-white/80 bg-emerald-100/85 shadow-[2px_-2px_4px_rgba(24,91,145,0.06)]" />
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-blue-600 to-emerald-500 text-white shadow-sm" aria-hidden="true"><Sparkles className="h-4 w-4" /></span>
+          <button type="button" onClick={() => setIsOpen(true)} className="text-left text-[11px] font-semibold leading-4 text-slate-700 hover:text-blue-800 sm:text-xs sm:leading-5">
+            <span className="block font-black text-blue-700">Need a hand?</span>
+            {publicMode ? 'Ask the Parent Assistant.' : 'Ask about activities or progress.'}
+          </button>
+          <button type="button" onClick={dismissInvitation} className="shrink-0 rounded-full p-1 text-slate-500 hover:bg-white/70 hover:text-slate-800" aria-label="Dismiss Parent Assistant invitation"><X className="h-4 w-4" /></button>
+        </div>
+      )}
       <button
         type="button"
         onClick={() => setIsOpen(true)}
         className={`fixed bottom-3 right-3 z-[70] flex h-11 w-11 items-center justify-center rounded-full border-2 border-white/90 bg-gradient-to-br from-blue-600 to-emerald-500 p-0 text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200 ${isOpen ? 'pointer-events-none opacity-0' : ''}`}
-        aria-label="Open parent AI assistant"
+        aria-label="Open Parent Assistant"
         title="Ask Visual Steps"
       >
         <Sparkles className="h-4 w-4" />

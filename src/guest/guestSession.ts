@@ -7,6 +7,39 @@ let active = false;
 const today = () => new Date().toISOString().slice(0, 10);
 const now = () => new Date().toISOString();
 
+const closeGuestUnchosenActivities = () => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: kid.timezone || 'UTC', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(new Date());
+  const part = (type: string) => parts.find(item => item.type === type)?.value || '00';
+  const localDate = `${part('year')}-${part('month')}-${part('day')}`;
+  const currentMinutes = Number(part('hour')) * 60 + Number(part('minute'));
+  const [endHour, endMinute] = String(kid.end_time || '24:00').split(':').map(Number);
+  const pastEnd = currentMinutes >= endHour * 60 + endMinute;
+  const additions: Array<Record<string, any>> = [];
+  activities = activities.map(activity => {
+    if (activity.status !== 'pending' || !(activity.due_date < localDate || (pastEnd && activity.due_date === localDate))) return activity;
+    const reason = activity.unavailability_kind === 'cancelled' ? 'cancelled'
+      : activity.unavailability_kind === 'replaced' ? 'replaced'
+      : activity.unavailable_for_now ? 'temporarily_unavailable'
+      : activity.due_date === localDate ? 'day_ended' : 'date_passed';
+    if (activity.unavailability_kind !== 'temporary' && activity.repeat_frequency === 'Daily') {
+      const nextDate = new Date(`${localDate}T12:00:00Z`);
+      if (pastEnd) nextDate.setUTCDate(nextDate.getUTCDate() + 1);
+      const dueDate = nextDate.toISOString().slice(0, 10);
+      if (!activity.repeats_till || dueDate <= activity.repeats_till) {
+        additions.push({ ...activity, id: crypto.randomUUID(), due_date: dueDate, status: 'pending',
+          unavailable_for_now: false, unavailability_kind: null, unavailability_reason: null,
+          replacement_activity_id: null, not_chosen_reason: null, not_chosen_at: null,
+          steps: (activity.steps || []).map((step: Record<string, any>) => ({ ...step, id: nextGuestStepId++, is_completed: false, completed_at: null })) });
+      }
+    }
+    return { ...activity, status: 'not_chosen', not_chosen_reason: reason, not_chosen_at: now() };
+  });
+  activities = [...activities, ...additions];
+};
+
 export const guestProfile = {
   id: GUEST_PARENT_ID,
   email: 'guest@visualsteps.demo',
@@ -115,6 +148,10 @@ const normalizeGuestActivity = (body: Record<string, any>, current: Record<strin
   exact_time: body.exactTime ?? body.exact_time ?? current.exact_time ?? '',
   preparation_minutes: body.preparationMinutes ?? body.preparation_minutes ?? current.preparation_minutes ?? 0,
   after_time_passes: body.afterTimePasses ?? body.after_time_passes ?? current.after_time_passes ?? 'keep_available',
+  unavailable_for_now: body.unavailable_for_now ?? current.unavailable_for_now ?? false,
+  unavailability_kind: body.unavailability_kind ?? current.unavailability_kind ?? null,
+  unavailability_reason: body.unavailability_reason ?? current.unavailability_reason ?? null,
+  replacement_activity_id: body.replacement_activity_id ?? current.replacement_activity_id ?? null,
   image_url: body.imageUrl ?? body.image_url ?? current.image_url ?? '',
   due_date: body.dueDate ?? body.due_date ?? current.due_date ?? today(),
   requires_verification: body.requiresVerification ?? body.requires_verification ?? current.requires_verification ?? false,
@@ -194,7 +231,7 @@ export async function guestApiFetch(input: RequestInfo | URL, init?: RequestInit
       const hasStep = (activity.steps || []).some((step: Record<string, any>) => String(step.id) === stepId);
       if (!hasStep) return activity;
       activityFound = true;
-      if (activity.status !== 'pending') return activity;
+      if (activity.status !== 'pending' || activity.unavailable_for_now) return activity;
       const completedAt = body.isCompleted === true ? now() : null;
       const steps = (activity.steps || []).map((step: Record<string, any>) => {
         if (String(step.id) !== stepId) return step;
@@ -206,6 +243,21 @@ export async function guestApiFetch(input: RequestInfo | URL, init?: RequestInit
     if (!activityFound) return json({ error: 'Activity step not found.' }, 404);
     if (!updatedStep) return json({ error: 'Only steps in an available activity can be changed.' }, 409);
     return json({ step: updatedStep });
+  }
+  if (/^\/api\/activities\/[^/]+\/availability$/.test(path) && method === 'PATCH') {
+    const id = path.split('/')[3];
+    const existing = activities.find(item => item.id === id);
+    if (!existing || existing.status !== 'pending') return json({ error: 'Activity not found or not available for changes.' }, 404);
+    const unavailable = body.unavailableForNow === true;
+    const kind = unavailable ? String(body.kind || 'temporary') : null;
+    const reason = unavailable ? String(body.reason || '').trim() : null;
+    const replacementId = unavailable && kind === 'replaced' ? String(body.replacementActivityId || '') : null;
+    if (unavailable && (!['temporary', 'cancelled', 'replaced'].includes(kind!) || !reason || reason.length > 180)) return json({ error: 'Choose a change and write a short reason.' }, 400);
+    if (kind === 'replaced' && (existing.due_date !== today() || !activities.some(item => item.id === replacementId && item.kid_id === existing.kid_id && item.due_date > today() && item.status === 'pending' && !item.unavailable_for_now))) return json({ error: 'Choose a pending activity assigned for a future date.' }, 400);
+    activities = activities.map(item => item.id === id
+      ? { ...item, unavailable_for_now: unavailable, unavailability_kind: kind, unavailability_reason: reason, replacement_activity_id: replacementId }
+      : kind === 'replaced' && item.id === replacementId ? { ...item, due_date: today() } : item);
+    return json({ activity: activities.find(item => item.id === id) });
   }
   if (path.startsWith('/api/activities/') && method === 'PUT') {
     const id = path.split('/').pop();
@@ -219,7 +271,9 @@ export async function guestApiFetch(input: RequestInfo | URL, init?: RequestInit
       activities = [...activities, activity];
       return json({ activity }, 201);
     }
-    return json({ activities, completedTodayCount: activities.filter((item) => item.status === 'completed' && item.completion_date?.startsWith(today())).length });
+    closeGuestUnchosenActivities();
+    const visible = url.searchParams.get('mode') === 'kid' ? activities.filter(item => item.status !== 'not_chosen') : activities;
+    return json({ activities: visible.map(item => ({ ...item, replacement_activity_name: activities.find(candidate => candidate.id === item.replacement_activity_id && candidate.status === 'pending' && !candidate.unavailable_for_now && candidate.due_date === item.due_date)?.activity_type || null })), completedTodayCount: activities.filter((item) => item.status === 'completed' && item.completion_date?.startsWith(today())).length });
   }
   if (path.includes('/activity-history')) return json({ history: activities.filter((item) => item.status === 'completed').map((item) => ({ ...item, activity_history_steps: item.steps || [] })) });
   if (path === `/api/kids/${GUEST_KID_ID}/behavior-bonuses`) {

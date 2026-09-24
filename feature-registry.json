@@ -15,6 +15,31 @@
     "introducedOn": "2026-03-01",
     "updates": [
       {
+        "updatedOn": "2026-09-23",
+        "title": "Review choices that were not selected",
+        "summary": "Unchosen activities keep their original date and move to a parent-only Not Chosen view instead of silently moving to tomorrow.",
+        "details": "At the learner's day-end, available activities that were not selected become Not Chosen. If the app was not open then, older choices are closed on the next visit. The parent sees each activity's status and reason, and can view, edit, reassign, or delete it in a paginated grid after Completed. An activity paused, cancelled, or replaced by the parent keeps that reason. A repeating activity may create a separate future occurrence; its old occurrence is not moved. The learner does not see Not Chosen as a failure, and no tokens are deducted.",
+        "familyImpact": "Parents can review what was offered without allowing past choices to accumulate in the current list or making the learner feel obliged to catch up.",
+        "guideParagraphs": [
+          "Not Chosen is a planning record for parents, not an incomplete-task list for the learner. The original date and the reason remain visible.",
+          "Use View to inspect the activity and steps, Edit to adjust or reassign it, or Delete if the record is no longer useful. Pagination keeps longer histories manageable."
+        ],
+        "help": "In Activities, open Not Chosen after Completed. Review the date and reason for each activity, then choose View, Edit, or Delete. Reassign only when it is useful to offer the choice again."
+      },
+      {
+        "updatedOn": "2026-09-23",
+        "title": "Explain changed activity plans",
+        "summary": "Parents can temporarily pause, cancel, or replace a learner choice and explain the change in simple words.",
+        "details": "In the parent Activities grid, an available activity can be marked Unavailable for now, Cancelled, or Replaced. The parent writes a short learner-facing reason. For a replacement, the parent chooses a category and an already-assigned activity from tomorrow or later. Saving moves that future assignment to today and points the changed activity to it. The original activity stays visible in Changed plans but cannot be opened or completed. Its own steps and schedule are not changed by the availability control. The replacement remains a choice, never a mandatory next task. One-time movies, parties, meetings, and appointments continue to use the existing Activity to Steps structure rather than a separate event system.",
+        "familyImpact": "A learner can see why a familiar choice changed and what else is available without mistaking cancellation for a failure or being forced into the replacement.",
+        "guideParagraphs": [
+          "Use Unavailable for now when an activity may become possible again. Write a short, concrete reason such as Papa is working right now; we can ask about another time.",
+          "Use Cancelled when the plan will not happen this time. For Replaced, choose a category, then an activity already assigned for a future date. Its assignment moves to today and remains an available choice.",
+          "Changed plans appear separately from Available Choices on the learner dashboard. The learner can choose something else or take a break. Returning an activity to Available clears its change message."
+        ],
+        "help": "In Activities Setup, select Available or a changed-plan label beside today's activity. Choose Unavailable for now, Cancelled, or Replaced and add a short reason. For Replaced, choose a category and an upcoming assigned activity from tomorrow onward. Save to move that assignment to today. Choose Available later to restore the original choice."
+      },
+      {
         "updatedOn": "2026-09-12",
         "title": "A clearer parent workspace as Visual Steps grows",
         "summary": "Stable parent navigation groups related tools without turning every new feature into another top-level menu.",

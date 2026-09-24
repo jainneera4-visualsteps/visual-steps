@@ -29,7 +29,7 @@ interface Activity {
   description: string;
   link: string;
   image_url: string;
-  status: 'pending' | 'awaiting_verification' | 'completed' | 'on_hold' | 'ended';
+  status: 'pending' | 'awaiting_verification' | 'completed' | 'not_chosen' | 'on_hold' | 'ended';
   due_date: string;
   repeat_interval?: number;
   repeat_unit?: string;
@@ -95,6 +95,8 @@ export function ActivityDetailModal({
       ? 'On Hold'
       : activity.status === 'ended'
         ? 'Discontinued / Ended'
+        : activity.status === 'not_chosen'
+          ? 'Not Chosen'
         : activity.status === 'completed'
           ? 'Completed'
           : showToggleOnly

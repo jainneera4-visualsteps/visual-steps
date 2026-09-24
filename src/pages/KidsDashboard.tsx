@@ -30,7 +30,7 @@ interface Activity {
   description: string;
   link: string;
   image_url: string;
-  status: 'pending' | 'awaiting_verification' | 'completed' | 'on_hold' | 'ended';
+  status: 'pending' | 'awaiting_verification' | 'completed' | 'not_chosen' | 'on_hold' | 'ended';
   requires_verification?: boolean;
   submitted_at?: string;
   due_date: string;
@@ -49,6 +49,11 @@ interface Activity {
   exact_time?: string;
   preparation_minutes?: number;
   after_time_passes?: 'keep_available' | 'request_reschedule' | 'hide';
+  unavailable_for_now?: boolean;
+  unavailability_kind?: 'temporary' | 'cancelled' | 'replaced' | null;
+  unavailability_reason?: string | null;
+  replacement_activity_id?: string | null;
+  replacement_activity_name?: string | null;
 }
 
 interface Kid {
@@ -1426,10 +1431,12 @@ export default function KidsDashboard() {
                             const start = exactMinutes(activity);
                             return start !== null && nowMinutes > start + 30 && activity.time_guidance === 'fixed' && activity.after_time_passes === 'hide';
                           };
-                          const comingUp = activeTab === 'todo' ? filtered.filter(isComingUp) : [];
-                          const later = activeTab === 'todo' ? filtered.filter(activity => isLater(activity) && !isComingUp(activity)) : [];
+                          const unavailable = activeTab === 'todo' ? filtered.filter(activity => activity.unavailable_for_now) : [];
+                          const selectable = filtered.filter(activity => !activity.unavailable_for_now);
+                          const comingUp = activeTab === 'todo' ? selectable.filter(isComingUp) : [];
+                          const later = activeTab === 'todo' ? selectable.filter(activity => isLater(activity) && !isComingUp(activity)) : [];
                           const available = activeTab === 'todo'
-                            ? filtered.filter(activity => !isComingUp(activity) && !isLater(activity) && !isHiddenAfterTime(activity))
+                            ? selectable.filter(activity => !isComingUp(activity) && !isLater(activity) && !isHiddenAfterTime(activity))
                             : filtered;
                           const availableChoices = available;
                           const visibleAvailable = showAllActivityChoices ? availableChoices : availableChoices.slice(0, 6);
@@ -1445,6 +1452,7 @@ export default function KidsDashboard() {
                                   items: visibleAvailable,
                                 },
                                 ...(showLaterActivities ? [{ time: 'Later Today', items: later, description: 'These activities will be available later.' }] : []),
+                                { time: 'Changed plans', items: unavailable, description: 'You can choose another activity or take a break.' },
                               ].filter(group => group.items.length > 0)
                             : timeOfDayOrder.reduce((acc, time) => {
                                 const items = filtered.filter(a => (a.time_of_day || 'Any time') === time);
@@ -1467,11 +1475,13 @@ export default function KidsDashboard() {
                             'Available Choices': <Sparkles className="h-4 w-4 text-emerald-500" />,
                             'Coming Up': <Clock className="h-4 w-4 text-blue-500" />,
                             'Later Today': <Calendar className="h-4 w-4 text-slate-500" />,
+                            'Changed plans': <Clock className="h-4 w-4 text-slate-500" />,
                           };
                           const sectionTone: Record<string, string> = {
                             'Coming Up': isDarkTheme ? 'bg-blue-950/70 ring-blue-700/60' : 'bg-blue-50 ring-blue-200',
                             'Available Choices': isDarkTheme ? 'bg-emerald-950/60 ring-emerald-700/60' : 'bg-emerald-50 ring-emerald-200',
                             'Later Today': isDarkTheme ? 'bg-violet-950/60 ring-violet-700/60' : 'bg-violet-50 ring-violet-200',
+                            'Changed plans': isDarkTheme ? 'bg-slate-800 ring-slate-600' : 'bg-slate-100 ring-slate-200',
                           };
 
                           return (
@@ -1497,9 +1507,9 @@ export default function KidsDashboard() {
                                     {group.items.map((activity, activityIndex) => (
                                       <Card data-guest-tour={activity.status === 'pending' ? 'child-activity-card' : undefined}
                                         key={activity.id} 
-                                        className={`kid-activity-card relative overflow-hidden transition-all border-none ring-2 ${currentTheme.card} ${activity.status === 'completed' ? (isDarkTheme ? 'kid-activity-card--completed bg-slate-900/75' : 'bg-slate-50') + ' opacity-75 cursor-default' : activity.status === 'awaiting_verification' ? (isDarkTheme ? 'bg-slate-900' : 'bg-amber-50') + ' cursor-default' : (isDarkTheme ? 'bg-slate-900' : 'bg-white') + ' cursor-pointer hover:-translate-y-0.5 hover:shadow-md'}`}
+                                        className={`kid-activity-card relative overflow-hidden transition-all border-none ring-2 ${currentTheme.card} ${activity.unavailable_for_now ? (isDarkTheme ? 'bg-slate-800' : 'bg-slate-100') + ' cursor-default' : activity.status === 'completed' ? (isDarkTheme ? 'kid-activity-card--completed bg-slate-900/75' : 'bg-slate-50') + ' opacity-75 cursor-default' : activity.status === 'awaiting_verification' ? (isDarkTheme ? 'bg-slate-900' : 'bg-amber-50') + ' cursor-default' : (isDarkTheme ? 'bg-slate-900' : 'bg-white') + ' cursor-pointer hover:-translate-y-0.5 hover:shadow-md'}`}
                                         onClick={() => {
-                                          if (activity.status === 'pending') {
+                                          if (activity.status === 'pending' && !activity.unavailable_for_now) {
                                             setSelectedActivity(activity);
                                           }
                                         }}
@@ -1540,12 +1550,16 @@ export default function KidsDashboard() {
                                                 </div>
                                               )}
                                             </div>
-                                            
                                             {activity.description && (
-                                              <p className={`mt-0.5 text-sm font-medium ${currentTheme.cardSubtext} line-clamp-2 leading-tight`}>
+                                              <p className={`mt-0.5 text-sm font-medium ${currentTheme.cardSubtext} ${activity.unavailable_for_now ? '' : 'line-clamp-2'} leading-tight`}>
                                                 {activity.description}
                                               </p>
                                             )}
+                                            {activity.unavailable_for_now && <div className={`mt-1 space-y-1 text-sm ${isDarkTheme ? 'text-slate-200' : 'text-slate-700'}`}>
+                                              <p className="font-black">{activity.unavailability_kind === 'cancelled' ? 'Cancelled this time' : activity.unavailability_kind === 'replaced' ? 'Plans changed' : 'Not available right now'}</p>
+                                              {activity.unavailability_reason && <p className="font-medium normal-case">{activity.unavailability_reason}</p>}
+                                              {activity.unavailability_kind === 'replaced' && activity.replacement_activity_name && <p className="font-semibold normal-case">Another choice: {activity.replacement_activity_name}</p>}
+                                            </div>}
 
                                             {activity.status === 'awaiting_verification' && (
                                               <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">

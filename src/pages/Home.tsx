@@ -190,7 +190,7 @@ export default function Home() {
   return (
     <div className="w-full flex items-center justify-center">
       {/* Hero Section with Login */}
-      <section className="public-hero w-full bg-gradient-to-br from-brand-50/90 via-white to-emerald-50/60 px-5 py-8 sm:px-8 sm:py-12">
+      <section className="public-hero w-full bg-gradient-to-br from-brand-50/90 via-white to-emerald-50/60 px-5 pb-8 pt-5 sm:px-8 sm:pb-12 sm:pt-7">
         <div className="w-full">
           <div className="flex flex-col items-start gap-8 lg:flex-row">
             {/* Left: Hero Text */}

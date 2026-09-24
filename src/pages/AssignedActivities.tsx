@@ -20,13 +20,13 @@ interface ActivityStep {
   image_url?: string;
 }
 
-type ActivityStatus = 'pending' | 'awaiting_verification' | 'completed' | 'on_hold' | 'ended';
+type ActivityStatus = 'pending' | 'awaiting_verification' | 'completed' | 'not_chosen' | 'on_hold' | 'ended';
 type ActivityOutcome = '' | 'reassign' | 'on_hold' | 'ended';
 type ReassignmentLevel = 'same' | 'up' | 'down';
 type ActivityMeaning = 'available_choice' | 'important_today';
-type ActivityWorkspaceTab = 'activities' | 'help_requested' | 'verification' | 'completed' | 'on_hold' | 'ended' | 'history' | 'quiz_results' | 'rewards' | 'positive_recognition' | 'bonus_tokens';
+type ActivityWorkspaceTab = 'activities' | 'help_requested' | 'verification' | 'completed' | 'not_chosen' | 'on_hold' | 'ended' | 'history' | 'quiz_results' | 'rewards' | 'positive_recognition' | 'bonus_tokens';
 
-const ACTIVITY_WORKSPACE_TABS: ActivityWorkspaceTab[] = ['activities', 'help_requested', 'verification', 'completed', 'on_hold', 'ended', 'history', 'quiz_results', 'rewards', 'positive_recognition', 'bonus_tokens'];
+const ACTIVITY_WORKSPACE_TABS: ActivityWorkspaceTab[] = ['activities', 'help_requested', 'verification', 'completed', 'not_chosen', 'on_hold', 'ended', 'history', 'quiz_results', 'rewards', 'positive_recognition', 'bonus_tokens'];
 
 interface Activity {
   id: string;
@@ -60,6 +60,12 @@ interface Activity {
   exact_time?: string;
   preparation_minutes?: number;
   after_time_passes?: 'keep_available' | 'request_reschedule' | 'hide';
+  unavailable_for_now?: boolean;
+  unavailability_kind?: 'temporary' | 'cancelled' | 'replaced' | null;
+  unavailability_reason?: string | null;
+  replacement_activity_id?: string | null;
+  not_chosen_reason?: 'day_ended' | 'date_passed' | 'temporarily_unavailable' | 'cancelled' | 'replaced' | null;
+  not_chosen_at?: string | null;
 }
 
 interface ActivityHelpRequest {
@@ -139,6 +145,9 @@ export default function AssignedActivities() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [helpRequests, setHelpRequests] = useState<ActivityHelpRequest[]>([]);
   const [activitiesLoadError, setActivitiesLoadError] = useState<string | null>(null);
+  const [availabilitySavingId, setAvailabilitySavingId] = useState<string | null>(null);
+  const [availabilityError, setAvailabilityError] = useState<string | null>(null);
+  const [availabilityDraft, setAvailabilityDraft] = useState<{ activity: Activity; kind: 'available' | 'temporary' | 'cancelled' | 'replaced'; reason: string; category: string; replacementId: string } | null>(null);
   
   const [historyActivities, setHistoryActivities] = useState<Activity[]>([]);
   const [kid, setKid] = useState<Kid | null>(null);
@@ -214,6 +223,8 @@ export default function AssignedActivities() {
   const [purchaseItemsPerPage, setPurchaseItemsPerPage] = useState(10);
   const [activitiesPage, setActivitiesPage] = useState(1);
   const [activitiesItemsPerPage, setActivitiesItemsPerPage] = useState(10);
+  const [notChosenPage, setNotChosenPage] = useState(1);
+  const [notChosenItemsPerPage, setNotChosenItemsPerPage] = useState(10);
   const [quizResultsPage, setQuizResultsPage] = useState(1);
   const [quizResultsItemsPerPage, setQuizResultsItemsPerPage] = useState(10);
   const [deletingQuizResultId, setDeletingQuizResultId] = useState<string | null>(null);
@@ -255,6 +266,7 @@ export default function AssignedActivities() {
   useEffect(() => {
     setSelectedActivityIds([]);
     setCompletedPage(1);
+    setNotChosenPage(1);
     // Preserve the selected view while moving between activity tabs that
     // support both List and Calendar. This also prevents the guided tour's
     // direct Calendar callout from being reset to List after the button is
@@ -358,11 +370,15 @@ export default function AssignedActivities() {
   const visibleRewardItems = rewardItems
     .filter(item => !locationFilter || item.location === locationFilter)
     .sort((a, b) => Number(b.is_active !== false) - Number(a.is_active !== false) || a.cost - b.cost);
+  const todayInKidTimezone = getZonedTime(kid?.timezone).isoDate;
+  const upcomingReplacementActivities = availabilityDraft ? activities.filter(item =>
+    item.id !== availabilityDraft.activity.id && item.kid_id === availabilityDraft.activity.kid_id
+    && item.due_date > todayInKidTimezone && item.status === 'pending' && !item.unavailable_for_now,
+  ) : [];
   const rewardSections = [
     { label: 'Active Rewards', items: visibleRewardItems.filter(item => item.is_active !== false), tone: 'text-emerald-700' },
     { label: 'Inactive Rewards', items: visibleRewardItems.filter(item => item.is_active === false), tone: 'text-slate-500' },
   ];
-  const todayInKidTimezone = getZonedTime(kid?.timezone).isoDate;
   const todaysBehaviorBonuses = behaviorBonuses.filter(award => getZonedTime(kid?.timezone, new Date(award.awarded_at)).isoDate === todayInKidTimezone);
   const behaviorReasonChoices = [
     ['⏳', 'Waited calmly'], ['🙋', 'Asked for help'], ['🔄', 'Tried again'],
@@ -1570,6 +1586,28 @@ export default function AssignedActivities() {
     }
   };
 
+  const saveAvailability = async () => {
+    if (!availabilityDraft) return;
+    const { activity, kind, reason, replacementId } = availabilityDraft;
+    setAvailabilityError(null);
+    setAvailabilitySavingId(activity.id);
+    try {
+      const response = await apiFetch(`/api/activities/${encodeURIComponent(activity.id)}/availability`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ unavailableForNow: kind !== 'available', kind, reason, replacementActivityId: replacementId }),
+      });
+      const data = await safeJson(response);
+      if (!response.ok) throw new Error(data.error || 'Availability could not be changed.');
+      setActivities(current => current.map(item => item.id === activity.id ? { ...item, ...data.activity } : item));
+      setAvailabilityDraft(null);
+      await fetchData({ silent: true, skipSamples: true });
+    } catch (error: any) {
+      setAvailabilityError(error.message || 'Availability could not be changed.');
+    } finally {
+      setAvailabilitySavingId(null);
+    }
+  };
+
   const resolveHelpRequest = async (request: ActivityHelpRequest, resolution: 'helped' | 'ready_again' | 'put_on_hold') => {
     try {
       const response = await apiFetch(`/api/activity-help-requests/${encodeURIComponent(request.id)}`, {
@@ -1793,6 +1831,44 @@ export default function AssignedActivities() {
         </div>
       </div>
     );
+  };
+
+  const renderNotChosenTab = () => {
+    const rows = activities.filter(activity => activity.status === 'not_chosen')
+      .sort((a, b) => (b.due_date || '').localeCompare(a.due_date || ''));
+    const totalPages = Math.max(1, Math.ceil(rows.length / notChosenItemsPerPage));
+    const page = Math.min(notChosenPage, totalPages);
+    const visibleRows = rows.slice((page - 1) * notChosenItemsPerPage, page * notChosenItemsPerPage);
+    const reasonFor = (activity: Activity) => {
+      const reason = activity.not_chosen_reason === 'day_ended' ? 'The day ended before this choice was selected.'
+        : activity.not_chosen_reason === 'date_passed' ? 'The scheduled date passed without this choice being selected.'
+        : activity.not_chosen_reason === 'temporarily_unavailable' ? 'Parent made this unavailable for now.'
+        : activity.not_chosen_reason === 'cancelled' ? 'Parent cancelled this plan.'
+        : activity.not_chosen_reason === 'replaced' ? 'Parent offered another activity instead.'
+        : 'This choice was not selected on its scheduled date.';
+      return activity.unavailability_reason ? `${reason} ${activity.unavailability_reason}` : reason;
+    };
+    return <Card className="border-none ring-1 ring-slate-200 shadow-sm"><CardContent className="p-0">
+      <div className="border-b border-slate-100 px-4 py-3 text-sm text-slate-600">These were choices, not unfinished tasks. Their original dates stay visible, and no reward was removed.</div>
+      <div className="overflow-x-auto"><table className="w-full min-w-[950px] text-left text-sm">
+        <thead className="border-b bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="px-4 py-3">Activity</th><th className="px-4 py-3">Activity date</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Reason</th><th className="px-4 py-3 text-right">Actions</th></tr></thead>
+        <tbody className="divide-y divide-slate-100">{visibleRows.map(activity => <tr key={activity.id} className="hover:bg-slate-50">
+          <td className="px-4 py-3 font-bold text-slate-900">{activity.activity_type}</td>
+          <td className="whitespace-nowrap px-4 py-3 text-slate-600">{formatSimpleDate(activity.due_date)}</td>
+          <td className="px-4 py-3"><span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-700">Not Chosen</span></td>
+          <td className="max-w-md px-4 py-3 text-slate-600">{reasonFor(activity)}</td>
+          <td className="px-4 py-3"><div className="flex justify-end gap-1">
+            <Button variant="ghost" size="xs" aria-label={`View ${activity.activity_type}`} onClick={() => setPreviewActivity(activity)}><Eye className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="xs" aria-label={`Edit ${activity.activity_type}`} onClick={() => handleOpenForm(activity)}><Edit2 className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="xs" aria-label={`Delete ${activity.activity_type}`} onClick={() => setActivityToDelete(activity.id)}><Trash2 className="h-4 w-4 text-red-600" /></Button>
+          </div></td>
+        </tr>)}{rows.length === 0 && <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-500">No activities in Not Chosen.</td></tr>}</tbody>
+      </table></div>
+      {rows.length > 0 && <div className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3 text-sm">
+        <label>Per page <select value={notChosenItemsPerPage} onChange={event => { setNotChosenItemsPerPage(Number(event.target.value)); setNotChosenPage(1); }} className="ml-2 rounded border p-1"><option>10</option><option>20</option><option>50</option></select></label>
+        <div className="flex items-center gap-2"><Button variant="outline" size="xs" disabled={page <= 1} onClick={() => setNotChosenPage(page - 1)}><ChevronLeft className="h-4 w-4" /></Button><span>Page {page} of {totalPages} · {rows.length} activities</span><Button variant="outline" size="xs" disabled={page >= totalPages} onClick={() => setNotChosenPage(page + 1)}><ChevronRight className="h-4 w-4" /></Button></div>
+      </div>}
+    </CardContent></Card>;
   };
 
   const renderCompletedTab = (status: 'completed' | 'on_hold' | 'ended' = 'completed') => {
@@ -2366,6 +2442,8 @@ export default function AssignedActivities() {
                       ? <div className="flex items-center gap-3"><ShieldCheck className="h-8 w-8 text-amber-500" /> Waiting for Verification</div>
                     : activeTab === 'completed' 
                         ? <div className="flex items-center gap-3"><CheckCircle className="h-8 w-8 text-emerald-600" /> {kid?.name ? `${kid.name}'s ` : ''}Completed Activities</div>
+                        : activeTab === 'not_chosen'
+                          ? <div className="flex items-center gap-3"><Clock className="h-8 w-8 text-slate-600" /> {kid?.name ? `${kid.name}'s ` : ''}Not Chosen Activities</div>
                         : activeTab === 'on_hold'
                           ? <div className="flex items-center gap-3"><PauseCircle className="h-8 w-8 text-amber-500" /> {kid?.name ? `${kid.name}'s ` : ''}On Hold Activities</div>
                           : activeTab === 'ended'
@@ -2402,6 +2480,8 @@ export default function AssignedActivities() {
                       ? `Review activities ${kid?.name || 'your child'} submitted before rewards are granted.`
                     : activeTab === 'completed' 
                         ? 'Activities that have been marked as completed. You can repeat them if you want.' 
+                        : activeTab === 'not_chosen'
+                          ? 'Choices that ended without being selected, with their original date and reason.'
                         : activeTab === 'on_hold'
                           ? 'Paused activities can be opened and reassigned whenever the child is ready.'
                           : activeTab === 'ended'
@@ -2844,6 +2924,9 @@ export default function AssignedActivities() {
                               </div>
                             )}
                             {activity.activity_type}
+                            <button type="button" onClick={() => { setAvailabilityError(null); setAvailabilityDraft({ activity, kind: activity.unavailable_for_now ? activity.unavailability_kind || 'temporary' : 'available', reason: activity.unavailability_reason || '', category: activities.find(item => item.id === activity.replacement_activity_id)?.category || '', replacementId: activity.replacement_activity_id || '' }); }} className={`ml-2 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${activity.unavailable_for_now ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}>
+                              {activity.unavailable_for_now ? activity.unavailability_kind === 'cancelled' ? 'Cancelled' : activity.unavailability_kind === 'replaced' ? 'Replaced' : 'Unavailable for now' : 'Available · change'}
+                            </button>
                             {activity.link?.includes('/social-stories/view/') && (
                               <div className={`flex h-4 w-4 items-center justify-center rounded-full bg-blue-100 text-blue-600`}>
                                 <Eye className="h-2.5 w-2.5" />
@@ -2944,6 +3027,8 @@ export default function AssignedActivities() {
             </Card>
         )) : activeTab === 'completed' ? (
           renderCompletedTab()
+        ) : activeTab === 'not_chosen' ? (
+          renderNotChosenTab()
         ) : activeTab === 'on_hold' ? (
           renderCompletedTab('on_hold')
         ) : activeTab === 'ended' ? (
@@ -4009,12 +4094,13 @@ export default function AssignedActivities() {
                   )}
                 </div>
 
-                {editingActivity && ['completed', 'on_hold', 'ended'].includes(editingActivity.status) && (
+                {editingActivity && ['completed', 'not_chosen', 'on_hold', 'ended'].includes(editingActivity.status) && (
                   <fieldset className="rounded-lg border border-blue-200 bg-blue-50/60 px-3 pb-3 pt-2">
                     <legend className="px-1 text-xs font-black text-blue-950">What should happen next? <span className="text-red-600">*</span></legend>
                     <div className="mb-2 text-[11px] leading-4 text-blue-800">Choose one. Reassigning does not add the reward again.</div>
                     <div className="grid gap-1.5 sm:grid-cols-3">
                       {([
+                        ...(editingActivity.status === 'not_chosen' ? [['', 'Keep Not Chosen', 'Edit details without offering it again.'] as const] : []),
                         ['reassign', 'Reassign', 'Return it to Assigned Activities.'],
                         ['on_hold', 'On Hold', 'Pause it until the child is ready.'],
                         ['ended', 'Discontinued / Ended', 'Stop it without deleting its record.'],
@@ -4759,6 +4845,39 @@ export default function AssignedActivities() {
         </div>
       )}
       {/* Activity Delete Confirmation Modal */}
+      {availabilityDraft && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" role="presentation">
+          <Card className="max-h-[90vh] w-full max-w-lg overflow-y-auto shadow-xl" role="dialog" aria-modal="true" aria-labelledby="availability-title">
+            <CardHeader className="pb-2"><CardTitle id="availability-title" className="text-xl">Change availability: {availabilityDraft.activity.activity_type}</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-slate-600">The learner will see a simple explanation. The changed activity keeps its steps and schedule. If you choose Replaced, the future assignment you select moves to today.</p>
+              <fieldset className="space-y-2"><legend className="mb-2 text-sm font-bold text-slate-800">What changed?</legend>
+                {([
+                  ['available', 'Available', 'The learner can choose this activity.'],
+                  ['temporary', 'Unavailable for now', 'It may become available again.'],
+                  ['cancelled', 'Cancelled', 'It will not happen this time.'],
+                  ['replaced', 'Replaced', 'Another activity is available instead.'],
+                ] as const).map(([kind, label, help]) => <label key={kind} className={`flex items-start gap-2 rounded-xl border border-slate-200 p-2 text-sm ${kind === 'replaced' && availabilityDraft.activity.due_date !== todayInKidTimezone ? 'opacity-50' : 'cursor-pointer hover:bg-slate-50'}`}><input type="radio" name="availability-kind" value={kind} checked={availabilityDraft.kind === kind} disabled={kind === 'replaced' && availabilityDraft.activity.due_date !== todayInKidTimezone} onChange={() => setAvailabilityDraft(current => current ? { ...current, kind } : current)} className="mt-1" /><span><strong className="block text-slate-900">{label}</strong><span className="text-slate-600">{help}</span></span></label>)}
+              </fieldset>
+              {availabilityDraft.kind !== 'available' && <label className="block text-sm font-bold text-slate-800">What should the learner know?
+                <textarea required maxLength={180} value={availabilityDraft.reason} onChange={event => setAvailabilityDraft(current => current ? { ...current, reason: event.target.value } : current)} placeholder="For example: Papa is working right now. We can ask about another time." className="mt-1 min-h-20 w-full rounded-xl border border-slate-300 p-3 text-sm font-normal text-slate-900" />
+                <span className="mt-1 block text-xs font-normal text-slate-500">Use a short, concrete reason. This will be visible to the learner.</span>
+              </label>}
+              {availabilityDraft.kind === 'replaced' && <div className="space-y-3">
+                <label className="block text-sm font-bold text-slate-800">Category
+                  <select required value={availabilityDraft.category} onChange={event => setAvailabilityDraft(current => current ? { ...current, category: event.target.value, replacementId: '' } : current)} className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm font-normal text-slate-900"><option value="">Choose a category</option>{Array.from(new Set(upcomingReplacementActivities.map(item => item.category || 'Uncategorized'))).sort().map(category => <option key={category} value={category}>{category}</option>)}</select>
+                </label>
+                <label className="block text-sm font-bold text-slate-800">Activity name
+                  <select required value={availabilityDraft.replacementId} disabled={!availabilityDraft.category} onChange={event => setAvailabilityDraft(current => current ? { ...current, replacementId: event.target.value } : current)} className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm font-normal text-slate-900 disabled:bg-slate-100"><option value="">Choose an upcoming assigned activity</option>{upcomingReplacementActivities.filter(item => (item.category || 'Uncategorized') === availabilityDraft.category).map(item => <option key={item.id} value={item.id}>{item.activity_type} · {formatSimpleDate(item.due_date)}</option>)}</select>
+                </label>
+                <p className="text-xs leading-5 text-slate-600">Choose from tomorrow onward. Saving moves this assignment to today so it appears as a choice; it does not require the learner to do it.</p>
+              </div>}
+              {availabilityError && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{availabilityError}</p>}
+              <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setAvailabilityDraft(null)} disabled={availabilitySavingId !== null}>Close</Button><Button onClick={() => void saveAvailability()} disabled={availabilitySavingId !== null || (availabilityDraft.kind !== 'available' && !availabilityDraft.reason.trim()) || (availabilityDraft.kind === 'replaced' && !availabilityDraft.replacementId)}>{availabilitySavingId ? 'Saving…' : 'Save change'}</Button></div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
       {activityToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
           <Card className="w-full max-w-sm shadow-xl">

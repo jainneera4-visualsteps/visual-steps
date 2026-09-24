@@ -42,6 +42,31 @@ const productFeatureRegistry = [
     "introducedOn": "2026-03-01",
     "updates": [
       {
+        "updatedOn": "2026-09-23",
+        "title": "Review choices that were not selected",
+        "summary": "Unchosen activities keep their original date and move to a parent-only Not Chosen view instead of silently moving to tomorrow.",
+        "details": "At the learner's day-end, available activities that were not selected become Not Chosen. If the app was not open then, older choices are closed on the next visit. The parent sees each activity's status and reason, and can view, edit, reassign, or delete it in a paginated grid after Completed. An activity paused, cancelled, or replaced by the parent keeps that reason. A repeating activity may create a separate future occurrence; its old occurrence is not moved. The learner does not see Not Chosen as a failure, and no tokens are deducted.",
+        "familyImpact": "Parents can review what was offered without allowing past choices to accumulate in the current list or making the learner feel obliged to catch up.",
+        "guideParagraphs": [
+          "Not Chosen is a planning record for parents, not an incomplete-task list for the learner. The original date and the reason remain visible.",
+          "Use View to inspect the activity and steps, Edit to adjust or reassign it, or Delete if the record is no longer useful. Pagination keeps longer histories manageable."
+        ],
+        "help": "In Activities, open Not Chosen after Completed. Review the date and reason for each activity, then choose View, Edit, or Delete. Reassign only when it is useful to offer the choice again."
+      },
+      {
+        "updatedOn": "2026-09-23",
+        "title": "Explain changed activity plans",
+        "summary": "Parents can temporarily pause, cancel, or replace a learner choice and explain the change in simple words.",
+        "details": "In the parent Activities grid, an available activity can be marked Unavailable for now, Cancelled, or Replaced. The parent writes a short learner-facing reason. For a replacement, the parent chooses a category and an already-assigned activity from tomorrow or later. Saving moves that future assignment to today and points the changed activity to it. The original activity stays visible in Changed plans but cannot be opened or completed. Its own steps and schedule are not changed by the availability control. The replacement remains a choice, never a mandatory next task. One-time movies, parties, meetings, and appointments continue to use the existing Activity to Steps structure rather than a separate event system.",
+        "familyImpact": "A learner can see why a familiar choice changed and what else is available without mistaking cancellation for a failure or being forced into the replacement.",
+        "guideParagraphs": [
+          "Use Unavailable for now when an activity may become possible again. Write a short, concrete reason such as Papa is working right now; we can ask about another time.",
+          "Use Cancelled when the plan will not happen this time. For Replaced, choose a category, then an activity already assigned for a future date. Its assignment moves to today and remains an available choice.",
+          "Changed plans appear separately from Available Choices on the learner dashboard. The learner can choose something else or take a break. Returning an activity to Available clears its change message."
+        ],
+        "help": "In Activities Setup, select Available or a changed-plan label beside today's activity. Choose Unavailable for now, Cancelled, or Replaced and add a short reason. For Replaced, choose a category and an upcoming assigned activity from tomorrow onward. Save to move that assignment to today. Choose Available later to restore the original choice."
+      },
+      {
         "updatedOn": "2026-09-12",
         "title": "A clearer parent workspace as Visual Steps grows",
         "summary": "Stable parent navigation groups related tools without turning every new feature into another top-level menu.",
@@ -2685,81 +2710,94 @@ app.get('/api/email-health', authenticateToken, async (_req: any, res) => {
   }
 });
 
-const moveOverdueActivities = async (supabase: any, kidId: string, kid: any, today: string, currentTime: number) => {
-  let isPastEndTime = false;
-  if (kid.end_time) {
-    const [endHour, endMinute] = kid.end_time.split(':').map(Number);
-    const endTime = endHour * 60 + endMinute;
-    if (currentTime >= endTime) {
-      isPastEndTime = true;
+const nextRepeatDateAfter = (activity: any, minimumDate: string): string | null => {
+  const frequency = String(activity.repeat_frequency || 'Never');
+  if (frequency === 'Never' || !activity.due_date) return null;
+  const date = new Date(activity.due_date + 'T12:00:00Z');
+  if (Number.isNaN(date.getTime())) return null;
+  for (let attempt = 0; attempt < 4000; attempt += 1) {
+    if (frequency === 'Daily') date.setUTCDate(date.getUTCDate() + 1);
+    else if (frequency === 'Weekly') date.setUTCDate(date.getUTCDate() + 7);
+    else if (frequency === 'Bi-Weekly') date.setUTCDate(date.getUTCDate() + 14);
+    else if (frequency === 'Monthly') date.setUTCMonth(date.getUTCMonth() + 1);
+    else if (frequency === 'Yearly') date.setUTCFullYear(date.getUTCFullYear() + 1);
+    else if (frequency === 'Weekdays') {
+      do { date.setUTCDate(date.getUTCDate() + 1); } while ([0, 6].includes(date.getUTCDay()));
+    } else if (frequency === 'Weekends') {
+      do { date.setUTCDate(date.getUTCDate() + 1); } while (![0, 6].includes(date.getUTCDay()));
+    } else {
+      const interval = Number(activity.repeat_interval || frequency.match(/^Every (\d+)/)?.[1]);
+      const unit = String(activity.repeat_unit || frequency.match(/^Every \d+ (\w+)/)?.[1] || '');
+      if (!Number.isInteger(interval) || interval < 1) return null;
+      if (unit.startsWith('day')) date.setUTCDate(date.getUTCDate() + interval);
+      else if (unit.startsWith('week')) date.setUTCDate(date.getUTCDate() + interval * 7);
+      else if (unit.startsWith('month')) date.setUTCMonth(date.getUTCMonth() + interval);
+      else if (unit.startsWith('year')) date.setUTCFullYear(date.getUTCFullYear() + interval);
+      else return null;
     }
+    const nextDate = date.toISOString().slice(0, 10);
+    if (activity.repeats_till && nextDate > activity.repeats_till) return null;
+    if (nextDate >= minimumDate) return nextDate;
   }
+  return null;
+};
 
-  console.log('moveOverdueActivities: kidId:', kidId, 'today:', today, 'currentTime:', currentTime, 'isPastEndTime:', isPastEndTime);
+const closeUnchosenActivities = async (supabase: any, kidId: string, kid: any, today: string, currentTime: number) => {
+  const [endHour, endMinute] = String(kid.end_time || '24:00').split(':').map(Number);
+  const isPastEndTime = currentTime >= endHour * 60 + endMinute;
+  if (!supabase) return;
 
-  if (!supabase) {
-    console.error('moveOverdueActivities: supabase is undefined');
-    return;
-  }
-
-  // Find pending activities that are overdue
-  // If past end_time, activities due today or earlier are overdue.
-  // If not past end_time, only activities due before today are overdue.
-  let query = supabase
-    .from('activities')
-    .select('id, due_date')
-    .eq('kid_id', kidId)
-    .eq('status', 'pending');
-
-  if (isPastEndTime) {
-    query = query.lte('due_date', today);
-  } else {
-    query = query.lt('due_date', today);
-  }
-
+  // Expire today's remaining choices at day-end, or older choices on the next
+  // visit. Do not silently change their original date.
+  let query = supabase.from('activities').select('*').eq('kid_id', kidId).eq('status', 'pending');
+  query = isPastEndTime ? query.lte('due_date', today) : query.lt('due_date', today);
   const { data: overdueActivities, error: overdueError } = await query;
-  
   if (overdueError) {
-    // Check if it's an HTML error (Cloudflare/Supabase infrastructure)
-    const errorMsg = overdueError.message || '';
-    if (errorMsg.includes('<!DOCTYPE html>') || errorMsg.includes('<html') || (typeof overdueError === 'string' && overdueError.includes('<html'))) {
-      console.warn(`moveOverdueActivities: Supabase/Cloudflare connection issue (5xx error) for kid ${kidId}. Skipping this check.`);
-      return;
-    }
-    console.error('moveOverdueActivities: Error fetching overdue activities:', overdueError);
-    // Don't throw for transient infrastructure errors
+    console.error('Could not load unchosen activities:', overdueError);
     return;
   }
 
-  console.log('moveOverdueActivities: overdueActivities:', overdueActivities);
+  const nextMinimum = isPastEndTime
+    ? new Date(new Date(today + 'T12:00:00Z').getTime() + 86400000).toISOString().slice(0, 10)
+    : today;
+  for (const activity of overdueActivities || []) {
+    const reason = activity.unavailability_kind === 'cancelled' ? 'cancelled'
+      : activity.unavailability_kind === 'replaced' ? 'replaced'
+      : activity.unavailable_for_now ? 'temporarily_unavailable'
+      : activity.due_date === today ? 'day_ended' : 'date_passed';
+    // The conditional update makes repeated page loads and the background job
+    // safe to run concurrently: only the winner creates a future occurrence.
+    const { data: closed, error: closeError } = await supabase.from('activities')
+      .update({ status: 'not_chosen', not_chosen_reason: reason, not_chosen_at: new Date().toISOString() })
+      .eq('id', activity.id).eq('status', 'pending').eq('due_date', activity.due_date)
+      .select('id').maybeSingle();
+    if (closeError) { console.error('Could not close unchosen activity:', closeError); continue; }
+    if (!closed || activity.unavailability_kind === 'temporary') continue;
 
-  if (overdueActivities && overdueActivities.length > 0) {
-    // Calculate target date
-    // If past end_time, move to tomorrow
-    // If not past end_time, move to today
-    let targetDateStr = today;
-    if (isPastEndTime) {
-      const baseDate = new Date(today + 'T12:00:00');
-      const tomorrow = new Date(baseDate);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      targetDateStr = tomorrow.toISOString().split('T')[0];
-    }
-
-    console.log(`moveOverdueActivities: Moving ${overdueActivities.length} activities for kid ${kidId} to ${targetDateStr}.`);
-    const { error: moveError } = await supabase
-      .from('activities')
-      .update({ due_date: targetDateStr })
-      .in('id', overdueActivities.map((a: any) => a.id));
-
-    if (moveError) {
-      // Check if it's an HTML error
-      const errorMsg = moveError.message || '';
-      if (errorMsg.includes('<!DOCTYPE html>') || errorMsg.includes('<html') || (typeof moveError === 'string' && moveError.includes('<html'))) {
-        console.warn(`moveOverdueActivities: Supabase/Cloudflare connection issue (5xx error) during move for kid ${kidId}.`);
-        return;
-      }
-      console.error('moveOverdueActivities: Error updating activities:', moveError);
-      return;
+    const nextDate = nextRepeatDateAfter(activity, nextMinimum);
+    if (!nextDate) continue;
+    const { data: next, error: nextError } = await supabase.from('activities').insert({
+      kid_id: activity.kid_id, activity_type: activity.activity_type, category: activity.category,
+      description: activity.description, link: activity.link, image_url: activity.image_url,
+      status: 'pending', due_date: nextDate, repeat_frequency: activity.repeat_frequency,
+      repeats_till: activity.repeats_till, repeat_interval: activity.repeat_interval,
+      repeat_unit: activity.repeat_unit, time_of_day: activity.time_of_day,
+      time_guidance: activity.time_guidance || 'suggested', exact_time: activity.exact_time || null,
+      preparation_minutes: activity.preparation_minutes || 0,
+      after_time_passes: activity.after_time_passes || 'keep_available',
+      requires_verification: Boolean(activity.requires_verification),
+      activity_meaning: activity.activity_meaning || 'available_choice',
+      reward_qty: activity.reward_qty || 1,
+      is_optional_bonus: Boolean(activity.is_optional_bonus),
+      optional_reward_qty: activity.is_optional_bonus ? activity.optional_reward_qty : null,
+    }).select('id').single();
+    if (nextError || !next) { console.error('Could not create next recurring choice:', nextError); continue; }
+    const { data: steps, error: stepsError } = await supabase.from('activity_steps')
+      .select('step_number,description,image_url').eq('activity_id', activity.id);
+    if (stepsError) { console.error('Could not read steps for recurring choice:', stepsError); continue; }
+    if (steps?.length) {
+      const { error: copyError } = await supabase.from('activity_steps').insert(steps.map((step: any) => ({ ...step, activity_id: next.id })));
+      if (copyError) console.error('Could not copy steps for recurring choice:', copyError);
     }
   }
 };
@@ -5254,12 +5292,10 @@ app.get('/api/kids/:kidId/activities', authenticateToken, async (req: any, res) 
     const currentTime = localTime ? parseInt(localTime as string, 10) : (hour * 60 + minute);
     
     console.log('API: Auto-assign logic, mode:', mode, 'today:', today, 'currentTime:', currentTime);
-    // Parent views are read-only and should open immediately. Overdue handling
-    // already runs in the background, and the learner view performs a final
-    // just-in-time check before showing activities.
-    if (mode === 'kid') {
-      console.log('API: Calling moveOverdueActivities for kid:', kidId);
-      await moveOverdueActivities(supabase, kidId, kid, today, currentTime);
+    // Serverless deployments have no background worker. Both parent and
+    // learner views close past choices before returning the current list.
+    if (mode === 'kid' || mode === 'parent') {
+      await closeUnchosenActivities(supabase, kidId, kid, today, currentTime);
     }
     // --- End Auto-assign logic ---
 
@@ -5274,6 +5310,10 @@ app.get('/api/kids/:kidId/activities', authenticateToken, async (req: any, res) 
     console.log(`API: Found ${activities?.length || 0} activities for kid ${kidId}`);
     
     let filteredActivities = activities || [];
+    const unavailableActivities = mode === 'kid'
+      ? filteredActivities.filter((activity: any) => activity.status === 'pending' && activity.unavailable_for_now)
+      : [];
+    if (mode === 'kid') filteredActivities = filteredActivities.filter((activity: any) => activity.status !== 'not_chosen' && (!activity.unavailable_for_now || activity.status !== 'pending'));
 
     // Stage 1 of the choice-based learner experience keeps all existing
     // activity records intact while presenting regular and legacy additional
@@ -5298,6 +5338,7 @@ app.get('/api/kids/:kidId/activities', authenticateToken, async (req: any, res) 
       // children need to see that those activities were already submitted.
       filteredActivities = [...limitedIncomplete, ...awaitingVerificationActivities, ...completedActivities];
     }
+    if (mode === 'kid') filteredActivities = [...filteredActivities, ...unavailableActivities];
 
     // Fetch steps for each activity
     let allSteps: any[] = [];
@@ -5314,7 +5355,9 @@ app.get('/api/kids/:kidId/activities', authenticateToken, async (req: any, res) 
 
     let activitiesWithSteps = filteredActivities.map((activity: any) => {
       const steps = allSteps?.filter(s => s.activity_id === activity.id) || [];
-      return { ...activity, steps };
+      const replacement = activities?.find((candidate: any) => candidate.id === activity.replacement_activity_id
+        && candidate.status === 'pending' && !candidate.unavailable_for_now && candidate.due_date === activity.due_date);
+      return { ...activity, steps, replacement_activity_name: replacement?.activity_type || null };
     });
 
     // Some completion paths preserve the finished record in activity_history.
@@ -5392,6 +5435,53 @@ app.get('/api/kids/:kidId/activities', authenticateToken, async (req: any, res) 
   }
 });
 
+// A parent can explain why a choice changed without changing its steps,
+// completion state, or recurrence settings.
+app.patch('/api/activities/:id/availability', authenticateToken, async (req: any, res) => {
+  if (req.user.role === 'kid') return res.status(403).json({ error: 'Only a parent can change availability.' });
+  if (typeof req.body?.unavailableForNow !== 'boolean') return res.status(400).json({ error: 'Choose whether the activity is available.' });
+  const supabase = getSupabaseForUser(req);
+  const { data: activity, error } = await supabase.from('activities').select('id,kid_id,status,due_date').eq('id', req.params.id).maybeSingle();
+  if (error || !activity) return res.status(404).json({ error: 'Activity not found.' });
+  const { data: kid } = await supabase.from('kids').select('user_id,timezone').eq('id', activity.kid_id).maybeSingle();
+  if (kid?.user_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
+  if (activity.status !== 'pending') return res.status(409).json({ error: 'Only pending choices can be changed.' });
+  const unavailable = req.body.unavailableForNow;
+  const kind = unavailable ? String(req.body.kind || 'temporary') : null;
+  const reason = unavailable ? String(req.body.reason || '').trim() : null;
+  const replacementId = unavailable && kind === 'replaced' ? String(req.body.replacementActivityId || '') : null;
+  if (unavailable && !['temporary', 'cancelled', 'replaced'].includes(kind!)) return res.status(400).json({ error: 'Choose a valid change.' });
+  if (unavailable && (!reason || reason.length > 180)) return res.status(400).json({ error: 'Write a short reason (up to 180 characters) for the learner.' });
+  if (unavailable) {
+    const { count } = await supabase.from('activities').select('id', { count: 'exact', head: true })
+      .eq('replacement_activity_id', activity.id).eq('unavailable_for_now', true);
+    if (count) return res.status(409).json({ error: 'This activity is being offered as a replacement. Change the original activity first.' });
+  }
+  if (kind === 'replaced') {
+    const today = getZonedScheduleParts(kid?.timezone).date;
+    if (!replacementId || replacementId === activity.id || activity.due_date !== today || !/^[0-9a-f-]{36}$/i.test(replacementId)) {
+      return res.status(400).json({ error: 'Choose a future assigned activity to replace today’s activity.' });
+    }
+    const { data: moved, error: moveError } = await getAdminSupabaseClient().rpc('replace_with_upcoming_activity', {
+      parent_id_param: req.user.id, original_id_param: activity.id,
+      replacement_id_param: replacementId, reason_param: reason, today_param: today,
+    });
+    if (moveError) {
+      console.error('Could not replace activity:', moveError);
+      if (moveError.code === 'PGRST202') return res.status(409).json({ error: 'Activity replacement is not ready yet. The database update is still needed; please contact the site administrator.' });
+      return res.status(moveError.code === '22023' ? 400 : 500).json({ error: moveError.code === '22023' ? moveError.message : 'Could not replace the activity.' });
+    }
+    req.app.get('io')?.to(`kid_${activity.kid_id}`).emit('data_updated', { kidId: activity.kid_id });
+    return res.json({ activity: { id: activity.id, unavailable_for_now: true, unavailability_kind: kind, unavailability_reason: reason, replacement_activity_id: replacementId }, moved });
+  }
+  const { data, error: updateError } = await supabase.from('activities')
+    .update({ unavailable_for_now: unavailable, unavailability_kind: kind, unavailability_reason: reason, replacement_activity_id: replacementId })
+    .eq('id', activity.id).eq('status', 'pending').select('id,unavailable_for_now,unavailability_kind,unavailability_reason,replacement_activity_id').single();
+  if (updateError || !data) return res.status(500).json({ error: 'Could not change activity availability.' });
+  req.app.get('io')?.to(`kid_${activity.kid_id}`).emit('data_updated', { kidId: activity.kid_id });
+  return res.json({ activity: data });
+});
+
 // A learner can ask for help without changing completion, rewards, or activity status.
 app.post('/api/activities/:id/help-request', authenticateToken, async (req: any, res) => {
   if (req.user.role !== 'kid') return res.status(403).json({ error: 'Only a learner can request help.' });
@@ -5401,12 +5491,12 @@ app.post('/api/activities/:id/help-request', authenticateToken, async (req: any,
   try {
     const { data: activity, error: activityError } = await admin
       .from('activities')
-      .select('id, kid_id, status')
+      .select('id, kid_id, status, unavailable_for_now')
       .eq('id', id)
       .single();
     if (activityError || !activity) return res.status(404).json({ error: 'Activity not found.' });
     if (activity.kid_id !== req.user.kidId) return res.status(403).json({ error: 'Forbidden' });
-    if (activity.status !== 'pending') {
+    if (activity.status !== 'pending' || activity.unavailable_for_now) {
       return res.status(409).json({ error: 'Help can only be requested for an available activity.' });
     }
 
@@ -5458,7 +5548,7 @@ app.put('/api/activity-steps/:id/completion', authenticateToken, async (req: any
   try {
     const { data: step, error: stepError } = await admin
       .from('activity_steps')
-      .select('id, activity_id, activities!inner(kid_id, status, kids!inner(user_id))')
+      .select('id, activity_id, activities!inner(kid_id, status, unavailable_for_now, kids!inner(user_id))')
       .eq('id', req.params.id)
       .single();
     if (stepError || !step) return res.status(404).json({ error: 'Activity step not found.' });
@@ -5466,7 +5556,7 @@ app.put('/api/activity-steps/:id/completion', authenticateToken, async (req: any
     const isLearner = req.user.role === 'kid' && activity?.kid_id === req.user.kidId;
     const isOwningParent = req.user.role !== 'kid' && activity?.kids?.user_id === req.user.id;
     if (!isLearner && !isOwningParent) return res.status(403).json({ error: 'You do not have access to this activity step.' });
-    if (activity?.status !== 'pending') return res.status(409).json({ error: 'Only steps in an available activity can be changed.' });
+    if (activity?.status !== 'pending' || activity.unavailable_for_now) return res.status(409).json({ error: 'Only steps in an available activity can be changed.' });
 
     const completedAt = isCompleted ? new Date().toISOString() : null;
     const { data: updated, error: updateError } = await admin
@@ -6523,6 +6613,7 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
     // Children may submit their own pending activity, but cannot edit its
     // content, schedule, recurrence, ownership, or restore history records.
     if (req.user.role === 'kid') {
+      if (activity.unavailable_for_now) return res.status(409).json({ error: 'This activity is unavailable for now.' });
       if (isHistory || status !== 'completed' || activity.status !== 'pending') {
         return res.status(403).json({ error: 'Children may only submit pending activities' });
       }
@@ -6565,7 +6656,7 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
       return res.status(400).json({ error: 'Choose an activity reward amount from 1 to 50.' });
     }
 
-    const supportedStatuses = new Set(['pending', 'awaiting_verification', 'completed', 'on_hold', 'ended']);
+    const supportedStatuses = new Set(['pending', 'awaiting_verification', 'completed', 'on_hold', 'ended', 'not_chosen']);
     if (!supportedStatuses.has(status)) {
       return res.status(400).json({ error: 'Select a valid activity status' });
     }
@@ -6653,6 +6744,12 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
         : activity.submitted_at;
     const verifiedAt = isNewCompletion ? new Date().toISOString() : status === 'pending' ? null : activity.verified_at;
     const verifiedBy = isNewCompletion && req.user.role !== 'kid' ? userId : status === 'pending' ? null : activity.verified_by;
+    // Older deployments may not have the Not Chosen columns yet. An ordinary
+    // edit (including changing only the date) must not require that migration.
+    const notChosenUpdate = status === 'not_chosen' || activity.status === 'not_chosen'
+      ? { not_chosen_reason: status === 'not_chosen' ? activity.not_chosen_reason : null,
+          not_chosen_at: status === 'not_chosen' ? activity.not_chosen_at : null }
+      : {};
 
     const { error: updateError } = await supabase
       .from('activities')
@@ -6670,6 +6767,11 @@ app.put('/api/activities/:id', authenticateToken, async (req: any, res) => {
         link,
         image_url: imageUrl,
         status,
+        ...notChosenUpdate,
+        unavailable_for_now: isReassignment ? false : activity.unavailable_for_now,
+        unavailability_kind: isReassignment ? null : activity.unavailability_kind,
+        unavailability_reason: isReassignment ? null : activity.unavailability_reason,
+        replacement_activity_id: isReassignment ? null : activity.replacement_activity_id,
         requires_verification: requiresVerification === undefined
           ? Boolean(activity.requires_verification)
           : requiresVerification === true,
@@ -9104,7 +9206,7 @@ async function startServer() {
             const localDateStr = `${localYear}-${localMonth}-${localDay}`;
             const localTimeInMinutes = localHour * 60 + localMinute;
 
-            await moveOverdueActivities(supabase, kid.id, kid, localDateStr, localTimeInMinutes);
+            await closeUnchosenActivities(supabase, kid.id, kid, localDateStr, localTimeInMinutes);
           } catch (kidError: any) {
             console.error(`Background Task: Error processing kid ${kid.id}:`, kidError.message || kidError);
           }
