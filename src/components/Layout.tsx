@@ -27,6 +27,7 @@ export function Layout() {
   const [newsletterMonths, setNewsletterMonths] = useState<{ value: string; label: string }[]>([]);
   const [isNewsletterSubscribed, setIsNewsletterSubscribed] = useState(false);
   const [isNewsletterAdmin, setIsNewsletterAdmin] = useState(false);
+  const [unreadSupportCount, setUnreadSupportCount] = useState<number | null>(null);
   const [publicLinks, setPublicLinks] = useState<{ facebook?: string; instagram?: string }>({});
   const [selectedKidId, setSelectedKidId] = useState<string | null>(localStorage.getItem('dashboard_selected_kid_id') || localStorage.getItem('analysis_selected_kid_id'));
   const [headerKids, setHeaderKids] = useState<{ id: string; name: string; avatar?: string; reward_balance?: number; reward_type?: string; reward_icon?: string }[]>([]);
@@ -370,6 +371,39 @@ export function Layout() {
   }, [user]);
 
   useEffect(() => {
+    if (!user || !isNewsletterAdmin || guestMode) {
+      setUnreadSupportCount(null);
+      return;
+    }
+    let active = true;
+    const refreshUnreadSupportCount = async () => {
+      try {
+        const response = await apiFetch('/api/admin/support-messages?status=unread&page=1&pageSize=10', {}, 0);
+        if (!response.ok) throw new Error('Unable to load unread support count');
+        const data = await safeJson(response);
+        if (active) setUnreadSupportCount(Math.max(0, Number(data.total) || 0));
+      } catch {
+        if (active) setUnreadSupportCount(null);
+      }
+    };
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void refreshUnreadSupportCount();
+    };
+    void refreshUnreadSupportCount();
+    const interval = window.setInterval(refreshWhenVisible, 60_000);
+    window.addEventListener('focus', refreshWhenVisible);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    window.addEventListener('visual-steps:support-inbox-updated', refreshWhenVisible);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+      window.removeEventListener('focus', refreshWhenVisible);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+      window.removeEventListener('visual-steps:support-inbox-updated', refreshWhenVisible);
+    };
+  }, [user?.id, isNewsletterAdmin, guestMode, location.pathname]);
+
+  useEffect(() => {
     let cancelled = false;
     const loadSubscription = () => {
       if (!user || isGuestSession()) {
@@ -476,7 +510,7 @@ export function Layout() {
                       </button>
                     </span>
                   </Tooltip>;
-                  return <Link key={item.id} to={workspaceLink(item.id)} onMouseEnter={warmWorkspace} onFocus={warmWorkspace} onPointerDown={warmWorkspace} aria-current={currentWorkspace === item.id ? 'page' : undefined} className={`inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-bold transition-all ${currentWorkspace === item.id ? 'bg-brand-50 text-brand-700 shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-brand-700'}`}><Icon className="h-4 w-4" />{item.label}</Link>;
+                  return <Link key={item.id} to={workspaceLink(item.id)} onMouseEnter={warmWorkspace} onFocus={warmWorkspace} onPointerDown={warmWorkspace} aria-current={currentWorkspace === item.id ? 'page' : undefined} aria-label={item.id === 'admin' && unreadSupportCount ? `Admin, ${unreadSupportCount} unread support ${unreadSupportCount === 1 ? 'message' : 'messages'}` : undefined} className={`inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-bold transition-all ${currentWorkspace === item.id ? 'bg-brand-50 text-brand-700 shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-brand-700'}`}><Icon className="h-4 w-4" />{item.label}{item.id === 'admin' && unreadSupportCount !== null && unreadSupportCount > 0 && <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-black leading-none text-white" aria-hidden="true">{unreadSupportCount}</span>}</Link>;
                 })}
               </nav>
             )}
@@ -786,7 +820,7 @@ export function Layout() {
                         {guestLocked ? <div className="flex cursor-not-allowed items-center gap-2 rounded-md px-2 py-2 text-sm font-black text-slate-400" aria-disabled="true" title={guestSignupMessage}>
                           <Icon className="h-4 w-4" /> {workspace.label}<Lock className="ml-auto h-3.5 w-3.5" />
                         </div> : <Link to={workspaceLink(workspace.id)} onClick={() => setIsMenuOpen(false)} className={`flex items-center gap-2 rounded-md px-2 py-2 text-sm font-black ${currentWorkspace === workspace.id ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-800'}`}>
-                          <Icon className="h-4 w-4" /> {workspace.label}
+                          <Icon className="h-4 w-4" /> {workspace.label}{workspace.id === 'admin' && unreadSupportCount !== null && unreadSupportCount > 0 && <span className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-black leading-none text-white" aria-label={`${unreadSupportCount} unread support ${unreadSupportCount === 1 ? 'message' : 'messages'}`}>{unreadSupportCount}</span>}
                         </Link>}
                         {guestLocked && <p className="px-2 pb-1 text-[10px] font-semibold leading-4 text-slate-500">Sign up to use this feature.</p>}
                         {!guestLocked && submenus.length > 0 && (

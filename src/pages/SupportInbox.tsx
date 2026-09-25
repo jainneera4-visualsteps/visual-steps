@@ -56,6 +56,7 @@ export default function SupportInbox() {
     setBusy(true); setNotice('');
     try {
       const data = await adminJson(`/api/admin/support-messages/${selected.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
+      window.dispatchEvent(new Event('visual-steps:support-inbox-updated'));
       setSelected(data.item); setNotice(status === 'resolved' ? 'Conversation marked resolved.' : 'The parent can now see that this message was read and is being worked on.'); await load();
     } catch (error) { setNotice(error instanceof Error ? error.message : 'Unable to update conversation'); }
     finally { setBusy(false); }
@@ -66,6 +67,7 @@ export default function SupportInbox() {
     setBusy(true); setNotice('');
     try {
       const data = await adminJson(`/api/admin/support-messages/${selected.id}/reply`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reply }) });
+      window.dispatchEvent(new Event('visual-steps:support-inbox-updated'));
       setSelected(data.item); setNotice(data.message); await load();
     } catch (error) { setNotice(error instanceof Error ? error.message : 'Unable to send reply'); }
     finally { setBusy(false); }
