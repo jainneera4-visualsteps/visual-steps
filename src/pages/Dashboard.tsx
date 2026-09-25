@@ -93,6 +93,7 @@ export default function Dashboard() {
   const [rewardItems, setRewardItems] = useState<any[]>([]);
   const [isBuying, setIsBuying] = useState<string | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<string>('');
+  const affordableRewardItems = rewardItems.filter(item => Number(item.cost) <= (selectedKid?.reward_balance ?? 0));
   const [dashboardSelectedKidId, setDashboardSelectedKidId] = useState<string>(() => {
     try {
       return localStorage.getItem('dashboard_selected_kid_id') || '';
@@ -164,13 +165,13 @@ export default function Dashboard() {
   };
   
   useEffect(() => {
-    if (rewardItems.length > 0) {
-      const locations = [...new Set(rewardItems.map(item => item.location || 'General'))];
+    if (affordableRewardItems.length > 0) {
+      const locations = [...new Set(affordableRewardItems.map(item => item.location || 'General'))];
       if (!selectedLocation || !locations.includes(selectedLocation)) {
         setSelectedLocation(locations[0]);
       }
     }
-  }, [rewardItems]);
+  }, [rewardItems, selectedKid?.reward_balance, selectedLocation]);
   
   useEffect(() => {
     if (dashboardSelectedKidId) {
@@ -589,8 +590,9 @@ export default function Dashboard() {
     }
 
     if (showBuyGrid && selectedKid) {
-      const locations = [...new Set(rewardItems.map(item => item.location || 'General'))];
-      const filteredItems = rewardItems.filter(item => (item.location || 'General') === selectedLocation);
+      const locations = [...new Set(affordableRewardItems.map(item => item.location || 'General'))];
+      const activeLocation = locations.includes(selectedLocation) ? selectedLocation : locations[0];
+      const filteredItems = affordableRewardItems.filter(item => (item.location || 'General') === activeLocation);
       
       return (
         <div className="space-y-4 animate-in fade-in duration-300">
@@ -608,7 +610,7 @@ export default function Dashboard() {
               <div className="flex items-center gap-3">
               {locations.length > 0 && (
                 <select
-                  value={selectedLocation}
+                  value={activeLocation}
                   onChange={(e) => setSelectedLocation(e.target.value)}
                   className="h-8 rounded-lg border border-slate-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
@@ -629,8 +631,8 @@ export default function Dashboard() {
           {filteredItems.length === 0 ? (
             <div className="border border-slate-200 bg-white py-12 text-center">
               <span className="block text-5xl mb-4">🛍️</span>
-              <h3 className="text-lg font-medium text-slate-900">No rewards available</h3>
-              <p className="text-slate-500 mt-1">Add some rewards in the child's settings.</p>
+              <h3 className="text-lg font-medium text-slate-900">No rewards to choose right now</h3>
+              <p className="text-slate-500 mt-1">{rewardItems.length === 0 ? "There are no active rewards in this learner's catalog." : 'This learner cannot afford an active reward at the moment.'}</p>
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5">
@@ -652,18 +654,16 @@ export default function Dashboard() {
                     </div>
                     <Button
                       className="mt-auto w-full h-8 text-sm"
-                      disabled={selectedKid.reward_balance < item.cost || isBuying === item.id}
+                      disabled={isBuying === item.id}
                       onClick={() => handleBuyReward(item)}
                     >
                       {isBuying === item.id ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : selectedKid.reward_balance >= item.cost ? (
+                      ) : (
                         <div className="flex items-center">
                           <span className="mr-2">🛍️</span>
                           <span>Buy</span>
                         </div>
-                      ) : (
-                        'Not enough balance'
                       )}
                     </Button>
                   </CardContent>
