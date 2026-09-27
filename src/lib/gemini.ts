@@ -13,8 +13,9 @@ type GenerateContentOptions = {
   prompt: string | unknown[];
   responseMimeType?: string;
   responseSchema?: unknown;
+  config?: { maxOutputTokens?: number; temperature?: number };
   tools?: unknown[];
-  generationPurpose?: 'quiz' | 'worksheet' | 'social_story';
+  generationPurpose?: 'quiz' | 'worksheet' | 'social_story' | 'skill_builder';
   onAllowance?: (allowance: GenerationAllowance) => void;
 };
 

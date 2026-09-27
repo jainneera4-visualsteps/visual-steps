@@ -97,7 +97,7 @@ export function Layout() {
       ? 'rewards'
     : location.pathname.startsWith('/assigned-activities/') || location.pathname === '/activity-library'
       ? 'activities'
-      : ['/saved-quizzes', '/quiz-generator', '/social-stories', '/social-stories/create', '/saved-worksheets', '/worksheet-generator', '/games'].some(path => location.pathname === path || location.pathname.startsWith(`${path}/`))
+      : ['/saved-quizzes', '/quiz-generator', '/social-stories', '/social-stories/create', '/saved-worksheets', '/worksheet-generator', '/games', '/skill-builder'].some(path => location.pathname === path || location.pathname.startsWith(`${path}/`))
         ? 'learning'
         : location.pathname.startsWith('/admin') || location.pathname === '/newsletter-admin'
           ? 'admin'
@@ -161,6 +161,7 @@ export function Layout() {
       { label: 'Give Bonus Tokens', to: `${learnerActivitiesRoute}?tab=bonus_tokens` },
     ],
     learning: [
+      { label: 'Skill Builder', to: '/skill-builder' },
       { label: 'Quizzes', to: '/saved-quizzes' },
       { label: 'Worksheets', to: '/saved-worksheets' },
       { label: 'Social Stories', to: '/social-stories' },
@@ -187,6 +188,7 @@ export function Layout() {
     admin: [
       { label: 'Insights', to: '/admin/insights' },
       { label: 'Support Inbox', to: '/admin/support' },
+      { label: 'Total Cost', to: '/admin/total-cost' },
       { label: 'Manage Newsletter', to: '/newsletter-admin' },
     ],
   };
@@ -429,11 +431,15 @@ export function Layout() {
       setSelectedKidId(localStorage.getItem('dashboard_selected_kid_id') || localStorage.getItem('analysis_selected_kid_id'));
     };
     window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('visual-steps:selected-kid', handleStorageChange);
     
     // Also check on path change as our own code might set it without triggering 'storage' event in same tab
     handleStorageChange();
 
-    return () => window.removeEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('visual-steps:selected-kid', handleStorageChange);
+    };
   }, [location.pathname]);
 
   useEffect(() => {
@@ -445,6 +451,7 @@ export function Layout() {
     else if (path === '/data-management' || path === '/activity-history') title = 'Activity History | Visual Steps';
     else if (path === '/activity-library') title = 'Activities Library | Visual Steps';
     else if (path === '/saved-quizzes') title = 'Saved Quizzes | Visual Steps';
+    else if (path === '/skill-builder') title = 'Skill Builder | Visual Steps';
     else if (path === '/social-stories') title = 'Social Stories | Visual Steps';
     else if (path === '/saved-worksheets') title = 'Saved Worksheets | Visual Steps';
     else if (path === '/games') title = 'Learning Games | Visual Steps';
@@ -479,6 +486,7 @@ export function Layout() {
     else if (path === '/newsletter-admin') title = 'Newsletter Administration | Visual Steps';
     else if (path === '/admin/insights') title = 'Administrator Insights | Visual Steps';
     else if (path === '/admin/support') title = 'Support Inbox | Visual Steps';
+    else if (path === '/admin/total-cost') title = 'Total Cost | Visual Steps';
     else if (path.startsWith('/features/')) title = 'Feature Guide | Visual Steps';
 
     document.title = title;
@@ -779,6 +787,25 @@ export function Layout() {
           </div>
         )}
 
+        {user && (
+          <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 bg-gradient-to-r from-blue-50/80 via-white to-emerald-50/70 p-3 lg:hidden">
+            <div className="flex w-full min-w-0 items-center gap-3">
+              <span className="shrink-0 text-[11px] font-black uppercase tracking-[0.16em] text-brand-700">{currentWorkspace}</span>
+              {currentWorkspace === 'dashboard' && <><span className="h-4 w-px shrink-0 bg-slate-300" aria-hidden="true" /><p className="truncate text-sm font-semibold text-slate-600">Climb together. Effortless tools for certain steps and positive growth.</p></>}
+            </div>
+            {currentWorkspace !== 'dashboard' && (workspaceSecondaryLinks[currentWorkspace] || []).length > 0 && <nav className="flex w-full gap-1 overflow-x-auto whitespace-nowrap pb-1" aria-label={`${currentWorkspace} workspace navigation`}>
+              {(workspaceSecondaryLinks[currentWorkspace] || []).map(item => <Link key={`${item.label}-${item.to}`} to={item.to} onPointerDown={() => prefetchDestination(item.to)} aria-current={`${location.pathname}${location.search}${location.hash}` === item.to ? 'page' : undefined} className="shrink-0 rounded-md bg-white px-3 py-1.5 text-xs font-bold text-brand-700 shadow-sm ring-1 ring-brand-100">{item.label}</Link>)}
+            </nav>}
+            {!guestMode && <Button type="button" size="sm" className="h-9" onClick={() => currentWorkspace === 'dashboard' ? window.dispatchEvent(new Event('visual-steps:start-parent-tour')) : navigate('/dashboard?tour=1')}>
+              <HelpCircle className="mr-1.5 h-4 w-4" />Start tour
+            </Button>}
+            {headerKids.length > 0 && <select aria-label="Select Child" value={selectedKidId || headerKids[0].id} onChange={(event) => selectHeaderKid(event.target.value)} className="h-9 min-w-32 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold">
+              {headerKids.map(kid => <option key={kid.id} value={kid.id}>{kid.name}</option>)}
+            </select>}
+            {guestMode ? <span className="inline-flex h-9 items-center gap-1 rounded-lg bg-slate-100 px-3 text-sm font-semibold text-slate-400" aria-disabled="true" title={guestSignupMessage}><Lock className="h-4 w-4" />Add Child / Adult</span> : <Link to="/add-kid"><Button size="sm" className="h-9"><Plus className="mr-1.5 h-4 w-4" />Add Child / Adult</Button></Link>}
+          </div>
+        )}
+
         {user && selectedHeaderKid && (
           <div className="flex h-16 w-full shrink-0 items-center justify-between bg-gradient-to-r from-blue-600 to-cyan-600 px-3 text-white sm:px-4 lg:h-20 lg:px-7" aria-label={`Selected learner: ${selectedHeaderKid.name}`}>
             <div className="flex min-w-0 items-center gap-3">
@@ -807,7 +834,7 @@ export function Layout() {
 
         {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="max-h-[calc(100dvh-4rem)] overflow-y-auto border-t border-slate-200 bg-white p-3 lg:hidden">
+          <div className={`absolute inset-x-0 top-full overflow-y-auto overscroll-contain border-t border-slate-200 bg-white p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-xl lg:hidden ${user ? 'max-h-[calc(100dvh_-_20rem_-_env(safe-area-inset-bottom))]' : 'max-h-[calc(100dvh_-_4rem_-_env(safe-area-inset-bottom))]'}`}>
             <nav className="flex flex-col gap-2">
               {user ? (
                 <>
@@ -832,10 +859,8 @@ export function Layout() {
                     );
                   })}
                   <section className="flex flex-col gap-1 border-t border-slate-200 pt-2">
-                    {guestMode ? <><span className="px-2 py-1.5 text-xs font-bold text-slate-400" title={guestSignupMessage}>Parent Profile · Sign up required</span><span className="px-2 py-1.5 text-xs font-bold text-slate-400" title={guestSignupMessage}>Add Child / Adult · Sign up required</span></> : <><Link to="/profile" className="px-2 py-1.5 text-xs font-bold text-slate-600" onClick={() => setIsMenuOpen(false)}>Parent Profile</Link><Link to="/add-kid" className="px-2 py-1.5 text-xs font-bold text-slate-600" onClick={() => setIsMenuOpen(false)}>Add Child / Adult</Link></>}
                     {guestMode && <button type="button" className="px-2 py-1.5 text-left text-xs font-black text-blue-700" onClick={() => { setIsMenuOpen(false); endGuestSession(); window.location.assign('/signup'); }}>Sign up to keep your work</button>}
-                    <Link to="/pricing" className="px-2 py-1.5 text-xs font-bold text-slate-600" onClick={() => setIsMenuOpen(false)}>Plans</Link>
-                    <Link to="/testimonials" className="px-2 py-1.5 text-xs font-bold text-slate-600" onClick={() => setIsMenuOpen(false)}>Testimonials</Link>
+                    {guestMode ? <span className="px-2 py-1.5 text-xs font-bold text-slate-600">Hi, {user.name.split(' ')[0]}</span> : <Link to="/profile" className="px-2 py-1.5 text-xs font-bold text-slate-600" onClick={() => setIsMenuOpen(false)}>Hi, {user.name.split(' ')[0]}</Link>}
                     <button onClick={() => { logout(); setIsMenuOpen(false); }} className="px-2 py-1.5 text-left text-xs font-bold text-slate-600">Sign out</button>
                   </section>
                 </>

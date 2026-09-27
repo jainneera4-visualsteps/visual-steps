@@ -39,6 +39,9 @@ import Newsletter from './pages/Newsletter';
 import NewsletterAdmin from './pages/NewsletterAdmin';
 import AdminInsights from './pages/AdminInsights';
 import SupportInbox from './pages/SupportInbox';
+import AdminTotalCost from './pages/AdminTotalCost';
+import SkillBuilder from './pages/SkillBuilder';
+import PlaySkill from './pages/PlaySkill';
 import FeatureDetail from './pages/FeatureDetail';
 import DataManagement from './pages/DataManagement';
 import Legal from './pages/Legal';
@@ -95,6 +98,7 @@ export default function App() {
               <Route path="worksheet-generator" element={<WorksheetGenerator />} />
               <Route path="saved-worksheets" element={<SavedWorksheets />} />
               <Route path="games" element={<Games />} />
+              <Route path="skill-builder" element={<SkillBuilder />} />
               <Route path="games/place-value" element={<PlaceValueGame />} />
               <Route path="games/expanded-form" element={<ExpandedFormGame />} />
               <Route path="games/digit-value" element={<DigitValueDetective />} />
@@ -107,6 +111,7 @@ export default function App() {
               <Route path="newsletter-admin" element={<NewsletterAdmin />} />
               <Route path="admin/insights" element={<AdminInsights />} />
               <Route path="admin/support" element={<SupportInbox />} />
+              <Route path="admin/total-cost" element={<AdminTotalCost />} />
             </Route>
             <Route path="social-stories/view/:id" element={<ViewSocialStory />} />
             <Route path="social-stories/shared/:shareToken" element={<ViewSocialStory />} />
@@ -114,6 +119,7 @@ export default function App() {
           
           <Route element={<KidProtectedRoute />}>
             <Route path="/kids-dashboard/:kidId" element={<KidsDashboard />} />
+            <Route path="/skill-builder/play/:id/:kidId" element={<PlaySkill />} />
             <Route path="/play-quiz/:id/:kidId" element={<PlayQuiz />} />
             <Route path="/kids-games/place-value/:kidId" element={<PlaceValueGame />} />
             <Route path="/kids-games/expanded-form/:kidId" element={<ExpandedFormGame />} />

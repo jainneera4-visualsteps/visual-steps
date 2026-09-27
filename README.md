@@ -14,7 +14,7 @@ Visual Steps helps parents and caregivers offer meaningful activity choices to a
 - Control AI spending with an atomic 30-question daily allowance per parent, including visible remaining usage and reset information.
 - Add suggested periods or exact times, repeat activities when useful, choose a reward amount for each activity, optionally require parent verification, and review completion history.
 - Give specific positive recognition without tokens, or separately add bonus tokens without attaching praise. The learner sees recognition apart from token changes.
-- Generate and edit AI-assisted quizzes, worksheets, and social stories.
+- Generate and edit AI-assisted quizzes, worksheets, social stories, and practical Skill Builder lessons.
 - Choose a learner-specific game companion, assign place-value games through the normal activity form, and review scores by game and level.
 - Assign quizzes for one attempt per activity occurrence and review results through progress and summary reports. A deliberate reassignment unlocks one new attempt without deleting earlier results.
 - Configure reward-shop items and approve purchases.
@@ -31,6 +31,7 @@ Visual Steps helps parents and caregivers offer meaningful activity choices to a
 
 For activities marked **Parent verification required**, a child / adult submission moves to a waiting queue. It does not update completion totals or rewards until the parent selects **Verify & complete**. A parent can instead reassign it to pending without granting a reward. Existing activities default to immediate completion.
 - Read assigned social stories and messages from a parent.
+- Explore a parent-reviewed Skill Builder lesson, one short card at a time, when it is offered as an activity. Choices receive neutral explanations; the learner can pause or leave without a score.
 - See only active rewards they can currently afford; unaffordable rewards do not appear as locked goals or progress bars.
 
 Real-time Socket.IO events keep the parent and child experiences synchronized when the application runs as a persistent Node server. Vercel uses a no-op Socket.IO fallback, so clients rely on subsequent API refreshes there.
@@ -129,6 +130,10 @@ Supabase sends the reset-link email, so configure Supabase Auth SMTP for reliabl
 ### Support Inbox
 
 Contact-page submissions are stored in `support_messages` before the application attempts its administrator notification email. Approved administrators can open **Admin → Support Inbox** to review unread, open, and resolved conversations, reply by email, and retain the latest reply with the support record. The **Compose message** section displays database-backed parent names, emails, account statuses, and signup dates and can send Visual Steps updates, general announcements, or account information to all signed-up parents or selected accounts. Recipient addresses remain private through BCC batches, and delivery totals are retained for administrator review. Run `database_updates/2026-09-02_support_inbox.sql` and `database_updates/2026-09-02_support_inbox_outbound.sql` before deploying this feature. The inbox uses the server-side Supabase service role and is never available to browser clients directly.
+
+### Skill Builder
+
+Run `database_updates/2026-09-25_skill_builder.sql` on an existing database before using this feature. In **Learning → Skill Builder**, a parent selects a learner and describes one skill, age, communication level, goal, preferences, language, and familiar people or places. AI drafts Simple, Intermediate, and Advanced short-card versions using the shared learning-material allowance. The parent reviews and edits every Look, Learn, Choose, Practice, Try another, Remember, and Done card; optional parent-uploaded photos and voice recordings can be added. Saving does not assign the lesson. To offer it, choose **Add Activity → Select Type → Skill Builder** and select the saved skill for that learner. The learner sees one card at a time and may pause or leave. There are no scores or streaks. Safety-sensitive drafts require especially careful parent review and, where appropriate, individualized professional guidance. Deleting a saved lesson can break an existing activity link, so remove or update such assignments first.
 
 ### Parent contact and community sharing
 

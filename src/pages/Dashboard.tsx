@@ -8,7 +8,7 @@ import { createPortal } from 'react-dom';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import { Plus, User, Loader2, ArrowLeft, ArrowRight, CheckCircle2, Edit2, Eye, Send, HelpCircle, Trash2, Smile, Mic, Square, Volume2 } from 'lucide-react';
+import { User, Loader2, ArrowLeft, ArrowRight, CheckCircle2, Edit2, Eye, Send, Trash2, Smile, Mic, Square, Volume2 } from 'lucide-react';
 import { ParentOnboarding } from '../components/ParentOnboarding';
 import { GuestQuickStart } from '../components/GuestQuickStart';
 import { useAuth } from '../context/AuthContext';
@@ -190,6 +190,9 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get('tour') === '1') setShowOnboarding(true);
+    const startTour = () => setShowOnboarding(true);
+    window.addEventListener('visual-steps:start-parent-tour', startTour);
+    return () => window.removeEventListener('visual-steps:start-parent-tour', startTour);
   }, []);
 
 
@@ -839,23 +842,6 @@ export default function Dashboard() {
 
   return (
     <div className="flex min-h-full w-full flex-col">
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-200 p-3 lg:hidden">
-        <div className="flex w-full min-w-0 items-center gap-3">
-          <span className="shrink-0 text-[11px] font-black uppercase tracking-[0.16em] text-brand-700">Dashboard</span>
-          <span className="h-4 w-px shrink-0 bg-slate-300" aria-hidden="true" />
-          <p className="truncate text-sm font-semibold text-slate-600">Climb together. Effortless tools for certain steps and positive growth.</p>
-        </div>
-        {!isGuestSession() && <Button type="button" size="sm" className="h-9" onClick={() => setShowOnboarding(true)}>
-          <HelpCircle className="mr-1.5 h-4 w-4" />Start tour
-        </Button>}
-        {kids.length > 0 && !showBuyGrid && (
-          <select aria-label="Select Child" value={dashboardSelectedKidId} onChange={(event) => setDashboardSelectedKidId(event.target.value)} className="h-9 min-w-32 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold">
-            {kids.map(kid => <option key={kid.id} value={kid.id}>{kid.name}</option>)}
-          </select>
-        )}
-        {!isGuestSession() && <Link to="/add-kid"><Button size="sm" className="h-9"><Plus className="mr-1.5 h-4 w-4" />Add Child / Adult</Button></Link>}
-      </div>
-
       {searchParams.get('shop') !== '1' && !showBuyGrid && isGuestSession() && quickStartKidId && (
         <GuestQuickStart kidId={quickStartKidId} />
       )}

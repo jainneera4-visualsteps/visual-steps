@@ -81,7 +81,7 @@ export const apiFetch = async (
 
   let token = null;
   let isKidSession = false;
-  const isKidDashboard = typeof window !== 'undefined' && window.location.pathname.startsWith('/kids-dashboard');
+  const isKidDashboard = typeof window !== 'undefined' && (window.location.pathname.startsWith('/kids-dashboard') || (window.location.pathname.startsWith('/skill-builder/play/') && new URLSearchParams(window.location.search).get('preview') !== '1'));
   if (isKidDashboard) {
     const kidSessionStr = localStorage.getItem('kid_session');
     if (kidSessionStr) {

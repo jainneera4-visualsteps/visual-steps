@@ -1143,6 +1143,7 @@ export const isKidApiRequestAllowed = (method: string, pathName: string, kidId: 
   if (methodUpper === 'GET' && /^\/api\/quizzes\/[^/]+$/.test(pathName)) return true;
   if (methodUpper === 'GET' && /^\/api\/quiz-attempts\/[^/]+$/.test(pathName)) return true;
   if (methodUpper === 'GET' && /^\/api\/social-stories\/[^/]+$/.test(pathName)) return true;
+  if (methodUpper === 'GET' && /^\/api\/skill-lessons\/[^/]+$/.test(pathName)) return true;
   if (methodUpper === 'POST' && pathName === '/api/quiz-results') return true;
 
   return false;
@@ -7247,6 +7248,92 @@ app.delete('/api/activities/:id', authenticateToken, async (req: any, res) => {
 // --- Social Stories API ---
 
 const SOCIAL_STORY_SHARE_DAYS = new Set([1, 7, 30]);
+const skillStages = ['look', 'learn', 'choose', 'practice', 'try_another', 'remember', 'done'];
+const validSkillContent = (value: any): boolean => {
+  if (!value || typeof value !== 'object' || !['simple', 'intermediate', 'advanced'].includes(value.defaultLevel)) return false;
+  const levels = value.levels;
+  if (!levels || typeof levels !== 'object') return false;
+  return ['simple', 'intermediate', 'advanced'].every(level => {
+    const cards = levels[level];
+    return Array.isArray(cards) && cards.length >= 7 && cards.length <= 9
+      && cards.every((card: any) => card && skillStages.includes(card.stage)
+        && typeof card.text === 'string' && card.text.trim().length > 0 && card.text.length <= 500
+        && (card.imageUrl === undefined || typeof card.imageUrl === 'string' && card.imageUrl.length <= 2000)
+        && (card.audioUrl === undefined || typeof card.audioUrl === 'string' && card.audioUrl.length <= 2000)
+        && (card.options === undefined || Array.isArray(card.options) && card.options.length <= 3
+          && card.options.every((option: any) => option && typeof option.label === 'string' && option.label.length <= 160
+            && typeof option.feedback === 'string' && option.feedback.length <= 300)))
+      && cards.every((card: any, index: number) => card.stage === ['look', ...Array.from({ length: cards.length - 6 }, () => 'learn'), 'choose', 'practice', 'try_another', 'remember', 'done'][index])
+      && ['choose', 'practice', 'try_another'].every(stage => cards.some((card: any) => card.stage === stage && card.options?.length >= 2));
+  });
+};
+
+app.get('/api/skill-lessons', authenticateToken, async (req: any, res) => {
+  if (req.user.role !== 'parent') return res.status(403).json({ error: 'Parent access required' });
+  const { data, error } = await getSupabaseForUser(req).from('skill_lessons')
+    .select('id,kid_id,title,topic,updated_at').eq('user_id', req.user.id).order('updated_at', { ascending: false });
+  if (error) {
+    console.error('Skill lesson list query failed:', error);
+    if (['PGRST205', '42P01'].includes(error.code || '')) return res.status(409).json({ error: 'Skill Builder needs its database update. Run database_updates/2026-09-25_skill_builder.sql.' });
+    return res.status(500).json({ error: 'Unable to load skill lessons' });
+  }
+  res.json({ lessons: data || [] });
+});
+
+app.get('/api/skill-lessons/:id', authenticateToken, async (req: any, res) => {
+  const admin = getAdminSupabaseClient();
+  const { data: lesson, error } = await admin.from('skill_lessons').select('*').eq('id', req.params.id).maybeSingle();
+  if (error || !lesson) return res.status(404).json({ error: 'Skill lesson not found' });
+  if (req.user.role === 'kid') {
+    if (lesson.kid_id !== req.user.kidId || lesson.user_id !== req.user.id) return res.status(403).json({ error: 'Not available for this learner' });
+    const { data: assignment } = await admin.from('activities').select('id')
+      .eq('kid_id', req.user.kidId).eq('link', `/skill-builder/play/${lesson.id}/${req.user.kidId}`).limit(1).maybeSingle();
+    if (!assignment) return res.status(403).json({ error: 'This skill has not been offered yet' });
+    return res.json({ lesson: { id: lesson.id, title: lesson.title, content: lesson.content } });
+  }
+  if (lesson.user_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
+  res.json({ lesson });
+});
+
+app.post('/api/skill-lessons', authenticateToken, async (req: any, res) => {
+  if (req.user.role !== 'parent') return res.status(403).json({ error: 'Parent access required' });
+  const { kidId, title, topic, targetAge, language, communicationLevel, goal, preferences, parentCustomization, content } = req.body || {};
+  if (typeof title !== 'string' || !title.trim() || typeof topic !== 'string' || !topic.trim() || !validSkillContent(content)) return res.status(400).json({ error: 'Review every level and card before saving' });
+  const admin = getAdminSupabaseClient();
+  const { data: kid } = await admin.from('kids').select('id').eq('id', kidId).eq('user_id', req.user.id).maybeSingle();
+  if (!kid) return res.status(403).json({ error: 'Select your learner' });
+  const { data, error } = await getSupabaseForUser(req).from('skill_lessons').insert({
+    user_id: req.user.id, kid_id: kidId, title: String(title).trim().slice(0, 160), topic: String(topic).trim().slice(0, 160),
+    target_age: String(targetAge || '').slice(0, 80), lesson_language: String(language || 'English').slice(0, 80), communication_level: String(communicationLevel || '').slice(0, 160),
+    goal: String(goal || '').slice(0, 1000), preferences: String(preferences || '').slice(0, 2000),
+    parent_customization: String(parentCustomization || '').slice(0, 2000), content,
+  }).select('id').single();
+  if (error) return res.status(500).json({ error: 'Unable to save skill lesson' });
+  res.status(201).json({ id: data.id });
+});
+
+app.put('/api/skill-lessons/:id', authenticateToken, async (req: any, res) => {
+  if (req.user.role !== 'parent') return res.status(403).json({ error: 'Parent access required' });
+  const { title, topic, targetAge, language, communicationLevel, goal, preferences, parentCustomization, content } = req.body || {};
+  if (typeof title !== 'string' || !title.trim() || typeof topic !== 'string' || !topic.trim() || !validSkillContent(content)) return res.status(400).json({ error: 'Review every level and card before saving' });
+  const { data, error } = await getSupabaseForUser(req).from('skill_lessons').update({
+    title: String(title).trim().slice(0, 160), topic: String(topic).trim().slice(0, 160),
+    target_age: String(targetAge || '').slice(0, 80), lesson_language: String(language || 'English').slice(0, 80), communication_level: String(communicationLevel || '').slice(0, 160),
+    goal: String(goal || '').slice(0, 1000), preferences: String(preferences || '').slice(0, 2000),
+    parent_customization: String(parentCustomization || '').slice(0, 2000), content, updated_at: new Date().toISOString(),
+  }).eq('id', req.params.id).eq('user_id', req.user.id).select('id').maybeSingle();
+  if (error) return res.status(500).json({ error: 'Unable to update skill lesson' });
+  if (!data) return res.status(404).json({ error: 'Skill lesson not found' });
+  res.json({ id: data.id });
+});
+
+app.delete('/api/skill-lessons/:id', authenticateToken, async (req: any, res) => {
+  if (req.user.role !== 'parent') return res.status(403).json({ error: 'Parent access required' });
+  const { error } = await getSupabaseForUser(req).from('skill_lessons').delete().eq('id', req.params.id).eq('user_id', req.user.id);
+  if (error) return res.status(500).json({ error: 'Unable to delete skill lesson' });
+  res.json({ ok: true });
+});
+
 const hashSocialStoryShareToken = (token: string) => createHash('sha256').update(token).digest('hex');
 
 // Get all social stories for a user
@@ -7895,6 +7982,7 @@ const aiFeatureFromRequest = (req: any, fallback = 'AI generation') => {
     quiz: 'Quiz generation',
     worksheet: 'Worksheet generation',
     social_story: 'Social story generation',
+    skill_builder: 'Skill Builder generation',
   };
   const generationPurpose = String(req.body?.generationPurpose || '');
   if (purposeFeatures[generationPurpose]) return purposeFeatures[generationPurpose];
@@ -7989,6 +8077,7 @@ export const parentAssistantFeatureCatalog = [
   { area: 'Worksheet generation', routes: ['/worksheet-generator'], help: 'Open Activities > Worksheets and go to Worksheet Generator. Select the child, subject, topic, format, difficulty, and number of worksheets, then generate. Use Save Worksheet to keep it. Use Print Worksheet above the preview to open the browser print dialog; choose a printer or Save as PDF.' },
   { area: 'Saved worksheets and printing', routes: ['/saved-worksheets', '/worksheet-generator'], help: 'Open Activities > Worksheets to reach Saved Worksheets. The curated Calm-Down Strategy Map sample can be opened and printed without using AI or saving data. In the worksheet grid find the row and Actions column. Select the eye icon with tooltip View. On View Worksheet select Print Worksheet above the preview. In the browser dialog choose the printer or Save as PDF and select Print or Save. If no dialog opens, allow popups and retry. The other row actions edit or delete; saved content can be assigned to a child.' },
   { area: 'Social stories', routes: ['/social-stories', '/social-stories/create', '/social-stories/edit/:id', '/social-stories/view/:id'], help: 'Open Activities > Social Stories. The curated four-page When My Plan Changes sample can be opened without using AI or saving data. Create a story using Select Kid, Language, Tone, Number of Pages, Sentences per Page, What is the story about?, Narrator Selection, Speech Speed, Visual Sync, Story Title, Page Text, and optional page images. Generate/edit and save. The saved-story Actions icons securely Share, View, Print, Edit, or Delete.' },
+  { area: 'Skill Builder', routes: ['/skill-builder', '/skill-builder/play/:id/:kidId'], help: 'Open Learning > Skill Builder. Choose a learner and provide one practical skill topic, age, communication level, goal, preferences, language, and parent customization. Create an AI draft with Simple, Intermediate, and Advanced levels. Review and edit every short Look, Learn, Choose, Practice, Try another, Remember, and Done card; add a familiar photo or parent voice recording when useful. Save the reviewed skill. To offer it, open Activities > Add Activity, choose Skill Builder under Select Type, and select the saved skill. The learner opens one card at a time from that offered activity, can pause or leave, and receives neutral explanations instead of scores. Previewing or saving never assigns it.' },
   { area: 'Controlled story sharing', routes: ['/social-stories', '/social-stories/shared/:shareToken'], help: 'In Social Stories select the Share securely action. Choose the link lifetime (1, 7, or 30 days), create and copy the link, and send only the URL. Links expire and can be revoked. A recipient can open the shared story without signing in while the link remains valid.' },
   { area: 'Progress results and history', routes: ['/progress-report/:kidId', '/activity-history', '/data-management'], help: 'Select a learner and open Progress. Quiz Results, Game Scores, Retries, Rewards History, and Activity History open directly to their first view. Result pages provide standard List and Calendar views; a calendar date shows its item count and opens that day’s list. Rewards History combines purchases and positive recognition and supports rolling one-, three-, six-, or twelve-month periods plus custom dates. Activity History shows one row per activity category and name; View opens the complete action history. Select all applies only to the current page.' },
   { area: 'Summary report', routes: ['/summary-report/:kidId'], help: 'Select a child, open Analytics, and select Summary Report. It combines activity and quiz entries with type, title, details, reward, and date for a concise overview.' },
@@ -7998,7 +8087,7 @@ export const parentAssistantFeatureCatalog = [
   { area: 'Contact', routes: ['/contact', '/support'], help: 'Open Contact from the navigation or footer. Enter your name, email address, subject, and message, then select Send Message. Signed-in parents can also review message status and replies in Connect. Never include passwords, child access codes, medical records, or sensitive family information.' },
   { area: 'Privacy, terms, cookies, and analytics', routes: ['/privacy', '/terms', '/cookies'], help: 'Open Privacy, Terms, or Cookies & Analytics from the footer on any page. Privacy explains what family information Visual Steps handles, why it is used, limited service-provider processing, AI requests, social-story sharing, uploaded-image links, retention choices, account deletion, and security responsibilities. Terms explains responsible use, caregiver review, community content, availability, and why Visual Steps is not medical or clinical advice. Cookies & Analytics explains essential sign-in and preference storage, the installed-app cache, browser controls, and the current absence of advertising cookies and product analytics. On Create an account, review the Terms and Privacy links and select the agreement checkbox before selecting Sign Up.' },
   { area: 'Visual Steps weekly newsletter', routes: ['/newsletter', '/newsletter/subscribe', '/newsletter/unsubscribe', '/newsletter/community', '/newsletter/archive/:month', '/newsletter/issues/:issueDate', '/newsletter-admin'], help: 'Open the Newsletter menu in the main navigation. Choose Subscribe to open the dedicated signup page, enter Email address, and select Subscribe; confirm the subscription from the email you receive. Active subscribers see Unsubscribe Newsletter instead. Choose Weekly archive, then select a month; months and issues are ordered latest first. Selecting an issue opens the complete newsletter in a large modal window, and Close returns to the archive. Choose Share with the community to open its dedicated submission page. Approved administrators open Admin and choose Manage newsletter for publication controls. Each upcoming weekly issue uses a calm, scannable format with a contents page, new and updated feature details, approved parent stories/news/information/tips, testimonials, popular features, activities and games, books and resources, ideas for using Visual Steps meaningfully, current membership details, practical caregiver tips, and clearly labeled mission-aligned advertisements when approved. Published archive issues retain the content and layout saved when they were released. General non-clinical topics may include communication and speech support, occupational support, positive behavior support, daily living, learning, work, leisure, and community participation for autistic people of all ages. Submissions remain private until reviewed and approved. The protected Newsletter Administration page lets administrators manage submissions, change the weekly delivery day and time in their timezone, edit and save the next issue template, preview it without publishing, and send a prepared issue. Every issue includes Visual Steps Home, Pricing, Subscribe Newsletter, optional configured Facebook and Instagram links, and one-click unsubscribe.' },
-  { area: 'Protected administration', routes: ['/admin/insights', '/admin/support', '/newsletter-admin'], help: 'The Admin menu appears only for approved administrators. Choose Insights to review account growth, registration status, parent journey signals, interpreted feature health, the last 24 hours or longer reporting periods, operations, retention, privacy-conscious traffic, and AI Use. Open Contact messages to acknowledge parent requests and update their status. Choose Manage newsletter for publication and subscriber controls. AI Use shows where AI is requested, model and token totals, individual request estimates, and aggregate estimated standard paid-tier cost without retaining prompts, responses, or family content. Child / adult profiles and family content are intentionally excluded. Administrator and membership changes require confirmation and are recorded for accountability.' },
+  { area: 'Protected administration', routes: ['/admin/insights', '/admin/support', '/admin/total-cost', '/newsletter-admin'], help: 'The Admin menu appears only for approved administrators. Choose Insights to review account growth, registration status, parent journey signals, interpreted feature health, the last 24 hours or longer reporting periods, operations, retention, privacy-conscious traffic, and AI Use. Open Contact messages to acknowledge parent requests and update their status. Total Cost opens an admin-only PDF snapshot of owner-reported subscriptions and the current AI Use estimate; it is not an invoice, and Vercel and email charges remain unverified. Choose Manage newsletter for publication and subscriber controls. AI Use shows where AI is requested, model and token totals, individual request estimates, and aggregate estimated standard paid-tier cost without retaining prompts, responses, or family content. Child / adult profiles and family content are intentionally excluded. Administrator and membership changes require confirmation and are recorded for accountability.' },
   { area: 'Learning games', routes: ['/games', '/games/place-value', '/games/expanded-form', '/games/digit-value', '/games/place-value-clues', '/kids-games/place-value/:kidId', '/kids-games/expanded-form/:kidId', '/kids-games/digit-value/:kidId', '/kids-games/place-value-clues/:kidId'], help: 'Open Learning → Games to choose a place-value activity. Parents can preview each game and assign it from Activities. Learners open an assigned game from their dashboard, complete the guided rounds, and receive immediate feedback. Saved results appear under Progress → Game Scores.' },
   { area: 'Child dashboard', routes: ['/kids-dashboard/:kidId'], help: 'Children sign in with their Kid Code. Available Choices presents activities that may be opened in any order; the learner does not need to complete every activity shown. Within a chosen activity, visual steps can be followed in sequence and checked without making every choice mandatory. Waiting lists work submitted for parent verification, Completed shows completed activities, and Rewards shows only active items the learner can currently afford. Unaffordable rewards are not displayed as locked goals or progress bars. Completing an activity shows a calm acknowledgement and reminds the learner that they may choose another activity, take a break, or leave. A verification-required submission tells the child to wait and does not award tokens until parent approval.' },
   { area: 'Offline and installation', routes: ['/'], help: 'On the website, select Install App in the footer. If the browser offers an install prompt, choose Install Visual Steps. Otherwise follow the device-specific instructions in the dialog. On iPhone or iPad, open Visual Steps in Safari and use Share > Add to Home Screen; on Mac Safari, use File > Add to Dock. The link is hidden inside an installed app. When internet access is lost, the app displays an offline notice. Sign-in, saved family information, and AI features become available again after reconnection.' },
@@ -8483,7 +8572,7 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
     }
     finalModelName = modelNameInput;
 
-    const learningPurpose = ['quiz', 'worksheet', 'social_story'].includes(req.body?.generationPurpose)
+    const learningPurpose = ['quiz', 'worksheet', 'social_story', 'skill_builder'].includes(req.body?.generationPurpose)
       ? req.body.generationPurpose
       : '';
     if (learningPurpose) {
@@ -8500,7 +8589,7 @@ app.post('/api/generate', authenticateToken, async (req: any, res) => {
       };
       if (row?.allowed !== true) {
         return res.status(429).json({
-          error: `Today’s AI learning-material allowance has been used. You can create another quiz, worksheet, or social story after ${formatLearningMaterialReset(learningAllowance.resetsAt, timezone)}.`,
+          error: `Today’s AI learning-material allowance has been used. You can create another learning material after ${formatLearningMaterialReset(learningAllowance.resetsAt, timezone)}.`,
           allowance: learningAllowance,
         });
       }

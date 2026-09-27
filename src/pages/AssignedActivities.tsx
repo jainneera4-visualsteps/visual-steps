@@ -188,6 +188,7 @@ export default function AssignedActivities() {
 
   const [templates, setTemplates] = useState<ActivityTemplate[]>([]);
   const [socialStories, setSocialStories] = useState<any[]>([]);
+  const [skillLessons, setSkillLessons] = useState<{ id: string; kid_id: string; title: string }[]>([]);
   const [quizzes, setQuizzes] = useState<any[]>([]);
   const [worksheets, setWorksheets] = useState<any[]>([]);
   const [rewardItems, setRewardItems] = useState<RewardItem[]>([]);
@@ -238,6 +239,7 @@ export default function AssignedActivities() {
   const [historySortConfig, setHistorySortConfig] = useState<{ key: string | null, direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
   const [predefinedType, setPredefinedType] = useState<string>('');
   const [predefinedId, setPredefinedId] = useState<string>('');
+  const [showSavedActivityPicker, setShowSavedActivityPicker] = useState(false);
 
   useEffect(() => {
     setHistoryPage(1);
@@ -899,6 +901,7 @@ export default function AssignedActivities() {
     fetchActivityCategories();
     fetchTemplates();
     fetchSocialStories();
+    fetchSkillLessons();
     fetchQuizzes();
     fetchWorksheets();
   }, []);
@@ -1002,6 +1005,13 @@ export default function AssignedActivities() {
     } catch (error) {
       console.error('Failed to fetch social stories', error);
     }
+  };
+
+  const fetchSkillLessons = async () => {
+    try {
+      const response = await apiFetch('/api/skill-lessons');
+      if (response.ok) setSkillLessons((await safeJson(response)).lessons || []);
+    } catch (error) { console.error('Failed to fetch skill lessons', error); }
   };
 
   const fetchQuizzes = async () => {
@@ -2737,10 +2747,10 @@ export default function AssignedActivities() {
                 })()}
                 <div className="overflow-x-auto">
                   <table className="app-data-table min-w-[1100px] [&_td]:break-words [&_td]:whitespace-normal [&_th]:whitespace-normal">
-                    <colgroup><col className="w-20" /><col className="w-[18%]" /><col className="w-[24%]" /><col className="w-[12%]" /><col className="w-[10%]" /><col className="w-[12%]" /><col className="w-[10%]" /><col className="w-52" /></colgroup>
+                    <colgroup><col className="w-[8%]" /><col className="w-[13%]" /><col className="w-[19%]" /><col className="w-[11%]" /><col className="w-[10%]" /><col className="w-[9%]" /><col className="w-[10%]" /><col className="w-[9%]" /><col className="w-[11%]" /></colgroup>
                     <thead className="app-data-table-head">
                     <tr>
-                      <th className="w-20 px-3 py-2">
+                      <th className="px-3 py-2">
                         <div className="flex items-center gap-2">
                           <input
                             type="checkbox"
@@ -2799,6 +2809,7 @@ export default function AssignedActivities() {
                           </CustomTooltip>
                         </div>
                       </th>
+                      <th className="px-3 py-2 font-bold">Status</th>
                       <th className="px-3 py-2 font-bold whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <span>Reward Amount</span>
@@ -2894,7 +2905,7 @@ export default function AssignedActivities() {
                       {activeTab === 'activities' && (index === 0
                         || activityMeaningOf(visibleActivityRows[index - 1]) !== activityMeaningOf(activity)) && (
                         <tr className={activityMeaningOf(activity) === 'important_today' ? 'bg-amber-50' : 'bg-emerald-50'}>
-                          <td colSpan={8} className="px-3 py-2">
+                          <td colSpan={9} className="px-3 py-2">
                             <div className="font-black text-slate-900">
                               {activityMeaningOf(activity) === 'important_today' ? '⭐ Do Today' : '🌱 Learner Can Choose'}
                             </div>
@@ -2926,9 +2937,6 @@ export default function AssignedActivities() {
                               </div>
                             )}
                             {activity.activity_type}
-                            <button type="button" onClick={() => { setAvailabilityError(null); setAvailabilityDraft({ activity, kind: activity.unavailable_for_now ? activity.unavailability_kind || 'temporary' : 'available', reason: activity.unavailability_reason || '', category: activities.find(item => item.id === activity.replacement_activity_id)?.category || '', replacementId: activity.replacement_activity_id || '' }); }} className={`ml-2 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${activity.unavailable_for_now ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}>
-                              {activity.unavailable_for_now ? activity.unavailability_kind === 'cancelled' ? 'Cancelled' : activity.unavailability_kind === 'replaced' ? 'Replaced' : 'Unavailable for now' : 'Available · change'}
-                            </button>
                             {activity.link?.includes('/social-stories/view/') && (
                               <div className={`flex h-4 w-4 items-center justify-center rounded-full bg-blue-100 text-blue-600`}>
                                 <Eye className="h-2.5 w-2.5" />
@@ -2938,6 +2946,11 @@ export default function AssignedActivities() {
                         </td>
                         <td className="max-w-xs px-4 py-3 text-xs text-slate-600">
                           <span className="line-clamp-2">{activity.description || '—'}</span>
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-xs">
+                          <button type="button" onClick={() => { setAvailabilityError(null); setAvailabilityDraft({ activity, kind: activity.unavailable_for_now ? activity.unavailability_kind || 'temporary' : 'available', reason: activity.unavailability_reason || '', category: activities.find(item => item.id === activity.replacement_activity_id)?.category || '', replacementId: activity.replacement_activity_id || '' }); }} className="app-link-muted" aria-label={`Change availability for ${activity.activity_type}`}>
+                            {activity.unavailable_for_now ? activity.unavailability_kind === 'cancelled' ? 'Cancelled' : activity.unavailability_kind === 'replaced' ? 'Replaced' : 'Unavailable for now' : 'Available'}
+                          </button>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-xs font-black text-emerald-700">
                           +{Math.max(1, Number(activity.reward_qty) || 1)} {formatReward(kid?.reward_type, Math.max(1, Number(activity.reward_qty) || 1))}
@@ -4147,7 +4160,14 @@ export default function AssignedActivities() {
                 )}
 
                 {!editingActivity && (
-                  <div className="grid gap-2.5 md:grid-cols-2" data-guest-tour="predefined-activity">
+                  <div data-guest-tour="predefined-activity">
+                    <div className="flex justify-end">
+                      <button type="button" aria-expanded={showSavedActivityPicker} aria-controls="saved-activity-picker" onClick={() => setShowSavedActivityPicker(value => !value)} className="inline-flex items-center gap-1.5 rounded-md px-1 py-1 text-sm font-bold text-brand-700 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">
+                        Learning Activity
+                        {showSavedActivityPicker ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {showSavedActivityPicker && <div id="saved-activity-picker" className="mt-2 grid gap-2.5 md:grid-cols-2">
                     <div className="space-y-0.5 p-2 bg-blue-50 rounded border border-blue-100">
                       <div className="flex items-center gap-1.5 mb-1">
                         <label className="text-[12px] font-bold text-blue-600 uppercase">Select Pre-defined Activity Type (Optional)</label>
@@ -4177,6 +4197,7 @@ export default function AssignedActivities() {
                         <option value="">-- Select Type --</option>
                         <option value="quiz">Quizzes</option>
                         <option value="story">Social Stories</option>
+                        <option value="skill">Skill Builder</option>
                         <option value="worksheet">Worksheets</option>
                         <option value="game">Games</option>
                       </select>
@@ -4209,7 +4230,10 @@ export default function AssignedActivities() {
                           setPredefinedId(val);
                           if (!val) return;
                           
-                          if (predefinedType === 'story') {
+                          if (predefinedType === 'skill') {
+                            const skill = skillLessons.find(item => item.id === val && item.kid_id === kidId);
+                            if (skill) setFormData({ ...formData, activityType: skill.title, description: 'Explore this skill at your own pace.', link: `/skill-builder/play/${skill.id}/${kidId}`, category: 'Life Skills', status: 'pending' });
+                          } else if (predefinedType === 'story') {
                             const story = socialStories.find(s => s.id === val);
                             if (story) {
                               setFormData({
@@ -4276,6 +4300,7 @@ export default function AssignedActivities() {
                           .map(s => (
                             <option key={s.id} value={s.id}>{s.title}</option>
                           ))}
+                        {predefinedType === 'skill' && skillLessons.filter(skill => skill.kid_id === kidId).map(skill => <option key={skill.id} value={skill.id}>{skill.title}</option>)}
                         {predefinedType === 'worksheet' && worksheets
                           .filter(w => !w.kid_id || w.kid_id === kidId)
                           .map(w => (
@@ -4289,6 +4314,7 @@ export default function AssignedActivities() {
                         </>}
                       </select>
                     </div>
+                    </div>}
                   </div>
                 )}
 
@@ -4696,6 +4722,8 @@ export default function AssignedActivities() {
                     >
                       <option value="Never">Never</option>
                       <option value="Daily">Daily</option>
+                      <option value="Weekdays">Weekdays (Monday–Friday)</option>
+                      <option value="Weekends">Weekends (Saturday–Sunday)</option>
                       <option value="Weekly">Weekly</option>
                       <option value="Bi-Weekly">Bi-Weekly</option>
                       <option value="Monthly">Monthly</option>

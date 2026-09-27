@@ -48,7 +48,8 @@ test('parent shell uses stable primary workspaces and contextual navigation', ()
   assert.match(layout, /workspaceSecondaryLinks/);
   assert.match(layout, /parentWorkspaces\.map\(workspace =>/);
   assert.match(layout, /workspaceSecondaryLinks\[workspace\.id\]/);
-  assert.match(layout, /max-h-\[calc\(100dvh-4rem\)\] overflow-y-auto/);
+  assert.match(layout, /absolute inset-x-0 top-full overflow-y-auto overscroll-contain/);
+  assert.match(layout, /max-h-\[calc\(100dvh_-_20rem_-_env\(safe-area-inset-bottom\)\)\]/);
   assert.match(layout, /workspace navigation/);
   assert.match(layout, /aria-current=\{currentWorkspace === item\.id/);
   assert.match(layout, /visual-steps:selected-kid/);

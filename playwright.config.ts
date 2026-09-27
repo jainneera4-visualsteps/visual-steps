@@ -25,12 +25,12 @@ export default defineConfig({
     },
     {
       name: 'iphone-webkit',
-      testMatch: /pwa-mobile\.spec\.ts/,
+      testMatch: /(pwa-mobile|responsive-regression)\.spec\.ts/,
       use: { ...devices['iPhone 13'] },
     },
     {
       name: 'ipad-webkit',
-      testMatch: /pwa-mobile\.spec\.ts/,
+      testMatch: /(pwa-mobile|responsive-regression)\.spec\.ts/,
       use: { ...devices['iPad Pro 11'] },
     },
   ],

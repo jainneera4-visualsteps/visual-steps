@@ -37,7 +37,7 @@ export function LearningMaterialAllowance({ allowance, loading }: { allowance: G
       {loading ? 'Checking today’s learning-material allowance…' : allowance ? `${allowance.remaining} of ${allowance.dailyLimit} AI learning materials remaining` : 'Learning-material allowance unavailable'}
     </p>
     <p className="mt-1 flex items-center gap-2 text-xs"><Clock3 className="h-3.5 w-3.5" />
-      {exhausted ? `You can create another AI learning material ${formatAllowanceReset(allowance?.resetsAt)}.` : `The shared quiz, worksheet, and social-story allowance resets ${formatAllowanceReset(allowance?.resetsAt)}.`}
+      {exhausted ? `You can create another AI learning material ${formatAllowanceReset(allowance?.resetsAt)}.` : `The shared quiz, worksheet, social-story, and skill-builder allowance resets ${formatAllowanceReset(allowance?.resetsAt)}.`}
     </p>
   </div>;
 }
