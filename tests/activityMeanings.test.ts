@@ -7,10 +7,10 @@ const server = readFileSync('server.ts', 'utf8');
 const migration = readFileSync('database_updates/2026-09-11_activity_meanings.sql', 'utf8');
 const timeMigration = readFileSync('database_updates/2026-09-11_activity_time_support.sql', 'utf8');
 
-test('parents can prepare activities as available choices or important today', () => {
-  assert.match(activityPage, /Offer as/);
-  assert.match(activityPage, /Learner Can Choose/);
-  assert.match(activityPage, /Do Today/);
+test('parents add activities without an extra importance choice', () => {
+  assert.doesNotMatch(activityPage, /Offer as/);
+  assert.doesNotMatch(activityPage, /Learner Can Choose/);
+  assert.doesNotMatch(activityPage, /Do Today/);
   assert.doesNotMatch(activityPage, />Optional additional activity</);
 });
 
@@ -30,10 +30,10 @@ test('learner sees one choice-based activity view without a separate extras menu
   assert.doesNotMatch(server, /activity\.is_optional_bonus !== true \|\| activity\.optional_selected_at/);
 });
 
-test('parent and learner lists group meanings under headings instead of card tags', () => {
+test('parent and learner lists do not split activities by legacy meanings', () => {
   const childDashboard = readFileSync('src/pages/KidsDashboard.tsx', 'utf8');
-  assert.match(activityPage, /⭐ Do Today/);
-  assert.match(activityPage, /🌱 Learner Can Choose/);
+  assert.doesNotMatch(activityPage, /⭐ Do Today/);
+  assert.doesNotMatch(activityPage, /🌱 Learner Can Choose/);
   assert.doesNotMatch(childDashboard, /time: 'Available Choices for Today'/);
   assert.match(childDashboard, /<LayoutList className="h-6 w-6" aria-label="Activity with visual steps"/);
   assert.doesNotMatch(childDashboard, /<Circle className="h-6 w-6"/);

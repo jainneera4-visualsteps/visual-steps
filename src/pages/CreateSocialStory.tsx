@@ -852,7 +852,7 @@ export default function CreateSocialStory() {
       <div className="space-y-4 pt-4 no-print">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-slate-900">{t('Story Details')}</h2>
-          <div className="flex gap-2">
+          <div className="hidden gap-2 sm:flex">
             <Button size="sm" onClick={saveStory} disabled={isSaving} className="font-bold">
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
               {isEditing ? t('Update Story') : t('Save Story')}
@@ -988,6 +988,12 @@ export default function CreateSocialStory() {
           >
             <Plus className="mr-2 h-4 w-4" />
             {t('Add Page')}
+          </Button>
+        </div>
+        <div className="flex justify-end border-t border-slate-200 pt-4 sm:hidden">
+          <Button size="sm" onClick={saveStory} disabled={isSaving} className="font-bold">
+            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            {isEditing ? t('Update Story') : t('Save Story')}
           </Button>
         </div>
       </div>

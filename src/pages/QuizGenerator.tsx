@@ -718,7 +718,7 @@ export default function QuizGenerator() {
               size="sm" 
               onClick={handleSave}
               disabled={isSaving || reviewQuizQuestions(quiz.questions, quiz.questionType || questionType, numQuestions).length > 0}
-              className="h-8 text-[12px]"
+              className="hidden h-8 text-[12px] sm:inline-flex"
             >
               {isSaving ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1.5 h-3.5 w-3.5" />}
               Save Quiz
@@ -835,6 +835,12 @@ export default function QuizGenerator() {
               ))}
             </CardContent>
           </Card>
+          <div className="flex justify-end border-t border-slate-200 pt-4 sm:hidden">
+            <Button variant="outline" size="sm" onClick={handleSave} disabled={isSaving || reviewQuizQuestions(quiz.questions, quiz.questionType || questionType, numQuestions).length > 0}>
+              {isSaving ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1.5 h-3.5 w-3.5" />}
+              Save Quiz
+            </Button>
+          </div>
         </div>
       )}
 

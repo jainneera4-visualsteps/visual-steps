@@ -9,10 +9,9 @@ test('activity form keeps options visible in compact rows', () => {
   assert.match(activityPage, /data-guest-tour="activity-options-summary"/);
   assert.match(activityPage, /<CardContent className="flex flex-col gap-2\.5 px-4 pb-3">/);
   assert.match(activityPage, /className="order-2[^\"]*" data-guest-tour="activity-options-summary"/);
-  assert.match(activityPage, /Offer as/);
+  assert.doesNotMatch(activityPage, /Offer as/);
   assert.match(activityPage, /Parent verification/);
   assert.match(activityPage, /divide-y divide-slate-200/);
-  assert.match(activityPage, /Learner Can Choose offers this as an option/);
   assert.match(activityPage, /Choose what this activity earns based on the effort and challenge/);
   assert.match(activityPage, /Required sends completed work to the parent for approval/);
   assert.doesNotMatch(activityPage, /activeActivityOption/);
@@ -32,7 +31,7 @@ test('new activity name suggestions follow the selected category', () => {
 test('advanced activity settings retain their established controls', () => {
   assert.match(activityPage, /name="requiresVerification"/);
   assert.match(activityPage, /name="rewardQtyPreset"/);
-  assert.match(activityPage, /name="activityMeaning"/);
+  assert.doesNotMatch(activityPage, /name="activityMeaning"/);
   assert.match(activityPage, /data-guest-tour="activity-schedule"/);
 });
 

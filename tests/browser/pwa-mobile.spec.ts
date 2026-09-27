@@ -58,14 +58,13 @@ test('Guest Login opens the same install guidance without saving guest work', as
   await expect(page.getByText('Installing the app does not save guest work')).toBeVisible();
 });
 
-test('phone navigation exposes primary public destinations', async ({ page }) => {
+test('phone public navigation matches the desktop header', async ({ page }) => {
   test.skip(!test.info().project.name.includes('iphone'), 'Phone navigation coverage');
 
   await page.goto('/');
   await page.getByRole('button', { name: 'Open menu' }).click();
   const header = page.getByRole('banner');
-  await expect(header.getByRole('link', { name: 'About' })).toBeVisible();
-  await expect(header.getByRole('link', { name: 'Plans' })).toBeVisible();
   await expect(header.getByRole('link', { name: 'Sign in' })).toBeVisible();
-  await expect(header.getByRole('link', { name: 'Join now' })).toBeVisible();
+  await expect(header.getByRole('link', { name: 'Join free' })).toBeVisible();
+  await expect(header.getByRole('navigation').getByRole('link')).toHaveCount(2);
 });

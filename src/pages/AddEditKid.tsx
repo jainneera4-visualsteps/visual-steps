@@ -426,7 +426,7 @@ export default function AddEditKid() {
       <Card className="w-full border-blue-200 bg-blue-50/50 shadow-sm !overflow-visible">
         <CardHeader className="flex flex-row items-center justify-between py-2 px-4 space-y-0 border-b border-blue-100 bg-white/50">
           <CardTitle className="text-base font-bold">{isEditing ? 'Edit Profile Details' : 'Profile Details'}</CardTitle>
-          <div className="flex items-center gap-2">
+          <div className="hidden items-center gap-2 sm:flex">
             <Button type="button" variant="ghost" size="xs" onClick={() => navigate('/dashboard')} className="h-8 px-3 text-[12px] font-bold">Cancel</Button>
             <Button data-guest-tour="child-save" type="submit" form="child-profile-form" size="xs" className="h-8 px-3 text-[12px] font-bold" isLoading={isLoading} disabled={isAvatarUploading || isRewardIconUploading || isHelpMediaUploading || isRecordingHelp}>{isEditing ? 'Save Changes' : 'Create Profile'}</Button>
           </div>
@@ -1094,6 +1094,10 @@ export default function AddEditKid() {
               </div>
             </div>
 
+            <div className="flex justify-end gap-2 border-t border-blue-100 pt-3 sm:hidden" aria-label="Profile form actions">
+              <Button type="button" variant="ghost" size="xs" onClick={() => navigate('/dashboard')}>Cancel</Button>
+              <Button data-guest-tour="child-save" type="submit" size="xs" isLoading={isLoading} disabled={isAvatarUploading || isRewardIconUploading || isHelpMediaUploading || isRecordingHelp}>{isEditing ? 'Save Changes' : 'Create Profile'}</Button>
+            </div>
           </form>
         </CardContent>
       </Card>

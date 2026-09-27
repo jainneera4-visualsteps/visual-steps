@@ -238,7 +238,7 @@ export default function EditQuiz() {
             <h1 className="text-5xl font-normal text-slate-900 tracking-tight leading-none">Edit Quiz</h1>
             <p className="text-lg font-normal text-slate-500 mt-3">Modify your interactive quiz</p>
           </div>
-          <Button onClick={handleSave} disabled={isSaving} className="font-bold">
+          <Button onClick={handleSave} disabled={isSaving} className="hidden font-bold sm:inline-flex">
             {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
             Save Quiz
           </Button>
@@ -468,6 +468,12 @@ export default function EditQuiz() {
             <p className="text-slate-500">No questions yet. Click "Add Question" to start.</p>
           </div>
         )}
+      </div>
+      <div className="flex justify-end border-t border-slate-200 pt-4 sm:hidden">
+        <Button onClick={handleSave} disabled={isSaving} className="font-bold">
+          {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+          Save Quiz
+        </Button>
       </div>
     </div>
   );

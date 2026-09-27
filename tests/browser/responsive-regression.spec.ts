@@ -56,6 +56,11 @@ test('new activity form keeps saved activity choices compact until requested', a
   await page.getByRole('button', { name: 'Open menu' }).click();
   await page.getByRole('banner').getByRole('navigation').last().getByRole('link', { name: 'Current' }).click();
   await page.getByRole('button', { name: 'Add Activity' }).first().click();
+  const activityForm = page.locator('#activity-details-form');
+  await expect(activityForm.getByText('Offer as')).toHaveCount(0);
+  await expect(activityForm.getByRole('button', { name: 'Add Activity' })).toBeVisible();
+  await expect(activityForm.getByRole('button', { name: 'Cancel' })).toBeVisible();
+  await expect(activityForm.locator('[aria-label="Activity form actions"]')).toBeVisible();
   const toggle = page.getByRole('button', { name: 'Learning Activity' });
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   const alignment = await toggle.evaluate(element => ({ buttonRight: element.getBoundingClientRect().right, rowRight: element.parentElement!.getBoundingClientRect().right }));

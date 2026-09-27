@@ -95,7 +95,7 @@ export default function ParentSupport() {
       <Card className="border-blue-200 bg-blue-50/50 shadow-sm">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 px-4 py-2">
           <CardTitle className="text-base font-bold">Contact Visual Steps</CardTitle>
-          <div className="flex items-center gap-2">
+          <div className="hidden items-center gap-2 sm:flex">
             <Button type="button" variant="ghost" size="xs" onClick={() => { setShowForm(false); setError(''); }} className="h-8 px-3 text-[12px] font-bold">Cancel</Button>
             <Button type="submit" size="xs" disabled={sending} className="h-8 px-3 text-[12px] font-bold">
               {sending ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin"/> : <Mail className="mr-1.5 h-3.5 w-3.5"/>}{sending ? 'Sending…' : 'Send Message'}
@@ -115,6 +115,10 @@ export default function ParentSupport() {
           <p className="text-xs text-slate-500">Do not include passwords, child access codes, medical records, or other sensitive information.</p>
         </CardContent>
       </Card>
+      <div className="flex justify-end gap-2 border-t border-blue-100 pt-3 sm:hidden">
+        <Button type="button" variant="ghost" size="xs" onClick={() => { setShowForm(false); setError(''); }}>Cancel</Button>
+        <Button type="submit" size="xs" disabled={sending}>{sending ? 'Sending…' : 'Send Message'}</Button>
+      </div>
     </form>
   </div>;
 

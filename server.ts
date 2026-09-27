@@ -26,14 +26,14 @@ const productFeatureRegistry = [
     "id": "visual-activities",
     "title": "Clear visual activities",
     "summary": "Offer meaningful activities as choices, then guide a chosen activity with clear visual steps.",
-    "details": "Parents and caregivers can turn a routine, responsibility, or learning goal into a clear activity with descriptions, real-life images, smaller steps, timing, recurrence, verification, and its own reward amount. Each activity can be offered as Learner Can Choose or Do Today. The parent view keeps those meanings available for planning, while the learner sees all activities that are currently available together under one Available Choices heading and may choose any one in the order that works for them. The learner does not need to complete every activity shown.",
+    "details": "Parents and caregivers can turn a routine, responsibility, or learning goal into a clear activity with descriptions, real-life images, smaller steps, timing, recurrence, verification, and its own reward amount. Parents offer activities without choosing a separate importance category. The learner sees currently available activities together under one Available Choices heading and may choose one that works for them. The learner does not need to complete every activity shown.",
     "familyImpact": "Clear visual sequences can reduce uncertainty and make a task easier to begin, understand, and finish for autistic people of different ages and support needs. Parents and caregivers can divide responsibilities into achievable steps, adapt the pace, and use consistent instructions across home, learning, work, therapy support, and community routines.",
     "guideParagraphs": [
       "A visual activity is most useful when it answers the questions a person may naturally have before beginning: what am I doing, how much is expected, what happens next, and how will I know I am finished? Parents can keep the wording concrete, choose an illustration that truly matches the task, and add only the steps that make the activity easier to follow. For a familiar routine, a short instruction may be enough; for a newer or more demanding responsibility, several smaller steps can provide a clearer path.",
       "The same approach can support a young child learning self-care, a teenager managing school or household responsibilities, or an autistic adult building independence at home, work, or in the community. Caregivers can observe where the person pauses, becomes uncertain, or needs prompting, then adjust the wording, image, timing, or number of steps. Reassignment provides another opportunity without erasing the value of the first effort.",
-      "While adding or editing an activity, parents choose how it should be offered. Learner Can Choose means it may be selected when it is useful or meaningful. Do Today gives the parent a way to identify an activity that may be especially helpful today without imposing an order. The learner dashboard combines both meanings under Available Choices and explains that the learner may choose one activity and does not need to do every activity shown."
+      "While adding or editing an activity, parents choose its date, timing, steps, and other practical details. There is no separate Do Today or Learner Can Choose decision. The learner dashboard presents available activities as choices and explains that the learner may choose one without needing to do every activity shown."
     ],
-    "help": "From Dashboard, select a child / adult and open Activities Setup. Choose Add Activity or edit an existing activity. In the compact Offer as row, select Learner Can Choose or Do Today, choose that activity's reward, then save. The Activities list places it under the matching section.",
+    "help": "From Dashboard, select a child / adult and open Activities Setup. Choose Add Activity or edit an existing activity, set its date and steps, choose its reward and verification settings, then save. Available activities appear together in the learner's choices.",
     "screenshot": {
       "src": "/onboarding/activities.png",
       "alt": "Visual Steps activities screen",
@@ -41,6 +41,18 @@ const productFeatureRegistry = [
     },
     "introducedOn": "2026-03-01",
     "updates": [
+      {
+        "updatedOn": "2026-09-27",
+        "title": "One simpler activity choice",
+        "summary": "Parents no longer choose between Do Today and Learner Can Choose.",
+        "details": "Add and Edit Activity no longer ask for an extra importance category. The parent activity list no longer splits assignments under those headings. Existing dates, repetition, status, steps, and reward settings stay intact; older meaning values remain compatible with stored records.",
+        "familyImpact": "Parents have one less decision to make, and learners continue seeing available activities together as choices.",
+        "guideParagraphs": [
+          "Choose the activity, its date and timing, and any helpful visual steps. There is no additional Do Today or Learner Can Choose setting.",
+          "A learner can choose one suitable activity and does not need to finish every activity shown."
+        ],
+        "help": "In Activities Setup, add or edit an activity and save it. Existing schedules and assignments do not need to be recreated."
+      },
       {
         "updatedOn": "2026-09-24",
         "title": "Category-matched activity names",
@@ -158,7 +170,7 @@ const productFeatureRegistry = [
         "guideParagraphs": [
           "Use broad time periods as gentle guidance for routines that do not need an exact start. Any time activities remain available without unnecessary time labels.",
           "Choose Specific time for appointments, meetings, travel, or another event tied to the clock. A preparation offset can show the activity shortly before it begins, while the passed-time setting decides whether it remains available, asks the learner to check with a parent, or leaves the learner view.",
-          "The learner does not receive one long morning-to-night schedule. Coming Up stays focused, available activities remain grouped by meaning, Later Today is collapsed, and Show More keeps a larger collection manageable."
+          "The learner does not receive one long morning-to-night schedule. Coming Up stays focused, available activities appear together, Later Today is collapsed, and Show More keeps a larger collection manageable."
         ],
         "help": "In Activities Setup, add or edit an activity and open Time. Select a broad period or Specific time. For a specific time, choose the start time, preparation time, flexibility, and what should happen after the time passes."
       },

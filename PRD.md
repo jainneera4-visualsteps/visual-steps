@@ -270,7 +270,7 @@ This section is generated from `feature-registry.json`. Update the registry when
 
 | Feature | Plan | Introduced | Latest update | Current description |
 | --- | --- | --- | --- | --- |
-| Clear visual activities | starter | 2026-03-01 | 2026-09-24 | Add Activity suggests only names previously used in the selected category. |
+| Clear visual activities | starter | 2026-03-01 | 2026-09-27 | Parents no longer choose between Do Today and Learner Can Choose. |
 | Parent activity verification | starter | 2026-08-20 | — | Choose which activities require parent approval before rewards are earned. |
 | Positive recognition and bonus tokens | starter | 2026-08-20 | — | Parents can recognize meaningful effort without tokens or give separate positive-only bonus tokens. |
 | Personalized, fair quizzes | starter | 2026-08-20 | 2026-08-24 | Quiz creation now connects every quiz to a measurable learning objective, lets parents privately try it as the learner, controls illustration use, and turns completed answers into practical planning guidance. |
@@ -288,6 +288,7 @@ This section is generated from `feature-registry.json`. Update the registry when
 
 | Updated | Feature | Improvement | Family-facing summary |
 | --- | --- | --- | --- |
+| 2026-09-27 | Clear visual activities | One simpler activity choice | Parents no longer choose between Do Today and Learner Can Choose. |
 | 2026-09-24 | Narrated tour and temporary Guest Login | A choice-first introduction with current real screens | The narrated guest video and Quick Start show choice-first activities, token-free recognition, and a simple path to use Visual Steps as an app. |
 | 2026-09-24 | Clear visual activities | Clearer learner activity details | Learners see one readable step sequence, nearby-help guidance, and a calm finish action after the steps. |
 | 2026-09-24 | Clear visual activities | Category-matched activity names | Add Activity suggests only names previously used in the selected category. |

@@ -23,7 +23,6 @@ export function Layout() {
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
   const [isNewsletterOpen, setIsNewsletterOpen] = useState(false);
   const [isArchiveMonthsOpen, setIsArchiveMonthsOpen] = useState(false);
-  const [isMobileArchiveOpen, setIsMobileArchiveOpen] = useState(false);
   const [newsletterMonths, setNewsletterMonths] = useState<{ value: string; label: string }[]>([]);
   const [isNewsletterSubscribed, setIsNewsletterSubscribed] = useState(false);
   const [isNewsletterAdmin, setIsNewsletterAdmin] = useState(false);
@@ -866,26 +865,11 @@ export function Layout() {
                 </>
               ) : (
                 <>
-                  <Link to="/about" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>
-                    About
-                  </Link>
-                  <Link to="/pricing" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>
-                    Plans
-                  </Link>
-                  <Link to="/testimonials" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Testimonials</Link>
-                  <span className="text-[12px] font-bold text-slate-600 uppercase">Newsletter</span>
-                  <div className="flex flex-col gap-1 pl-3 border-l-2 border-emerald-100">
-                    <button type="button" className="flex items-center gap-1 text-left text-[11px] font-bold text-slate-600 uppercase" onClick={() => setIsMobileArchiveOpen(value => !value)}>Weekly archive <ChevronDown size={12} className={isMobileArchiveOpen ? 'rotate-180' : ''}/></button>
-                    {isMobileArchiveOpen && newsletterMonths.map(month => <Link key={month.value} to={`/newsletter/archive/${month.value}`} className="pl-3 text-[11px] font-semibold text-slate-500" onClick={() => setIsMenuOpen(false)}>{month.label}</Link>)}
-                    <Link to="/newsletter/community" className="text-[11px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Share with community</Link>
-                    <Link to="/newsletter/subscribe" className="text-[11px] font-bold text-blue-700 uppercase" onClick={() => setIsMenuOpen(false)}>Subscribe</Link>
-                  </div>
-                  <Link to="/contact" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>Contact</Link>
                   <Link to="/login" className="text-[12px] font-bold text-slate-600 uppercase" onClick={() => setIsMenuOpen(false)}>
                     Sign in
                   </Link>
                   <Link to="/signup" className="text-[12px] font-bold text-blue-600 uppercase" onClick={() => setIsMenuOpen(false)}>
-                    Join now
+                    Join free
                   </Link>
                 </>
               )}

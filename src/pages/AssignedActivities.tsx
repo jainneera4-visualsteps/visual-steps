@@ -2,7 +2,7 @@ import { Tooltip as CustomTooltip } from '../components/ui/Tooltip';
 import { io } from 'socket.io-client';
 import { apiFetch, clearApiReadCache, safeJson } from '../utils/api';
 import { formatReward, getRewardIcon } from '../utils/rewardUtils';
-import { Fragment, useState, useEffect, useRef, type ReactNode } from 'react';
+import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
@@ -339,12 +339,6 @@ export default function AssignedActivities() {
           ? activities.filter(a => a.status === 'ended')
       : historyActivities;
 
-  // Older activities may not have an explicit meaning stored. They use the
-  // established Learner Can Choose default and must be grouped with newer rows
-  // that save that value explicitly.
-  const activityMeaningOf = (activity: Activity): ActivityMeaning =>
-    activity.activity_meaning === 'important_today' ? 'important_today' : 'available_choice';
-
   const visibleActivityRows = (() => {
     const filtered = activitiesToRender.filter(activity => !selectedDate || activity.due_date === selectedDate);
     const sorted = [...filtered].sort((a, b) => {
@@ -358,13 +352,7 @@ export default function AssignedActivities() {
       const comparison = aValue! < bValue! ? -1 : 1;
       return activitiesSortConfig.direction === 'asc' ? comparison : -comparison;
     });
-    const groupedSorted = activeTab === 'activities'
-      ? [
-          ...sorted.filter(activity => activityMeaningOf(activity) === 'important_today'),
-          ...sorted.filter(activity => activityMeaningOf(activity) === 'available_choice'),
-        ]
-      : sorted;
-    return groupedSorted.slice((activitiesPage - 1) * activitiesItemsPerPage, activitiesPage * activitiesItemsPerPage);
+    return sorted.slice((activitiesPage - 1) * activitiesItemsPerPage, activitiesPage * activitiesItemsPerPage);
   })();
   const visibleRewardItems = rewardItems
     .filter(item => !locationFilter || item.location === locationFilter)
@@ -2900,23 +2888,7 @@ export default function AssignedActivities() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {visibleActivityRows.map((activity, index) => (
-                      <Fragment key={activity.id}>
-                      {activeTab === 'activities' && (index === 0
-                        || activityMeaningOf(visibleActivityRows[index - 1]) !== activityMeaningOf(activity)) && (
-                        <tr className={activityMeaningOf(activity) === 'important_today' ? 'bg-amber-50' : 'bg-emerald-50'}>
-                          <td colSpan={9} className="px-3 py-2">
-                            <div className="font-black text-slate-900">
-                              {activityMeaningOf(activity) === 'important_today' ? '⭐ Do Today' : '🌱 Learner Can Choose'}
-                            </div>
-                            <div className="mt-0.5 text-xs font-medium text-slate-600">
-                              {activityMeaningOf(activity) === 'important_today'
-                                ? 'Activities you want the learner to recognize as important today.'
-                                : 'Activities the learner may choose in the order that works for them.'}
-                            </div>
-                          </td>
-                        </tr>
-                      )}
+                    {visibleActivityRows.map(activity => (
                       <tr key={activity.id} className={`app-data-row ${activity.status === 'completed' ? 'bg-slate-50 opacity-75' : ''}`}>
                         <td className="px-4 py-3">
                           <input
@@ -3002,7 +2974,6 @@ export default function AssignedActivities() {
                           </div>
                         </td>
                       </tr>
-                      </Fragment>
                     ))}
                   </tbody>
                 </table>
@@ -4031,7 +4002,7 @@ export default function AssignedActivities() {
           <Card className="border-blue-200 bg-blue-50/50 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between py-2 px-4 space-y-0">
               <CardTitle className="text-base font-bold">{editingActivity ? 'Edit Activity Details' : 'Activity Details'}</CardTitle>
-              <div className="flex items-center gap-2">
+              <div className="hidden items-center gap-2 sm:flex">
                 <Button type="button" variant="ghost" size="xs" onClick={handleCloseForm} className="h-8 px-3 text-[12px] font-bold">
                   Cancel
                 </Button>
@@ -4048,25 +4019,6 @@ export default function AssignedActivities() {
                 )}
 
                 <div className="order-2 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white px-3" data-guest-tour="activity-options-summary">
-                  <div className="flex min-h-11 flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-between">
-                    <span className="flex items-center gap-1.5 text-sm font-bold text-slate-800">
-                      Offer as
-                      <span className="group relative">
-                        <HelpCircle className="h-3.5 w-3.5 cursor-help text-brand-500" />
-                        <span className="pointer-events-none absolute bottom-full left-0 z-[100] mb-2 w-72 translate-y-1 rounded-2xl border-2 border-yellow-200 bg-[#fffdea] p-3 text-sm font-bold normal-case leading-5 text-slate-900 opacity-0 shadow-2xl transition-all group-hover:translate-y-0 group-hover:opacity-100">
-                          Learner Can Choose offers this as an option. Do Today shows that it matters today without forcing a first-to-last order.
-                        </span>
-                      </span>
-                    </span>
-                    <div className="flex flex-wrap gap-x-5 gap-y-2">
-                      {([['available_choice', 'Learner Can Choose'], ['important_today', 'Do Today']] as const).map(([value, label]) => (
-                        <label key={value} className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-600">
-                          <input type="radio" name="activityMeaning" value={value} checked={formData.activityMeaning === value} onChange={() => setFormData({ ...formData, activityMeaning: value })} className="h-4 w-4 border-slate-300 text-blue-600" />
-                          {label}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
                   <div className="flex min-h-11 flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-between" data-guest-tour="activity-reward-amount">
                     <span className="flex items-center gap-1.5 text-sm font-bold text-slate-800">
                       Reward
@@ -4822,6 +4774,12 @@ export default function AssignedActivities() {
 
             </CardContent>
           </Card>
+          <div className="flex justify-end gap-2 border-t border-blue-100 pt-3 sm:hidden" aria-label="Activity form actions">
+            <Button type="button" variant="ghost" size="xs" onClick={handleCloseForm}>Cancel</Button>
+            <Button data-guest-tour="activity-save" type="submit" size="xs" isLoading={isSavingActivity} disabled={isSavingActivity}>
+              {editingActivity ? 'Save Changes' : 'Add Activity'}
+            </Button>
+          </div>
           </form>
         </div>
       ) : (
