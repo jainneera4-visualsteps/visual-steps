@@ -7610,6 +7610,135 @@ app.delete('/api/social-stories/:id', authenticateToken, async (req: any, res) =
 
 // --- Redemption API ---
 
+const validRewardPlace = (name: unknown) => typeof name === 'string' && name.trim().length >= 1
+  && name.trim().length <= 80 && !['anywhere', 'general', 'any place'].includes(name.trim().toLowerCase());
+
+const savedRewardPlace = async (supabase: any, kidId: string, location: unknown) => {
+  if (location === null || location === undefined || location === '') return { valid: true, name: null as string | null };
+  if (typeof location !== 'string') return { valid: false, name: null as string | null };
+  const requested = location.trim();
+  if (!requested) return { valid: true, name: null as string | null };
+  const { data, error } = await supabase.from('reward_locations').select('name').eq('kid_id', kidId);
+  if (error) throw error;
+  const match = (data || []).find((item: { name: string }) => item.name.toLowerCase() === requested.toLowerCase());
+  return { valid: Boolean(match), name: match?.name || null };
+};
+
+app.get('/api/kids/:kidId/reward-locations', authenticateToken, async (req: any, res) => {
+  if (req.user.role === 'kid') return res.status(403).json({ error: 'Parent access required' });
+  try {
+    const supabase = getSupabaseForUser(req);
+    const { data: kid, error: kidError } = await supabase.from('kids').select('user_id, current_reward_location').eq('id', req.params.kidId).single();
+    if (kidError || !kid || kid.user_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
+    const { data: locations, error } = await supabase.from('reward_locations').select('id, name, created_at').eq('kid_id', req.params.kidId).order('name');
+    if (error) throw error;
+    const { data: rewardItems, error: rewardError } = await supabase.from('reward_items').select('location').eq('kid_id', req.params.kidId);
+    if (rewardError) throw rewardError;
+    const items = rewardItems || [];
+    res.json({
+      locations: (locations || []).filter(location => !['anywhere', 'general', 'any place'].includes(location.name.trim().toLowerCase())).map(location => ({
+        ...location,
+        rewardCount: items.filter(item => item.location?.trim().toLowerCase() === location.name.trim().toLowerCase()).length,
+      })),
+      currentLocation: kid.current_reward_location,
+    });
+  } catch (error) {
+    console.error('Get reward locations error:', error);
+    res.status(500).json({ error: 'Could not load reward locations. Check that the reward locations SQL migration has been applied.' });
+  }
+});
+
+app.post('/api/kids/:kidId/reward-locations', authenticateToken, async (req: any, res) => {
+  if (req.user.role === 'kid') return res.status(403).json({ error: 'Parent access required' });
+  if (!validRewardPlace(req.body?.name)) return res.status(400).json({ error: 'Enter a specific place name of 1–80 characters' });
+  try {
+    const supabase = getSupabaseForUser(req);
+    const { data: kid, error: kidError } = await supabase.from('kids').select('user_id').eq('id', req.params.kidId).single();
+    if (kidError || !kid || kid.user_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
+    const { data, error } = await supabase.from('reward_locations').insert({ kid_id: req.params.kidId, name: req.body.name.trim() }).select('id, name, created_at').single();
+    if (error?.code === '23505') return res.status(409).json({ error: 'This location already exists' });
+    if (error) throw error;
+    res.status(201).json({ location: data });
+  } catch (error) {
+    console.error('Add reward location error:', error);
+    res.status(500).json({ error: 'Could not add location. Check that the reward locations SQL migration has been applied.' });
+  }
+});
+
+app.put('/api/kids/:kidId/reward-locations/:locationId', authenticateToken, async (req: any, res) => {
+  if (req.user.role === 'kid') return res.status(403).json({ error: 'Parent access required' });
+  if (!validRewardPlace(req.body?.name)) return res.status(400).json({ error: 'Enter a specific place name of 1–80 characters' });
+  try {
+    const supabase = getSupabaseForUser(req);
+    const { data: location, error: checkError } = await supabase.from('reward_locations').select('kid_id').eq('id', req.params.locationId).eq('kid_id', req.params.kidId).single();
+    if (checkError || !location) return res.status(404).json({ error: 'Location not found' });
+    const { data, error } = await supabase.rpc('rename_reward_location', { p_location_id: req.params.locationId, p_name: req.body.name.trim() });
+    if (error?.code === '23505') return res.status(409).json({ error: 'This location already exists' });
+    if (error) throw error;
+    const io = req.app.get('io');
+    if (io) io.to(`kid_${req.params.kidId}`).emit('data_updated', { kidId: req.params.kidId });
+    res.json({ name: data });
+  } catch (error) {
+    console.error('Rename reward location error:', error);
+    res.status(500).json({ error: 'Could not rename location. Check that the reward locations SQL migration has been applied.' });
+  }
+});
+
+app.delete('/api/kids/:kidId/reward-locations/:locationId', authenticateToken, async (req: any, res) => {
+  if (req.user.role === 'kid') return res.status(403).json({ error: 'Parent access required' });
+  try {
+    const supabase = getSupabaseForUser(req);
+    const { data: location, error: checkError } = await supabase.from('reward_locations').select('kid_id').eq('id', req.params.locationId).eq('kid_id', req.params.kidId).single();
+    if (checkError || !location) return res.status(404).json({ error: 'Location not found' });
+    const { error } = await supabase.rpc('delete_reward_location', { p_location_id: req.params.locationId });
+    if (error?.message?.includes('Move or edit rewards')) return res.status(409).json({ error: 'Move or edit rewards at this location before deleting it.' });
+    if (error?.message?.includes('Choose another current location')) return res.status(409).json({ error: 'Choose another current location before deleting this one.' });
+    if (error) throw error;
+    const io = req.app.get('io');
+    if (io) io.to(`kid_${req.params.kidId}`).emit('data_updated', { kidId: req.params.kidId });
+    res.json({ message: 'Location deleted' });
+  } catch (error) {
+    console.error('Delete reward location error:', error);
+    res.status(500).json({ error: 'Could not delete location. Check that the reward locations SQL migration has been applied.' });
+  }
+});
+
+const rewardAvailableAt = (rewardLocation: unknown, currentLocation: unknown) => {
+  const rewardPlace = typeof rewardLocation === 'string' ? rewardLocation.trim().toLowerCase() : '';
+  const currentPlace = typeof currentLocation === 'string' ? currentLocation.trim().toLowerCase() : '';
+  return !rewardPlace || ['anywhere', 'general', 'any place'].includes(rewardPlace) || Boolean(currentPlace && rewardPlace === currentPlace);
+};
+
+// Only a parent may change the learner's current place. The learner can read it.
+app.put('/api/kids/:kidId/reward-location', authenticateToken, async (req: any, res) => {
+  if (req.user.role === 'kid') return res.status(403).json({ error: 'Only a parent can change the location' });
+  const location = req.body?.location;
+  if (location !== null && location !== undefined && (typeof location !== 'string' || location.trim().length > 80)) {
+    return res.status(400).json({ error: 'Location must be 80 characters or fewer' });
+  }
+  try {
+    const supabase = getSupabaseForUser(req);
+    const { data: kid, error: kidError } = await supabase.from('kids').select('user_id').eq('id', req.params.kidId).single();
+    if (kidError || !kid || kid.user_id !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
+    const place = await savedRewardPlace(supabase, req.params.kidId, location);
+    if (!place.valid) return res.status(400).json({ error: 'Choose a saved Reward Location or clear the location' });
+    const current_reward_location = place.name;
+    const { error } = await supabase.from('kids').update({ current_reward_location }).eq('id', req.params.kidId).eq('user_id', req.user.id);
+    if (error) throw error;
+    const io = req.app.get('io');
+    if (io) io.to(`kid_${req.params.kidId}`).emit('data_updated', { kidId: req.params.kidId });
+    res.json({ current_reward_location });
+  } catch (error: any) {
+    console.error('Update reward location error:', error);
+    const missingColumn = error?.code === 'PGRST204' || error?.code === '42703' || /current_reward_location.*(column|schema cache)|column.*current_reward_location/i.test(error?.message || '');
+    res.status(missingColumn ? 503 : 500).json({
+      error: missingColumn
+        ? 'Reward locations are not ready yet. Run the 2026-09-29 Reward Locations SQL migration in Supabase, then try again.'
+        : 'Could not save the location. Please try again or check the server logs.',
+    });
+  }
+});
+
 // Get reward items for a kid
 app.get('/api/kids/:kidId/reward-items', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
@@ -7632,6 +7761,11 @@ app.get('/api/kids/:kidId/reward-items', authenticateToken, async (req: any, res
     const { data: items, error } = await query.order('cost', { ascending: true });
 
     if (error) throw error;
+    if (req.user.role === 'kid') {
+      const { data: kid, error: kidError } = await supabase.from('kids').select('current_reward_location').eq('id', kidId).single();
+      if (kidError) throw kidError;
+      return res.json({ items: (items || []).filter(item => rewardAvailableAt(item.location, kid?.current_reward_location)) });
+    }
     res.json({ items });
   } catch (error) {
     console.error('Get reward items error:', error);
@@ -7658,6 +7792,9 @@ app.post('/api/kids/:kidId/reward-items', authenticateToken, async (req: any, re
 
     if (kidError || !kid || kid.user_id !== userId) return res.status(403).json({ error: 'Forbidden' });
 
+    const place = await savedRewardPlace(supabase, kidId, location);
+    if (!place.valid) return res.status(400).json({ error: 'Choose a saved Reward Location or leave it blank' });
+
     const id = uuidv4();
     const { error } = await supabase
       .from('reward_items')
@@ -7668,7 +7805,7 @@ app.post('/api/kids/:kidId/reward-items', authenticateToken, async (req: any, re
           name,
           cost,
           image_url: imageUrl || null,
-          location: location || null,
+          location: place.name,
           is_active: typeof is_active === 'boolean' ? is_active : true
         }
       ]);
@@ -7705,13 +7842,16 @@ app.put('/api/reward-items/:id', authenticateToken, async (req: any, res) => {
 
     if (checkError || !item) return res.status(404).json({ error: 'Item not found or forbidden' });
 
+    const place = await savedRewardPlace(supabase, item.kid_id, location);
+    if (!place.valid) return res.status(400).json({ error: 'Choose a saved Reward Location or leave it blank' });
+
     const { error } = await supabase
       .from('reward_items')
       .update({
         name,
         cost,
         image_url: imageUrl || null,
-        location: location || null,
+        location: place.name,
         is_active: typeof is_active === 'boolean' ? is_active : true
       })
       .eq('id', id);
@@ -7766,18 +7906,27 @@ app.delete('/api/reward-items/:id', authenticateToken, async (req: any, res) => 
 app.post('/api/kids/:id/buy', authenticateToken, async (req: any, res) => {
   const supabase = getSupabaseForUser(req);
   const { id } = req.params;
-  const { quantity, itemName, location, purchasedAt } = req.body;
+  const { quantity, itemName, location, purchasedAt, itemId } = req.body;
 
   if (!quantity || quantity <= 0) return res.status(400).json({ error: 'Invalid quantity' });
 
   try {
     const { data: kid, error: kidError } = await supabase
       .from('kids')
-      .select('reward_balance, timezone')
+      .select('reward_balance, timezone, current_reward_location, user_id')
       .eq('id', id)
       .single();
 
     if (kidError || !kid) return res.status(404).json({ error: 'Kid not found' });
+    if (req.user.role === 'kid' || kid.user_id !== req.user.id) return res.status(403).json({ error: 'Parent access required' });
+
+    if (itemId) {
+      const { data: item, error: itemError } = await supabase.from('reward_items')
+        .select('name, cost, location, is_active').eq('id', itemId).eq('kid_id', id).single();
+      if (itemError || !item || !item.is_active) return res.status(400).json({ error: 'This reward is no longer available' });
+      if (Number(item.cost) !== Number(quantity) || item.name !== itemName) return res.status(400).json({ error: 'Reward details have changed. Please refresh Shop.' });
+      if (!rewardAvailableAt(item.location, kid.current_reward_location)) return res.status(400).json({ error: 'This reward is not available at the current location' });
+    }
 
     if (kid.reward_balance < quantity) {
       return res.status(400).json({ error: 'Insufficient balance' });
@@ -7798,7 +7947,7 @@ app.post('/api/kids/:id/buy', authenticateToken, async (req: any, res) => {
           kid_id: id,
           item_name: itemName,
           cost: quantity,
-          location: location || 'General',
+          location: location || 'No location',
           purchased_at: purchasedAt || new Date().toISOString()
         });
       
@@ -8094,7 +8243,7 @@ export const parentAssistantFeatureCatalog = [
   { area: 'Activities', routes: ['/assigned-activities/:kidId'], help: 'From Dashboard select a child and Activities. Add Activity opens the form. Enter activity type/name and description, optional link/image and steps, Due Date, Time, Repeat and Repeats till. Choose the reward for this specific activity according to effort and challenge. For custom repeats set Every and Unit. Enable Parent verification required when approval is needed. Finish with Add Activity or Save Changes. List and Calendar views are available.' },
   { area: 'Activity verification and reassignment', routes: ['/assigned-activities/:kidId'], help: 'The child submits a verification-required activity into Waiting for parent verification. On the parent Activities page open the To Be Verified tab/grid. Select Verify & complete to approve it and award the configured tokens, or Reassign to return the same activity record to pending without awarding tokens. Reassignment intentionally removes it from completed counts until it is completed again.' },
   { area: 'Completed activity history', routes: ['/assigned-activities/:kidId'], help: 'Use Completed for currently completed assignments and History for completion records. Done Today is based on activities.completion_date, so reassigning an activity reduces the current completed count as intended.' },
-  { area: 'Rewards and positive recognition', routes: ['/dashboard', '/assigned-activities/:kidId', '/kids-dashboard/:kidId'], help: 'Open Rewards → Positive Recognition to record effort, communication, flexibility, or progress without adding tokens. The learner sees it under You Were Noticed. Open Rewards → Give Bonus Tokens when you want to add a positive whole-number token amount without attaching praise. Tokens cannot be removed through this parent tool, and learners cannot create either type of record.' },
+  { area: 'Rewards and positive recognition', routes: ['/dashboard', '/assigned-activities/:kidId', '/reward-locations/:kidId', '/kids-dashboard/:kidId'], help: 'Open Rewards → Reward Locations to add and edit places, set the current place, or remove an unused place. Reward items choose from those saved places or No location. The learner and Shop see only affordable rewards for the current place plus rewards with No location. Open Rewards → Positive Recognition to record effort, communication, flexibility, or progress without adding tokens. The learner sees it under You Were Noticed. Open Rewards → Give Bonus Tokens when you want to add a positive whole-number token amount without attaching praise. Tokens cannot be removed through this parent tool, and learners cannot create either type of record.' },
   { area: 'Activity library', routes: ['/activity-library'], help: 'Open the top Activities menu and Activity Library. Create reusable activities with Activity Category, Activity Name, Description, optional External Link, Display Artwork, milestones/steps, and an optional linked asset type: Interactive Quizzes, Social Narratives, or Practice Sheets. Saved templates can be assigned to a selected child.' },
   { area: 'Quiz generation and saved quizzes', routes: ['/quiz-generator', '/saved-quizzes', '/edit-quiz/:id'], help: 'Open Activities > Quizzes. Saved Quizzes includes a curated Space Explorer Quiz sample that can be opened and scored without using AI or saving data. In Quiz Generator, select a Child / adult profile, Subject, Learning goal or topic, Learning purpose, Question Type, Challenge level, 3–20 questions, and Score / Question. Optional learning and accessibility settings control clue support, a reading-level override, explicit Common Core alignment, special instructions, and illustrations. Select Generate Quiz, then select Review & Edit to change the title, questions, answer choices, correct answers, or explanations. Resolve any quality-check items and select Preview as Learner to privately try the child-friendly quiz without saving a score, using an assigned attempt, or changing rewards. Close the preview, select Finish Review, and select Save Quiz. Saved Quizzes provides View, Edit, Delete, and assignment actions. Each assigned quiz occurrence accepts one submitted attempt; parent reassignment creates one fresh attempt.' },
   { area: 'Playing quizzes', routes: ['/play-quiz/:id', '/play-quiz/:id/:kidId'], help: 'Open an assigned quiz from the child dashboard, answer each question, then submit. Listen controls can read questions or feedback. After an assignment attempt is submitted it is locked; Back to activities returns to the dashboard. A parent must reassign the activity to allow a new attempt.' },

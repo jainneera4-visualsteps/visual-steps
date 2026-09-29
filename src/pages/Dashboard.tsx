@@ -3,6 +3,7 @@ import { apiFetch, safeJson } from '../utils/api';
 import { formatAppDate } from '../utils/dateUtils';
 import { io } from 'socket.io-client';
 import { formatReward, rewardImages } from '../utils/rewardUtils';
+import { rewardMatchesLocation } from '../utils/rewardLocation';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -31,6 +32,7 @@ interface Kid {
   reward_icon?: string;
   parent_message?: string;
   timezone?: string;
+  current_reward_location?: string | null;
 }
 
 interface ParentMessageRecord {
@@ -92,8 +94,7 @@ export default function Dashboard() {
   const [selectedKid, setSelectedKid] = useState<Kid | null>(null);
   const [rewardItems, setRewardItems] = useState<any[]>([]);
   const [isBuying, setIsBuying] = useState<string | null>(null);
-  const [selectedLocation, setSelectedLocation] = useState<string>('');
-  const affordableRewardItems = rewardItems.filter(item => Number(item.cost) <= (selectedKid?.reward_balance ?? 0));
+  const affordableRewardItems = rewardItems.filter(item => Number(item.cost) <= (selectedKid?.reward_balance ?? 0) && rewardMatchesLocation(item.location, selectedKid?.current_reward_location));
   const [dashboardSelectedKidId, setDashboardSelectedKidId] = useState<string>(() => {
     try {
       return localStorage.getItem('dashboard_selected_kid_id') || '';
@@ -165,13 +166,12 @@ export default function Dashboard() {
   };
   
   useEffect(() => {
-    if (affordableRewardItems.length > 0) {
-      const locations = [...new Set(affordableRewardItems.map(item => item.location || 'General'))];
-      if (!selectedLocation || !locations.includes(selectedLocation)) {
-        setSelectedLocation(locations[0]);
-      }
+    if (!selectedKid) return;
+    const updatedKid = kids.find(kid => kid.id === selectedKid.id);
+    if (updatedKid && (updatedKid.current_reward_location !== selectedKid.current_reward_location || updatedKid.reward_balance !== selectedKid.reward_balance)) {
+      setSelectedKid(updatedKid);
     }
-  }, [rewardItems, selectedKid?.reward_balance, selectedLocation]);
+  }, [kids, selectedKid]);
   
   useEffect(() => {
     if (dashboardSelectedKidId) {
@@ -399,9 +399,10 @@ export default function Dashboard() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
+          itemId: item.id,
           quantity: item.cost,
           itemName: item.name,
-          location: item.location || 'General',
+          location: item.location || 'No location',
           purchasedAt: new Date().toISOString()
         }),
       });
@@ -593,9 +594,7 @@ export default function Dashboard() {
     }
 
     if (showBuyGrid && selectedKid) {
-      const locations = [...new Set(affordableRewardItems.map(item => item.location || 'General'))];
-      const activeLocation = locations.includes(selectedLocation) ? selectedLocation : locations[0];
-      const filteredItems = affordableRewardItems.filter(item => (item.location || 'General') === activeLocation);
+      const filteredItems = affordableRewardItems;
       
       return (
         <div className="space-y-4 animate-in fade-in duration-300">
@@ -611,16 +610,6 @@ export default function Dashboard() {
             <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-blue-100 bg-white/50 px-4 py-2">
               <CardTitle className="text-base font-bold">Buy Rewards for {selectedKid.name}</CardTitle>
               <div className="flex items-center gap-3">
-              {locations.length > 0 && (
-                <select
-                  value={activeLocation}
-                  onChange={(e) => setSelectedLocation(e.target.value)}
-                  className="h-8 rounded-lg border border-slate-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  {locations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
-                </select>
-              )}
-
               <div className="flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-1.5">
                 <span className="text-xs font-medium text-blue-900">Balance:</span>
                 <span className="text-sm font-bold text-blue-600">
@@ -630,12 +619,13 @@ export default function Dashboard() {
             </div>
             </CardHeader>
             <CardContent className="p-4">
+          <p className="mb-4 text-sm text-slate-600">Current location: <span className="font-semibold">{selectedKid.current_reward_location || 'Not set'}</span></p>
 
           {filteredItems.length === 0 ? (
             <div className="border border-slate-200 bg-white py-12 text-center">
               <span className="block text-5xl mb-4">🛍️</span>
               <h3 className="text-lg font-medium text-slate-900">No rewards to choose right now</h3>
-              <p className="text-slate-500 mt-1">{rewardItems.length === 0 ? "There are no active rewards in this learner's catalog." : 'This learner cannot afford an active reward at the moment.'}</p>
+              <p className="text-slate-500 mt-1">{rewardItems.length === 0 ? "There are no active rewards in this learner's catalog." : 'No affordable rewards are available at this location right now.'}</p>
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5">

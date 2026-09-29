@@ -2,6 +2,7 @@ import { Tooltip as CustomTooltip } from '../components/ui/Tooltip';
 import { io } from 'socket.io-client';
 import { apiFetch, clearApiReadCache, safeJson } from '../utils/api';
 import { formatReward, getRewardIcon } from '../utils/rewardUtils';
+import { rewardLocationLabel } from '../utils/rewardLocation';
 import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/Button';
@@ -95,6 +96,7 @@ interface Kid {
   end_time?: string;
   rules?: string;
   reward_balance?: number;
+  current_reward_location?: string | null;
   timezone?: string;
 }
 
@@ -193,6 +195,7 @@ export default function AssignedActivities() {
   const [quizzes, setQuizzes] = useState<any[]>([]);
   const [worksheets, setWorksheets] = useState<any[]>([]);
   const [rewardItems, setRewardItems] = useState<RewardItem[]>([]);
+  const [rewardLocations, setRewardLocations] = useState<{ id: string; name: string }[]>([]);
   const [quizResults, setQuizResults] = useState<any[]>([]);
   const [behaviorBonuses, setBehaviorBonuses] = useState<BehaviorBonusAward[]>([]);
   const [positiveRecognitions, setPositiveRecognitions] = useState<PositiveRecognition[]>([]);
@@ -211,8 +214,6 @@ export default function AssignedActivities() {
   const [newReward, setNewReward] = useState({ name: '', cost: 1, imageUrl: '', location: '', is_active: true });
   const [editingReward, setEditingReward] = useState<RewardItem | null>(null);
   const [isSavingReward, setIsSavingReward] = useState(false);
-  const [isAddingCustomLocation, setIsAddingCustomLocation] = useState(false);
-  const [customLocation, setCustomLocation] = useState('');
   const [reportDuration, setReportDuration] = useState<'24h' | '7d' | '30d' | 'all'>('7d');
   const [historyPage, setHistoryPage] = useState(1);
   const [historyItemsPerPage, setHistoryItemsPerPage] = useState(10);
@@ -378,7 +379,7 @@ export default function AssignedActivities() {
     return sorted.slice((activitiesPage - 1) * activitiesItemsPerPage, activitiesPage * activitiesItemsPerPage);
   })();
   const visibleRewardItems = rewardItems
-    .filter(item => !locationFilter || item.location === locationFilter)
+    .filter(item => !locationFilter || (locationFilter === '__none__' ? rewardLocationLabel(item.location) === 'No location' : item.location?.trim().toLowerCase() === locationFilter.toLowerCase()))
     .sort((a, b) => Number(b.is_active !== false) - Number(a.is_active !== false) || a.cost - b.cost);
   const todayInKidTimezone = getZonedTime(kid?.timezone).isoDate;
   const upcomingReplacementActivities = availabilityDraft ? activities.filter(item =>
@@ -920,6 +921,7 @@ export default function AssignedActivities() {
   useEffect(() => {
     fetchData();
     fetchRewardItems();
+    fetchRewardLocations();
     fetchQuizResults();
 
     // Set up socket connection
@@ -935,6 +937,7 @@ export default function AssignedActivities() {
         clearApiReadCache();
         fetchData({ silent: true, skipSamples: true });
         fetchRewardItems();
+        fetchRewardLocations();
       }
     });
 
@@ -993,6 +996,23 @@ export default function AssignedActivities() {
       console.error('Failed to fetch reward items', error);
     }
   };
+
+  const fetchRewardLocations = async () => {
+    if (!kidId) return;
+    try {
+      const response = await apiFetch(`/api/kids/${encodeURIComponent(kidId)}/reward-locations`);
+      if (response.ok) {
+        const data = await safeJson(response);
+        setRewardLocations(data.locations || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch reward locations', error);
+    }
+  };
+
+  useEffect(() => {
+    setLocationFilter('');
+  }, [kidId]);
 
   const fetchTemplates = async () => {
     try {
@@ -1531,8 +1551,6 @@ export default function AssignedActivities() {
         setIsRewardModalOpen(false);
         setNewReward({ name: '', cost: 1, imageUrl: '', location: '', is_active: true });
         setEditingReward(null);
-        setIsAddingCustomLocation(false);
-        setCustomLocation('');
       }
     } catch (error) {
       console.error('Failed to save reward', error);
@@ -1547,11 +1565,9 @@ export default function AssignedActivities() {
       name: item.name,
       cost: item.cost,
       imageUrl: item.image_url || '',
-      location: item.location || '',
+      location: rewardLocationLabel(item.location) === 'No location' ? '' : item.location || '',
       is_active: item.is_active !== false // Default to true if undefined
     });
-    setIsAddingCustomLocation(false);
-    setCustomLocation('');
     setIsRewardModalOpen(true);
   };
 
@@ -3635,13 +3651,12 @@ export default function AssignedActivities() {
           {activeTab === 'rewards' && (
           <Card className="border-slate-200 shadow-sm">
             <CardContent className="p-4">
-              <div className="mb-3 flex justify-end">
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <select className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} aria-label="Filter rewards by location">
-                    <option value="">All Locations</option>
-                    {[...new Set(rewardItems.map(item => item.location || ''))].filter(Boolean).map(loc => <option key={loc} value={loc}>{loc}</option>)}
-                  </select>
-                </div>
+              <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
+                <select className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} aria-label="Filter rewards by location">
+                  <option value="">Select location</option>
+                  <option value="__none__">No location</option>
+                  {rewardLocations.map(loc => <option key={loc.id} value={loc.name}>{loc.name}</option>)}
+                </select>
               </div>
               <div className="space-y-5">
             {rewardSections.map(section => section.items.length > 0 && (
@@ -3668,12 +3683,10 @@ export default function AssignedActivities() {
                           <img src={rewardIcon} alt={kid?.reward_type} className="h-3 w-3 object-contain" referrerPolicy="no-referrer" />
                           {item.cost} {formatReward(kid?.reward_type, item.cost)}
                         </div>
-                        {item.location && (
-                          <div className="mt-1 text-sm font-semibold text-slate-700 flex items-center gap-1">
-                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-slate-400"></span>
-                            {item.location}
-                          </div>
-                        )}
+                        <div className="mt-1 text-sm font-semibold text-slate-700 flex items-center gap-1">
+                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                          {rewardLocationLabel(item.location)}
+                        </div>
                       </div>
                       <div className="flex justify-end gap-1">
                         <Button
@@ -3853,8 +3866,6 @@ export default function AssignedActivities() {
             setIsRewardModalOpen(false);
             setEditingReward(null);
             setNewReward({ name: '', cost: 1, imageUrl: '', location: '', is_active: true });
-            setIsAddingCustomLocation(false);
-            setCustomLocation('');
           }} 
           className="pl-0 h-7 hover:bg-transparent hover:text-blue-600 text-[12px] font-bold uppercase transition-colors"
         >
@@ -4001,80 +4012,22 @@ export default function AssignedActivities() {
                           <HelpCircle className="h-4 w-4 text-yellow-700" />
                         </div>
                         <span className="font-bold text-[15px] leading-tight text-slate-900 normal-case">
-                          Where this reward item can be redeemed - House, Car, Restaurant etc.
+                          Optional. Leave this unset if the reward can be chosen at any location.
                         </span>
                       </div>
                       <div className="absolute left-3 sm:left-auto sm:right-3 bottom-full border-[6px] border-transparent border-b-yellow-200"></div>
                     </div>
                   </div>
                 </div>
-                {isAddingCustomLocation ? (
-                  <div className="flex gap-2">
-                    <Input
-                      autoFocus
-                      className="h-9 text-sm focus:ring-1 focus:ring-blue-600 flex-1"
-                      placeholder="Enter custom location..."
-                      value={customLocation}
-                      onChange={(e) => setCustomLocation(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          if (customLocation.trim()) {
-                            setNewReward({ ...newReward, location: customLocation.trim() });
-                            setIsAddingCustomLocation(false);
-                          }
-                        }
-                        if (e.key === 'Escape') {
-                          setIsAddingCustomLocation(false);
-                        }
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="xs"
-                      onClick={() => {
-                        if (customLocation.trim()) {
-                          setNewReward({ ...newReward, location: customLocation.trim() });
-                        }
-                        setIsAddingCustomLocation(false);
-                      }}
-                      className="h-9 px-3 text-blue-600 font-bold"
-                    >
-                      Add
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="xs"
-                      onClick={() => setIsAddingCustomLocation(false)}
-                      className="h-9 px-2 text-slate-400"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : (
                   <select
                     className="flex h-9 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
                     value={newReward.location}
-                    onChange={(e) => {
-                      if (e.target.value === 'ADD_NEW') {
-                        setIsAddingCustomLocation(true);
-                        setCustomLocation('');
-                      } else {
-                        setNewReward({ ...newReward, location: e.target.value });
-                      }
-                    }}
+                    onChange={(e) => setNewReward({ ...newReward, location: e.target.value })}
                   >
-                    <option value="">Select a place...</option>
-                    {/* Keep the newly entered location visible and selected
-                        before the reward item has been saved and reloaded. */}
-                    {[...new Set([...rewardItems.map(item => item.location), newReward.location])].filter(Boolean).map(loc => (
-                      <option key={loc} value={loc!}>{loc}</option>
-                    ))}
-                    <option value="ADD_NEW" className="text-blue-600 font-bold">+ Add new location...</option>
+                    <option value="">No location</option>
+                    {rewardLocations.map(loc => <option key={loc.id} value={loc.name}>{loc.name}</option>)}
                   </select>
-                )}
+                  <p className="text-xs text-slate-500">Need another place? Add it in Rewards → Reward Locations.</p>
               </div>
               <div className="space-y-1" data-guest-tour="reward-item-status">
                 <div className="flex items-center gap-1.5">
@@ -4117,8 +4070,6 @@ export default function AssignedActivities() {
                     setIsRewardModalOpen(false);
                     setEditingReward(null);
                     setNewReward({ name: '', cost: 1, imageUrl: '', location: '', is_active: true });
-                    setIsAddingCustomLocation(false);
-                    setCustomLocation('');
                   }} 
                   className="h-8 text-[12px] font-bold"
                 >

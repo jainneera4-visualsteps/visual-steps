@@ -2,6 +2,7 @@ import { apiFetch, safeJson } from '../utils/api';
 import { isGuestSession } from '../guest/guestSession';
 import { io } from 'socket.io-client';
 import { formatReward, getRewardIcon } from '../utils/rewardUtils';
+import { rewardLocationLabel, rewardMatchesLocation } from '../utils/rewardLocation';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Calendar, Star, Lightbulb, CheckCircle, Clock, LayoutList, WifiOff, Sun, CloudSun, Moon, Sparkles, LogOut, Trophy, Eye, MessageSquare, ShieldCheck, Send } from 'lucide-react';
@@ -86,6 +87,7 @@ interface Kid {
   can_print?: boolean;
   timezone?: string;
   parent_message?: string;
+  current_reward_location?: string | null;
 }
 
 interface RewardItem {
@@ -546,7 +548,7 @@ export default function KidsDashboard() {
 
   // Exit Modal State
   const [rewardItems, setRewardItems] = useState<RewardItem[]>([]);
-  const affordableRewardItems = rewardItems.filter(item => item.cost <= (kid?.reward_balance || 0));
+  const affordableRewardItems = rewardItems.filter(item => item.cost <= (kid?.reward_balance || 0) && rewardMatchesLocation(item.location, kid?.current_reward_location));
   const [positiveRecognitions, setPositiveRecognitions] = useState<PositiveRecognition[]>([]);
 
   const safeLocalStorageGet = (key: string) => {
@@ -1306,6 +1308,7 @@ export default function KidsDashboard() {
                             <img src={rewardIcon} alt={kid?.reward_type} className="h-10 w-10 drop-shadow-md" />
                           </div>
                           <h2 className={`relative z-10 text-2xl font-black ${currentTheme.bannerText}`}>Available Rewards</h2>
+                          {kid?.current_reward_location && <p className={`relative z-10 mt-1 text-sm ${currentTheme.bannerSubtext}`}>At {kid.current_reward_location}</p>}
                           <p className={`relative z-10 mt-1 font-bold ${currentTheme.bannerSubtext}`}>
                             You have <span className="text-emerald-600 font-bold">{kid?.reward_balance || 0}</span> {formatReward(kid?.reward_type, kid?.reward_balance || 0)}!
                           </p>
@@ -1314,7 +1317,7 @@ export default function KidsDashboard() {
 
                         <div className="space-y-6">
                           {Object.entries(affordableRewardItems.reduce((acc, item) => {
-                            const location = item.location || 'General';
+                            const location = rewardLocationLabel(item.location);
                             if (!acc[location]) acc[location] = [];
                             acc[location].push(item);
                             return acc;

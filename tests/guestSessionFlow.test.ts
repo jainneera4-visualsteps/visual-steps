@@ -77,6 +77,18 @@ test('guest can add, edit, view, and delete a named activity with visual steps',
 
 test('guest reward changes, new locations, recognition, and purchases update immediately', async () => {
   guest.startGuestSession();
+  const place = await payload(await guest.guestApiFetch(`/api/kids/${guest.GUEST_KID_ID}/reward-locations`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Library' }),
+  }));
+  assert.equal(place.location.name, 'Library');
+  const selectedPlace = await payload(await guest.guestApiFetch(`/api/kids/${guest.GUEST_KID_ID}/reward-location`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'Library' }),
+  }));
+  assert.equal(selectedPlace.current_reward_location, 'Library');
+  const renamedPlace = await payload(await guest.guestApiFetch(`/api/kids/${guest.GUEST_KID_ID}/reward-locations/${place.location.id}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Community Library' }),
+  }));
+  assert.equal(renamedPlace.name, 'Community Library');
   const created = await payload(await guest.guestApiFetch(`/api/kids/${guest.GUEST_KID_ID}/reward-items`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Library visit', cost: 3, location: 'Library' }),
   }));

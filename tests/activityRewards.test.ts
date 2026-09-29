@@ -35,7 +35,7 @@ test('learner sees the chosen activity reward in details rather than on every ch
 
 test('learner sees only affordable rewards with neutral cost information', () => {
     const dashboard = read('src/pages/KidsDashboard.tsx');
-    assert.match(dashboard, /rewardItems\.filter\(item => item\.cost <= \(kid\?\.reward_balance \|\| 0\)\)/);
+    assert.match(dashboard, /item\.cost <= \(kid\?\.reward_balance \|\| 0\) && rewardMatchesLocation\(item\.location, kid\?\.current_reward_location\)/);
     assert.match(dashboard, /Object\.entries\(affordableRewardItems\.reduce/);
     assert.match(dashboard, /Cost: \{item\.cost\}/);
     assert.match(dashboard, /There are no rewards to choose right now\./);

@@ -92,7 +92,7 @@ export function Layout() {
   const requestedActivityTab = new URLSearchParams(location.search).get('tab');
   const currentWorkspace = location.pathname === '/dashboard' || location.pathname === '/add-kid' || location.pathname.startsWith('/edit-kid/') || location.pathname === '/profile'
       ? 'dashboard'
-    : location.pathname.startsWith('/assigned-activities/') && ['rewards', 'bonus_rewards', 'positive_recognition', 'bonus_tokens'].includes(requestedActivityTab || '')
+    : location.pathname.startsWith('/reward-locations/') || location.pathname.startsWith('/assigned-activities/') && ['rewards', 'bonus_rewards', 'positive_recognition', 'bonus_tokens'].includes(requestedActivityTab || '')
       ? 'rewards'
     : location.pathname.startsWith('/assigned-activities/') || location.pathname === '/activity-library'
       ? 'activities'
@@ -156,6 +156,7 @@ export function Layout() {
       { label: 'Search All Activities', to: `${learnerActivitiesRoute}?tab=search_all` },
     ],
     rewards: [
+      { label: 'Reward Locations', to: selectedKidId ? `/reward-locations/${selectedKidId}` : '/dashboard' },
       { label: 'Rewards Catalog', to: `${learnerActivitiesRoute}?tab=rewards` },
       { label: 'Positive Recognition', to: `${learnerActivitiesRoute}?tab=positive_recognition` },
       { label: 'Give Bonus Tokens', to: `${learnerActivitiesRoute}?tab=bonus_tokens` },

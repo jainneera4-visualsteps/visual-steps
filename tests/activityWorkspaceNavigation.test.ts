@@ -27,7 +27,7 @@ test('activity workspace shows contextual secondary navigation', () => {
   assert.match(activities, /activeTab === 'rewards'[\s\S]*?Add New Reward Item[\s\S]*?Add Reward Item/);
   assert.doesNotMatch(activities, /Filter rewards by location[\s\S]{0,800}data-guest-tour="add-reward"/);
   assert.match(activities, /Filter rewards by location/);
-  assert.match(activities, /\+ Add new location/);
+  assert.match(activities, /Rewards → Reward Locations/);
   assert.match(activities, /Active Rewards/);
   assert.match(activities, /Inactive Rewards/);
   assert.match(activities, /xl:grid-cols-4/);
@@ -57,7 +57,7 @@ test('parent shell uses stable primary workspaces and contextual navigation', ()
   assert.match(layout, /currentWorkspace === 'dashboard'/);
   assert.match(layout, /Climb together\. Effortless tools for certain steps and positive growth\./);
   assert.doesNotMatch(layout, /dashboard: \[[\s\S]*?label: 'Overview'[\s\S]*?\],\n    activities:/);
-  for (const label of ['Current', 'Needs Attention', 'Verification', 'Completed', 'On Hold', 'Ended', 'Rewards Catalog', 'Positive Recognition', 'Give Bonus Tokens']) {
+  for (const label of ['Current', 'Needs Attention', 'Verification', 'Completed', 'On Hold', 'Ended', 'Rewards Catalog', 'Reward Locations', 'Positive Recognition', 'Give Bonus Tokens']) {
     assert.match(layout, new RegExp(`label: '${label}'`));
   }
   assert.doesNotMatch(layout, /activities: \[[\s\S]*?label: 'Rewards'[\s\S]*?\],\n    learning:/);

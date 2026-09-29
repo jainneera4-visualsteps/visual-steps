@@ -14,6 +14,7 @@ import SummaryReport from './pages/SummaryReport';
 import AddEditKid from './pages/AddEditKid';
 import Profile from './pages/Profile';
 import AssignedActivities from './pages/AssignedActivities';
+import RewardLocations from './pages/RewardLocations';
 import KidsDashboard from './pages/KidsDashboard';
 import SocialStories from './pages/SocialStories';
 import CreateSocialStory from './pages/CreateSocialStory';
@@ -88,6 +89,7 @@ export default function App() {
               <Route path="add-kid" element={<AddEditKid />} />
               <Route path="edit-kid/:id" element={<AddEditKid />} />
               <Route path="assigned-activities/:kidId" element={<AssignedActivities />} />
+              <Route path="reward-locations/:kidId" element={<RewardLocations />} />
               <Route path="profile" element={<Profile />} />
               <Route path="support" element={<ParentSupport />} />
               <Route path="data-management" element={<DataManagement />} />

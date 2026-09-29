@@ -35,7 +35,7 @@ test('guest parent and learner screens fit representative widths', async ({ page
       for (const name of ['Dashboard', 'Activities', 'Rewards']) {
         await expect(menu.getByRole('link', { name, exact: true })).toBeVisible();
       }
-      for (const name of ['Current', 'Completed', 'Rewards Catalog', 'Positive Recognition', 'Give Bonus Tokens']) {
+      for (const name of ['Current', 'Completed', 'Reward Locations', 'Rewards Catalog', 'Positive Recognition', 'Give Bonus Tokens']) {
         await expect(menu.getByRole('link', { name, exact: true })).toBeVisible();
       }
       await page.getByRole('button', { name: 'Close menu' }).click();
@@ -296,7 +296,7 @@ test('signed-in parent mobile menu exposes workspaces and submenus without clipp
     for (const name of ['Dashboard', 'Activities', 'Rewards', 'Learning', 'Progress', 'Connect', 'Newsletter']) {
       await expect(menu.getByRole('link', { name, exact: true })).toBeVisible();
     }
-    for (const name of ['Current', 'Completed', 'Rewards Catalog', 'Positive Recognition', 'Give Bonus Tokens', 'Skill Builder', 'Quizzes', 'Worksheets', 'Social Stories', 'Games', 'Activity History', 'Contact']) {
+    for (const name of ['Current', 'Completed', 'Reward Locations', 'Rewards Catalog', 'Positive Recognition', 'Give Bonus Tokens', 'Skill Builder', 'Quizzes', 'Worksheets', 'Social Stories', 'Games', 'Activity History', 'Contact']) {
       await expect(menu.getByRole('link', { name, exact: true }).first()).toBeVisible();
     }
     await expect(menu.getByRole('link', { name: 'Plans', exact: true })).toHaveCount(0);

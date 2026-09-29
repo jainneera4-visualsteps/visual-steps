@@ -25,7 +25,7 @@ export default defineConfig({
     },
     {
       name: 'iphone-webkit',
-      testMatch: /(pwa-mobile|responsive-regression)\.spec\.ts/,
+      testMatch: /(pwa-mobile|responsive-regression|reward-locations)\.spec\.ts/,
       use: { ...devices['iPhone 13'] },
     },
     {

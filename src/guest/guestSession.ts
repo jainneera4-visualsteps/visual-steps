@@ -61,6 +61,7 @@ const seedKid = {
   behavioral_issues: '',
   avatar: '',
   reward_balance: 8,
+  current_reward_location: null as string | null,
   reward_type: 'Sticker',
   reward_quantity: 1,
   start_time: '00:00',
@@ -95,6 +96,8 @@ let dataReviewMonths = 12;
 
 const seedRewardItems = [{ id: '41111111-1111-4111-8111-111111111111', kid_id: GUEST_KID_ID, name: 'Choose family game', cost: 6, location: 'Home', is_active: true, image_url: '' }];
 let rewardItems = structuredClone(seedRewardItems);
+const seedRewardLocations = [{ id: '71111111-1111-4111-8111-111111111112', name: 'Home', created_at: now() }];
+let rewardLocations = structuredClone(seedRewardLocations);
 const seedBonuses = [{ id: '51111111-1111-4111-8111-111111111111', kid_id: GUEST_KID_ID, behavior_reason: 'Trying again calmly', reward_amount: 2, awarded_at: now(), is_legacy_recognition: true }];
 let bonuses = structuredClone(seedBonuses);
 const seedRecognitions = [{ id: '61111111-1111-4111-8111-111111111112', kid_id: GUEST_KID_ID, recognition_message: 'You kept trying when it felt difficult.', recognized_at: now() }];
@@ -107,6 +110,7 @@ export function startGuestSession() {
   kid = structuredClone(seedKid);
   activities = structuredClone(seedActivities);
   rewardItems = structuredClone(seedRewardItems);
+  rewardLocations = structuredClone(seedRewardLocations);
   bonuses = structuredClone(seedBonuses);
   recognitions = structuredClone(seedRecognitions);
   messages = structuredClone(seedMessages);
@@ -312,6 +316,41 @@ export async function guestApiFetch(input: RequestInfo | URL, init?: RequestInit
       recognized_at: award.awarded_at,
     }));
     return json({ recognitions: [...recognitions, ...legacyRecognitions].sort((a, b) => String(b.recognized_at).localeCompare(String(a.recognized_at))) });
+  }
+  if (path === `/api/kids/${GUEST_KID_ID}/reward-location` && method === 'PUT') {
+    kid = { ...kid, current_reward_location: body.location || null };
+    return json({ current_reward_location: kid.current_reward_location });
+  }
+  if (path === `/api/kids/${GUEST_KID_ID}/reward-locations`) {
+    if (method === 'POST') {
+      const name = String(body.name || '').trim();
+      if (!name || ['anywhere', 'general', 'any place'].includes(name.toLowerCase())) return json({ error: 'Enter a specific location name.' }, 400);
+      if (rewardLocations.some(item => item.name.toLowerCase() === name.toLowerCase())) return json({ error: 'This location already exists.' }, 409);
+      const location = { id: crypto.randomUUID(), name, created_at: now() };
+      rewardLocations = [...rewardLocations, location];
+      return json({ location }, 201);
+    }
+    return json({ locations: rewardLocations.map(location => ({ ...location, rewardCount: rewardItems.filter(item => item.location.toLowerCase() === location.name.toLowerCase()).length })), currentLocation: kid.current_reward_location });
+  }
+  const guestLocationMatch = path.match(/^\/api\/kids\/[^/]+\/reward-locations\/([^/]+)$/);
+  if (guestLocationMatch) {
+    const id = decodeURIComponent(guestLocationMatch[1]);
+    const previous = rewardLocations.find(item => item.id === id);
+    if (!previous) return json({ error: 'Location not found.' }, 404);
+    if (method === 'PUT') {
+      const name = String(body.name || '').trim();
+      if (!name || ['anywhere', 'general', 'any place'].includes(name.toLowerCase())) return json({ error: 'Enter a specific location name.' }, 400);
+      rewardLocations = rewardLocations.map(item => item.id === id ? { ...item, name } : item);
+      rewardItems = rewardItems.map(item => item.location.toLowerCase() === previous.name.toLowerCase() ? { ...item, location: name } : item);
+      if (kid.current_reward_location?.toLowerCase() === previous.name.toLowerCase()) kid = { ...kid, current_reward_location: name };
+      return json({ name });
+    }
+    if (method === 'DELETE') {
+      if (kid.current_reward_location?.toLowerCase() === previous.name.toLowerCase()) return json({ error: 'Choose another current location before deleting this one.' }, 409);
+      if (rewardItems.some(item => item.location.toLowerCase() === previous.name.toLowerCase())) return json({ error: 'Move or edit rewards at this location before deleting it.' }, 409);
+      rewardLocations = rewardLocations.filter(item => item.id !== id);
+      return json({ message: 'Location deleted' });
+    }
   }
   if (path === `/api/kids/${GUEST_KID_ID}/reward-items`) {
     if (method === 'POST') {
