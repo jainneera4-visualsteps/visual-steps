@@ -53,3 +53,17 @@ test('unchosen occurrences stay dated and appear in a parent review grid', () =>
   assert.match(parent, /setActivityToDelete\(activity\.id\)/);
   assert.match(guest, /closeGuestUnchosenActivities/);
 });
+
+test('Not Chosen uses the standard activity grid, filters, and pagination', () => {
+  const grid = parent.slice(parent.indexOf('const renderNotChosenTab ='), parent.indexOf('const renderCompletedTab ='));
+  assert.match(grid, /app-table-shell/);
+  assert.match(grid, /app-data-table/);
+  assert.match(grid, /notChosenSearchQuery/);
+  assert.match(grid, /notChosenCategoryFilter/);
+  assert.match(grid, /notChosenRepeatFilter/);
+  assert.match(grid, /rows\.length > 0 && totalPages > 1/);
+  assert.match(grid, /Select all not chosen activities on this page/);
+  for (const column of ['Activity', 'Description', 'Status', 'Reason', 'Reward Amount', 'Repeat', 'Activity Date', 'Time', 'Actions']) {
+    assert.match(grid, new RegExp(column));
+  }
+});

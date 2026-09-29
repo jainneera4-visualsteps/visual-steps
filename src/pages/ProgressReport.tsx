@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { ClearableSearch } from '../components/ClearableSearch';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   TrendingUp, 
@@ -1044,7 +1045,7 @@ export default function ProgressReport() {
             <label className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-500">From<input type="date" value={rewardFromDate} max={rewardToDate || undefined} onChange={event => { setRewardFromDate(event.target.value); setPurchasePage(1); }} className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium normal-case text-slate-700"/></label>
             <label className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-500">To<input type="date" value={rewardToDate} min={rewardFromDate || undefined} onChange={event => { setRewardToDate(event.target.value); setPurchasePage(1); }} className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium normal-case text-slate-700"/></label>
           </div>
-          <label className="relative block border-b border-slate-100 px-3 py-2"><span className="sr-only">Search rewards history</span><Search className="pointer-events-none absolute left-5 top-4 h-4 w-4 text-slate-400"/><input type="search" value={rewardSearch} onChange={event => { setRewardSearch(event.target.value); setPurchasePage(1); }} placeholder="Search by reward, reason, location, or action..." className="h-8 w-full rounded border border-slate-300 bg-white py-1 pl-8 pr-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"/></label>
+          <div className="relative border-b border-slate-100 px-3 py-2"><Search className="pointer-events-none absolute left-5 top-4 z-10 h-4 w-4 text-slate-400"/><ClearableSearch label="Search rewards history" value={rewardSearch} onChange={value => { setRewardSearch(value); setPurchasePage(1); }} placeholder="Search by reward, reason, location, or action..." inputClassName="pl-8" /></div>
           {totalPurchasePages > 1 && <Pagination currentPage={purchasePage} totalPages={totalPurchasePages} pageSize={purchaseItemsPerPage} onPageChange={setPurchasePage} onPageSizeChange={(size) => { setPurchaseItemsPerPage(size); setPurchasePage(1); }} />}
           <div className="overflow-x-auto">
             <table className="app-data-table table-fixed min-w-[1000px] [&_td]:break-words [&_td]:whitespace-normal [&_th]:whitespace-normal">

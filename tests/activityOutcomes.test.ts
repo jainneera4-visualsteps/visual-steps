@@ -29,3 +29,15 @@ test('only same-level reassignment increments the repeat count', async () => {
   assert.match(migration, /'on_hold', 'ended'/);
   assert.match(migration, /repeat_count/);
 });
+
+test('completed activities use the calendar instead of a second date filter', async () => {
+  const source = await readFile(new URL('../src/pages/AssignedActivities.tsx', import.meta.url), 'utf8');
+  assert.match(source, /Completed Activities Calendar/);
+  assert.match(source, /!selectedDate \|\| a\.due_date === selectedDate/);
+  assert.doesNotMatch(source, /completedDateFilter|setCompletedDateFilter/);
+  assert.match(source, /value=\{completedSearchQuery\}/);
+  assert.match(source, /value=\{completedCategoryFilter\}/);
+  assert.match(source, /value=\{completedRepeatFilter\}/);
+  assert.match(source, /completedRepeatFilter === 'All' \|\| \(a\.repeat_frequency \|\| 'Never'\) === completedRepeatFilter/);
+  assert.match(source, /aria-label="Filter by repeat"/);
+});

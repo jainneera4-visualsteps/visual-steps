@@ -7,6 +7,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
+import { ClearableSearch } from '../components/ClearableSearch';
 import { ArrowLeft, Plus, Trash2, Edit2, CheckCircle, Circle, Calendar, Clock, Image as ImageIcon, Eye, Sparkles, Loader2, LayoutList, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Activity, Award, History, Lock, HelpCircle, X, WifiOff, ShieldCheck, RotateCcw, PauseCircle, Ban, ClipboardCheck } from 'lucide-react';
 import { ActivityDetailModal } from '../components/ActivityDetailModal';
 import { QuizLearningInsights } from '../components/QuizLearningInsights';
@@ -24,9 +25,9 @@ type ActivityStatus = 'pending' | 'awaiting_verification' | 'completed' | 'not_c
 type ActivityOutcome = '' | 'reassign' | 'on_hold' | 'ended';
 type ReassignmentLevel = 'same' | 'up' | 'down';
 type ActivityMeaning = 'available_choice' | 'important_today';
-type ActivityWorkspaceTab = 'activities' | 'help_requested' | 'verification' | 'completed' | 'not_chosen' | 'on_hold' | 'ended' | 'history' | 'quiz_results' | 'rewards' | 'positive_recognition' | 'bonus_tokens';
+type ActivityWorkspaceTab = 'activities' | 'help_requested' | 'verification' | 'completed' | 'search_all' | 'not_chosen' | 'on_hold' | 'ended' | 'history' | 'quiz_results' | 'rewards' | 'positive_recognition' | 'bonus_tokens';
 
-const ACTIVITY_WORKSPACE_TABS: ActivityWorkspaceTab[] = ['activities', 'help_requested', 'verification', 'completed', 'not_chosen', 'on_hold', 'ended', 'history', 'quiz_results', 'rewards', 'positive_recognition', 'bonus_tokens'];
+const ACTIVITY_WORKSPACE_TABS: ActivityWorkspaceTab[] = ['activities', 'help_requested', 'verification', 'completed', 'search_all', 'not_chosen', 'on_hold', 'ended', 'history', 'quiz_results', 'rewards', 'positive_recognition', 'bonus_tokens'];
 
 interface Activity {
   id: string;
@@ -223,6 +224,14 @@ export default function AssignedActivities() {
   const [activitiesItemsPerPage, setActivitiesItemsPerPage] = useState(10);
   const [notChosenPage, setNotChosenPage] = useState(1);
   const [notChosenItemsPerPage, setNotChosenItemsPerPage] = useState(10);
+  const [notChosenSearchQuery, setNotChosenSearchQuery] = useState('');
+  const [allActivitiesSearchQuery, setAllActivitiesSearchQuery] = useState('');
+  const [allActivitiesPage, setAllActivitiesPage] = useState(1);
+  const [allActivitiesPageSize, setAllActivitiesPageSize] = useState(10);
+  const [allActivitiesSort, setAllActivitiesSort] = useState<{ key: 'activity_type' | 'description' | 'category' | 'status' | 'reward_qty' | 'repeat_frequency' | 'due_date'; direction: 'asc' | 'desc' }>({ key: 'due_date', direction: 'desc' });
+  const [notChosenCategoryFilter, setNotChosenCategoryFilter] = useState('All');
+  const [notChosenRepeatFilter, setNotChosenRepeatFilter] = useState('All');
+  const [notChosenSortConfig, setNotChosenSortConfig] = useState<{ key: keyof Activity; direction: 'asc' | 'desc' }>({ key: 'due_date', direction: 'desc' });
   const [quizResultsPage, setQuizResultsPage] = useState(1);
   const [quizResultsItemsPerPage, setQuizResultsItemsPerPage] = useState(10);
   const [deletingQuizResultId, setDeletingQuizResultId] = useState<string | null>(null);
@@ -254,7 +263,10 @@ export default function AssignedActivities() {
   }, [quizResultsItemsPerPage, quizResults.length]);
   const [completedSearchQuery, setCompletedSearchQuery] = useState('');
   const [completedCategoryFilter, setCompletedCategoryFilter] = useState('All');
-  const [completedDateFilter, setCompletedDateFilter] = useState('');
+  const [completedRepeatFilter, setCompletedRepeatFilter] = useState('All');
+  const [assignedSearchQuery, setAssignedSearchQuery] = useState('');
+  const [assignedCategoryFilter, setAssignedCategoryFilter] = useState('All');
+  const [assignedRepeatFilter, setAssignedRepeatFilter] = useState('All');
   const [activityOutcome, setActivityOutcome] = useState<ActivityOutcome>('');
   const [reassignmentLevel, setReassignmentLevel] = useState<ReassignmentLevel>('same');
   const [historySearchQuery, setHistorySearchQuery] = useState('');
@@ -339,9 +351,20 @@ export default function AssignedActivities() {
           ? activities.filter(a => a.status === 'ended')
       : historyActivities;
 
+  const selectedDayPlannedReward = selectedDate
+    ? activitiesToRender
+        .filter(activity => activity.due_date === selectedDate && activity.unavailability_kind !== 'cancelled' && activity.unavailability_kind !== 'replaced')
+        .reduce((total, activity) => total + Math.max(1, Number(activity.reward_qty) || 1), 0)
+    : 0;
+  const repeatFilterOptions = Array.from(new Set(activities.map(activity => activity.repeat_frequency || 'Never'))).sort((a, b) => a.localeCompare(b));
+  const filteredAssignedActivities = activitiesToRender.filter(activity =>
+    (!selectedDate || activity.due_date === selectedDate)
+    && (assignedCategoryFilter === 'All' || (activity.category || 'Uncategorized') === assignedCategoryFilter)
+    && (assignedRepeatFilter === 'All' || (activity.repeat_frequency || 'Never') === assignedRepeatFilter)
+    && (activity.activity_type.toLowerCase().includes(assignedSearchQuery.toLowerCase()) || (activity.description || '').toLowerCase().includes(assignedSearchQuery.toLowerCase()))
+  );
   const visibleActivityRows = (() => {
-    const filtered = activitiesToRender.filter(activity => !selectedDate || activity.due_date === selectedDate);
-    const sorted = [...filtered].sort((a, b) => {
+    const sorted = [...filteredAssignedActivities].sort((a, b) => {
       if (!activitiesSortConfig.key) {
         if (a.status === b.status) return 0;
         return a.status === 'completed' ? 1 : -1;
@@ -1764,6 +1787,9 @@ export default function AssignedActivities() {
           }`}
           onClick={() => {
             setSelectedDate(dateStr);
+            setActivitiesPage(1);
+            setCompletedPage(1);
+            setSelectedActivityIds([]);
             setViewMode('list');
           }}
         >
@@ -1833,12 +1859,74 @@ export default function AssignedActivities() {
     );
   };
 
+  const renderSearchAllTab = () => {
+    const query = allActivitiesSearchQuery.trim().toLocaleLowerCase();
+    const statusFor = (activity: Activity, fallback: string) => activity.status === 'pending'
+      ? activity.unavailable_for_now
+        ? activity.unavailability_kind === 'cancelled' ? 'Cancelled' : activity.unavailability_kind === 'replaced' ? 'Replaced' : 'Unavailable for now'
+        : 'Available'
+      : fallback;
+    const changeSort = (key: typeof allActivitiesSort.key) => {
+      setAllActivitiesSort(current => ({ key, direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc' }));
+      setAllActivitiesPage(1);
+    };
+    const sortHeader = (label: string, key: typeof allActivitiesSort.key) => <th className="px-3 py-2"><button type="button" onClick={() => changeSort(key)} className="flex items-center gap-1.5 font-bold hover:text-slate-700">{label}<SortIndicator config={allActivitiesSort} columnKey={key} /></button></th>;
+    const groups: { key: ActivityStatus; label: string }[] = [
+      { key: 'pending', label: 'Current' },
+      { key: 'awaiting_verification', label: 'Verification' },
+      { key: 'completed', label: 'Completed' },
+      { key: 'not_chosen', label: 'Not Chosen' },
+      { key: 'on_hold', label: 'On Hold' },
+      { key: 'ended', label: 'Ended' },
+    ];
+    const matches = query ? activities.filter(activity => [activity.activity_type, activity.description, activity.category, activity.unavailability_reason].some(value => String(value || '').toLocaleLowerCase().includes(query))) : [];
+    const sortedMatches = groups.flatMap(group => matches.filter(activity => (activity.status || 'pending') === group.key).sort((a, b) => {
+      const field = allActivitiesSort.key;
+      const aValue = field === 'status' ? statusFor(a, group.label) : field === 'reward_qty' ? Math.max(1, Number(a.reward_qty) || 1) : a[field] ?? '';
+      const bValue = field === 'status' ? statusFor(b, group.label) : field === 'reward_qty' ? Math.max(1, Number(b.reward_qty) || 1) : b[field] ?? '';
+      const comparison = typeof aValue === 'number' && typeof bValue === 'number' ? aValue - bValue : String(aValue).localeCompare(String(bValue), undefined, { numeric: true, sensitivity: 'base' });
+      return (allActivitiesSort.direction === 'asc' ? comparison : -comparison) || a.id.localeCompare(b.id);
+    }));
+    const pageCount = Math.max(1, Math.ceil(sortedMatches.length / allActivitiesPageSize));
+    const page = Math.min(allActivitiesPage, pageCount);
+    const visibleMatches = sortedMatches.slice((page - 1) * allActivitiesPageSize, page * allActivitiesPageSize);
+    return <Card className="app-table-shell"><CardContent className="p-0">
+      <div className="border-b border-slate-100 px-3 py-3"><ClearableSearch label="Search all activities" placeholder="Search by activity, category, description, or reason..." value={allActivitiesSearchQuery} onChange={value => { setAllActivitiesSearchQuery(value); setAllActivitiesPage(1); }} /></div>
+      {matches.length > 0 && <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-2 text-xs text-slate-600"><span>{matches.length} matching {matches.length === 1 ? 'activity' : 'activities'}</span><div className="flex flex-wrap items-center gap-3"><label className="font-bold uppercase text-slate-500">Per page: <select aria-label="Search results per page" value={allActivitiesPageSize} onChange={event => { setAllActivitiesPageSize(Number(event.target.value)); setAllActivitiesPage(1); }} className="ml-2 h-7 rounded border border-slate-300 bg-white px-2 font-normal normal-case text-slate-700"><option value={10}>10</option><option value={20}>20</option><option value={50}>50</option></select></label>{pageCount > 1 && <div className="flex items-center gap-2 font-bold"><Button variant="ghost" size="xs" aria-label="Previous search results page" disabled={page === 1} onClick={() => setAllActivitiesPage(page - 1)} className="h-7 w-7 p-0"><ChevronLeft className="h-4 w-4" /></Button><span>Page {page} of {pageCount}</span><Button variant="ghost" size="xs" aria-label="Next search results page" disabled={page === pageCount} onClick={() => setAllActivitiesPage(page + 1)} className="h-7 w-7 p-0"><ChevronRight className="h-4 w-4" /></Button></div>}</div></div>}
+      {!query ? <div className="px-4 py-12 text-center text-sm text-slate-500">Enter a search to see activities from every section.</div>
+        : matches.length === 0 ? <div className="px-4 py-12 text-center text-sm text-slate-500">No activities match this search.</div>
+        : groups.map(group => {
+          const rows = visibleMatches.filter(activity => (activity.status || 'pending') === group.key);
+          if (!rows.length) return null;
+          return <section key={group.key} aria-label={`${group.label} search results`} className="border-b border-slate-200 last:border-b-0">
+            <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 px-4 py-2"><h2 className="text-sm font-bold text-slate-800">{group.label}</h2></div>
+            <div className="overflow-x-auto"><table className="app-data-table min-w-[950px] [&_td]:break-words [&_td]:whitespace-normal"><thead className="app-data-table-head"><tr>{sortHeader('Activity', 'activity_type')}{sortHeader('Description', 'description')}{sortHeader('Category', 'category')}{sortHeader('Status', 'status')}{sortHeader('Reward Amount', 'reward_qty')}{sortHeader('Repeat', 'repeat_frequency')}{sortHeader('Activity Date', 'due_date')}<th className="px-3 py-2 text-right">Actions</th></tr></thead>
+              <tbody className="divide-y divide-slate-100">{rows.map(activity => <tr key={activity.id} className="app-data-row"><td className="px-3 py-3 font-bold text-slate-900">{activity.activity_type}</td><td className="px-3 py-3 text-slate-600">{activity.description || '—'}</td><td className="px-3 py-3 text-slate-600">{activity.category || 'Uncategorized'}</td><td className="px-3 py-3 text-slate-600">{statusFor(activity, group.label)}</td><td className="px-3 py-3 font-bold text-emerald-700">+{Math.max(1, Number(activity.reward_qty) || 1)} {formatReward(kid?.reward_type, Math.max(1, Number(activity.reward_qty) || 1))}</td><td className="px-3 py-3 text-slate-600">{activity.repeat_frequency || 'Never'}</td><td className="px-3 py-3 text-slate-600">{formatSimpleDate(activity.due_date)}</td><td className="px-3 py-3"><div className="flex justify-end gap-1"><Button variant="ghost" size="xs" aria-label={`View ${activity.activity_type}`} onClick={() => setPreviewActivity(activity)} className="h-7 w-7 p-0"><Eye className="h-4 w-4" /></Button><Button variant="ghost" size="xs" aria-label={`Edit ${activity.activity_type}`} onClick={() => handleOpenForm(activity)} className="h-7 w-7 p-0"><Edit2 className="h-4 w-4" /></Button><Button variant="ghost" size="xs" aria-label={`Delete ${activity.activity_type}`} onClick={() => setActivityToDelete(activity.id)} className="h-7 w-7 p-0"><Trash2 className="h-4 w-4" /></Button></div></td></tr>)}</tbody>
+            </table></div>
+          </section>;
+        })}
+    </CardContent></Card>;
+  };
+
   const renderNotChosenTab = () => {
+    const search = notChosenSearchQuery.trim().toLowerCase();
     const rows = activities.filter(activity => activity.status === 'not_chosen')
-      .sort((a, b) => (b.due_date || '').localeCompare(a.due_date || ''));
+      .filter(activity => notChosenCategoryFilter === 'All' || (activity.category || 'Uncategorized') === notChosenCategoryFilter)
+      .filter(activity => notChosenRepeatFilter === 'All' || (activity.repeat_frequency || 'Never') === notChosenRepeatFilter)
+      .filter(activity => !search || activity.activity_type.toLowerCase().includes(search) || (activity.description || '').toLowerCase().includes(search) || (activity.unavailability_reason || '').toLowerCase().includes(search))
+      .sort((a, b) => {
+        const aValue = String(a[notChosenSortConfig.key] ?? '');
+        const bValue = String(b[notChosenSortConfig.key] ?? '');
+        const comparison = aValue.localeCompare(bValue);
+        return notChosenSortConfig.direction === 'asc' ? comparison : -comparison;
+      });
     const totalPages = Math.max(1, Math.ceil(rows.length / notChosenItemsPerPage));
     const page = Math.min(notChosenPage, totalPages);
     const visibleRows = rows.slice((page - 1) * notChosenItemsPerPage, page * notChosenItemsPerPage);
+    const sortBy = (key: keyof Activity) => {
+      setNotChosenSortConfig(current => ({ key, direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc' }));
+      setNotChosenPage(1);
+    };
     const reasonFor = (activity: Activity) => {
       const reason = activity.not_chosen_reason === 'day_ended' ? 'The day ended before this choice was selected.'
         : activity.not_chosen_reason === 'date_passed' ? 'The scheduled date passed without this choice being selected.'
@@ -1848,26 +1936,55 @@ export default function AssignedActivities() {
         : 'This choice was not selected on its scheduled date.';
       return activity.unavailability_reason ? `${reason} ${activity.unavailability_reason}` : reason;
     };
-    return <Card className="border-none ring-1 ring-slate-200 shadow-sm"><CardContent className="p-0">
+    return <Card className="app-table-shell"><CardContent className="p-0">
       <div className="border-b border-slate-100 px-4 py-3 text-sm text-slate-600">These were choices, not unfinished tasks. Their original dates stay visible, and no reward was removed.</div>
-      <div className="overflow-x-auto"><table className="w-full min-w-[950px] text-left text-sm">
-        <thead className="border-b bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="px-4 py-3">Activity</th><th className="px-4 py-3">Activity date</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Reason</th><th className="px-4 py-3 text-right">Actions</th></tr></thead>
-        <tbody className="divide-y divide-slate-100">{visibleRows.map(activity => <tr key={activity.id} className="hover:bg-slate-50">
-          <td className="px-4 py-3 font-bold text-slate-900">{activity.activity_type}</td>
-          <td className="whitespace-nowrap px-4 py-3 text-slate-600">{formatSimpleDate(activity.due_date)}</td>
-          <td className="px-4 py-3"><span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-700">Not Chosen</span></td>
-          <td className="max-w-md px-4 py-3 text-slate-600">{reasonFor(activity)}</td>
-          <td className="px-4 py-3"><div className="flex justify-end gap-1">
-            <Button variant="ghost" size="xs" aria-label={`View ${activity.activity_type}`} onClick={() => setPreviewActivity(activity)}><Eye className="h-4 w-4" /></Button>
-            <Button variant="ghost" size="xs" aria-label={`Edit ${activity.activity_type}`} onClick={() => handleOpenForm(activity)}><Edit2 className="h-4 w-4" /></Button>
-            <Button variant="ghost" size="xs" aria-label={`Delete ${activity.activity_type}`} onClick={() => setActivityToDelete(activity.id)}><Trash2 className="h-4 w-4 text-red-600" /></Button>
-          </div></td>
-        </tr>)}{rows.length === 0 && <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-500">No activities in Not Chosen.</td></tr>}</tbody>
-      </table></div>
-      {rows.length > 0 && <div className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3 text-sm">
-        <label>Per page <select value={notChosenItemsPerPage} onChange={event => { setNotChosenItemsPerPage(Number(event.target.value)); setNotChosenPage(1); }} className="ml-2 rounded border p-1"><option>10</option><option>20</option><option>50</option></select></label>
-        <div className="flex items-center gap-2"><Button variant="outline" size="xs" disabled={page <= 1} onClick={() => setNotChosenPage(page - 1)}><ChevronLeft className="h-4 w-4" /></Button><span>Page {page} of {totalPages} · {rows.length} activities</span><Button variant="outline" size="xs" disabled={page >= totalPages} onClick={() => setNotChosenPage(page + 1)}><ChevronRight className="h-4 w-4" /></Button></div>
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-3 py-2">
+        <ClearableSearch label="Search not chosen activities" placeholder="Search by name or keyword..." value={notChosenSearchQuery} onChange={value => { setNotChosenSearchQuery(value); setNotChosenPage(1); setSelectedActivityIds([]); }} className="min-w-48 flex-1" />
+        <select aria-label="Filter not chosen activities by category" value={notChosenCategoryFilter} onChange={event => { setNotChosenCategoryFilter(event.target.value); setNotChosenPage(1); setSelectedActivityIds([]); }} className="h-8 rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600">
+          <option value="All">All Categories</option>
+          {activityCategories.map(category => <option key={category} value={category}>{category}</option>)}
+        </select>
+        <select aria-label="Filter not chosen activities by repeat" value={notChosenRepeatFilter} onChange={event => { setNotChosenRepeatFilter(event.target.value); setNotChosenPage(1); setSelectedActivityIds([]); }} className="h-8 rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600">
+          <option value="All">All Repeats</option>
+          {repeatFilterOptions.map(frequency => <option key={frequency} value={frequency}>{frequency}</option>)}
+        </select>
+      </div>
+      {rows.length > 0 && totalPages > 1 && <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/30 px-4 py-3 text-sm">
+        <label className="text-[10px] font-bold uppercase text-slate-500">Per page: <select value={notChosenItemsPerPage} onChange={event => { setNotChosenItemsPerPage(Number(event.target.value)); setNotChosenPage(1); setSelectedActivityIds([]); }} className="ml-2 h-7 rounded border border-slate-300 bg-white px-2 text-xs font-normal"><option>10</option><option>20</option><option>50</option></select></label>
+        <div className="flex items-center gap-1"><Button variant="ghost" size="xs" disabled={page <= 1} onClick={() => setNotChosenPage(page - 1)} className="h-7 w-7 p-0" aria-label="Previous not chosen page"><ChevronLeft className="h-4 w-4" /></Button><span className="text-xs font-bold text-slate-600">Page {page} of {totalPages}</span><Button variant="ghost" size="xs" disabled={page >= totalPages} onClick={() => setNotChosenPage(page + 1)} className="h-7 w-7 p-0" aria-label="Next not chosen page"><ChevronRight className="h-4 w-4" /></Button></div>
       </div>}
+      <div className="overflow-x-auto"><table className="app-data-table min-w-[1200px] [&_td]:break-words [&_td]:whitespace-normal [&_th]:whitespace-normal">
+        <colgroup><col className="w-[5%]" /><col className="w-[12%]" /><col className="w-[16%]" /><col className="w-[8%]" /><col className="w-[19%]" /><col className="w-[8%]" /><col className="w-[8%]" /><col className="w-[9%]" /><col className="w-[7%]" /><col className="w-[8%]" /></colgroup>
+        <thead className="app-data-table-head"><tr>
+          <th className="px-3 py-2"><div className="flex items-center gap-2"><input type="checkbox" aria-label="Select all not chosen activities on this page" checked={visibleRows.length > 0 && visibleRows.every(activity => selectedActivityIds.includes(activity.id))} ref={element => { if (element) { const count = visibleRows.filter(activity => selectedActivityIds.includes(activity.id)).length; element.indeterminate = count > 0 && count < visibleRows.length; } }} onChange={event => { const pageIds = visibleRows.map(activity => activity.id); setSelectedActivityIds(event.target.checked ? pageIds : []); }} className="h-4 w-4 rounded border-slate-300 text-blue-600" /><CustomTooltip content={selectedActivityIds.length ? `Delete ${selectedActivityIds.length} selected` : 'Select activities to delete'}><button type="button" aria-label="Delete selected not chosen activities" disabled={selectedActivityIds.length === 0} onClick={deleteSelectedActivities} className="grid h-7 w-7 place-items-center rounded text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-35"><Trash2 className="h-4 w-4" /></button></CustomTooltip></div></th>
+          <th className="px-3 py-2"><button type="button" onClick={() => sortBy('activity_type')} className="flex items-center gap-1.5 font-bold hover:text-slate-700">Activity <SortIndicator config={notChosenSortConfig} columnKey="activity_type" /></button></th>
+          <th className="px-3 py-2"><button type="button" onClick={() => sortBy('description')} className="flex items-center gap-1.5 font-bold hover:text-slate-700">Description <SortIndicator config={notChosenSortConfig} columnKey="description" /></button></th>
+          <th className="px-3 py-2">Status</th>
+          <th className="px-3 py-2">Reason</th>
+          <th className="px-3 py-2">Reward Amount</th>
+          <th className="px-3 py-2"><button type="button" onClick={() => sortBy('repeat_frequency')} className="flex items-center gap-1.5 font-bold hover:text-slate-700">Repeat <SortIndicator config={notChosenSortConfig} columnKey="repeat_frequency" /></button></th>
+          <th className="px-3 py-2"><button type="button" onClick={() => sortBy('due_date')} className="flex items-center gap-1.5 font-bold hover:text-slate-700">Activity Date <SortIndicator config={notChosenSortConfig} columnKey="due_date" /></button></th>
+          <th className="px-3 py-2"><button type="button" onClick={() => sortBy('time_of_day')} className="flex items-center gap-1.5 font-bold hover:text-slate-700">Time <SortIndicator config={notChosenSortConfig} columnKey="time_of_day" /></button></th>
+          <th className="px-3 py-2 text-right">Actions</th>
+        </tr></thead>
+        <tbody className="divide-y divide-slate-100">{visibleRows.map(activity => <tr key={activity.id} className="app-data-row">
+          <td className="px-3 py-3"><input type="checkbox" aria-label={`Select ${activity.activity_type}`} checked={selectedActivityIds.includes(activity.id)} onChange={event => setSelectedActivityIds(current => event.target.checked ? Array.from(new Set([...current, activity.id])) : current.filter(id => id !== activity.id))} className="h-4 w-4 rounded border-slate-300 text-blue-600" /></td>
+          <td className="px-3 py-3 font-bold text-slate-900">{activity.activity_type}</td>
+          <td className="px-3 py-3 text-slate-600"><span className="line-clamp-2">{activity.description || '—'}</span></td>
+          <td className="px-3 py-3"><span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-700">Not Chosen</span></td>
+          <td className="px-3 py-3 text-slate-600">{reasonFor(activity)}</td>
+          <td className="px-3 py-3 text-xs font-black text-emerald-700">+{Math.max(1, Number(activity.reward_qty) || 1)} {formatReward(kid?.reward_type, Math.max(1, Number(activity.reward_qty) || 1))}</td>
+          <td className="px-3 py-3 text-slate-600">{activity.repeat_frequency || 'Never'}</td>
+          <td className="px-3 py-3 text-slate-600">{formatSimpleDate(activity.due_date)}</td>
+          <td className="px-3 py-3 text-slate-600">{formatActivityTime(activity)}</td>
+          <td className="px-3 py-3"><div className="flex justify-end gap-1">
+            <Button variant="ghost" size="xs" aria-label={`View ${activity.activity_type}`} onClick={() => setPreviewActivity(activity)} className="h-7 w-7 p-0"><Eye className="h-4 w-4 text-slate-400 hover:text-blue-600" /></Button>
+            <Button variant="ghost" size="xs" aria-label={`Edit ${activity.activity_type}`} onClick={() => handleOpenForm(activity)} className="h-7 w-7 p-0"><Edit2 className="h-4 w-4 text-slate-400 hover:text-blue-600" /></Button>
+            <Button variant="ghost" size="xs" aria-label={`Delete ${activity.activity_type}`} onClick={() => setActivityToDelete(activity.id)} className="h-7 w-7 p-0"><Trash2 className="h-4 w-4 text-slate-400 hover:text-red-600" /></Button>
+          </div></td>
+        </tr>)}</tbody>
+      </table></div>
+      {rows.length === 0 && <div className="px-4 py-12 text-center text-sm text-slate-500">{activities.some(activity => activity.status === 'not_chosen') ? 'No Not Chosen activities match these filters.' : 'No activities in Not Chosen.'}</div>}
     </CardContent></Card>;
   };
 
@@ -1877,7 +1994,7 @@ export default function AssignedActivities() {
     
     const filteredCompleted = completedOriginal
       .filter(a => completedCategoryFilter === 'All' || (a.category || 'Uncategorized') === completedCategoryFilter)
-      .filter(a => !completedDateFilter || a.due_date === completedDateFilter)
+      .filter(a => completedRepeatFilter === 'All' || (a.repeat_frequency || 'Never') === completedRepeatFilter)
       .filter(a => a.activity_type.toLowerCase().includes(completedSearchQuery.toLowerCase()) || (a.description || '').toLowerCase().includes(completedSearchQuery.toLowerCase()));
       
     const sortedCompleted = [...filteredCompleted].sort((a, b) => {
@@ -1926,18 +2043,19 @@ export default function AssignedActivities() {
               </Button>
             </div>
           )}
-          <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-2">
-            <input
-              type="text"
+          <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-3 py-2">
+            <ClearableSearch
+              label="Search completed activities"
               placeholder="Search by name or keyword..."
-              className="flex-1 h-8 rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
+              className="min-w-48 flex-1"
               value={completedSearchQuery}
-              onChange={(e) => {
-                setCompletedSearchQuery(e.target.value);
+              onChange={(value) => {
+                setCompletedSearchQuery(value);
                 setCompletedPage(1);
               }}
             />
             <select
+              aria-label="Filter by category"
               className="h-8 rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
               value={completedCategoryFilter}
               onChange={(e) => {
@@ -1948,15 +2066,18 @@ export default function AssignedActivities() {
               <option value="All">All Categories</option>
               {activityCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
             </select>
-            <input
-              type="date"
+            <select
+              aria-label="Filter by repeat"
               className="h-8 rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
-              value={completedDateFilter}
+              value={completedRepeatFilter}
               onChange={(e) => {
-                setCompletedDateFilter(e.target.value);
+                setCompletedRepeatFilter(e.target.value);
                 setCompletedPage(1);
               }}
-            />
+            >
+              <option value="All">All Repeats</option>
+              {repeatFilterOptions.map(frequency => <option key={frequency} value={frequency}>{frequency}</option>)}
+            </select>
           </div>
 
           {/* Pagination Controls */}
@@ -2434,7 +2555,9 @@ export default function AssignedActivities() {
             <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start no-print">
               <div>
                 <h1 className="app-page-title">
-                  {activeTab === 'activities' 
+                  {activeTab === 'search_all'
+                    ? <div className="flex items-center gap-3"><LayoutList className="h-8 w-8 text-blue-600" /> Search All Activities</div>
+                    : activeTab === 'activities'
                     ? <div className="flex items-center gap-3"><LayoutList className="h-8 w-8 text-blue-600" /> {kid?.name ? `${kid.name}'s ` : ''}Assigned Activities</div>
                     : activeTab === 'help_requested'
                       ? <div className="flex items-center gap-3"><HelpCircle className="h-8 w-8 text-sky-600" /> {kid?.name ? `${kid.name} Needs Help` : 'Learner Needs Help'}</div>
@@ -2472,7 +2595,9 @@ export default function AssignedActivities() {
                                   : <div className="flex items-center gap-3"><Award className="h-8 w-8 text-amber-500" /> {kid?.name ? `${kid.name}'s ` : ''}Rewards Catalog</div>}
                 </h1>
                 <p className="app-page-subtitle">
-                  {activeTab === 'activities' 
+                  {activeTab === 'search_all'
+                    ? 'Find an activity across current, completed, and other sections.'
+                    : activeTab === 'activities'
                     ? 'Organize daily tasks and track learning progress' 
                     : activeTab === 'help_requested'
                       ? `Respond when ${kid?.name || 'your learner'} needs support with an activity.`
@@ -2668,25 +2793,49 @@ export default function AssignedActivities() {
             <Card className="app-table-shell">
               <CardContent className="p-0">
                 {selectedDate && (
-                  <div className="flex items-center justify-between border-b border-blue-100 bg-blue-50/50 px-4 py-2">
-                    <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-blue-100 bg-blue-50/50 px-4 py-2">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                       <Calendar className="h-3.5 w-3.5 text-blue-600" />
                       <span className="text-[11px] font-bold text-blue-900">
                         {formatSimpleDate(selectedDate)}
+                      </span>
+                      <span className="text-[13px] font-bold text-emerald-800" title="Sum of assigned activity tokens for this date, including temporarily unavailable activities and new replacement assignments, but not cancelled or replaced original activities. This is for parent planning, not a learner target.">
+                        Planned rewards: +{selectedDayPlannedReward} {formatReward(kid?.reward_type, selectedDayPlannedReward)}
                       </span>
                     </div>
                     <Button 
                       variant="ghost" 
                       size="xs" 
-                      onClick={() => setSelectedDate(null)}
+                      onClick={() => { setSelectedDate(null); setActivitiesPage(1); setSelectedActivityIds([]); }}
                       className="h-6 text-[10px] text-blue-600 hover:bg-blue-100 hover:text-blue-800"
                     >
                       Clear Filter
                     </Button>
                   </div>
                 )}
+                <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-3 py-2">
+                  <ClearableSearch label="Search assigned activities" placeholder="Search by name or keyword..." className="min-w-48 flex-1" value={assignedSearchQuery} onChange={value => { setAssignedSearchQuery(value); setActivitiesPage(1); setSelectedActivityIds([]); }} />
+                  <select
+                    aria-label="Filter assigned activities by category"
+                    className="h-8 rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
+                    value={assignedCategoryFilter}
+                    onChange={event => { setAssignedCategoryFilter(event.target.value); setActivitiesPage(1); setSelectedActivityIds([]); }}
+                  >
+                    <option value="All">All Categories</option>
+                    {activityCategories.map(category => <option key={category} value={category}>{category}</option>)}
+                  </select>
+                  <select
+                    aria-label="Filter assigned activities by repeat"
+                    className="h-8 rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
+                    value={assignedRepeatFilter}
+                    onChange={event => { setAssignedRepeatFilter(event.target.value); setActivitiesPage(1); setSelectedActivityIds([]); }}
+                  >
+                    <option value="All">All Repeats</option>
+                    {repeatFilterOptions.map(frequency => <option key={frequency} value={frequency}>{frequency}</option>)}
+                  </select>
+                </div>
                 {(() => {
-                  const filteredCount = activitiesToRender.filter(a => !selectedDate || a.due_date === selectedDate).length;
+                  const filteredCount = filteredAssignedActivities.length;
                   const totalActivitiesPages = Math.ceil(filteredCount / activitiesItemsPerPage);
                   return (
                     filteredCount > 0 && totalActivitiesPages > 1 && (
@@ -2953,6 +3102,7 @@ export default function AssignedActivities() {
                               <Button
                                 variant="ghost"
                                 size="xs"
+                                aria-label={`View ${activity.activity_type}`}
                                 className="h-7 w-7 p-0"
                                 onClick={() => setPreviewActivity(activity)}
                               >
@@ -2996,6 +3146,11 @@ export default function AssignedActivities() {
                 </CustomTooltip>
               </div>
             )}
+            {filteredAssignedActivities.length === 0 && activitiesToRender.some(activity => !selectedDate || activity.due_date === selectedDate) && (
+              <div className="px-4 py-10 text-center text-sm font-medium text-slate-500">
+                No assigned activities match these filters.
+              </div>
+            )}
             {!selectedDate && activitiesToRender.length === 0 && (
               <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 py-12 text-center">
                 <div className="rounded-full bg-slate-100 p-3 mb-3">
@@ -3011,7 +3166,9 @@ export default function AssignedActivities() {
             )}
               </CardContent>
             </Card>
-        )) : activeTab === 'completed' ? (
+        )) : activeTab === 'search_all' ? (
+          renderSearchAllTab()
+        ) : activeTab === 'completed' ? (
           renderCompletedTab()
         ) : activeTab === 'not_chosen' ? (
           renderNotChosenTab()
@@ -3044,13 +3201,7 @@ export default function AssignedActivities() {
             )}
             <div className="flex items-center justify-between p-4 border-b border-slate-100">
               <div className="flex items-center gap-2 flex-1">
-                <input
-                  type="text"
-                  placeholder="Search by name or keyword..."
-                  className="flex-1 h-8 rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
-                  value={historySearchQuery}
-                  onChange={(e) => setHistorySearchQuery(e.target.value)}
-                />
+                <ClearableSearch label="Search activity history" placeholder="Search by name or keyword..." className="flex-1" value={historySearchQuery} onChange={setHistorySearchQuery} />
                 <input
                   type="date"
                   className="h-8 rounded border border-slate-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"
@@ -4791,6 +4942,8 @@ export default function AssignedActivities() {
           rewardType={kid?.reward_type}
           showToggleOnly={false}
           timezone={kid?.timezone}
+          showParentDetails
+          replacementActivityName={activities.find(activity => activity.id === previewActivity?.replacement_activity_id)?.activity_type}
         />
       )}
 
@@ -4855,7 +5008,7 @@ export default function AssignedActivities() {
                 ] as const).map(([kind, label, help]) => <label key={kind} className={`flex items-start gap-2 rounded-xl border border-slate-200 p-2 text-sm ${kind === 'replaced' && availabilityDraft.activity.due_date !== todayInKidTimezone ? 'opacity-50' : 'cursor-pointer hover:bg-slate-50'}`}><input type="radio" name="availability-kind" value={kind} checked={availabilityDraft.kind === kind} disabled={kind === 'replaced' && availabilityDraft.activity.due_date !== todayInKidTimezone} onChange={() => setAvailabilityDraft(current => current ? { ...current, kind } : current)} className="mt-1" /><span><strong className="block text-slate-900">{label}</strong><span className="text-slate-600">{help}</span></span></label>)}
               </fieldset>
               {availabilityDraft.kind !== 'available' && <label className="block text-sm font-bold text-slate-800">What should the learner know?
-                <textarea required maxLength={180} value={availabilityDraft.reason} onChange={event => setAvailabilityDraft(current => current ? { ...current, reason: event.target.value } : current)} placeholder="For example: Papa is working right now. We can ask about another time." className="mt-1 min-h-20 w-full rounded-xl border border-slate-300 p-3 text-sm font-normal text-slate-900" />
+                <textarea required maxLength={180} value={availabilityDraft.reason} onChange={event => setAvailabilityDraft(current => current ? { ...current, reason: event.target.value } : current)} placeholder="For example: This activity is not available right now. You can choose another one." className="mt-1 min-h-20 w-full rounded-xl border border-slate-300 p-3 text-sm font-normal text-slate-900" />
                 <span className="mt-1 block text-xs font-normal text-slate-500">Use a short, concrete reason. This will be visible to the learner.</span>
               </label>}
               {availabilityDraft.kind === 'replaced' && <div className="space-y-3">

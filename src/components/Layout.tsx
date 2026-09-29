@@ -153,6 +153,7 @@ export function Layout() {
       ...(activityWorkspaceCounts.notChosen > 0 ? [{ label: 'Not Chosen', to: `${learnerActivitiesRoute}?tab=not_chosen` }] : []),
       ...(activityWorkspaceCounts.onHold > 0 ? [{ label: 'On Hold', to: `${learnerActivitiesRoute}?tab=on_hold` }] : []),
       ...(activityWorkspaceCounts.ended > 0 ? [{ label: 'Ended', to: `${learnerActivitiesRoute}?tab=ended` }] : []),
+      { label: 'Search All Activities', to: `${learnerActivitiesRoute}?tab=search_all` },
     ],
     rewards: [
       { label: 'Rewards Catalog', to: `${learnerActivitiesRoute}?tab=rewards` },

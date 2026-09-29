@@ -42,6 +42,18 @@ const productFeatureRegistry = [
     "introducedOn": "2026-03-01",
     "updates": [
       {
+        "updatedOn": "2026-09-28",
+        "title": "Search all assigned activities",
+        "summary": "Parents can search across current, completed, and other activity sections without browsing each list separately.",
+        "details": "The Activities submenu includes Search All Activities after Ended. Results appear only after a parent enters a search term, grouped by Current, Verification, Completed, Not Chosen, On Hold, and Ended. Matching rows show their status, schedule, reward amount, and View, Edit, and Delete actions. Column sorting and one shared pagination control show 10, 20, or 50 total results per page across all status sections. Search fields have a clear button that removes the entered text.",
+        "familyImpact": "Parents can find an activity by name, category, description, or change reason while keeping an initially uncluttered screen.",
+        "guideParagraphs": [
+          "Open Activities, then Search All Activities. Enter a name or keyword to see matching activities grouped by their current status. No activity rows appear until a search is entered.",
+          "Use the X inside a search field to clear it. View, Edit, and Delete work from the search results as they do in the individual activity lists."
+        ],
+        "help": "Select Activities > Search All Activities, type an activity name or keyword, then open a matching result. Use X to clear the search."
+      },
+      {
         "updatedOn": "2026-09-27",
         "title": "One simpler activity choice",
         "summary": "Parents no longer choose between Do Today and Learner Can Choose.",
@@ -95,7 +107,7 @@ const productFeatureRegistry = [
         "details": "In the parent Activities grid, an available activity can be marked Unavailable for now, Cancelled, or Replaced. The parent writes a short learner-facing reason. For a replacement, the parent chooses a category and an already-assigned activity from tomorrow or later. Saving moves that future assignment to today and points the changed activity to it. The original activity stays visible in Changed plans but cannot be opened or completed. Its own steps and schedule are not changed by the availability control. The replacement remains a choice, never a mandatory next task. One-time movies, parties, meetings, and appointments continue to use the existing Activity to Steps structure rather than a separate event system.",
         "familyImpact": "A learner can see why a familiar choice changed and what else is available without mistaking cancellation for a failure or being forced into the replacement.",
         "guideParagraphs": [
-          "Use Unavailable for now when an activity may become possible again. Write a short, concrete reason such as Papa is working right now; we can ask about another time.",
+          "Use Unavailable for now when an activity may become possible again. Write a short, concrete reason the learner can understand, such as This activity is not available right now; you can choose another one.",
           "Use Cancelled when the plan will not happen this time. For Replaced, choose a category, then an activity already assigned for a future date. Its assignment moves to today and remains an available choice.",
           "Changed plans appear separately from Available Choices on the learner dashboard. The learner can choose something else or take a break. Returning an activity to Available clears its change message."
         ],

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { CheckCircle2, Database, Eye, Loader2, Search, Trash2, X } from 'lucide-react';
 import { Button } from '../components/Button';
+import { ClearableSearch } from '../components/ClearableSearch';
 import { Card, CardContent } from '../components/Card';
 import { Pagination } from '../components/Pagination';
 import { GridColumnHeader } from '../components/GridColumnHeader';
@@ -192,7 +193,7 @@ export default function DataManagement({ mode = 'activity' }: { mode?: 'activity
           <p className="text-xs text-slate-500">Records are never removed automatically.{summary.settings.lastReviewedAt ? ` Last reviewed ${formatAppDate(summary.settings.lastReviewedAt)}.` : ''}</p>
         </div>
         <div className="flex flex-col gap-2 border-b border-slate-100 px-3 py-2 sm:flex-row sm:items-center">
-          <label className="relative flex-1"><span className="sr-only">Search history</span><Search className="pointer-events-none absolute left-2.5 top-2 h-4 w-4 text-slate-400"/><input type="search" value={searchQuery} onChange={event => { setSearchQuery(event.target.value); setCurrentPage(1); }} placeholder={mode === 'activity' ? 'Search by category, activity, description, or action...' : 'Search by reward, description, or action...'} className="h-8 w-full rounded border border-slate-300 bg-white py-1 pl-8 pr-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600"/></label>
+          <div className="relative flex-1"><Search className="pointer-events-none absolute left-2.5 top-2 z-10 h-4 w-4 text-slate-400"/><ClearableSearch label="Search history" value={searchQuery} onChange={value => { setSearchQuery(value); setCurrentPage(1); }} placeholder={mode === 'activity' ? 'Search by category, activity, description, or action...' : 'Search by reward, description, or action...'} inputClassName="pl-8" /></div>
         </div>
         {totalPages > 1 && <Pagination currentPage={activePage} totalPages={totalPages} pageSize={pageSize} onPageChange={setCurrentPage} onPageSizeChange={nextSize => { setPageSize(nextSize); setCurrentPage(1); }} />}
         {!sortedItems.length ? <div className="p-10 text-center"><CheckCircle2 className="mx-auto h-9 w-9 text-emerald-500" /><p className="mt-2 font-black text-slate-800">{searchQuery ? 'No matching history' : 'Nothing needs review'}</p><p className="text-sm text-slate-500">{searchQuery ? 'Try a different name, description, category, or action.' : 'There are no records in the selected period.'}</p></div> : <>

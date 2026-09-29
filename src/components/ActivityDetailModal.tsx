@@ -38,6 +38,11 @@ interface Activity {
   completion_date?: string;
   created_at?: string;
   reward_qty?: number;
+  unavailable_for_now?: boolean;
+  unavailability_kind?: 'temporary' | 'cancelled' | 'replaced' | null;
+  unavailability_reason?: string | null;
+  not_chosen_reason?: 'day_ended' | 'date_passed' | 'temporarily_unavailable' | 'cancelled' | 'replaced' | null;
+  replacement_activity_id?: string | null;
 }
 
 export function ActivityDetailModal({ 
@@ -56,6 +61,8 @@ export function ActivityDetailModal({
   showToggleOnly = false,
   timezone,
   includeAssignmentContext = false,
+  showParentDetails = false,
+  replacementActivityName,
   rewardType = 'reward',
   helpCommunicationMethod = 'spoken',
   helpPromptText = 'Help please',
@@ -84,6 +91,8 @@ export function ActivityDetailModal({
   showToggleOnly?: boolean;
   timezone?: string;
   includeAssignmentContext?: boolean;
+  showParentDetails?: boolean;
+  replacementActivityName?: string | null;
 }) {
   if (!activity) return null;
 
@@ -91,7 +100,9 @@ export function ActivityDetailModal({
   const displayedTime = activity.time_of_day === 'Specific time' && activity.exact_time
     ? new Date(`2000-01-01T${activity.exact_time}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
     : activity.time_of_day;
-  const statusLabel = activity.status === 'awaiting_verification'
+  const statusLabel = showParentDetails && activity.status === 'pending' && activity.unavailable_for_now
+    ? activity.unavailability_kind === 'cancelled' ? 'Cancelled' : activity.unavailability_kind === 'replaced' ? 'Replaced' : 'Unavailable for now'
+    : activity.status === 'awaiting_verification'
     ? 'Waiting for verification'
     : activity.status === 'on_hold'
       ? 'On Hold'
@@ -403,6 +414,13 @@ export function ActivityDetailModal({
                   Assigned Date: {assignedDate}
                 </div>
               )}
+              {showParentDetails && (activity.unavailability_kind || activity.unavailability_reason || activity.not_chosen_reason) && <section aria-label="Parent planning details" className="rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700">
+                <h3 className="font-bold text-slate-900">Plan details</h3>
+                {activity.unavailability_kind && <p className="mt-1"><strong>Status:</strong> {activity.unavailability_kind === 'temporary' ? 'Unavailable for now' : activity.unavailability_kind === 'cancelled' ? 'Cancelled' : 'Replaced'}</p>}
+                {activity.unavailability_reason && <p className="mt-1"><strong>Reason shared with learner:</strong> {activity.unavailability_reason}</p>}
+                {activity.unavailability_kind === 'replaced' && <p className="mt-1"><strong>Replacement activity:</strong> {replacementActivityName || 'The selected replacement is no longer available.'}</p>}
+                {activity.not_chosen_reason && <p className="mt-1"><strong>Not Chosen reason:</strong> {activity.not_chosen_reason === 'day_ended' ? 'The day ended before this choice was selected.' : activity.not_chosen_reason === 'date_passed' ? 'The scheduled date passed without this choice being selected.' : activity.not_chosen_reason === 'temporarily_unavailable' ? 'Parent made this unavailable for now.' : activity.not_chosen_reason === 'cancelled' ? 'Parent cancelled this plan.' : 'Parent offered another activity instead.'}</p>}
+              </section>}
               {(!showToggleOnly || activity.description) && <div className={`${showToggleOnly ? 'text-xl' : 'text-lg'} font-bold leading-snug text-slate-800`}>
                 {!showToggleOnly && <span>{activity.activity_type}</span>}
                 {!showToggleOnly && activity.description && <span aria-hidden="true"> — </span>}
